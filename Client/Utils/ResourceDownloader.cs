@@ -254,6 +254,29 @@ namespace Client.Utils
         }
 
         /// <summary>
+        /// 忘掉某文件之前的下载失败记录，允许它重新入队。
+        /// 用于这种场景：清单未就绪时首次尝试被误判「服务端没有」而进了负缓存，
+        /// 等清单真正到手后需要给它一次重新同步的机会（如音效索引表 SoundList.lst）。
+        /// 注意下载失败过的文件仍留在 _known 里，必须一并移除才能重新入队。
+        /// </summary>
+        internal static void ForgetFailure(string localPath)
+        {
+            try
+            {
+                string relative = ToRelativePath(localPath);
+                if (relative == null) return;
+
+                lock (_sync)
+                {
+                    _failed.Remove(relative);
+                    _known.Remove(relative);
+                }
+            }
+            catch
+            {
+            }
+        }
+        /// <summary>
         /// 依据已加载的资源清单判断服务端是否真的有这个文件（入参为相对客户端根目录的路径）。
         /// 清单尚未就绪或不可用时返回 true（乐观放行），交给真实的 HTTP 请求去判断。
         /// </summary>
@@ -632,7 +655,20 @@ namespace Client.Utils
                     {
                         string text = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                         index = ParseIndex(text);
-                        Log("资源清单加载完成，共 " + CountEntries(index) + " 个文件");
+
+                        // 空清单不能当成有效结果缓存：服务端「微端资源服务」未开启或资源目录
+                        // 未配置时同样返回 200 + 空内容。若把空清单缓存下来，
+                        // ExistsOnServer 会对所有文件返回 false（包括音效索引表 SoundList.lst），
+                        // 索引表从此再也同步不下来 —— 整局音效全部落到默认命名上，声音全错。
+                        if (CountEntries(index) == 0)
+                        {
+                            Log("资源清单为空（服务端未开启微端资源服务或资源目录为空），稍后重试");
+                            index = null;
+                        }
+                        else
+                        {
+                            Log("资源清单加载完成，共 " + CountEntries(index) + " 个文件");
+                        }
                     }
                 }
             }

@@ -46,6 +46,12 @@ namespace Client.MirSounds.Libraries
                     }
                 }
             }
+            else if (!File.Exists(fileName))
+            {
+                // 微端：SoundList.lst 映射出来的名字自带扩展名（如 "sellect-loop2.wav"），
+                // 逐扩展名试探分支不会执行 —— 登录/选人音乐这类循环音必须在这里补按需下载。
+                ResourceDownloader.EnsureLocalFile(fileName);
+            }
 
             if (SoundManager.SupportedFileTypes.Contains(fileType) &&
                 File.Exists(fileName))

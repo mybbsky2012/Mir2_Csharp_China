@@ -38,6 +38,13 @@ namespace Client.MirSounds.Libraries
                     }
                 }
             }
+            else if (!File.Exists(fileName))
+            {
+                // 微端：SoundList.lst 映射出来的名字自带扩展名（如 "1.wav"），
+                // 上面那个逐扩展名试探分支不会执行 —— 必须在这里单独补按需下载，
+                // 否则索引表正常之后所有音效反而一个都下载不下来（整局无声）。
+                ResourceDownloader.EnsureLocalFile(fileName);
+            }
 
             if (SoundManager.SupportedFileTypes.Contains(fileType) &&
                 File.Exists(fileName))
@@ -55,6 +62,11 @@ namespace Client.MirSounds.Libraries
                     AudioData = wholeFile.ToArray();
                 }
             }
+
+            // 微端：本地文件还在排队下载时 AudioData 为空，这条缓存默认要等 30 秒的
+            // 清理周期才会被移除重试 —— 缩短到 5 秒，让音效在下载完成后尽快接上。
+            if (AudioData == null)
+                ExpireTime = CMain.Time + 5000;
         }
     }
 }
