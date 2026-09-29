@@ -28,4 +28,5 @@
 - 公共贡献 (https://github.com/Suprcode/mir2/graphs/contributors)
 
 ## License
-目前，此项目没有许可证
+本项目只做学习研究用，不得私自架设公网服务。
+本人不承担任何因该代码所产生的法律责任
