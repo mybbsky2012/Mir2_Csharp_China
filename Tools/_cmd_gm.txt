@@ -1,0 +1,185 @@
+### LOGIN
+    MSG: 请输入管理员密码！
+### KILL
+    if (parts.Length >= 2)
+### CHANGEGENDER
+    data = parts.Length < 2 ? Info : Envir.GetCharacterInfo(parts[1]);
+### LEVEL
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length >= 3)
+    MSG: 无法调整玩家等级
+### LEVELHERO
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length >= 3)
+    MSG: 等级调整失败
+### MAKE
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length >= 3 && !ushort.TryParse(parts[2], out itemCount))
+### CLEARBUFFS
+### CLEARBAG
+    if (parts.Length >= 2)
+### SUPERMAN
+### GAMEMASTER
+### OBSERVER
+### 加入行会
+### RECALL
+    if (parts.Length < 2) return;
+### OBSERVE
+    if (parts.Length < 2) return;
+### 经天纬地
+### 天人合一
+    MSG: 地图禁止记忆传送
+    MSG: 组长使用记忆套装发起传送召唤...开启命令<@经天纬地>
+    MSG: 你不是组长
+    MSG: 死后无法使用记忆传送
+    MSG: 地图禁用记忆传送
+    //        if (parts.Length < 2) return;
+    MSG: 组长发起记忆传送邀请...开启<@enablegrouprecall>
+    MSG: 无法使用记忆传送
+### 心心相映
+    MSG: 未婚状态
+    MSG: 死亡状态不能召唤
+    MSG: 地图禁用召唤
+    MSG: 需要戴结婚戒指才能召唤
+    MSG: 角色死亡不能召唤
+    MSG: 来自心心相映的召唤，请在夫妻栏(L)中开启允许召唤
+    MSG: 未戴结婚戒指无法召唤
+### TIME
+### ROLL
+### MAP
+### BACKUPPLAYER
+    if (!IsGM || parts.Length < 2) return;
+### ARCHIVEPLAYER
+    if (!IsGM || parts.Length < 2) return;
+    MSG: 不能归档当前玩家
+### LOADPLAYER
+    if (parts.Length < 2) return;
+    MSG: 由于ID不匹配，无法加载该玩家
+### RESTOREPLAYER
+    if (!IsGM || parts.Length < 2) return;
+    if (parts.Length > 2)
+### 传送
+    MSG: 死亡状态无法使用传送戒指
+    if (parts.Length <= 2 || !int.TryParse(parts[1], out x) || !int.TryParse(parts[2], out y))
+### MAPMOVE
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length == 3 || parts.Length == 5)
+    if (parts.Length == 4 || parts.Length == 5)
+    int.TryParse(parts[parts.Length - 2], out x);
+    int.TryParse(parts[parts.Length - 1], out y);
+    switch (parts.Length)
+### GOTO
+    if (parts.Length < 2) return;
+### MOB
+    if (parts.Length < 2)
+    MSG: 刷怪命令参数不正确
+    if (parts.Length >= 3 && IsGM)
+    if (parts.Length >= 4)
+    MSG: 此命令不能生成灵物类怪物
+### RECALLMOB
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length > 2)
+    if (parts.Length > 3)
+### RELOADDROPS
+    MSG: 掉落几率重新加载
+### RELOADNPCS
+    MSG: NPC脚本已重新加载
+### CLEARIPBLOCKS
+### GIVEGOLD
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length > 2)
+### GIVEPEARLS
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length > 2)
+### GIVECREDIT
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length > 2)
+### GIVESKILL
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 3) return;
+    if (!Enum.TryParse(parts.Length > 3 ? parts[2] : parts[1], true, out skill)) return;
+    spellLevel = byte.TryParse(parts.Length > 3 ? parts[3] : parts[2], out spellLevel) ? Math.Min((byte)3, spellLevel) : (byte)0;
+    if (parts.Length > 3)
+### 探测
+    if (parts.Length < 2) return;
+### 退出行会
+    MSG: 公会战期间不能离开行会
+### CREATEGUILD
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    player = parts.Length < 3 ? this : Envir.GetPlayer(parts[1]);
+    String gName = parts.Length < 3 ? parts[1] : parts[2];
+    MSG: 行会名称限制为 3-20 字符
+    MSG: 创建行会失败
+### 允许交易
+    MSG: 允许交易
+    MSG: 关闭交易
+### TRIGGER
+    if (parts.Length < 2) return;
+    if (parts.Length >= 3)
+### RIDE
+### SETFLAG
+    if (parts.Length < 2) return;
+### LISTFLAGS
+    MSG: Flag 
+### CLEARFLAGS
+    player = parts.Length > 1 && IsGM ? Envir.GetPlayer(parts[1]) : this;
+### CLEARMOB
+    if (parts.Length > 1)
+### CHANGECLASS
+    data = parts.Length <= 2 || !IsGM ? Info : Envir.GetCharacterInfo(parts[1]);
+    if (!Enum.TryParse(parts[parts.Length - 1], true, out mirClass) || data.Class == mirClass) return;
+### DIE
+### HAIR
+    if (parts.Length < 2)
+### DECO
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+### ADJUSTPKPOINT
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length > 2)
+### AWAKENING
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 3) return;
+### REMOVEAWAKENING
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+### STARTWAR
+    if (parts.Length < 2) return;
+    MSG: 行会战必须由会长发起
+    MSG: 不能向自己的行会开战
+    MSG: 不能向新手玩家公会宣战
+    MSG: 已经和这个行会交战
+### ADDINVENTORY
+### ADDSTORAGE
+### SUMMONHERO
+### ALLOWOBSERVE
+### INFO
+    if (parts.Length < 2)
+    MSG: --玩家信息--
+    MSG: --怪物信息--
+    MSG: --NPC信息--
+### CLEARQUESTS
+    player = parts.Length > 1 && IsGM ? Envir.GetPlayer(parts[1]) : this;
+### SETQUEST
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 3) return;
+    player = parts.Length > 3 && IsGM ? Envir.GetPlayer(parts[3]) : this;
+### TOGGLETRANSFORM
+### STARTCONQUEST
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length < 1)
+### RESETCONQUEST
+    if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+    if (parts.Length < 1)
+    MSG: 目前没有攻城战事
+### GATES
+    if (parts.Length > 1)
+### CHANGEFLAG
+    if (parts.Length > 1)
+### CHANGEFLAGCOLOUR
+    if (parts.Length > 3)
+### REVIVE
+    if (parts.Length < 2)
+### DELETESKILL
+    if ((!IsGM) || parts.Length < 2) return;
+    if (!Enum.TryParse(parts.Length > 2 ? parts[2] : parts[1], true, out skill1)) return;
+    if (parts.Length > 2)
+### SETTIMER
+    if (parts.Length < 4) return;
+### SETLIGHT
+    if ((!IsGM) || parts.Length < 2) return;

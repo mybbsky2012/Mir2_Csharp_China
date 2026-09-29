@@ -1,0 +1,135 @@
+===== MAKE
+{
+if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+ItemInfo iInfo;
+int itemIndex = 0;
+if (Int32.TryParse(parts[1], out itemIndex))
+{
+iInfo = Envir.GetItemInfo(itemIndex);
+}
+else
+{
+iInfo = Envir.GetItemInfo(parts[1]);
+}
+if (iInfo == null) return;
+ushort itemCount = 1;
+if (parts.Length >= 3 && !ushort.TryParse(parts[2], out itemCount))
+itemCount = 1;
+var tempCount = itemCount;
+while (itemCount > 0)
+{
+if (iInfo.StackSize >= itemCount)
+{
+item = Envir.CreateDropItem(iInfo);
+item.GMMade = true;
+item.Count = itemCount;
+if (CanGainItem(item)) GainItem(item);
+return;
+===== MAPMOVE
+if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+var instanceID = 1; x = 0; y = 0;
+if (parts.Length == 3 || parts.Length == 5)
+int.TryParse(parts[2], out instanceID);
+if (instanceID < 1) instanceID = 1;
+var map = Envir.GetMapByNameAndInstance(parts[1], instanceID);
+if (map == null)
+{
+ReceiveChat((string.Format("地图 {0}:[{1}] 不存在", parts[1], instanceID)), ChatType.System);
+return;
+}
+if (parts.Length == 4 || parts.Length == 5)
+{
+int.TryParse(parts[parts.Length - 2], out x);
+int.TryParse(parts[parts.Length - 1], out y);
+}
+switch (parts.Length)
+{
+case 2:
+ReceiveChat(TeleportRandom(200, 0, map) ? (string.Format("传送地图 {0}", map.Info.FileName)) :
+(string.Format("地图传送失败 {0}", map.Info.FileName)), ChatType.System);
+break;
+case 3:
+ReceiveChat(TeleportRandom(200, 0, map) ? (string.Format("角色传送地图 {0}:[{1}]", map.Info.FileName, instanceID)) :
+(string.Format("地图角色传送失败 {0}:[{1}]", map.Info.FileName, instanceID)), ChatType.System);
+break;
+===== MOB
+if (!IsGM && !Settings.TestServer) return;
+if (parts.Length < 2)
+{
+ReceiveChat("刷怪命令参数不正确", ChatType.System);
+return;
+}
+MonsterInfo mInfo = null;
+int monsterIndex = 0;
+if (Int32.TryParse(parts[1], out monsterIndex))
+{
+mInfo = Envir.GetMonsterInfo(monsterIndex, false);
+}
+else
+{
+mInfo = Envir.GetMonsterInfo(parts[1]);
+}
+if (mInfo == null)
+{
+ReceiveChat((string.Format("怪物 {0} 不存在", parts[1])), ChatType.System);
+return;
+}
+if (conquestAIs.Contains(mInfo.AI))
+{
+ReceiveChat($"此命令不能生成攻城类怪物: {mInfo.Name}", ChatType.System);
+return;
+}
+===== RECALLMOB
+if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+MonsterInfo mInfo2 = null;
+int monsterIndex2 = 0;
+if (Int32.TryParse(parts[1], out monsterIndex2))
+{
+mInfo2 = Envir.GetMonsterInfo(monsterIndex2, false);
+}
+else
+{
+mInfo2 = Envir.GetMonsterInfo(parts[1]);
+}
+if (mInfo2 == null) return;
+count = 1;
+byte petlevel = 0;
+if (parts.Length > 2)
+if (!uint.TryParse(parts[2], out count) || count > 50) count = 1;
+if (parts.Length > 3)
+if (!byte.TryParse(parts[3], out petlevel) || petlevel > 7) petlevel = 0;
+if (!IsGM && (Pets.Count(t => !t.Dead && t.Race != ObjectType.Creature) >= Globals.MaxPets)) return;
+for (int i = 0; i < count; i++)
+{
+MonsterObject monster = MonsterObject.GetMonster(mInfo2);
+if (monster == null) return;
+if (conquestAIs.Contains(monster.Info.AI))
+{
+ReceiveChat($"无法生成攻城类怪物: {monster.Name}", ChatType.System);
+===== SETQUEST
+if ((!IsGM && !Settings.TestServer) || parts.Length < 3) return;
+player = parts.Length > 3 && IsGM ? Envir.GetPlayer(parts[3]) : this;
+if (player == null)
+{
+ReceiveChat(parts[3] + " 未在线", ChatType.System);
+return;
+}
+int.TryParse(parts[1], out int questID);
+int.TryParse(parts[2], out int questState);
+if (questID < 1) return;
+var activeQuest = player.CurrentQuests.FirstOrDefault(e => e.Index == questID);
+//remove from active list
+if (activeQuest != null)
+{
+player.SendUpdateQuest(activeQuest, QuestState.Remove);
+}
+switch (questState)
+{
+case 0: //cancel
+if (player.CompletedQuests.Contains(questID))
+{
+player.CompletedQuests.Remove(questID);
+}
+break;
+case 1: //complete
+if (!player.CompletedQuests.Contains(questID))
