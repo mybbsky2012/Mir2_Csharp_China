@@ -1,0 +1,137 @@
+### LEVEL
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.Level, parts[1], parts[2]));
+### CHECKGOLD
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckGold, parts[1], parts[2]));
+### CHECKGUILDGOLD
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckGuildGold, parts[1], parts[2]));
+### CHECKCREDIT
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckCredit, parts[1], parts[2]));
+### CHECKITEM
+    if (parts.Length < 2) return;
+    tempString = parts.Length < 3 ? "1" : parts[2];
+    tempString2 = parts.Length > 3 ? parts[3] : "";
+    CheckList.Add(new NPCChecks(CheckType.CheckItem, parts[1], tempString, tempString2));
+### CHECKGENDER
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckGender, parts[1]));
+### CHECKCLASS
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckClass, parts[1]));
+### DAYOFWEEK
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckDay, parts[1]));
+### HOUR
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckHour, parts[1]));
+### MIN
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckMinute, parts[1]));
+### CHECKNAMELIST
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckNameList, fileName));
+### CHECKGUILDNAMELIST
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckGuildNameList, fileName));
+### ISADMIN
+    CheckList.Add(new NPCChecks(CheckType.IsAdmin));
+### CHECKPKPOINT
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckPkPoint, parts[1], parts[2]));
+### CHECKRANGE
+    if (parts.Length < 4) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckRange, parts[1], parts[2], parts[3]));
+### CHECKMAP
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckMap, parts[1]));
+### CHECK
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.Check, flagIndex, parts[2]));
+### CHECKHUM
+    if (parts.Length < 4) return;
+    tempString = parts.Length < 5 ? "1" : parts[4];
+    CheckList.Add(new NPCChecks(CheckType.CheckHum, parts[1], parts[2], parts[3], tempString));
+### CHECKMON
+    if (parts.Length < 4) return;
+    tempString = parts.Length < 5 ? "1" : parts[4];
+    CheckList.Add(new NPCChecks(CheckType.CheckMon, parts[1], parts[2], parts[3], tempString));
+### CHECKEXACTMON
+    if (parts.Length < 5) return;
+    tempString = parts.Length < 6 ? "1" : parts[5];
+    CheckList.Add(new NPCChecks(CheckType.CheckExactMon, parts[1], parts[2], parts[3], parts[4], tempString));
+### RANDOM
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.Random, parts[1]));
+### GROUPLEADER
+    CheckList.Add(new NPCChecks(CheckType.Groupleader));
+### GROUPCOUNT
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.GroupCount, parts[1], parts[2]));
+### GROUPCHECKNEARBY
+    CheckList.Add(new NPCChecks(CheckType.GroupCheckNearby));
+### PETCOUNT
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.PetCount, parts[1], parts[2]));
+### PETLEVEL
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.PetLevel, parts[1], parts[2]));
+### CHECKCALC
+    if (parts.Length < 4) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckCalc, parts[1], parts[2], parts[3]));
+### INGUILD
+    if (parts.Length > 1) guildName = parts[1];
+    CheckList.Add(new NPCChecks(CheckType.InGuild, guildName));
+### CHECKQUEST
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckQuest, parts[1], parts[2]));
+### CHECKRELATIONSHIP
+    CheckList.Add(new NPCChecks(CheckType.CheckRelationship));
+### CHECKWEDDINGRING
+    CheckList.Add(new NPCChecks(CheckType.CheckWeddingRing));
+### CHECKPET
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckPet, parts[1]));
+### HASBAGSPACE
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.HasBagSpace, parts[1], parts[2]));
+### ISNEWHUMAN
+    CheckList.Add(new NPCChecks(CheckType.IsNewHuman));
+### CHECKCONQUEST
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckConquest, parts[1]));
+### AFFORDGUARD
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.AffordGuard, parts[1], parts[2]));
+### AFFORDGATE
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.AffordGate, parts[1], parts[2]));
+### AFFORDWALL
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.AffordWall, parts[1], parts[2]));
+### AFFORDSIEGE
+    if (parts.Length < 3) return;
+    CheckList.Add(new NPCChecks(CheckType.AffordSiege, parts[1], parts[2]));
+### CHECKPERMISSION
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckPermission, parts[1]));
+### CONQUESTAVAILABLE
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.ConquestAvailable, parts[1]));
+### CONQUESTOWNER
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.ConquestOwner, parts[1]));
+### CHECKTIMER
+    if (parts.Length < 4) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckTimer, parts[1], parts[2], parts[3]));
+### CHECKLOOPTIMER
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckLoopTimer, parts[1]));
+### CHECKBUFF
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckBuff, parts[1]));
+### CHECKTRANSFORM
+    if (parts.Length < 2) return;
+    CheckList.Add(new NPCChecks(CheckType.CheckTransform, parts[1]));

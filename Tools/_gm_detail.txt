@@ -1,0 +1,238 @@
+===== 加入行会
+EnableGuildInvite = !EnableGuildInvite;
+hintstring = EnableGuildInvite ? "开启行会邀请" : "关闭行会邀请";
+ReceiveChat(hintstring, ChatType.Hint);
+break;
+===== TIME
+ReceiveChat(string.Format("现在时间: {0}", Envir.Now.ToString("hh:mm tt")), ChatType.System);
+break;
+===== ROLL
+int diceNum = Envir.Random.Next(5) + 1;
+if (GroupMembers == null) { return; }
+for (int i = 0; i < GroupMembers.Count; i++)
+{
+PlayerObject playerSend = GroupMembers[i];
+playerSend.ReceiveChat(string.Format("{0} 掷出了 {1}", Name, diceNum), ChatType.Group);
+}
+break;
+===== MAP
+var mapName = CurrentMap.Info.FileName;
+var mapTitle = CurrentMap.Info.Title;
+ReceiveChat((string.Format("当前位于 {0} 地图 ID: {1}", mapTitle, mapName)), ChatType.System);
+break;
+===== 传送
+if (!IsGM && !SpecialMode.HasFlag(SpecialItemMode.Teleport) && !Settings.TestServer) return;
+if (!IsGM && CurrentMap.Info.NoPosition)
+{
+ReceiveChat(("地图禁用传送戒指"), ChatType.System);
+return;
+}
+if (Dead)
+{
+ReceiveChat("死亡状态无法使用传送戒指", ChatType.System);
+return;
+}
+if (Envir.Time < LastTeleportTime)
+{
+ReceiveChat(string.Format("传送冷却时间 {0} 秒", (LastTeleportTime - Envir.Time) / 1000), ChatType.System);
+return;
+}
+===== GOTO
+if (!IsGM) return;
+if (parts.Length < 2) return;
+player = Envir.GetPlayer(parts[1]);
+if (player == null) return;
+Teleport(player.CurrentMap, player.CurrentLocation);
+break;
+===== MOB
+if (!IsGM && !Settings.TestServer) return;
+if (parts.Length < 2)
+{
+ReceiveChat("刷怪命令参数不正确", ChatType.System);
+return;
+}
+MonsterInfo mInfo = null;
+int monsterIndex = 0;
+if (Int32.TryParse(parts[1], out monsterIndex))
+{
+mInfo = Envir.GetMonsterInfo(monsterIndex, false);
+}
+else
+{
+mInfo = Envir.GetMonsterInfo(parts[1]);
+}
+===== RECALLMOB
+if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+MonsterInfo mInfo2 = null;
+int monsterIndex2 = 0;
+if (Int32.TryParse(parts[1], out monsterIndex2))
+{
+mInfo2 = Envir.GetMonsterInfo(monsterIndex2, false);
+}
+else
+{
+mInfo2 = Envir.GetMonsterInfo(parts[1]);
+}
+if (mInfo2 == null) return;
+count = 1;
+byte petlevel = 0;
+if (parts.Length > 2)
+if (!uint.TryParse(parts[2], out count) || count > 50) count = 1;
+===== 探测
+if (!IsGM && !SpecialMode.HasFlag(SpecialItemMode.Probe)) return;
+if (Envir.Time < LastProbeTime)
+{
+ReceiveChat(string.Format("再次使用间隔 {0} 秒", (LastProbeTime - Envir.Time) / 1000), ChatType.System);
+return;
+}
+if (parts.Length < 2) return;
+player = Envir.GetPlayer(parts[1]);
+if (player == null)
+{
+ReceiveChat(parts[1] + " 未在线", ChatType.System);
+return;
+}
+if (player.CurrentMap == null) return;
+if (!IsGM)
+LastProbeTime = Envir.Time + 180000;
+===== TRIGGER
+if (!IsGM) return;
+if (parts.Length < 2) return;
+if (parts.Length >= 3)
+{
+player = Envir.GetPlayer(parts[2]);
+if (player == null)
+{
+ReceiveChat(string.Format("玩家 {0} 未发现", parts[2]), ChatType.System);
+return;
+}
+player.CallDefaultNPC(DefaultNPCType.Trigger, parts[1]);
+return;
+}
+foreach (var pl in Envir.Players)
+{
+pl.CallDefaultNPC(DefaultNPCType.Trigger, parts[1]);
+===== RIDE
+ToggleRide();
+if (HasHero && HeroSpawned && Hero.RidingMount != RidingMount)
+Hero.ToggleRide();
+ChatTime = 0;
+break;
+===== SETFLAG
+if (!IsGM && !Settings.TestServer) return;
+if (parts.Length < 2) return;
+int tempInt = 0;
+if (!int.TryParse(parts[1], out tempInt)) return;
+if (tempInt > Info.Flags.Length - 1) return;
+Info.Flags[tempInt] = !Info.Flags[tempInt];
+for (int f = CurrentMap.NPCs.Count - 1; f >= 0; f--)
+{
+if (Functions.InRange(CurrentMap.NPCs[f].CurrentLocation, CurrentLocation, Globals.DataRange))
+CurrentMap.NPCs[f].CheckVisible(this);
+}
+break;
+===== LISTFLAGS
+if (!IsGM && !Settings.TestServer) return;
+for (int i = 0; i < Info.Flags.Length; i++)
+{
+if (Info.Flags[i] == false) continue;
+ReceiveChat("Flag " + i, ChatType.Hint);
+}
+break;
+===== HAIR
+if (!IsGM && !Settings.TestServer) return;
+if (parts.Length < 2)
+{
+Info.Hair = (byte)Envir.Random.Next(0, 9);
+}
+else
+{
+byte tempByte = 0;
+byte.TryParse(parts[1], out tempByte);
+Info.Hair = tempByte;
+}
+break;
+===== DECO
+if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
+int.TryParse(parts[1], out tempInt);
+DecoObject decoOb = new DecoObject
+{
+Image = tempInt,
+CurrentMap = CurrentMap,
+CurrentLocation = CurrentLocation,
+};
+CurrentMap.AddObject(decoOb);
+decoOb.Spawned();
+Enqueue(decoOb.GetInfo());
+break;
+===== ALLOWOBSERVE
+AllowObserve = !AllowObserve;
+Enqueue(new S.AllowObserve { Allow = AllowObserve });
+break;
+===== INFO
+{
+if (!IsGM && !Settings.TestServer) return;
+MapObject ob = null;
+if (parts.Length < 2)
+{
+Point target = Functions.PointMove(CurrentLocation, Direction, 1);
+if (!CurrentMap.ValidPoint(target)) return;
+Cell cell = CurrentMap.GetCell(target);
+if (cell.Objects == null || cell.Objects.Count < 1) return;
+ob = cell.Objects[0];
+}
+else
+{
+ob = Envir.GetPlayer(parts[1]);
+}
+if (ob == null) return;
+===== TOGGLETRANSFORM
+if (HasBuff(BuffType.变形效果, out Buff transform))
+{
+if (transform.Paused)
+{
+UnpauseBuff(transform);
+}
+else
+{
+PauseBuff(transform);
+}
+RefreshStats();
+hintstring = transform.Paused ? "禁用外形" : "启用外形";
+ReceiveChat(hintstring, ChatType.Hint);
+}
+break;
+===== GATES
+if (MyGuild == null || MyGuild.Conquest == null || !MyGuildRank.Options.HasFlag(GuildRankOptions.CanChangeRank) || MyGuild.Conquest.WarIsOn)
+{
+ReceiveChat(string.Format("没有权限控制城门"), ChatType.System);
+return;
+}
+bool openClose = false;
+if (parts.Length > 1)
+{
+string openclose = parts[1];
+if (openclose.ToUpper() == "CLOSE")
+{
+openClose = true;
+}
+else if (openclose.ToUpper() == "OPEN")
+{
+openClose = false;
+===== REVIVE
+if (!IsGM) return;
+if (parts.Length < 2)
+{
+RefreshStats();
+SetHP(Stats[Stat.HP]);
+SetMP(Stats[Stat.MP]);
+Revive(MaxHealth, true);
+}
+else
+{
+player = Envir.GetPlayer(parts[1]);
+if (player == null) return;
+player.Revive(MaxHealth, true);
+Helpers.ChatSystem.SystemMessage(chatMessage: $"{player} 被管理员 {Name} 复活并恢复为满血状态");
+}
+break;

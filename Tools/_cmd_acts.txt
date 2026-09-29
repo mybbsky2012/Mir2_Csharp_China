@@ -1,0 +1,337 @@
+### MOVE
+    if (parts.Length < 2) return;
+    string tempx = parts.Length > 3 ? parts[2] : "0";
+    string tempy = parts.Length > 3 ? parts[3] : "0";
+    acts.Add(new NPCActions(ActionType.Move, parts[1], tempx, tempy));
+### INSTANCEMOVE
+    if (parts.Length < 5) return;
+    acts.Add(new NPCActions(ActionType.InstanceMove, parts[1], parts[2], parts[3], parts[4]));
+### GIVEGOLD
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.GiveGold, parts[1]));
+### TAKEGOLD
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.TakeGold, parts[1]));
+### GIVEGUILDGOLD
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.GiveGuildGold, parts[1]));
+### TAKEGUILDGOLD
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.TakeGuildGold, parts[1]));
+### GIVECREDIT
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.GiveCredit, parts[1]));
+### TAKECREDIT
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.TakeCredit, parts[1]));
+### GIVEPEARLS
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.GivePearls, parts[1]));
+### TAKEPEARLS
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.TakePearls, parts[1]));
+### GIVEITEM
+    if (parts.Length < 2) return;
+    string count = parts.Length < 3 ? string.Empty : parts[2];
+    acts.Add(new NPCActions(ActionType.GiveItem, parts[1], count));
+### TAKEITEM
+    if (parts.Length < 3) return;
+    count = parts.Length < 3 ? string.Empty : parts[2];
+    string dura = parts.Length > 3 ? parts[3] : "";
+    acts.Add(new NPCActions(ActionType.TakeItem, parts[1], count, dura));
+### GIVEEXP
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.GiveExp, parts[1]));
+### GIVEPET
+    if (parts.Length < 2) return;
+    string petcount = parts.Length > 2 ? parts[2] : "1";
+    string petlevel = parts.Length > 3 ? parts[3] : "0";
+    acts.Add(new NPCActions(ActionType.GivePet, parts[1], petcount, petlevel));
+### REMOVEPET
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.RemovePet, parts[1]));
+### CLEARPETS
+    acts.Add(new NPCActions(ActionType.ClearPets));
+### GOTO
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.Goto, parts[1]));
+### CALL
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.Call, script.ScriptID.ToString()));
+### BREAK
+    acts.Add(new NPCActions(ActionType.Break));
+### ADDNAMELIST
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.AddNameList, fileName));
+### ADDGUILDNAMELIST
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.AddGuildNameList, fileName));
+### DELNAMELIST
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.DelNameList, fileName));
+### DELGUILDNAMELIST
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.DelGuildNameList, fileName));
+### CLEARNAMELIST
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.ClearNameList, fileName));
+### CLEARGUILDNAMELIST
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.ClearGuildNameList, fileName));
+### GIVEHP
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.GiveHP, parts[1]));
+### GIVEMP
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.GiveMP, parts[1]));
+### CHANGELEVEL
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.ChangeLevel, parts[1]));
+### SETPKPOINT
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.SetPkPoint, parts[1]));
+### REDUCEPKPOINT
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.ReducePkPoint, parts[1]));
+### INCREASEPKPOINT
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.IncreasePkPoint, parts[1]));
+### CHANGEGENDER
+    acts.Add(new NPCActions(ActionType.ChangeGender));
+### CHANGECLASS
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.ChangeClass, parts[1]));
+### CHANGEHAIR
+    if (parts.Length < 2)
+    acts.Add(new NPCActions(ActionType.ChangeHair));
+    acts.Add(new NPCActions(ActionType.ChangeHair, parts[1]));
+### LOCALMESSAGE
+    acts.Add(new NPCActions(ActionType.LocalMessage, message, parts[last]));
+### GLOBALMESSAGE
+    acts.Add(new NPCActions(ActionType.GlobalMessage, message, parts[last]));
+### GIVESKILL
+    if (parts.Length < 3) return;
+    string spelllevel = parts.Length > 2 ? parts[2] : "0";
+    acts.Add(new NPCActions(ActionType.GiveSkill, parts[1], spelllevel));
+### REMOVESKILL
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.RemoveSkill, parts[1]));
+### SET
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.Set, flagIndex, parts[2]));
+### PARAM1
+    if (parts.Length < 2) return;
+    string instanceId = parts.Length < 3 ? "1" : parts[2];
+    acts.Add(new NPCActions(ActionType.Param1, parts[1], instanceId));
+### PARAM2
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.Param2, parts[1]));
+### PARAM3
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.Param3, parts[1]));
+### MONGEN
+    if (parts.Length < 2) return;
+    count = parts.Length < 3 ? "1" : parts[2];
+    acts.Add(new NPCActions(ActionType.Mongen, parts[1], count));
+### TIMERECALL
+    if (parts.Length < 2) return;
+    string page = parts.Length > 2 ? parts[2] : "";
+    acts.Add(new NPCActions(ActionType.TimeRecall, parts[1], page));
+### TIMERECALLGROUP
+    if (parts.Length < 2) return;
+    page = parts.Length > 2 ? parts[2] : "";
+    acts.Add(new NPCActions(ActionType.TimeRecallGroup, parts[1], page));
+### BREAKTIMERECALL
+    acts.Add(new NPCActions(ActionType.BreakTimeRecall));
+### DELAYGOTO
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.DelayGoto, parts[1], parts[2]));
+### MONCLEAR
+    if (parts.Length < 2) return;
+    instanceId = parts.Length < 3 ? "1" : parts[2];
+    string mobName = parts.Length < 4 ? "" : parts[3];
+    acts.Add(new NPCActions(ActionType.MonClear, parts[1], instanceId, mobName));
+### GROUPRECALL
+    acts.Add(new NPCActions(ActionType.GroupRecall));
+### GROUPTELEPORT
+    if (parts.Length < 2) return;
+    if (parts.Length == 4)
+    instanceId = parts.Length < 3 ? "1" : parts[2];
+    x = parts.Length < 4 ? "0" : parts[3];
+    y = parts.Length < 5 ? "0" : parts[4];
+    acts.Add(new NPCActions(ActionType.GroupTeleport, parts[1], instanceId, x, y));
+### MOV
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.Mov, parts[1], valueToStore));
+### CALC
+    if (parts.Length < 4) return;
+    acts.Add(new NPCActions(ActionType.Calc, "%" + parts[1], parts[2], valueToStore, parts[1].Insert(1, "-")));
+### GIVEBUFF
+    if (parts.Length < 4) return;
+    string visible = parts.Length > 3 ? parts[3] : "";
+    string infinite = parts.Length > 4 ? parts[4] : "";
+    string stackable = parts.Length > 5 ? parts[5] : "";
+    for (int i = 6; i < parts.Length; i++)
+    acts.Add(new NPCActions(ActionType.GiveBuff, allParams.ToArray()));
+### REMOVEBUFF
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.RemoveBuff, parts[1]));
+### ADDTOGUILD
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.AddToGuild, parts[1]));
+### REMOVEFROMGUILD
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.RemoveFromGuild, parts[1]));
+### REFRESHEFFECTS
+    acts.Add(new NPCActions(ActionType.RefreshEffects));
+### CANGAINEXP
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.CanGainExp, parts[1]));
+### COMPOSEMAIL
+    acts.Add(new NPCActions(ActionType.ComposeMail, message, parts[last]));
+### ADDMAILGOLD
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.AddMailGold, parts[1]));
+### ADDMAILITEM
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.AddMailItem, parts[1], parts[2]));
+### SENDMAIL
+    acts.Add(new NPCActions(ActionType.SendMail));
+### GROUPGOTO
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.GroupGoto, parts[1]));
+### ENTERMAP
+    acts.Add(new NPCActions(ActionType.EnterMap));
+### MAKEWEDDINGRING
+    acts.Add(new NPCActions(ActionType.MakeWeddingRing));
+### FORCEDIVORCE
+    acts.Add(new NPCActions(ActionType.ForceDivorce));
+### LOADVALUE
+    if (parts.Length < 5) return;
+    string group = parts[parts.Length - 2];
+    string key = parts[parts.Length - 1];
+    acts.Add(new NPCActions(ActionType.LoadValue, parts[1], fileName, group, key));
+### SAVEVALUE
+    if (parts.Length < 5) return;
+    string value = parts[parts.Length - 1];
+    acts.Add(new NPCActions(ActionType.SaveValue, fileName, group, key, value));
+### CONQUESTGUARD
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.ConquestGuard, parts[1], parts[2]));
+### CONQUESTGATE
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.ConquestGate, parts[1], parts[2]));
+### CONQUESTWALL
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.ConquestWall, parts[1], parts[2]));
+### TAKECONQUESTGOLD
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.TakeConquestGold, parts[1]));
+### SETCONQUESTRATE
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.SetConquestRate, parts[1], parts[2]));
+### STARTCONQUEST
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.StartConquest, parts[1]));
+### SCHEDULECONQUEST
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.ScheduleConquest, parts[1]));
+### OPENGATE
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.OpenGate, parts[1], parts[2]));
+### CLOSEGATE
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.CloseGate, parts[1], parts[2]));
+### OPENBROWSER
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.OpenBrowser, parts[1]));
+### GETRANDOMTEXT
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.GetRandomText, parts[1], parts[2]));
+### PLAYSOUND
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.PlaySound, parts[1]));
+### SETTIMER
+    if (parts.Length < 4) return;
+    string global = parts.Length < 5 ? "" : parts[4];
+    acts.Add(new NPCActions(ActionType.SetTimer, parts[1], parts[2], parts[3], global));
+### SETLOOPTIMER
+    if (parts.Length < 4) return;
+    acts.Add(new NPCActions(ActionType.SetLoopTimer, parts[1], parts[2], parts[3]));
+### EXPIRETIMER
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.ExpireTimer, parts[1]));
+### UNEQUIPITEM
+    if (parts.Length >= 2)
+    acts.Add(new NPCActions(ActionType.UnequipItem, type));
+### ROLLDIE
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.RollDie, parts[1], parts[2]));
+### ROLLYUT
+    if (parts.Length < 3) return;
+    acts.Add(new NPCActions(ActionType.RollYut, parts[1], parts[2]));
+### DROP
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.Drop, fileName));
+### REVIVEHERO
+    acts.Add(new NPCActions(ActionType.ReviveHero));
+### SEALHERO
+    acts.Add(new NPCActions(ActionType.SealHero));
+### DELETEHERO
+    acts.Add(new NPCActions(ActionType.DeleteHero));
+### CONQUESTREPAIRALL
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.ConquestRepairAll, parts[1]));
+### GIVEGUILDEXP
+    if (parts.Length < 2) return;
+    acts.Add(new NPCActions(ActionType.GiveGuildExp, parts[1]));
+    if (parts.Length == 0) continue;
+### NPCNAME
+### USERNAME
+### LEVEL
+### CLASS
+### MAP
+### MAPNAME
+### X_COORD
+### Y_COORD
+### HP
+### MAXHP
+### MP
+### MAXMP
+### GAMEGOLD
+### CREDIT
+### ARMOUR
+### WEAPON
+### RING_L
+### RING_R
+### BRACELET_L
+### BRACELET_R
+### NECKLACE
+### BELT
+### BOOTS
+### HELMET
+### AMULET
+### STONE
+### TORCH
+### DATE
+### USERCOUNT
+### PKPOINT
+### GUILDWARTIME
+### GUILDWARFEE
+### PARCELAMOUNT
+### GUILDNAME
+### ROLLRESULT
+### MOUNTLOYALTY
+### MOUNT
+### USERNAME
+### LEVEL
+### MAP
+### MAPNAME
+### X_COORD
+### Y_COORD
+### HP
+### MAXHP
+### DATE
+### USERCOUNT
+### GUILDWARTIME
+### GUILDWARFEE
