@@ -11,16 +11,32 @@ namespace Client.MirSounds
     {
         public static Dictionary<int, string> Indexes = new Dictionary<int, string>();
 
+        /// <summary>音效索引表是否已成功加载。</summary>
+        public static bool Loaded;
+
+        /// <summary>每成功加载一次索引表 +1。SoundManager 据此清掉按旧表解析的音效缓存。</summary>
+        public static int Version;
+
+        // 微端重试节流：索引表同步失败后至少间隔 5 秒才再试，避免每个音效播放都去撞一次
+        private static int _nextRetry;
+
         public static void LoadSoundList()
         {
             string fileName = Path.Combine(Settings.SoundPath, "SoundList.lst");
 
-            // 微端：音效索引表只有几十 KB，但少了它所有音效都放不出来，属于值得等一次的资源。
+            // 微端：音效索引表只有几十 KB，但少了它所有音效都放错，属于值得等一次的资源。
             // 服务端确认没有这个文件时会立刻返回，不会白等。
             if (!File.Exists(fileName))
+            {
+                // 之前的尝试可能已把该文件记入下载负缓存（例如清单未就绪时被误判「服务端没有」），
+                // 不清掉的话本次运行永远同步不到索引表 —— 先忘掉失败记录再试。
+                ResourceDownloader.ForgetFailure(fileName);
                 ResourceDownloader.EnsureLocalFileBlocking(fileName, 10000);
+            }
 
             if (!File.Exists(fileName)) return;
+
+            var indexes = new Dictionary<int, string>();
 
             string[] lines = File.ReadAllLines(fileName);
 
@@ -31,9 +47,35 @@ namespace Client.MirSounds
                 int index;
                 if (split.Length <= 1 || !int.TryParse(split[0], out index)) continue;
 
-                if (!Indexes.ContainsKey(index))
-                    Indexes.Add(index, split[split.Length - 1]);
+                if (!indexes.ContainsKey(index))
+                    indexes.Add(index, split[split.Length - 1]);
             }
+
+            // 文件存在但一条都解析不出：当作没加载，留给下次重试
+            if (indexes.Count == 0) return;
+
+            // SoundManager._indexList 是指向本属性的引用，整体替换即可让后续播放走新表；
+            // 之前在缺表期间按「默认命名」临时塞进旧表的条目也随之作废。
+            Indexes = indexes;
+            Loaded = true;
+            Version++;
+        }
+
+        /// <summary>
+        /// 微端：确保音效索引表可用。
+        /// 启动时资源清单往往还没到手，首次加载会失败且此后不再自动重试 ——
+        /// 在清单就绪后的第一次播放时在这里补同步，之后的声音就能按索引表正确按需下载了。
+        /// </summary>
+        public static void EnsureLoaded()
+        {
+            if (Loaded) return;
+            if (!Settings.MicroClient) return;
+            if (!ResourceDownloader.IsIndexAvailable) return;   // 清单没到手不盲目重试
+
+            if (unchecked(Environment.TickCount - _nextRetry) < 0) return;
+            _nextRetry = Environment.TickCount + 5000;
+
+            LoadSoundList();
         }
 
         public static int

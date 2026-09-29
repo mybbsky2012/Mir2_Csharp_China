@@ -45,6 +45,8 @@
             tabPage2 = new TabPage();
             StartHTTPCheckBox = new CheckBox();
             EnableResourceCheckBox = new CheckBox();
+            ResourcePathLabel = new Label();
+            ResourcePathTextBox = new TextBox();
             label15 = new Label();
             HTTPTrustedIPAddressTextBox = new TextBox();
             label14 = new Label();
@@ -255,6 +257,8 @@
             // 
             tabPage2.Controls.Add(StartHTTPCheckBox);
             tabPage2.Controls.Add(EnableResourceCheckBox);
+            tabPage2.Controls.Add(ResourcePathLabel);
+            tabPage2.Controls.Add(ResourcePathTextBox);
             tabPage2.Controls.Add(label15);
             tabPage2.Controls.Add(HTTPTrustedIPAddressTextBox);
             tabPage2.Controls.Add(label14);
@@ -300,6 +304,23 @@
             EnableResourceCheckBox.Text = "启用微端资源服务(边玩边下载)";
             EnableResourceCheckBox.UseVisualStyleBackColor = true;
             EnableResourceCheckBox.CheckedChanged += EnableResourceCheckBox_CheckedChanged;
+            // 
+            // ResourcePathLabel
+            // 
+            ResourcePathLabel.AutoSize = true;
+            ResourcePathLabel.Location = new Point(26, 355);
+            ResourcePathLabel.Margin = new Padding(5, 0, 5, 0);
+            ResourcePathLabel.Name = "ResourcePathLabel";
+            ResourcePathLabel.TabIndex = 25;
+            ResourcePathLabel.Text = "微端资源路径";
+            // 
+            // ResourcePathTextBox
+            // 
+            ResourcePathTextBox.Location = new Point(152, 352);
+            ResourcePathTextBox.Margin = new Padding(5, 7, 5, 7);
+            ResourcePathTextBox.Name = "ResourcePathTextBox";
+            ResourcePathTextBox.Size = new Size(280, 23);
+            ResourcePathTextBox.TabIndex = 26;
             // 
             // label15
             // 
@@ -783,6 +804,8 @@
         private System.Windows.Forms.Label label15;
         private System.Windows.Forms.CheckBox StartHTTPCheckBox;
         private System.Windows.Forms.CheckBox EnableResourceCheckBox;
+        private System.Windows.Forms.Label ResourcePathLabel;
+        private System.Windows.Forms.TextBox ResourcePathTextBox;
         private System.Windows.Forms.Label label16;
         private System.Windows.Forms.TextBox lineMessageTimeTextBox;
         private System.Windows.Forms.Label label17;

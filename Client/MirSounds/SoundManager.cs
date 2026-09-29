@@ -10,6 +10,10 @@ namespace Client.MirSounds
         private static List<KeyValuePair<long, int>> _delayList = new List<KeyValuePair<long, int>>();
         private static Dictionary<int, CachedSound> _cachedOneShots = new Dictionary<int, CachedSound>();
 
+        // 已处理过的音效索引表版本：索引用它识别「索引表刚补同步/重载」，
+        // 据此清掉按旧表（或缺表期间的默认命名）解析出来的错误音效缓存。
+        private static int _seenListVersion;
+
         private static Dictionary<int, LoopProvider> _loopingSounds = new Dictionary<int, LoopProvider>();
         private static LoopProvider _music;
         private static WaveOutEvent _OneShots;
@@ -72,8 +76,31 @@ namespace Client.MirSounds
             _OneShots.Play();
         }
 
+        /// <summary>
+        /// 微端：补同步音效索引表，并在索引表(重)加载后清掉旧缓存。
+        /// 启动早期清单未就绪时索引表会加载失败，之后所有音效都会落到「默认命名」上，
+        /// 在韩服资源包里那些名字对应的完全是别的声音。这里在清单就绪后的第一次播放时
+        /// 把表补齐，已缓存/循环中的错误音效一并清掉，之后的播放按正确映射重新下载。
+        /// </summary>
+        private static void SyncSoundList()
+        {
+            SoundList.EnsureLoaded();
+
+            if (_seenListVersion == SoundList.Version) return;
+            _seenListVersion = SoundList.Version;
+
+            _cachedOneShots.Clear();
+
+            foreach (var sound in _loopingSounds.Values)
+                sound.Stop();
+            _loopingSounds.Clear();
+
+            StopMusic();
+        }
+
         public static void PlaySound(int index, bool loop = false, int delay = 0)
         {
+            SyncSoundList();
             CheckSoundTimeOut();
 
             if (delay > 0)
@@ -127,6 +154,7 @@ namespace Client.MirSounds
 
         public static void PlayMusic(int index, bool loop = false)
         {
+            SyncSoundList();
             StopMusic();
 
             if (_indexList.TryGetValue(index, out string value))
