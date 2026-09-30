@@ -58,5 +58,8 @@
         private System.Windows.Forms.TextBox textBoxName;
         private System.Windows.Forms.Label label23;
         private System.Windows.Forms.Label label24;
+        private System.Windows.Forms.Button btnExportCsv;
+        private System.Windows.Forms.Button btnImportCsv;
+        private System.Windows.Forms.Panel panelBottom;
     }
 }

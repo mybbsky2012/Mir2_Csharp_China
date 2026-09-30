@@ -1,4 +1,5 @@
-﻿using Server.MirEnvir;
+﻿using System.Text;
+using Server.MirEnvir;
 
 namespace Server
 {
@@ -354,6 +355,202 @@ namespace Server
 
             for (int i = 0; i < SelectedItems.Count; i++)
                 SelectedItems[i].CanBuyCredit = CreditOnlyBox.Checked;
+        }
+
+        // ============ 导出 / 导入 CSV ============
+        private void ExportCsv_button_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "CSV (*.csv)|*.csv";
+            sfd.FileName = "商城物品.csv";
+            if (sfd.ShowDialog() != DialogResult.OK) return;
+
+            var sb = new StringBuilder();
+            sb.AppendLine("物品名,金币价格,信用币价格,数量,职业,类别,库存,物品限制,热销,推荐,金币购买,信用币购买");
+
+            foreach (GameShopItem item in SMain.EditEnvir.GameShopList)
+            {
+                string name = item.Info != null ? item.Info.Name : item.ItemIndex.ToString();
+                string line = string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}",
+                    CsvEscape(name),
+                    item.GoldPrice,
+                    item.CreditPrice,
+                    item.Count,
+                    CsvEscape(item.Class),
+                    CsvEscape(item.Category),
+                    item.Stock,
+                    item.iStock,
+                    item.Deal,
+                    item.TopItem,
+                    item.CanBuyGold,
+                    item.CanBuyCredit);
+                sb.AppendLine(line);
+            }
+
+            File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
+            MessageBox.Show("商城物品已导出: " + sfd.FileName, "导出完成");
+        }
+
+        private void ImportCsv_button_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "CSV (*.csv)|*.csv";
+            if (ofd.ShowDialog() != DialogResult.OK) return;
+
+            string[] lines;
+            try
+            {
+                lines = File.ReadAllLines(ofd.FileName, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("读取文件失败: " + ex.Message, "导入错误");
+                return;
+            }
+
+            if (lines.Length < 2)
+            {
+                MessageBox.Show("没有要导入的数据", "导入");
+                return;
+            }
+
+            int updated = 0, added = 0;
+            var envir = SMain.EditEnvir;
+
+            for (int i = 1; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                string[] cells = CsvSplit(line);
+                if (cells.Length < 12) continue;
+
+                string itemName = cells[0].Trim();
+                ItemInfo info = envir.GetItemInfo(itemName);
+                if (info == null) continue;
+
+                GameShopItem existing = null;
+                for (int j = 0; j < envir.GameShopList.Count; j++)
+                {
+                    if (envir.GameShopList[j].ItemIndex == info.Index)
+                    {
+                        existing = envir.GameShopList[j];
+                        break;
+                    }
+                }
+
+                uint.TryParse(cells[1], out uint goldPrice);
+                uint.TryParse(cells[2], out uint creditPrice);
+                ushort.TryParse(cells[3], out ushort count);
+                int.TryParse(cells[5], out int stock);
+                bool.TryParse(cells[7], out bool iStock);
+                bool.TryParse(cells[8], out bool deal);
+                bool.TryParse(cells[9], out bool topItem);
+                bool.TryParse(cells[10], out bool canBuyGold);
+                bool.TryParse(cells[11], out bool canBuyCredit);
+
+                if (existing == null)
+                {
+                    existing = new GameShopItem
+                    {
+                        ItemIndex = info.Index,
+                        Info = info,
+                        GoldPrice = goldPrice,
+                        CreditPrice = creditPrice,
+                        Count = count < 1 ? (ushort)1 : count,
+                        Class = cells[4].Trim(),
+                        Category = cells[5].Trim(),
+                        Stock = stock,
+                        iStock = iStock,
+                        Deal = deal,
+                        TopItem = topItem,
+                        Date = envir.Now,
+                        CanBuyGold = canBuyGold,
+                        CanBuyCredit = canBuyCredit
+                    };
+                    existing.GIndex = ++envir.GameshopIndex;
+                    envir.GameShopList.Add(existing);
+                    added++;
+                }
+                else
+                {
+                    existing.GoldPrice = goldPrice;
+                    existing.CreditPrice = creditPrice;
+                    existing.Count = count < 1 ? (ushort)1 : count;
+                    existing.Class = cells[4].Trim();
+                    existing.Category = cells[5].Trim();
+                    existing.Stock = stock;
+                    existing.iStock = iStock;
+                    existing.Deal = deal;
+                    existing.TopItem = topItem;
+                    existing.CanBuyGold = canBuyGold;
+                    existing.CanBuyCredit = canBuyCredit;
+                    updated++;
+                }
+            }
+
+            LoadGameShopItems();
+            UpdateInterface();
+            MessageBox.Show(string.Format("导入完成: 更新 {0} 条, 新增 {1} 条", updated, added), "导入完成");
+        }
+
+        private static string CsvEscape(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            if (value.Contains(",") || value.Contains("\"") || value.Contains("\n"))
+            {
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            }
+            return value;
+        }
+
+        private static string[] CsvSplit(string line)
+        {
+            var result = new List<string>();
+            bool inQuotes = false;
+            var current = new StringBuilder();
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (inQuotes)
+                {
+                    if (c == '"')
+                    {
+                        if (i + 1 < line.Length && line[i + 1] == '"')
+                        {
+                            current.Append('"');
+                            i++;
+                        }
+                        else
+                        {
+                            inQuotes = false;
+                        }
+                    }
+                    else
+                    {
+                        current.Append(c);
+                    }
+                }
+                else
+                {
+                    if (c == '"')
+                    {
+                        inQuotes = true;
+                    }
+                    else if (c == ',')
+                    {
+                        result.Add(current.ToString());
+                        current.Clear();
+                    }
+                    else
+                    {
+                        current.Append(c);
+                    }
+                }
+            }
+            result.Add(current.ToString());
+            return result.ToArray();
         }
 
 

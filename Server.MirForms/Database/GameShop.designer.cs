@@ -1,4 +1,4 @@
-﻿namespace Server
+namespace Server
 {
     partial class GameShop
     {
@@ -60,6 +60,8 @@
             SectionFilter_lb = new ComboBox();
             CategoryFilter_lb = new ComboBox();
             ResetFilter_button = new Button();
+            ExportCsv_button = new Button();
+            ImportCsv_button = new Button();
             ItemDetails_gb.SuspendLayout();
             groupBox3.SuspendLayout();
             SuspendLayout();
@@ -437,11 +439,35 @@
             ResetFilter_button.UseVisualStyleBackColor = true;
             ResetFilter_button.Click += ResetFilter_button_Click;
             // 
+            // ExportCsv_button
+            // 
+            ExportCsv_button.Location = new Point(14, 572);
+            ExportCsv_button.Margin = new Padding(4, 4, 4, 4);
+            ExportCsv_button.Name = "ExportCsv_button";
+            ExportCsv_button.Size = new Size(113, 30);
+            ExportCsv_button.TabIndex = 120;
+            ExportCsv_button.Text = "导出CSV";
+            ExportCsv_button.UseVisualStyleBackColor = true;
+            ExportCsv_button.Click += ExportCsv_button_Click;
+            // 
+            // ImportCsv_button
+            // 
+            ImportCsv_button.Location = new Point(131, 572);
+            ImportCsv_button.Margin = new Padding(4, 4, 4, 4);
+            ImportCsv_button.Name = "ImportCsv_button";
+            ImportCsv_button.Size = new Size(113, 30);
+            ImportCsv_button.TabIndex = 121;
+            ImportCsv_button.Text = "导入CSV";
+            ImportCsv_button.UseVisualStyleBackColor = true;
+            ImportCsv_button.Click += ImportCsv_button_Click;
+            // 
             // GameShop
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(581, 570);
+            ClientSize = new Size(581, 608);
+            Controls.Add(ImportCsv_button);
+            Controls.Add(ExportCsv_button);
             Controls.Add(ServerLog_button);
             Controls.Add(ResetFilter_button);
             Controls.Add(CategoryFilter_lb);
@@ -495,6 +521,8 @@
         private System.Windows.Forms.ComboBox CategoryFilter_lb;
         private System.Windows.Forms.Button ResetFilter_button;
         private System.Windows.Forms.Button ServerLog_button;
+        private System.Windows.Forms.Button ExportCsv_button;
+        private System.Windows.Forms.Button ImportCsv_button;
         private System.Windows.Forms.CheckBox GoldOnlyBox;
         private System.Windows.Forms.CheckBox CreditOnlyBox;
     }

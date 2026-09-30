@@ -1,5 +1,7 @@
-﻿using Server.MirDatabase;
+using Server.MirDatabase;
 using Server.MirEnvir;
+
+using System.Text;
 
 namespace Server
 {
@@ -158,6 +160,9 @@ namespace Server
             textBoxName = new TextBox();
             label23 = new Label();
             label24 = new Label();
+            btnExportCsv = new Button();
+            btnImportCsv = new Button();
+            panelBottom = new Panel();
             tabControl1.SuspendLayout();
             tabPage1.SuspendLayout();
             panel4.SuspendLayout();
@@ -695,11 +700,42 @@ namespace Server
             label24.TabIndex = 12;
             label24.Text = "技能名称:";
             // 
+            // panelBottom
+            // 
+            panelBottom.Dock = DockStyle.Bottom;
+            panelBottom.Location = new Point(0, 542);
+            panelBottom.Name = "panelBottom";
+            panelBottom.Size = new Size(927, 46);
+            panelBottom.TabIndex = 15;
+            // 
+            // btnExportCsv
+            // 
+            btnExportCsv.Location = new Point(16, 10);
+            btnExportCsv.Name = "btnExportCsv";
+            btnExportCsv.Size = new Size(110, 28);
+            btnExportCsv.TabIndex = 13;
+            btnExportCsv.Text = "导出CSV";
+            btnExportCsv.UseVisualStyleBackColor = true;
+            btnExportCsv.Click += btnExportCsv_Click;
+            // 
+            // btnImportCsv
+            // 
+            btnImportCsv.Location = new Point(134, 10);
+            btnImportCsv.Name = "btnImportCsv";
+            btnImportCsv.Size = new Size(110, 28);
+            btnImportCsv.TabIndex = 14;
+            btnImportCsv.Text = "导入CSV";
+            btnImportCsv.UseVisualStyleBackColor = true;
+            btnImportCsv.Click += btnImportCsv_Click;
+            // 
             // MagicInfoForm
             // 
-            ClientSize = new Size(927, 542);
+            ClientSize = new Size(927, 588);
             Controls.Add(tabControl1);
             Controls.Add(MagiclistBox);
+            Controls.Add(panelBottom);
+            panelBottom.Controls.Add(btnImportCsv);
+            panelBottom.Controls.Add(btnExportCsv);
             Name = "MagicInfoForm";
             Text = "技能设置列表";
             FormClosed += MagicInfoForm_FormClosed;
@@ -976,6 +1012,194 @@ namespace Server
             else {
                 ActiveControl.BackColor = SystemColors.Window;              
             }            
+        }
+
+        // ============ 导出 / 导入 CSV ============
+        private void btnExportCsv_Click(object sender, EventArgs e)
+        {
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "CSV (*.csv)|*.csv";
+            sfd.FileName = "技能数据.csv";
+            if (sfd.ShowDialog() != DialogResult.OK) return;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("技能名,法术,基础MP,等级MP,图标,等级1需求,等级2需求,等级3需求,技能点1,技能点2,技能点3,基准延时,等级延时,基础伤害下限,基础伤害上限,加成伤害下限,加成伤害上限,倍率基础,倍率加成,范围");
+
+            foreach (MagicInfo m in Envir.MagicInfoList)
+            {
+                sb.AppendLine(string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19}",
+                    CsvEscape(m.Name),
+                    m.Spell,
+                    m.BaseCost, m.LevelCost, m.Icon,
+                    m.Level1, m.Level2, m.Level3,
+                    m.Need1, m.Need2, m.Need3,
+                    m.DelayBase, m.DelayReduction,
+                    m.PowerBase, m.PowerBase + m.PowerBonus,
+                    m.MPowerBase, m.MPowerBase + m.MPowerBonus,
+                    m.MultiplierBase, m.MultiplierBonus,
+                    m.Range));
+            }
+
+            File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
+            MessageBox.Show("技能数据已导出: " + sfd.FileName, "导出完成");
+        }
+
+        private void btnImportCsv_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "CSV (*.csv)|*.csv";
+            if (ofd.ShowDialog() != DialogResult.OK) return;
+
+            string[] lines;
+            try
+            {
+                lines = File.ReadAllLines(ofd.FileName, Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("读取文件失败: " + ex.Message, "导入错误");
+                return;
+            }
+
+            if (lines.Length < 2)
+            {
+                MessageBox.Show("没有要导入的数据", "导入");
+                return;
+            }
+
+            int updated = 0, added = 0;
+
+            for (int i = 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                string[] cells = CsvSplit(lines[i]);
+                if (cells.Length < 20) continue;
+
+                string name = cells[0].Trim();
+                if (string.IsNullOrEmpty(name)) continue;
+
+                MagicInfo magic = null;
+                for (int j = 0; j < Envir.MagicInfoList.Count; j++)
+                {
+                    if (string.Equals(Envir.MagicInfoList[j].Name, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        magic = Envir.MagicInfoList[j];
+                        break;
+                    }
+                }
+
+                byte.TryParse(cells[2], out byte baseCost);
+                byte.TryParse(cells[3], out byte levelCost);
+                byte.TryParse(cells[4], out byte icon);
+                byte.TryParse(cells[5], out byte level1);
+                byte.TryParse(cells[6], out byte level2);
+                byte.TryParse(cells[7], out byte level3);
+                ushort.TryParse(cells[8], out ushort need1);
+                ushort.TryParse(cells[9], out ushort need2);
+                ushort.TryParse(cells[10], out ushort need3);
+                uint.TryParse(cells[11], out uint delayBase);
+                uint.TryParse(cells[12], out uint delayReduction);
+                ushort.TryParse(cells[13], out ushort powerBase);
+                ushort.TryParse(cells[14], out ushort powerMax);
+                ushort.TryParse(cells[15], out ushort mPowerBase);
+                ushort.TryParse(cells[16], out ushort mPowerMax);
+                float.TryParse(cells[17], out float multBase);
+                float.TryParse(cells[18], out float multBonus);
+                byte.TryParse(cells[19], out byte range);
+
+                if (magic == null)
+                {
+                    magic = new MagicInfo
+                    {
+                        Name = name,
+                        BaseCost = baseCost,
+                        LevelCost = levelCost,
+                        Icon = icon,
+                        Level1 = level1,
+                        Level2 = level2,
+                        Level3 = level3,
+                        Need1 = need1,
+                        Need2 = need2,
+                        Need3 = need3,
+                        DelayBase = delayBase,
+                        DelayReduction = delayReduction,
+                        PowerBase = powerBase,
+                        PowerBonus = powerMax >= powerBase ? (ushort)(powerMax - powerBase) : (ushort)0,
+                        MPowerBase = mPowerBase,
+                        MPowerBonus = mPowerMax >= mPowerBase ? (ushort)(mPowerMax - mPowerBase) : (ushort)0,
+                        MultiplierBase = multBase,
+                        MultiplierBonus = multBonus,
+                        Range = range
+                    };
+                    Envir.MagicInfoList.Add(magic);
+                    added++;
+                }
+                else
+                {
+                    magic.BaseCost = baseCost;
+                    magic.LevelCost = levelCost;
+                    magic.Icon = icon;
+                    magic.Level1 = level1;
+                    magic.Level2 = level2;
+                    magic.Level3 = level3;
+                    magic.Need1 = need1;
+                    magic.Need2 = need2;
+                    magic.Need3 = need3;
+                    magic.DelayBase = delayBase;
+                    magic.DelayReduction = delayReduction;
+                    magic.PowerBase = powerBase;
+                    magic.PowerBonus = powerMax >= powerBase ? (ushort)(powerMax - powerBase) : (ushort)0;
+                    magic.MPowerBase = mPowerBase;
+                    magic.MPowerBonus = mPowerMax >= mPowerBase ? (ushort)(mPowerMax - mPowerBase) : (ushort)0;
+                    magic.MultiplierBase = multBase;
+                    magic.MultiplierBonus = multBonus;
+                    magic.Range = range;
+                    updated++;
+                }
+            }
+
+            MagiclistBox.Items.Clear();
+            for (int i = 0; i < Envir.MagicInfoList.Count; i++)
+                MagiclistBox.Items.Add(Envir.MagicInfoList[i]);
+            UpdateMagicForm();
+
+            MessageBox.Show(string.Format("导入完成: 更新 {0} 条, 新增 {1} 条", updated, added), "导入完成");
+        }
+
+        private static string CsvEscape(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            if (value.Contains(",") || value.Contains("\"") || value.Contains("\n"))
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
+        }
+
+        private static string[] CsvSplit(string line)
+        {
+            var result = new List<string>();
+            bool inQuotes = false;
+            var current = new System.Text.StringBuilder();
+            for (int i = 0; i < line.Length; i++)
+            {
+                char ch = line[i];
+                if (inQuotes)
+                {
+                    if (ch == '"')
+                    {
+                        if (i + 1 < line.Length && line[i + 1] == '"') { current.Append('"'); i++; }
+                        else inQuotes = false;
+                    }
+                    else current.Append(ch);
+                }
+                else
+                {
+                    if (ch == '"') inQuotes = true;
+                    else if (ch == ',') { result.Add(current.ToString()); current.Clear(); }
+                    else current.Append(ch);
+                }
+            }
+            result.Add(current.ToString());
+            return result.ToArray();
         }
     }
 }

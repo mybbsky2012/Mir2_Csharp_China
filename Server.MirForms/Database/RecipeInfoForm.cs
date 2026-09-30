@@ -1,4 +1,5 @@
-﻿namespace Server.Database
+using System.Text;
+namespace Server.Database
 {
     public partial class RecipeInfoForm : Form
     {
@@ -397,5 +398,198 @@
             }
             #endregion
         }
+
+        #region 导出 / 导入 CSV
+        private void ExportCsvButton_Click(object sender, EventArgs e)
+        {
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string directoryPath = Path.Combine(currentDirectory, "Envir", "Recipe");
+            if (!Directory.Exists(directoryPath))
+            {
+                MessageBox.Show("配方目录不存在", "目录错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Filter = "CSV (*.csv)|*.csv";
+            sfd.FileName = "合成配方.csv";
+            if (sfd.ShowDialog() != DialogResult.OK) return;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("配方文件名,合成数量,成功几率,制作费用,辅助工具,材料1:数量:品质,材料2:数量:品质,材料3:数量:品质,材料4:数量:品质");
+
+            string[] recipeFiles = Directory.GetFiles(directoryPath, "*.txt");
+            foreach (string file in recipeFiles)
+            {
+                string fileName = Path.GetFileNameWithoutExtension(file);
+                string[] lines;
+                try { lines = File.ReadAllLines(file); }
+                catch { continue; }
+
+                string amount = "", chance = "", gold = "", tool = "";
+                var ingredients = new List<string>();
+                string currentSection = "";
+
+                foreach (string line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    if (line.StartsWith("[") && line.EndsWith("]"))
+                    {
+                        currentSection = line.ToLower();
+                        continue;
+                    }
+                    switch (currentSection)
+                    {
+                        case "[recipe]":
+                            var rp = line.Split(new[] { ' ' }, 2);
+                            if (rp.Length == 2)
+                            {
+                                if (rp[0].ToLower() == "amount") amount = rp[1].Trim();
+                                else if (rp[0].ToLower() == "chance") chance = rp[1].Trim();
+                                else if (rp[0].ToLower() == "gold") gold = rp[1].Trim();
+                            }
+                            break;
+                        case "[tools]":
+                            tool = line.Trim();
+                            break;
+                        case "[ingredients]":
+                            ingredients.Add(line.Trim());
+                            break;
+                    }
+                }
+
+                var cells = new List<string> { CsvEscape(fileName), amount, chance, gold, CsvEscape(tool) };
+                for (int i = 0; i < 4; i++)
+                {
+                    if (i < ingredients.Count) cells.Add(CsvEscape(ingredients[i]));
+                    else cells.Add("");
+                }
+                sb.AppendLine(string.Join(",", cells));
+            }
+
+            File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
+            MessageBox.Show("配方数据已导出: " + sfd.FileName, "导出完成");
+        }
+
+        private void ImportCsvButton_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Filter = "CSV (*.csv)|*.csv";
+            if (ofd.ShowDialog() != DialogResult.OK) return;
+
+            string[] lines;
+            try { lines = File.ReadAllLines(ofd.FileName, Encoding.UTF8); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("读取文件失败: " + ex.Message, "导入错误");
+                return;
+            }
+            if (lines.Length < 2)
+            {
+                MessageBox.Show("没有要导入的数据", "导入");
+                return;
+            }
+
+            string currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string directoryPath = Path.Combine(currentDirectory, "Envir", "Recipe");
+            if (!Directory.Exists(directoryPath))
+                Directory.CreateDirectory(directoryPath);
+
+            int imported = 0;
+            for (int i = 1; i < lines.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(lines[i])) continue;
+                string[] cells = CsvSplit(lines[i]);
+                if (cells.Length < 5) continue;
+
+                string recipeName = cells[0].Trim();
+                if (string.IsNullOrEmpty(recipeName)) continue;
+
+                string amount = cells.Length > 1 ? cells[1].Trim() : "";
+                string chance = cells.Length > 2 ? cells[2].Trim() : "";
+                string gold = cells.Length > 3 ? cells[3].Trim() : "";
+                string tool = cells.Length > 4 ? cells[4].Trim() : "";
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("[Recipe]");
+                if (!string.IsNullOrEmpty(amount)) sb.AppendLine("Amount " + amount);
+                if (!string.IsNullOrEmpty(chance)) sb.AppendLine("Chance " + chance);
+                if (!string.IsNullOrEmpty(gold)) sb.AppendLine("Gold " + gold);
+                sb.AppendLine();
+                if (!string.IsNullOrEmpty(tool))
+                {
+                    sb.AppendLine("[Tools]");
+                    sb.AppendLine(tool);
+                    sb.AppendLine();
+                }
+                sb.AppendLine("[Ingredients]");
+                for (int j = 5; j < cells.Length && j < 9; j++)
+                {
+                    if (string.IsNullOrWhiteSpace(cells[j])) continue;
+                    sb.AppendLine(cells[j].Trim());
+                }
+
+                string filePath = Path.Combine(directoryPath, recipeName + ".txt");
+                try
+                {
+                    File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
+                    imported++;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("写入配方失败: " + recipeName + " - " + ex.Message, "导入错误");
+                }
+            }
+
+            // 刷新列表
+            RecipeList.Items.Clear();
+            if (Directory.Exists(directoryPath))
+            {
+                string[] recipeFiles = Directory.GetFiles(directoryPath, "*.txt");
+                for (int i = 0; i < recipeFiles.Length; i++)
+                {
+                    RecipeList.Items.Add(string.Format("{0}. {1}", i + 1, Path.GetFileNameWithoutExtension(recipeFiles[i])));
+                }
+            }
+
+            MessageBox.Show("导入完成: 已导入 " + imported + " 个配方", "导入完成");
+        }
+
+        private static string CsvEscape(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            if (value.Contains(",") || value.Contains("\"") || value.Contains("\n"))
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
+        }
+
+        private static string[] CsvSplit(string line)
+        {
+            var result = new List<string>();
+            bool inQuotes = false;
+            var current = new System.Text.StringBuilder();
+            for (int i = 0; i < line.Length; i++)
+            {
+                char ch = line[i];
+                if (inQuotes)
+                {
+                    if (ch == '"')
+                    {
+                        if (i + 1 < line.Length && line[i + 1] == '"') { current.Append('"'); i++; }
+                        else inQuotes = false;
+                    }
+                    else current.Append(ch);
+                }
+                else
+                {
+                    if (ch == '"') inQuotes = true;
+                    else if (ch == ',') { result.Add(current.ToString()); current.Clear(); }
+                    else current.Append(ch);
+                }
+            }
+            result.Add(current.ToString());
+            return result.ToArray();
+        }
+        #endregion
     }
 }

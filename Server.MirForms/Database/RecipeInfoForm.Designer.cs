@@ -1,4 +1,4 @@
-﻿namespace Server.Database
+namespace Server.Database
 {
     partial class RecipeInfoForm
     {
@@ -58,6 +58,8 @@
             IngredientAmount2TextBox = new TextBox();
             IngredientAmount1TextBox = new TextBox();
             NewRecipeButton = new Button();
+            ExportCsvButton = new Button();
+            ImportCsvButton = new Button();
             RecipeGroupBox.SuspendLayout();
             ToolsGroupBox.SuspendLayout();
             IngredientsGroupBox.SuspendLayout();
@@ -327,11 +329,33 @@
             NewRecipeButton.UseVisualStyleBackColor = true;
             NewRecipeButton.Click += NewRecipeButton_Click;
             // 
+            // ExportCsvButton
+            // 
+            ExportCsvButton.Location = new Point(120, 420);
+            ExportCsvButton.Name = "ExportCsvButton";
+            ExportCsvButton.Size = new Size(78, 26);
+            ExportCsvButton.TabIndex = 25;
+            ExportCsvButton.Text = "导出CSV";
+            ExportCsvButton.UseVisualStyleBackColor = true;
+            ExportCsvButton.Click += ExportCsvButton_Click;
+            // 
+            // ImportCsvButton
+            // 
+            ImportCsvButton.Location = new Point(202, 420);
+            ImportCsvButton.Name = "ImportCsvButton";
+            ImportCsvButton.Size = new Size(78, 26);
+            ImportCsvButton.TabIndex = 26;
+            ImportCsvButton.Text = "导入CSV";
+            ImportCsvButton.UseVisualStyleBackColor = true;
+            ImportCsvButton.Click += ImportCsvButton_Click;
+            // 
             // RecipeInfoForm
             // 
             AutoScaleDimensions = new SizeF(7F, 17F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(455, 418);
+            ClientSize = new Size(455, 460);
+            Controls.Add(ImportCsvButton);
+            Controls.Add(ExportCsvButton);
             Controls.Add(NewRecipeButton);
             Controls.Add(IngredientsGroupBox);
             Controls.Add(ToolsGroupBox);
@@ -376,6 +400,8 @@
         private TextBox IngredientName2TextBox;
         private TextBox IngredientName1TextBox;
         private Button NewRecipeButton;
+        private Button ExportCsvButton;
+        private Button ImportCsvButton;
         private Label label8;
         private TextBox Quality4TextBox;
         private TextBox Quality3TextBox;
