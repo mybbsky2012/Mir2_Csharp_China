@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <AssemblyName>SpliceMagic</AssemblyName>
+    <RootNamespace>SpliceMagic</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- v110（当前源码）解析类：用于定位并改写目标库的技能段 -->
+    <Reference Include="Server">
+      <HintPath>..\Build\Server\Debug\Server.dll</HintPath>
+    </Reference>
+    <Reference Include="Shared">
+      <HintPath>..\Build\Server\Debug\Shared.dll</HintPath>
+    </Reference>
+    <Reference Include="Server.Library">
+      <HintPath>..\Build\Server\Debug\Server.Library.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

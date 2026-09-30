@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <AssemblyName>SpliceMagic117</AssemblyName>
+    <RootNamespace>SpliceMagic117</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- 用"1"（v117 引擎）自带的程序集解析它的 Server.MirDB -->
+    <Reference Include="Server">
+      <HintPath>E:\BaiduNetdiskDownload\韩Mir2\20260915更新\1\Server.dll</HintPath>
+    </Reference>
+    <Reference Include="Shared">
+      <HintPath>E:\BaiduNetdiskDownload\韩Mir2\20260915更新\1\Shared.dll</HintPath>
+    </Reference>
+    <Reference Include="Server.Library">
+      <HintPath>E:\BaiduNetdiskDownload\韩Mir2\20260915更新\1\Server.Library.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
+  </ItemGroup>
+</Project>

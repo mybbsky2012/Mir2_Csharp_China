@@ -20,6 +20,7 @@ namespace Server
 
             StartHTTPCheckBox.Checked = Settings.StartHTTPService;
             EnableResourceCheckBox.Checked = Settings.EnableResourceService;
+            ResourcePathTextBox.Text = Settings.ResourcePath;
             HTTPIPAddressTextBox.Text = Settings.HTTPIPAddress;
             HTTPTrustedIPAddressTextBox.Text = Settings.HTTPTrustedIPAddress;
 
@@ -67,6 +68,12 @@ namespace Server
 
             Settings.StartHTTPService = StartHTTPCheckBox.Checked;
             Settings.EnableResourceService = EnableResourceCheckBox.Checked;
+
+            // 微端资源路径：之前界面没这个输入框，手动改 Setup.ini 会在保存设置时被写回旧值。
+            // 留空则保留原值（相对路径基于服务端目录，如 .\ClientResources\）。
+            if (!string.IsNullOrWhiteSpace(ResourcePathTextBox.Text))
+                Settings.ResourcePath = ResourcePathTextBox.Text.Trim();
+
             if (tryParseHttp())
                 Settings.HTTPIPAddress = HTTPIPAddressTextBox.Text.ToString();
 
