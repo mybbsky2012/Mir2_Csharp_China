@@ -47,6 +47,7 @@
             EnableResourceCheckBox = new CheckBox();
             ResourcePathLabel = new Label();
             ResourcePathTextBox = new TextBox();
+            ResourceAllowAnyIPCheckBox = new CheckBox();
             label15 = new Label();
             HTTPTrustedIPAddressTextBox = new TextBox();
             label14 = new Label();
@@ -259,6 +260,7 @@
             tabPage2.Controls.Add(EnableResourceCheckBox);
             tabPage2.Controls.Add(ResourcePathLabel);
             tabPage2.Controls.Add(ResourcePathTextBox);
+            tabPage2.Controls.Add(ResourceAllowAnyIPCheckBox);
             tabPage2.Controls.Add(label15);
             tabPage2.Controls.Add(HTTPTrustedIPAddressTextBox);
             tabPage2.Controls.Add(label14);
@@ -321,6 +323,18 @@
             ResourcePathTextBox.Name = "ResourcePathTextBox";
             ResourcePathTextBox.Size = new Size(280, 23);
             ResourcePathTextBox.TabIndex = 26;
+            // 
+            // ResourceAllowAnyIPCheckBox
+            // 
+            ResourceAllowAnyIPCheckBox.AutoSize = true;
+            ResourceAllowAnyIPCheckBox.Location = new Point(28, 165);
+            ResourceAllowAnyIPCheckBox.Margin = new Padding(5, 7, 5, 7);
+            ResourceAllowAnyIPCheckBox.Name = "ResourceAllowAnyIPCheckBox";
+            ResourceAllowAnyIPCheckBox.Size = new Size(230, 21);
+            ResourceAllowAnyIPCheckBox.TabIndex = 27;
+            ResourceAllowAnyIPCheckBox.Text = "允许任意IP下载微端资源(微端必开)";
+            ResourceAllowAnyIPCheckBox.UseVisualStyleBackColor = true;
+            ResourceAllowAnyIPCheckBox.CheckedChanged += ResourceAllowAnyIPCheckBox_CheckedChanged;
             // 
             // label15
             // 
@@ -806,6 +820,7 @@
         private System.Windows.Forms.CheckBox EnableResourceCheckBox;
         private System.Windows.Forms.Label ResourcePathLabel;
         private System.Windows.Forms.TextBox ResourcePathTextBox;
+        private System.Windows.Forms.CheckBox ResourceAllowAnyIPCheckBox;
         private System.Windows.Forms.Label label16;
         private System.Windows.Forms.TextBox lineMessageTimeTextBox;
         private System.Windows.Forms.Label label17;
