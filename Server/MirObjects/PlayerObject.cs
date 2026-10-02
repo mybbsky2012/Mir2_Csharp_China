@@ -5567,7 +5567,8 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (temp.Weight + Hero.CurrentBagWeight > Hero.Stats[Stat.背包负重])
+            // 超负重：主人开启后，向英雄背包转移物品也不再校验英雄负重
+            if (!Hero.IgnoreWeight && temp.Weight + Hero.CurrentBagWeight > Hero.Stats[Stat.背包负重])
             {
                 ReceiveChat("太重了，无法移动", ChatType.System);
                 Enqueue(p);
@@ -13880,7 +13881,7 @@ namespace Server.MirObjects
 
         #endregion
 
-        #region 辅助开关（免蜡 / 穿人）
+        #region 辅助开关（免蜡 / 穿人 / 免助跑 / 超负重 / 泰山）
 
         /// <summary>
         /// 处理客户端提交的辅助开关请求。allowed 由服务器配置决定，
@@ -13901,17 +13902,50 @@ namespace Server.MirObjects
                 case PlayerOptionType.NoRunUp:
                     NoRunUp = effective;
                     break;
+                case PlayerOptionType.OverWeight:
+                    OverWeight = effective;
+                    break;
+                case PlayerOptionType.MountTai:
+                    MountTai = effective;
+                    break;
                 default:
                     return;
             }
+
+            SyncHeroOptions(Hero);
 
             Enqueue(new S.PlayerOption { Option = option, Allowed = allowed, Value = effective });
 
             if (!allowed)
             {
-                ReceiveChat(string.Format("本服务器未开放「{0}」功能。",
-                    option == PlayerOptionType.NoLamp ? "免蜡"
-                    : option == PlayerOptionType.NoRunUp ? "免助跑" : "穿人"), ChatType.System);
+                ReceiveChat(string.Format("本服务器未开放「{0}」功能。", OptionName(option)), ChatType.System);
+            }
+        }
+
+        /// <summary>
+        /// 把移动类辅助开关同步给英雄：玩家可切换操作英雄（客户端 UserHeroObject），
+        /// 若不同步，穿人 / 免助跑 / 超负重 在操作英雄时会失效。
+        /// 泰山只影响自身受击表现，无需同步。
+        /// </summary>
+        private void SyncHeroOptions(HeroObject hero)
+        {
+            if (hero == null) return;
+
+            hero.WalkThrough = WalkThrough;
+            hero.NoRunUp = NoRunUp;
+            hero.OverWeight = OverWeight;
+        }
+
+        private static string OptionName(PlayerOptionType option)
+        {
+            switch (option)
+            {
+                case PlayerOptionType.NoLamp: return "免蜡";
+                case PlayerOptionType.WalkThrough: return "穿人";
+                case PlayerOptionType.NoRunUp: return "免助跑";
+                case PlayerOptionType.OverWeight: return "超负重";
+                case PlayerOptionType.MountTai: return "泰山";
+                default: return option.ToString();
             }
         }
 
@@ -13921,6 +13955,8 @@ namespace Server.MirObjects
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.NoLamp, Allowed = Settings.EnableNoLamp, Value = NoLamp });
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThrough, Allowed = Settings.EnableWalkThrough, Value = WalkThrough });
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.NoRunUp, Allowed = true, Value = NoRunUp });
+            Enqueue(new S.PlayerOption { Option = PlayerOptionType.OverWeight, Allowed = Settings.EnableOverWeight, Value = OverWeight });
+            Enqueue(new S.PlayerOption { Option = PlayerOptionType.MountTai, Allowed = Settings.EnableMountTai, Value = MountTai });
         }
 
         #endregion
@@ -13955,6 +13991,7 @@ namespace Server.MirObjects
                 SpawnHero(hero);
 
             Hero = hero;
+            SyncHeroOptions(hero);
             Info.HeroSpawned = true;
             Enqueue(new S.UpdateHeroSpawnState { State = hero.Dead ? HeroSpawnState.Dead : HeroSpawnState.Summoned });
         }

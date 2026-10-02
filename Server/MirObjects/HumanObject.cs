@@ -132,7 +132,7 @@ namespace Server.MirObjects
         {
             get
             {
-                return !Dead && Envir.Time >= ActionTime && (_stepCounter > 0 || FastRun || NoRunUp) && (!Sneaking || ActiveSwiftFeet) && CurrentBagWeight <= Stats[Stat.背包负重] && !CurrentPoison.HasFlag(PoisonType.Paralysis) && !CurrentPoison.HasFlag(PoisonType.LRParalysis) && !CurrentPoison.HasFlag(PoisonType.Frozen);
+                return !Dead && Envir.Time >= ActionTime && (_stepCounter > 0 || FastRun || NoRunUp) && (!Sneaking || ActiveSwiftFeet) && (IgnoreWeight || CurrentBagWeight <= Stats[Stat.背包负重]) && !CurrentPoison.HasFlag(PoisonType.Paralysis) && !CurrentPoison.HasFlag(PoisonType.LRParalysis) && !CurrentPoison.HasFlag(PoisonType.Frozen);
             }
         }
         public virtual bool CanAttack
@@ -177,8 +177,15 @@ namespace Server.MirObjects
 
         //辅助开关（内挂）：由服务器校验后设置，见 PlayerObject.SetPlayerOption
         public bool NoLamp;         // 免蜡：夜晚无需照明（客户端渲染用，服务器仅记录/回执）
-        public bool WalkThrough;    // 穿人：移动时忽略其他玩家/英雄/怪物的阻挡
+        public bool WalkThrough;    // 穿人：移动时忽略其他玩家/英雄/怪物/NPC 的阻挡
         public bool NoRunUp;        // 免助跑：无需先走一步即可直接奔跑
+        public bool OverWeight;     // 超负重：负重超限仍可奔跑、装备不受腕力/装备负重限制
+        public bool MountTai;       // 泰山：被攻击时不后仰（客户端表现，服务器仅记录/回执）
+
+        /// <summary>
+        /// 是否忽略负重限制（超负重）。自身开启即生效；英雄跟随主人的开关，见 HeroObject。
+        /// </summary>
+        public virtual bool IgnoreWeight => OverWeight;
 
         public virtual int PotionBeltMinimum => 0;
         public virtual int PotionBeltMaximum => 4;
@@ -2464,8 +2471,8 @@ namespace Server.MirObjects
                 {
                     MapObject ob = cell.Objects[i];
 
-                    // 穿人：开启后忽略其他玩家/英雄/怪物的阻挡（NPC、地形仍然有效）
-                    if (WalkThrough && (ob.Race == ObjectType.Player || ob.Race == ObjectType.Hero || ob.Race == ObjectType.Monster)) continue;
+                    // 穿人：开启后忽略其他玩家/英雄/怪物/NPC 的阻挡（地形、门、障碍物仍然有效）
+                    if (WalkThrough && (ob.Race == ObjectType.Player || ob.Race == ObjectType.Hero || ob.Race == ObjectType.Monster || ob.Race == ObjectType.Merchant)) continue;
 
                     if (ob.Race == ObjectType.Merchant && Race == ObjectType.Player)
                     {
@@ -2543,7 +2550,8 @@ namespace Server.MirObjects
         }
         public bool Run(MirDirection dir)
         {
-            if (CurrentBagWeight > Stats[Stat.背包负重])
+            // 超负重：背包超重时不再被强制降级为走路
+            if (!IgnoreWeight && CurrentBagWeight > Stats[Stat.背包负重])
             {
                 Walk(dir);
             }
@@ -4434,7 +4442,8 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 2) return;
+            // 道士可以同时养「变异骷髅 + 神兽 + 月灵」三只（原上限 2）
+            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 3) return;
 
             UserItem item = GetAmulet(1);
             if (item == null) return;
@@ -4477,7 +4486,8 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 2) return;
+            // 道士可以同时养「变异骷髅 + 神兽 + 月灵」三只（原上限 2）
+            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 3) return;
 
             UserItem item = GetAmulet(5);
             if (item == null) return;
@@ -4766,7 +4776,8 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 2) return;
+            // 道士可以同时养「变异骷髅 + 神兽 + 月灵」三只（原上限 2）
+            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 3) return;
 
             UserItem item = GetAmulet(2);
             if (item == null) return;
@@ -8027,14 +8038,18 @@ namespace Server.MirObjects
                     break;
             }
 
-            if (item.Info.Type == ItemType.武器 || item.Info.Type == ItemType.照明物)
+            // 超负重：不再校验腕力负重 / 装备负重
+            if (!IgnoreWeight)
             {
-                if (item.Weight - (Info.Equipment[slot] != null ? Info.Equipment[slot].Weight : 0) + CurrentHandWeight > Stats[Stat.腕力负重])
+                if (item.Info.Type == ItemType.武器 || item.Info.Type == ItemType.照明物)
+                {
+                    if (item.Weight - (Info.Equipment[slot] != null ? Info.Equipment[slot].Weight : 0) + CurrentHandWeight > Stats[Stat.腕力负重])
+                        return false;
+                }
+                else
+                    if (item.Weight - (Info.Equipment[slot] != null ? Info.Equipment[slot].Weight : 0) + CurrentWearWeight > Stats[Stat.装备负重])
                     return false;
             }
-            else
-                if (item.Weight - (Info.Equipment[slot] != null ? Info.Equipment[slot].Weight : 0) + CurrentWearWeight > Stats[Stat.装备负重])
-                return false;
 
             if (RidingMount && item.Info.Type != ItemType.照明物)
             {

@@ -1893,7 +1893,8 @@ namespace Client.MirControls
                                     }
                                 }
 
-                                if (GameScene.SelectedCell.Item.Weight + MapObject.Hero.CurrentBagWeight > MapObject.Hero.Stats[Stat.背包负重])
+                                // 超负重：主人开启后，向英雄背包转移物品不再校验英雄负重
+                                if (!Settings.OverWeight && GameScene.SelectedCell.Item.Weight + MapObject.Hero.CurrentBagWeight > MapObject.Hero.Stats[Stat.背包负重])
                                 {
                                     GameScene.Scene.ChatDialog.ReceiveChat("无法完成操作-背包超重", ChatType.System);
                                     GameScene.SelectedCell = null;
@@ -2439,20 +2440,24 @@ namespace Client.MirControls
                     break;
             }
 
-            if (i.Info.Type == ItemType.武器 || i.Info.Type == ItemType.照明物)
+            // 超负重：不再校验腕力负重 / 装备负重（与服务器 HumanObject.IgnoreWeight 一致）
+            if (!Settings.OverWeight)
             {
-                if (i.Weight - (Item != null ? Item.Weight : 0) + actor.CurrentHandWeight > actor.Stats[Stat.腕力负重])
+                if (i.Info.Type == ItemType.武器 || i.Info.Type == ItemType.照明物)
                 {
-                    GameScene.Scene.ChatDialog.ReceiveChat(GameLanguage.TooHeavyToHold, ChatType.System);
-                    return false;
+                    if (i.Weight - (Item != null ? Item.Weight : 0) + actor.CurrentHandWeight > actor.Stats[Stat.腕力负重])
+                    {
+                        GameScene.Scene.ChatDialog.ReceiveChat(GameLanguage.TooHeavyToHold, ChatType.System);
+                        return false;
+                    }
                 }
-            }
-            else
-            {
-                if (i.Weight - (Item != null ? Item.Weight : 0) + actor.CurrentWearWeight > actor.Stats[Stat.装备负重])
+                else
                 {
-                    GameScene.Scene.ChatDialog.ReceiveChat("太重了", ChatType.System);
-                    return false;
+                    if (i.Weight - (Item != null ? Item.Weight : 0) + actor.CurrentWearWeight > actor.Stats[Stat.装备负重])
+                    {
+                        GameScene.Scene.ChatDialog.ReceiveChat("太重了", ChatType.System);
+                        return false;
+                    }
                 }
             }
 
