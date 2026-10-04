@@ -21,9 +21,19 @@ namespace Client.MirScenes
         public List<SelectInfo> Characters = new List<SelectInfo>();
         private int _selected;
 
+<<<<<<< HEAD
         private long _loadingSince;                 // 载入画面出现/进入请求发出的时间（服务器一直没回包时自动撤掉）
         private bool _startPending;                 // 已点「开始游戏」，正在载入流程里（等资源/等回包）
         private bool _startPacketSent;              // 进入请求是否已真正发出（资源加载完才发）
+=======
+<<<<<<< HEAD
+        private long _loadingSince;                 // 载入画面出现/进入请求发出的时间（服务器一直没回包时自动撤掉）
+        private bool _startPending;                 // 已点「开始游戏」，正在载入流程里（等资源/等回包）
+        private bool _startPacketSent;              // 进入请求是否已真正发出（资源加载完才发）
+=======
+        private long _loadingSince;                 // 载入画面出现的时间（服务器一直没回包时自动撤掉）
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
 
         public SelectScene(List<SelectInfo> characters)
         {
@@ -284,6 +294,13 @@ namespace Client.MirScenes
             _startPacketSent = true;
             _loadingSince = CMain.Time;      // 15 秒无回包保护从这一刻起算
             LoadingScreen.SetStatus("正在进入游戏，请稍候...");
+<<<<<<< HEAD
+=======
+
+            // 点「开始游戏」就立刻切到载入画面，盖住从现在起直到地图画出来的那段黑屏
+            _loadingSince = CMain.Time;
+            LoadingScreen.Show();
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
 
             Network.Enqueue(new C.StartGame
             {
@@ -293,6 +310,10 @@ namespace Client.MirScenes
 
         public override void Process()
         {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
             // 已点「开始游戏」但游戏资源（图库）还在后台加载：
             // 载入画面保持全屏盖着，底部实时显示加载进度；加载完自动发出进入请求。
             if (_startPending && !_startPacketSent)
@@ -315,6 +336,14 @@ namespace Client.MirScenes
             if (_startPending && _startPacketSent && LoadingScreen.Visible && CMain.Time - _loadingSince > 15000)
             {
                 _startPending = false;
+<<<<<<< HEAD
+=======
+=======
+            // 服务器一直没回包（掉线/网络异常）：15 秒后自动退出载入画面，让玩家可以再点一次
+            if (LoadingScreen.Visible && CMain.Time - _loadingSince > 15000)
+            {
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
                 LoadingScreen.Hide();
                 StartGameButton.Enabled = _selected >= 0 && _selected < Characters.Count;
             }
@@ -488,22 +517,50 @@ namespace Client.MirScenes
             switch (p.Result)
             {
                 case 0:
+<<<<<<< HEAD
                     _startPending = false;
+=======
+<<<<<<< HEAD
+                    _startPending = false;
+=======
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
                     LoadingScreen.Hide();
                     MirMessageBox.Show("服务器维护禁止登录");
                     break;
                 case 1:
+<<<<<<< HEAD
                     _startPending = false;
+=======
+<<<<<<< HEAD
+                    _startPending = false;
+=======
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
                     LoadingScreen.Hide();
                     MirMessageBox.Show("尚未登录");
                     break;
                 case 2:
+<<<<<<< HEAD
                     _startPending = false;
+=======
+<<<<<<< HEAD
+                    _startPending = false;
+=======
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
                     LoadingScreen.Hide();
                     MirMessageBox.Show("没有激活角色");
                     break;
                 case 3:
+<<<<<<< HEAD
                     _startPending = false;
+=======
+<<<<<<< HEAD
+                    _startPending = false;
+=======
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
                     LoadingScreen.Hide();
                     MirMessageBox.Show("无效地图或没有新手出生点");
                     break;
