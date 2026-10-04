@@ -337,6 +337,10 @@ namespace Launcher
         {
             using (HttpClient client = new())
             {
+                // 补丁服务器连不上时默认要等 100 秒才报错，「开始」按钮一直点不了；
+                // 收紧到 10 秒，失败就按「检查失败」走原来的错误提示流程。
+                client.Timeout = TimeSpan.FromSeconds(10);
+
                 client.DefaultRequestHeaders.Accept.Clear();
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.DefaultRequestHeaders.AcceptCharset.Clear();
@@ -690,13 +694,31 @@ namespace Launcher
             else Credit_label.Text = "技术支持水晶传奇：CrystalM2";
         }
 
+        /// <summary>
+        /// 释放 WebView2（浏览窗口）。WebView2 运行时会拉起独立的子进程，
+        /// 不释放的话它可能在宿主进程终止时拖住退出流程。由 Program.HardExit 限时调用。
+        /// </summary>
+        internal void ReleaseBrowser()
+        {
+            try { Main_browser?.Dispose(); } catch { }
+        }
+
         private void AMain_FormClosed(object sender, FormClosedEventArgs e)
         {
-                MoveOldFilesToCurrent();
+                // 退出路径必须保证能走到最后的 Program.HardExit()：
+                // 中途任何一步抛异常都不能让它跑不到，否则又会回到「进程关不掉」。
+                try { MoveOldFilesToCurrent(); } catch (Exception ex) { SaveError(ex.ToString()); }
 
-                Launch_pb?.Dispose();
-                Close_pb?.Dispose();
-                Environment.Exit(0);
+                try { Settings.Save(); } catch (Exception ex) { SaveError(ex.ToString()); }
+
+                try { Launch_pb?.Dispose(); } catch { }
+                try { Close_pb?.Dispose(); } catch { }
+
+                // 不再用 Environment.Exit(0)：它最终会走 ExitProcess 去逐个卸载 DLL，
+                // 一旦某个 DLL（显示驱动 / D3D / WebView2）卸载时不返回，进程就永远留在那里
+                // —— 界面已经没了、进程还在，只能去任务管理器手动结束。
+                // 改用 TerminateProcess 由内核直接回收，保证「退出游戏」一定退得掉。
+                Program.HardExit();
         }
 
         private static string[] suffixes = new[] { " B", " KB", " MB", " GB", " TB", " PB" };

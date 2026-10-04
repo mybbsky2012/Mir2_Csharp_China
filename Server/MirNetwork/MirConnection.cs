@@ -2059,6 +2059,8 @@ namespace Server.MirNetwork
                 PlayerOptionType.NoLamp => Settings.EnableNoLamp,
                 PlayerOptionType.WalkThrough => Settings.EnableWalkThrough,
                 PlayerOptionType.NoRunUp => true, // 免助跑：纯移动便利开关，服务器始终放行
+                PlayerOptionType.OverWeight => Settings.EnableOverWeight,
+                PlayerOptionType.MountTai => Settings.EnableMountTai,
                 _ => false,
             };
 

@@ -97,8 +97,10 @@ public enum GMOptions : byte
 public enum PlayerOptionType : byte
 {
     NoLamp = 0,         // 免蜡：夜晚无需照明/蜡烛
-    WalkThrough = 1,    // 穿人：可以穿过其他玩家
+    WalkThrough = 1,    // 穿人：可以穿过其他玩家/英雄/怪物/NPC
     NoRunUp = 2,        // 免助跑：无需先走一步即可直接奔跑
+    OverWeight = 3,     // 超负重：负重超限仍可奔跑，装备不受腕力/装备负重限制
+    MountTai = 4,       // 泰山：被攻击时不后仰，且不打断跑动与施法
 }
 
 public enum AwakeType : byte

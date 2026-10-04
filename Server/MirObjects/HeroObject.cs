@@ -28,6 +28,9 @@ namespace Server.MirObjects
         public override int AmuletBeltMaximum => 2;
         public override int BeltSize => 2;
 
+        /// <summary>英雄跟随主人的超负重开关：主人开启后英雄同样不受负重限制</summary>
+        public override bool IgnoreWeight => OverWeight || (Owner != null && Owner.OverWeight);
+
         public override bool CanMove
         {
             get
