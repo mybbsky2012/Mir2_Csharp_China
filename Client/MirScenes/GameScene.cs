@@ -10955,9 +10955,12 @@ namespace Client.MirScenes
             // 毒符互换（手动）：玩家自己按技能时因为要先换符/换毒而被推迟的那次施法，材料到位后自动补放
             AutoPlayRetryManualSpell();
 
+<<<<<<< HEAD
             // 隔位刺杀（战士）：面板勾选后不需要内挂总开关，也保证刺杀剑术处于开启状态
             AutoPlayEnsureThrustingOn();
 
+=======
+>>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
             CheckInput();
 
 
@@ -12772,6 +12775,7 @@ namespace Client.MirScenes
             }
         }
 
+<<<<<<< HEAD
         /// <summary>
         /// 隔位刺杀（战士面板「隔位刺杀」勾选后）不需要内挂总开关也生效：
         /// 只要还没开启刺杀剑术就补一次开启请求（没学会时自动跳过）。
@@ -12788,6 +12792,10 @@ namespace Client.MirScenes
 
         /// <summary>常开型开关技：没开启就发一次开启请求（开关状态由客户端记录，服务端只保存下来）</summary>
         private static void AutoPlayToggleMeleeSkill(Spell spell, bool on)
+=======
+        /// <summary>常开型开关技：没开启就发一次开启请求（开关状态由客户端记录，服务端只保存下来）</summary>
+        private void AutoPlayToggleMeleeSkill(Spell spell, bool on)
+>>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
         {
             if (on) return;
 
@@ -13837,6 +13845,7 @@ namespace Client.MirScenes
             return monster != null && monster.TargetID == User.ObjectID;
         }
 
+<<<<<<< HEAD
         /// <summary>
         /// 隔位刺杀（战士「刀刀刺杀」）：目标正好落在正前方隔一格的第 2 格、中间那格是空地，
         /// 且刺杀剑术处于开启状态 → 可以站在原地用剑气打（不贴脸）。
@@ -13993,6 +14002,8 @@ namespace Client.MirScenes
             return AutoPlayGapThrustingStep(target) == null;
         }
 
+=======
+>>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
         #endregion
 
         /// <summary>
@@ -14325,6 +14336,7 @@ namespace Client.MirScenes
                     }
 
                     else if ((!(Settings.AutoPlay && User.Class == MirClass.法师) || AutoPlayIsPhysicalTarget(MapObject.TargetObject)) &&
+<<<<<<< HEAD
                              (AutoPlayGapThrustingHit(MapObject.TargetObject) ||
                               (Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1) &&
                                AutoPlayCanMeleeNow(MapObject.TargetObject))))
@@ -14334,6 +14346,12 @@ namespace Client.MirScenes
                         // 战士「隔位刺杀」：目标隔一格时也走这里——客户端会把这次近距攻击转成 Spell.Thrusting，
                         // 服务端把落点再前移一格，用剑气打到隔位那只怪；贴身时若还能退到隔位则先不还手
                         //（AutoPlayCanMeleeNow=false），交给下面的走位把人物挪到隔位。
+=======
+                             Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1))
+                    {
+                        // 法师挂机时一般不近攻（改用与弓手相同的远程方式：放法术），贴脸由内挂的走位拉开；
+                        // 但若该怪物魔法无效（内挂已切物理阶段），则允许贴身用「近距攻击1」出手。
+>>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
                         if (CMain.Time > GameScene.AttackTime && CanRideAttack() && !User.Poison.HasFlag(PoisonType.Dazed))
                         {
                             User.QueuedAction = new QueuedAction { Action = MirAction.近距攻击1, Direction = Functions.DirectionFromPoint(User.CurrentLocation, MapObject.TargetObject.CurrentLocation), Location = User.CurrentLocation };
@@ -14616,7 +14634,10 @@ namespace Client.MirScenes
             }
 
             if (Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1)) return;
+<<<<<<< HEAD
 
+=======
+>>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
             if ((User.Class == MirClass.弓箭 && User.HasClassWeapon ||
                  (Settings.AutoPlay && User.Class == MirClass.法师 && !AutoPlayIsPhysicalTarget(MapObject.TargetObject))) &&
                 (MapObject.TargetObject is MonsterObject || MapObject.TargetObject is PlayerObject)) return; //ArcherTest - stop walking（弓手/法师走位由 ProcessAutoPlay 的 AutoPlayCombatMove 处理，法师不贴身；切物理攻击后可追）
