@@ -101,30 +101,35 @@ namespace Client.MirGraphics
             var shaderGrayScalePath = Settings.ShadersPath + "grayscale.ps";
             var shaderMagicPath = Settings.ShadersPath + "magic.ps";
 
-            // 微端：着色器是"缺了就没法渲染"的关键资源，且只有三个小文件，这里值得等一次。
-            // （PixelShader 为 null 会导致整个渲染阶段出问题，不能像图库那样先跳过再说）
-            if (!System.IO.File.Exists(shaderNormalPath))
-                ResourceDownloader.EnsureLocalFileBlocking(shaderNormalPath, 15000);
-            if (!System.IO.File.Exists(shaderGrayScalePath))
-                ResourceDownloader.EnsureLocalFileBlocking(shaderGrayScalePath, 15000);
-            if (!System.IO.File.Exists(shaderMagicPath))
-                ResourceDownloader.EnsureLocalFileBlocking(shaderMagicPath, 15000);
+            // 着色器只有几百字节，但这里以前用 15 秒的阻塞等待：
+            // 服务端资源目录里根本没有 normal.ps / magic.ps（只有 grayscale.ps），
+            // 服务器一连不上，这里就会为两个「永远下不来的文件」各白等 15 秒，
+            // 登录界面出来前先卡半分钟。
+            // 着色器缺失只影响个别特效（灰度/魔法滤镜）的呈现，SetNormal/SetGrayscale/SetBlendMagic
+            // 对 null 都有保护，不影响登录与进游戏 —— 所以改成非阻塞：
+            // 本地有就编译；没有就排进后台下载队列立刻返回，下次启动客户端自然就有了。
+            TryLoadShader(shaderNormalPath);
+            TryLoadShader(shaderGrayScalePath);
+            TryLoadShader(shaderMagicPath);
+        }
 
-            if (System.IO.File.Exists(shaderNormalPath))
+        private static unsafe void TryLoadShader(string path)
+        {
+            if (!System.IO.File.Exists(path))
             {
-                using (var gs = ShaderBytecode.AssembleFromFile(shaderNormalPath, ShaderFlags.None))
-                    NormalPixelShader = new PixelShader(Device, gs);
+                // 非阻塞：只是把请求排进后台队列；拿不到也照常继续（本局该特效不生效）
+                ResourceDownloader.EnsureLocalFile(path);
+                return;
             }
-            if (System.IO.File.Exists(shaderGrayScalePath))
-            {
-                using (var gs = ShaderBytecode.AssembleFromFile(shaderGrayScalePath, ShaderFlags.None))
-                    GrayScalePixelShader = new PixelShader(Device, gs);
-            }
-            if (System.IO.File.Exists(shaderMagicPath))
-            {
-                using (var gs = ShaderBytecode.AssembleFromFile(shaderMagicPath, ShaderFlags.None))
-                    MagicPixelShader = new PixelShader(Device, gs);
-            }
+
+            PixelShader shader;
+
+            using (var gs = ShaderBytecode.AssembleFromFile(path, ShaderFlags.None))
+                shader = new PixelShader(Device, gs);
+
+            if (path.EndsWith("normal.ps")) NormalPixelShader = shader;
+            else if (path.EndsWith("grayscale.ps")) GrayScalePixelShader = shader;
+            else if (path.EndsWith("magic.ps")) MagicPixelShader = shader;
         }
 
         private static unsafe void LoadTextures()
@@ -303,6 +308,7 @@ namespace Client.MirGraphics
             DXManager.Parameters.BackBufferWidth = clientSize.Width;
             DXManager.Parameters.BackBufferHeight = clientSize.Height;
             DXManager.Parameters.PresentationInterval = Settings.FPSCap ? PresentInterval.Default : PresentInterval.Immediate;
+
             DXManager.Device.Reset(DXManager.Parameters);
 
             DXManager.LoadTextures();
@@ -336,6 +342,23 @@ namespace Client.MirGraphics
             {
             }
         }
+        /// <summary>
+        /// 每帧绘制开始前强制复位绘制状态：正常「纹理 alpha」混合、透明度 1。
+        /// 兜底防闪烁：任何 SetOpacity/SetBlend 的泄漏（例如隐身怪 BodyLibrary 未就绪时
+        /// 提前 return）最多只影响当帧，不会把整屏拖成持续的半透明发暗。
+        /// </summary>
+        public static void ResetDrawState()
+        {
+            Blending = false;
+            BlendingRate = 1F;
+            Opacity = 1F;
+
+            Device.SetRenderState(RenderState.AlphaBlendEnable, true);
+            Device.SetRenderState(RenderState.SourceBlend, SlimDX.Direct3D9.Blend.SourceAlpha);
+            Device.SetRenderState(RenderState.DestinationBlend, SlimDX.Direct3D9.Blend.InverseSourceAlpha);
+            Device.SetRenderState(RenderState.BlendFactor, Color.FromArgb(255, 255, 255, 255).ToArgb());
+        }
+
         public static void SetOpacity(float opacity)
         {
             if (Opacity == opacity)
@@ -558,8 +581,9 @@ namespace Client.MirGraphics
             {
                 for (int i = 0; i < Lights.Count; i++)
                 {
-                    if (!Lights[i].Disposed)
-                        Lights[i].Dispose();
+                    if (Lights[i] == null || Lights[i].Disposed) continue;
+
+                    Lights[i].Dispose();
                 }
                 Lights.Clear();
             }

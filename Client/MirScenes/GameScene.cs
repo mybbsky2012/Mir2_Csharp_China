@@ -45,10 +45,14 @@ namespace Client.MirScenes
         public static bool CanMove, CanRun;
 
         //服务器是否开放对应的辅助开关（由 S.PlayerOption 下发）
-        public static bool NoLampAllowed, WalkThroughAllowed, NoRunUpAllowed;
+        public static bool NoLampAllowed, WalkThroughAllowed, NoRunUpAllowed, OverWeightAllowed, MountTaiAllowed;
 
         private DateTime lastChangeTime = DateTime.MinValue;
         private readonly TimeSpan changeCooldown = TimeSpan.FromSeconds(1);
+
+        //进图后按本地偏好重新申请辅助开关（见 RestorePlayerOptions）
+        private bool _playerOptionsRestored;
+        private readonly int _playerOptionsRestoreTime = unchecked(Environment.TickCount + 1500);
 
         private bool hasHero;
         public bool HasHero
@@ -1047,6 +1051,10 @@ namespace Client.MirScenes
                     SendSpellToggle(actor, magic.Spell, true);
                     break;
                 default:
+                    // 毒符互换（手动）：面板勾选后不用开内挂总开关。
+                    // 这个技能吃符就先把符换进护身符槽、吃毒就先换毒，换好后再自动把这个技能补放出去。
+                    if (actor == User && MapControl != null && MapControl.AutoPlayPrepareManualSpell(magic)) return;
+
                     actor.NextMagic = magic;
                     actor.NextMagicLocation = MapControl.MapLocation;
                     actor.NextMagicObject = MapObject.MouseObject;
@@ -1186,11 +1194,44 @@ namespace Client.MirScenes
 
         public override void Process()
         {
-            if (MapControl == null || User == null)
+            // 载入画面：从选人界面点「开始游戏」起（那时 LoadingScreen.Show() 已经把画面点亮），
+            // 到地图底板和角色对象都真正画出来为止，全程盖着「黑底 + MIR 标志 + Loading 动画」。
+            //
+            // 不能一看 MapControl != null 就撤掉：服务端下发 MapInformation 只是建好地图对象
+            // （LoadMap 之后还是空的），角色对象要等 UserInformation 才创建，而地图底板要等
+            // 第一次 CreateTexture → DrawFloor 才画得出来。这段之间屏幕仍然是黑的。
+            bool worldReady = MapControl != null && !MapControl.IsDisposed
+                              && User != null && MapControl.FloorValid;
+
+            if (!worldReady)
+            {
+                if (LoadingScreen.Armed)
+                {
+                    // 场景从 SelectScene 换成 GameScene 时旧控件会跟着销毁，这里补挂回来
+                    if (!LoadingScreen.Visible) LoadingScreen.Show();
+                    else LoadingScreen.CheckTimeout();
+                }
+
+                // 地图或角色对象都还没到，这一帧没有任何游戏逻辑可做
+                if (MapControl == null || MapControl.IsDisposed || User == null)
+                    return;
+            }
+            else if (LoadingScreen.Visible)
+            {
+                // 世界就绪了也先把背景图亮满 MinShowTime（默认 2 秒）再撤：
+                // 进得快时不至于一闪而过，进得慢（读图/下资源）则按实际耗时自然延长。
+                if (CMain.Time - LoadingScreen.ShownTime >= LoadingScreen.MinShowTime)
+                    LoadingScreen.Hide();
+            }
+
+            if (User == null)
                 return;
 
             // 微端：让玩家看得见"后台正在悄悄补资源"，而不是遇到缺图时一脸茫然
             ProcessMicroHint();
+
+            // 进图后自动恢复玩家上次勾选的辅助开关（免蜡/穿人/免助跑/超负重/泰山）
+            RestorePlayerOptions();
 
             if (CMain.Time >= MoveTime)
             {
@@ -3411,9 +3452,21 @@ namespace Client.MirScenes
                 return;
             }
         }
+        //内挂：最近一次打到自己的对象（道士隐身后判断「怪物贴身近攻」的依据，由 MapControl 读取）
+        public static uint LastStruckAttackerID;
+        public static long LastStruckAttackerTime;
+
         private void Struck(S.Struck p)
         {
             LogTime = CMain.Time + Globals.LogDelay;
+
+            // 记录最近一次打我的是谁（内挂：道士隐身后判断「怪物贴身近攻」的依据）
+            LastStruckAttackerID = p.AttackerID;
+            LastStruckAttackerTime = CMain.Time;
+
+            // 泰山：被攻击后不后仰（不播放被击动作），也不打断跑动、施法与复活吟唱。
+            // 只影响自身表现，服务器仍照常结算伤害。
+            if (Settings.MountTai) return;
 
             NextRunTime = CMain.Time + 2500;
             User.BlizzardStopTime = 0;
@@ -3469,12 +3522,21 @@ namespace Client.MirScenes
         {
             if (p.ObjectID == User.ObjectID) return;
 
-            for (int i = MapControl.Objects.Count - 1; i >= 0; i--)
-            {
-                MapObject ob = MapControl.Objects[i];
-                if (ob.ObjectID != p.ObjectID) continue;
+                for (int i = MapControl.Objects.Count - 1; i >= 0; i--)
+                {
+                    MapObject ob = MapControl.Objects[i];
+                    if (ob.ObjectID != p.ObjectID) continue;
 
-                if (ob.SkipFrames) return;
+                    ob.LastStruckTime = CMain.Time;   // 记录受击时间（内挂打不中检测的判定信号）
+
+                    // 只有自己（或自己的英雄）造成的伤害才算「自己的攻击有效」
+                    // （服务端只在真正打出伤害时才广播受击，别人打中不算）
+                    if (p.AttackerID == User.ObjectID ||
+                        (Hero != null && p.AttackerID == Hero.ObjectID) ||
+                        (HeroObject != null && p.AttackerID == HeroObject.ObjectID))
+                        ob.LastStruckByMeTime = CMain.Time;
+
+                    if (ob.SkipFrames) return;
                 if (ob.ActionFeed.Count > 0 && ob.ActionFeed[ob.ActionFeed.Count - 1].Action == MirAction.被击动作) return;
 
                 if (ob.Race == ObjectType.Player)
@@ -10511,7 +10573,7 @@ namespace Client.MirScenes
         }
 
         /// <summary>
-        /// 服务器回执的辅助开关（免蜡 / 穿人）状态。
+        /// 服务器回执的辅助开关（免蜡 / 穿人 / 免助跑 / 超负重 / 泰山）状态。
         /// Allowed 为 false 时表示本服未开放该功能，界面会置灰并提示。
         /// </summary>
         private void PlayerOption(S.PlayerOption p)
@@ -10530,6 +10592,14 @@ namespace Client.MirScenes
                     GameScene.NoRunUpAllowed = p.Allowed;
                     Settings.NoRunUp = p.Value;
                     break;
+                case PlayerOptionType.OverWeight:
+                    GameScene.OverWeightAllowed = p.Allowed;
+                    Settings.OverWeight = p.Value;
+                    break;
+                case PlayerOptionType.MountTai:
+                    GameScene.MountTaiAllowed = p.Allowed;
+                    Settings.MountTai = p.Value;
+                    break;
             }
 
             Settings.Save();
@@ -10545,7 +10615,30 @@ namespace Client.MirScenes
         /// <summary>向服务器申请切换辅助开关（最终状态以服务器回执为准）</summary>
         public static void RequestPlayerOption(PlayerOptionType option, bool value)
         {
+            // 记下玩家偏好：服务器每次登录都会把这些开关重置为关闭，进图后据此自动恢复
+            Settings.SetPreferred(option, value);
             Network.Enqueue(new C.SetPlayerOption { Option = option, Value = value });
+        }
+
+        /// <summary>
+        /// 服务器在登录时会把各辅助开关统一下发为「关闭」，若就此作罢，
+        /// 玩家每次上线都得手动重开。这里在进图稳定后，按本地偏好把
+        /// 「服务器已开放 且 玩家原本勾选」的开关重新申请一遍
+        /// （是否生效仍以服务器回执为准，未开放的功能不会被反复申请）。
+        /// </summary>
+        private void RestorePlayerOptions()
+        {
+            if (_playerOptionsRestored) return;
+
+            // 等服务器登录时那批 S.PlayerOption 先处理完（它们紧跟在 S.StartGame 之后下发）
+            if (unchecked(Environment.TickCount - _playerOptionsRestoreTime) < 0) return;
+            _playerOptionsRestored = true;
+
+            if (Settings.PreferredNoLamp && NoLampAllowed) RequestPlayerOption(PlayerOptionType.NoLamp, true);
+            if (Settings.PreferredWalkThrough && WalkThroughAllowed) RequestPlayerOption(PlayerOptionType.WalkThrough, true);
+            if (Settings.PreferredNoRunUp && NoRunUpAllowed) RequestPlayerOption(PlayerOptionType.NoRunUp, true);
+            if (Settings.PreferredOverWeight && OverWeightAllowed) RequestPlayerOption(PlayerOptionType.OverWeight, true);
+            if (Settings.PreferredMountTai && MountTaiAllowed) RequestPlayerOption(PlayerOptionType.MountTai, true);
         }
 
         private void Roll(S.Roll p)
@@ -10564,11 +10657,15 @@ namespace Client.MirScenes
         {
             if (disposing)
             {
+                // 离开游戏场景（退出/换角色）时把载入画面一并收掉，别把 Armed 状态带到下一个场景
+                LoadingScreen.Hide();
+
                 Scene = null;
                 User = null;
 
                 MoveTime = 0;
                 AttackTime = 0;
+
                 NextRunTime = 0;
                 LastRunTime = 0;
                 CanMove = false;
@@ -10855,6 +10952,12 @@ namespace Client.MirScenes
                 MapObject.MagicObjectID = 0;
 
             ProcessAutoPlay();
+
+            // 毒符互换（手动）：玩家自己按技能时因为要先换符/换毒而被推迟的那次施法，材料到位后自动补放
+            AutoPlayRetryManualSpell();
+
+            // 隔位刺杀（战士）：面板勾选后不需要内挂总开关，也保证刺杀剑术处于开启状态
+            AutoPlayEnsureThrustingOn();
 
             CheckInput();
 
@@ -11863,6 +11966,50 @@ namespace Client.MirScenes
         #region 内挂（自动挂机）
 
         private static long _autoPlayNextPot;
+        private static long _autoPlayNextHeal;
+        private static long _autoRoamNextTime;
+        private static Point _autoRoamLastPos;          // 跑图时的上次位置（卡住检测）
+        private static long _autoRoamLastPosTime;       // 上次位置变化的时间
+        private static long _autoRoamWanderUntil;       // 卡住后强制随机游走的截止时间
+        private static MirDirection _autoRoamDir;       // 当前游走方向（保持几秒再换）
+        private static long _autoRoamDirTime;           // 当前游走方向的换向截止时间
+        private static uint _autoStuckTargetID;         // 打不中检测：当前观察的目标
+        private static long _autoStuckLastStruck;       // 打不中检测：该目标上次观察到的受击时间
+        private static long _autoStuckSince;            // 打不中检测：无受击起始时间
+        private static long _autoStuckBlackUntil;       // 打不中目标拉黑截止时间
+        private static uint _autoImmuneTargetID;        // 法师/道士：魔免检测的当前目标
+        private static long _autoImmuneLastStruck;      // 该目标上次观察到的受击时间
+        private static long _autoImmuneMagicStart;      // 首次尝试魔法攻击的时间（0=尚未开始）
+        private static long _autoImmuneLastCast;        // 最近一次挂起魔法施法的时间
+        private static long _autoImmunePhysicalStart;   // 改物理攻击的起始时间（0=未切换，表示仍在魔法阶段）
+        private static string _autoImmuneBlackName;     // 魔法+物理都打不动的怪物名（一段时间内不再选）
+        private static long _autoImmuneBlackUntil;      // 该名字的拉黑截止时间
+        private static bool _autoImmuneReachedMelee;    // 物理阶段是否真的贴身到过目标（用于决定是否按名字拉黑）
+        private static long _autoPlayNextSupport;       // 道士辅助技能（隐身/幽灵盾/神圣战甲术）节流
+        private static long _autoPlayNextMageSupport;   // 法师辅助技能（魔法盾）节流
+        private static long _autoPlayNextSummon;        // 道士召唤宠物节流
+        private static long _autoPlayNextFireWall;      // 法师火墙节流
+        private static long _autoPlayNextSaint;         // 法师圣言术节流
+        private static long _autoPlayNextGroupHeal;     // 给队友加血的节流
+        private static long _autoTaoistMeleeUntil;      // 道士隐身近砍窗口截止时间（窗口内不放技能，交给近攻）
+        private static long _autoPlayNextSwap;          // 毒符互换节流
+        // 毒粉「一次使用交替一次」：下一次施毒术要装的那种毒粉（1=灰色毒粉(绿毒) 2=黄色毒粉(红毒)）。
+        // 初始 2 = 第一次施毒术先装黄色毒粉，之后 黄 → 灰 → 黄 … 交替。
+        private static byte _autoPoisonNextShape = 2;
+        private static uint _autoPoisonSwapUserID;      // 毒符交替状态所属的角色
+        private static ulong _autoSwapLastID;           // 上次换装请求的物品（防止本地状态没同步时反复发包）
+        private static long _autoSwapLastTime;
+        private static int _manualSpellKey;             // 手动施法因换装被推迟的技能（技能栏键位，0=无）
+        private static int _manualSpellWant = -1;       // 该技能需要槽里装什么：0=符 1=灰色毒粉 2=黄色毒粉
+        private static bool _manualSpellIsPoison;       // 被推迟的这次手动施法是不是「施毒术」
+        private static bool _manualSpellCasting;        // 正在补放（重入 UseSpell），本次不要再判材料
+        private static long _manualSpellTime;           // 换装请求发出的时间
+        private static long _manualSpellUntil;          // 等待材料就位的截止时间
+        private static long _autoManualHoldUntil;       // 手动换装后的静默期（期间自动逻辑不再翻槽）
+        private static long _autoPlayNextFury;          // 血龙剑法（自身增益）重试节流
+        private static long _autoPlayNextDash;          // 野蛮冲撞节流（服务端冷却 2.5 秒）
+        private static long _autoPlayNextToggle;        // 近攻开关技/蓄力技发包节流
+        private static long _autoFlameBlockUntil;       // 烈火剑法蓄力后的静默期截止时间（服务端 10 秒内不接受再次蓄力）
 
         /// <summary>
         /// 内挂主循环。只负责「决策」——索敌、捡物、喝药；
@@ -11889,11 +12036,43 @@ namespace Client.MirScenes
                 }
             }
 
+            // 血量不足时用治愈术系技能补一口（喝药之外的补充手段）
+            //（道士的自身治疗并入 AutoPlayGroupHeal 统一处理：自己 / 宠物 / 队友 一起判断群体还是单体）
+            if (User.Class != MirClass.道士 && now >= _autoPlayNextHeal)
+            {
+                _autoPlayNextHeal = now + 500;
+                AutoPlayAutoHeal();
+            }
+
+            // 道士辅助：给队伍里的队友加血、维持隐身术 / 幽灵盾 / 神圣战甲术，并自动召唤宠物
+            if (User.Class == MirClass.道士)
+            {
+                // 隐身状态维护：隐身 25 秒没打到怪 / 中毒 25 秒 → 自动解除隐身改为主动攻击
+                AutoPlayUpdateHiding(now);
+
+                AutoPlayGroupHeal();
+                AutoPlayTaoistSupport();
+                AutoPlayTaoistSummon();
+
+                //毒符互换：护身符槽按当前需要自动在「符」和「毒粉」之间切换（黄/灰毒粉一次使用交替一次）
+                if (AutoPlaySwapPoisonAmulet()) return;    // 本帧刚发出换装，等服务器回执再继续战斗
+            }
+
+            // 法师辅助：自动开魔法盾
+            if (User.Class == MirClass.法师)
+                AutoPlayMageSupport();
+
             if (Settings.AutoAttack)
             {
+                // 道士隐身后原地不动（走/跑都会解除隐身），只用灵魂火符、施毒术这类远程技能输出
+                _autoHoldStill = AutoPlayHoldStill();
+
                 MapObject target = MapObject.TargetObject;
 
                 if (target == null || target.Dead || !(target is MonsterObject) ||
+                    (target.Name != null && target.Name.EndsWith(")")) ||
+                    target.NameColour == System.Drawing.Color.SkyBlue ||
+                    AutoPlayIsIgnored(target.Name) ||
                     !Functions.InRange(target.CurrentLocation, User.CurrentLocation, Settings.AutoSearchRange))
                 {
                     MapObject.TargetObjectID = 0;
@@ -11903,21 +12082,1975 @@ namespace Client.MirScenes
                 if (target != null)
                 {
                     MapObject.TargetObjectID = target.ObjectID;
+
+                    // 战士专属：血龙剑法 / 野蛮冲撞 / 开关技（刺杀·半月·狂风斩）与蓄力技（烈火·双龙斩）
+                    // 不受「自动技能」开关限制——这些技能不替代普通攻击，只是给普通攻击加效果
+                    if (User.Class == MirClass.战士 && AutoPlayWarriorSkills(target)) return;
+
+                    if (User.Class == MirClass.法师 || User.Class == MirClass.道士)
+                    {
+                        // 法师/道士：魔法（道术）无效 → 改物理攻击 → 物理也无效就拉黑换怪
+                        if (AutoPlayUpdateMagicImmunity(target, now)) return;
+                    }
+                    else
+                    {
+                        // 打不中检测：客户端收到 S.ObjectStruck 才说明目标真的被打中（服务端无效施法照样扣蓝）。
+                        // 持续攻击同一目标 6 秒却一次受击广播都没有 → 判定打不中（守卫类 IsAttackTarget=false、
+                        // 隔墙空放、超距 FindObject 找不到目标等），放弃并拉黑 8 秒、随机换位重找。
+                        if (target.ObjectID != _autoStuckTargetID)
+                        {
+                            _autoStuckTargetID = target.ObjectID;
+                            _autoStuckLastStruck = target.LastStruckTime;
+                            _autoStuckSince = now;
+                        }
+                        else if (target.LastStruckTime != _autoStuckLastStruck)
+                        {
+                            _autoStuckLastStruck = target.LastStruckTime;
+                            _autoStuckSince = now;
+                        }
+                        else if (now - _autoStuckSince > 6000)
+                        {
+                            _autoStuckBlackUntil = now + 8000;
+                            MapObject.TargetObjectID = 0;
+
+                            if (Settings.AutoMove && !_autoHoldStill)
+                                AutoPlayStepTo(Functions.PointMove(User.CurrentLocation, (MirDirection)CMain.Random.Next(8), 2));
+
+                            return;
+                        }
+                    }
+
+                    // 未开自动技能但开了自动躲避：被围攻时仍然走开（隐身时不动）
+                    if (!Settings.AutoSkill && Settings.AutoDodge && !_autoHoldStill &&
+                        AutoPlayCountMonsters(User.CurrentLocation, 1) >= 3 && AutoPlayDodge())
+                    {
+                        MapObject.TargetObjectID = 0;
+                        return;
+                    }
+
+                    // 弓手/法师走位：够不到就追，太近就拉开（含走位跑步）；走位那一帧不施法，避免施法动作顶掉移动
+                    //（道士隐身期间原地不动，只用远程技能输出）
+                    bool moved = Settings.AutoMove && !_autoHoldStill && AutoPlayCombatMove(target);
+
+                    // 自动按需用技能：围攻→群攻（不行则躲避），远→远程，近→近攻开关技
+                    // 法师没有远程普通攻击（等同弓手的远程攻击），即使没勾「自动技能」也会自动放法术
+                    if (!moved && (Settings.AutoSkill || User.Class == MirClass.法师))
+                        AutoPlayAutoSkill(target);
+
                     return;
                 }
+
+                // 附近没怪：先捡地上的东西，捡完/没得捡就跑图找怪（隐身期间不动，避免解除隐身）
+                if (Settings.AutoPickup && AutoPlayPickUpItem()) return;
+
+                if (!_autoHoldStill) AutoPlayRoam();
+                return;
             }
 
             if (Settings.AutoPickup)
                 AutoPlayPickUpItem();
         }
 
-        /// <summary>在搜索半径内挑选最近的可攻击怪物</summary>
-        private MapObject AutoPlayFindMonster()
+        /// <summary>
+        /// 法师 / 道士的「攻击无效」三级降级检测：
+        /// ① 一直用魔法（道术）攻击同一目标 AutoPlayMagicProbeTime 毫秒，客户端一次受击广播都没收到
+        ///    （服务端只有真正造成伤害才广播 S.ObjectStruck）→ 判定该怪物魔法无效，改用物理攻击；
+        /// ② 改用物理攻击（贴身 1 格用近距攻击）再试 AutoPlayPhysicalProbeTime 毫秒，仍无受击 → 物理也无效；
+        /// ③ 放弃该目标：拉黑一段时间并随机换位重新索敌（若物理阶段确实贴身过，则连怪物名字一起拉黑，
+        ///    避免反复去试同一种打不动的怪）。
+        /// 返回 true 表示本帧已放弃目标，调用方应直接 return。
+        /// </summary>
+        private bool AutoPlayUpdateMagicImmunity(MapObject target, long now)
+        {
+            if (target.ObjectID != _autoImmuneTargetID)
+            {
+                _autoImmuneTargetID = target.ObjectID;
+                _autoImmuneLastStruck = target.LastStruckByMeTime;
+                _autoImmuneMagicStart = 0;
+                _autoImmuneLastCast = 0;
+                _autoImmuneReachedMelee = false;
+                // 法师必定放法术；道士要勾了「自动技能」才会放法术，否则直接进物理阶段
+                _autoImmunePhysicalStart = AutoPlayUsesMagic() ? 0 : now;
+                return false;
+            }
+
+            if (target.LastStruckByMeTime != _autoImmuneLastStruck)
+            {
+                // 目标被自己的攻击打中 → 当前阶段的攻击有效，重置该阶段计时
+                //（已经切到物理的保持物理模式，不再回头试魔法）
+                _autoImmuneLastStruck = target.LastStruckByMeTime;
+                _autoImmuneMagicStart = 0;
+                _autoImmuneLastCast = 0;
+
+                if (_autoImmunePhysicalStart != 0)
+                    _autoImmunePhysicalStart = now;
+
+                return false;
+            }
+
+            if (_autoImmunePhysicalStart == 0)
+            {
+                // 第一阶段：魔法攻击中。必须确认「确实一直在施法」才判定无效，
+                // 否则跑位、没蓝、材料不够时也会被误判成魔法无效。
+                if (_autoImmuneMagicStart != 0 && now - _autoImmuneMagicStart > AutoPlayMagicProbeTime &&
+                    now - _autoImmuneLastCast < AutoPlayCastAliveTime)
+                {
+                    _autoImmunePhysicalStart = now;
+                    GameScene.Scene.OutputMessage("魔法对" + AutoPlayTargetName(target) + "无效，改用物理攻击");
+                }
+
+                return false;
+            }
+
+            // 第二阶段：物理攻击中（先走过去贴脸，到了才开始算物理攻击时长）
+            bool inMelee = Functions.MaxDistance(target.CurrentLocation, User.CurrentLocation) <= 1;
+
+            if (!_autoImmuneReachedMelee)
+            {
+                if (inMelee)
+                {
+                    _autoImmuneReachedMelee = true;
+                    _autoImmunePhysicalStart = now;    // 贴身成功，从这一刻开始计算物理攻击时长
+                    return false;
+                }
+
+                // 靠近阶段：给 AutoPlayMeleeReachTime 毫秒；超时还没贴身（多半被墙/障碍卡住）也算打不到
+                if (now - _autoImmunePhysicalStart <= AutoPlayMeleeReachTime) return false;
+            }
+            else if (now - _autoImmunePhysicalStart <= AutoPlayPhysicalProbeTime)
+            {
+                return false;
+            }
+
+            string name = AutoPlayTargetName(target);
+
+            _autoStuckTargetID = target.ObjectID;
+            _autoStuckBlackUntil = now + AutoPlayImmuneBlackTime;
+            _autoImmuneTargetID = 0;
+
+            // 贴身砍都打不动 → 认为是怪物本身免疫，按名字拉黑，避免下一只同类怪再白试一轮
+            if (_autoImmuneReachedMelee && !string.IsNullOrEmpty(target.Name))
+            {
+                _autoImmuneBlackName = target.Name;
+                _autoImmuneBlackUntil = now + AutoPlayImmuneBlackTime;
+            }
+
+            GameScene.Scene.OutputMessage("物理攻击对" + name + "也无效，放弃该目标");
+
+            MapObject.TargetObjectID = 0;
+
+            if (Settings.AutoMove)
+                AutoPlayStepTo(Functions.PointMove(User.CurrentLocation, (MirDirection)CMain.Random.Next(8), 2));
+
+            return true;
+        }
+
+        /// <summary>当前目标是否已进入「改物理攻击」阶段（法师/道士专用）</summary>
+        private bool AutoPlayIsPhysicalTarget(MapObject target)
+        {
+            if (target == null) return false;
+            if (User.Class != MirClass.法师 && User.Class != MirClass.道士) return false;
+
+            return _autoImmunePhysicalStart != 0 && target.ObjectID == _autoImmuneTargetID;
+        }
+
+        /// <summary>本职业当前是否会用魔法（道术）打怪：法师必用；道士需勾选「自动技能」</summary>
+        private bool AutoPlayUsesMagic()
+        {
+            return User.Class == MirClass.法师 || (User.Class == MirClass.道士 && Settings.AutoSkill);
+        }
+
+        private static string AutoPlayTargetName(MapObject target)
+        {
+            return string.IsNullOrEmpty(target.Name) ? "该怪物" : target.Name;
+        }
+
+        /// <summary>
+        /// 远程职业（弓手 / 法师）的自动走位：目标超出射程时追过去；
+        /// 目标贴脸（距离 ≤ 2）时向后拉开，保持放风筝的输出距离（法师绝不贴身近攻）。
+        /// 拉开时清空本帧目标，避免被 CheckInput 的自动攻击覆盖掉移动动作。
+        /// </summary>
+        private bool AutoPlayCombatMove(MapObject target)
+        {
+            // 魔免目标已切物理攻击：主动走到贴身距离，由 CheckInput 的「近距攻击1」出手（不再放风筝拉开）
+            if (AutoPlayIsPhysicalTarget(target))
+            {
+                if (Functions.MaxDistance(target.CurrentLocation, User.CurrentLocation) > 1)
+                {
+                    AutoPlayStepTo(target.CurrentLocation);
+                    return true;
+                }
+
+                return false;
+            }
+
+            bool ranged = (User.Class == MirClass.弓箭 && User.HasClassWeapon) || User.Class == MirClass.法师;
+
+            if (!ranged) return false;    // 其他职业的追击由 CheckInput 处理（已支持跑动）
+
+            int dist = Functions.MaxDistance(target.CurrentLocation, User.CurrentLocation);
+
+            if (dist > Globals.MaxAttackRange)
+            {
+                AutoPlayStepTo(target.CurrentLocation);
+                return true;
+            }
+
+            // 被怪围攻时法师不后撤——交给「地狱雷光 / 抗拒火环」处理，否则每帧都在往后跑、技能永远轮不到放
+            bool surrounded = User.Class == MirClass.法师 &&
+                              AutoPlayCountMonsters(User.CurrentLocation, 1) >= AutoPlaySurroundCount;
+
+            if (!surrounded && dist <= 2 && AutoPlayStepAway(target))
+            {
+                MapObject.TargetObjectID = 0;   // 本帧移动优先，不发起攻击
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>统计 loc 周围 range 格内的怪物数量（排除宠物/忽略名单）</summary>
+        private int AutoPlayCountMonsters(Point loc, int range)
+        {
+            int count = 0;
+
+            for (int i = 0; i < Objects.Count; i++)
+            {
+                MapObject ob = Objects[i];
+
+                if (ob == null || ob.Dead || !(ob is MonsterObject)) continue;
+                if (ob.Race == ObjectType.Creature) continue;
+                if (ob.Name != null && ob.Name.EndsWith(")")) continue;   // 玩家宠物
+                if (AutoPlayIsIgnored(ob.Name)) continue;
+                if (ob.NameColour == System.Drawing.Color.SkyBlue) continue;   // 守卫类怪物（名字天蓝色）不算威胁
+
+                if (Functions.InRange(ob.CurrentLocation, loc, range)) count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// 躲避/拉开：在八方向中挑格子移动，支持跑动——开了「走位跑步」且跑得动时，
+        /// 每个方向同时评估「走一步」和「跑 2/3 格」两个落点，按安全性择优（跑不通自动降级为走）。
+        /// keepNear=true 躲避（被围攻）：选怪物更少、且尽量别远离目标的格子，找不到更安全的格子返回 false；
+        /// keepNear=false 拉开（弓手放风筝）：选离目标更远的格子（怪物更少者优先），被堵死返回 false。
+        /// </summary>
+        private bool AutoPlayDodgeStep(MapObject threat, bool keepNear)
+        {
+            Point cur = User.CurrentLocation;
+            int curCount = AutoPlayCountMonsters(cur, 1);
+            int curDist = threat != null ? Functions.MaxDistance(threat.CurrentLocation, cur) : 0;
+
+            // 跑动条件与 AutoPlayStepTo 保持一致
+            bool canRun = Settings.AutoMoveRun &&
+                (GameScene.CanRun || Settings.NoRunUp) && CMain.Time > GameScene.NextRunTime &&
+                User.HP >= 10 && (!User.Sneaking || (User.Sneaking && User.Sprint));
+
+            int runDistance = User.RidingMount || (User.Sprint && !User.Sneaking) ? 3 : 2;
+
+            Point best = Point.Empty;
+            MirDirection bestDir = 0;
+            int bestCount = 0, bestDist = 0, bestSteps = 0;
+
+            for (int i = 0; i < 8; i++)
+            {
+                if (!CanWalk((MirDirection)i, out MirDirection outDir)) continue;
+
+                // 候选 0：走一步的格子
+                Point walkPoint = Functions.PointMove(cur, outDir, 1);
+                if (!CheckDoorOpen(walkPoint)) continue;
+
+                // 候选 1：同方向跑动落点（中间格子必须畅通）
+                Point runPoint = Point.Empty;
+                if (canRun)
+                {
+                    bool clear = true;
+                    for (int j = 1; j <= runDistance; j++)
+                    {
+                        Point t = Functions.PointMove(cur, outDir, j);
+                        if (!ValidPoint(t) || !CheckDoorOpen(t)) { clear = false; break; }
+                    }
+
+                    if (clear && CanRun(outDir)) runPoint = Functions.PointMove(cur, outDir, runDistance);
+                }
+
+                for (int k = 0; k < 2; k++)
+                {
+                    Point cand = k == 0 ? walkPoint : runPoint;
+                    if (cand == Point.Empty) continue;
+
+                    int count = AutoPlayCountMonsters(cand, 1);
+                    int dist = threat != null ? Functions.MaxDistance(threat.CurrentLocation, cand) : curDist;
+
+                    // 必须严格优于原地才走：躲避看怪物数，拉开看距离
+                    bool better = best == Point.Empty
+                        ? (keepNear ? count < curCount : dist > curDist || (dist == curDist && count < curCount))
+                        : (keepNear ? count < bestCount || (count == bestCount && dist < bestDist)
+                                    : dist > bestDist || (dist == bestDist && count < bestCount));
+
+                    if (!better) continue;
+
+                    best = cand;
+                    bestDir = outDir;
+                    bestCount = count;
+                    bestDist = dist;
+                    bestSteps = k == 0 ? 1 : runDistance;
+                }
+            }
+
+            if (best == Point.Empty) return false;
+
+            User.QueuedAction = new QueuedAction
+            {
+                Action = bestSteps > 1 ? MirAction.跑步动作 : MirAction.行走动作,
+                Direction = bestDir,
+                Location = best
+            };
+
+            return true;
+        }
+
+        /// <summary>弓手被贴脸时向后拉开一步（放风筝）</summary>
+        private bool AutoPlayStepAway(MapObject target)
+        {
+            return AutoPlayDodgeStep(target, false);
+        }
+
+        /// <summary>主循环里的躲避：被围攻时走开（不指定单个威胁，以全周怪物数为准）</summary>
+        private bool AutoPlayDodge()
+        {
+            // 以当前目标为参照保持距离，目标为空时单纯找怪物最少的格子
+            MapObject threat = MapObject.TargetObject is MonsterObject m && !m.Dead ? m : null;
+            return AutoPlayDodgeStep(threat, true);
+        }
+
+        #region 内挂自动技能
+
+        //技能优先级表：越靠前越优先，只会从「已学会」的技能里挑，没学的自动跳过
+        private static readonly Spell[] AutoPlayRangedSpells =     // 远程单体：远怪/放风筝时用
+        {
+            // 法师
+            Spell.ThunderBolt, Spell.FlameDisruptor, Spell.FrostCrunch,
+            Spell.GreatFireBallRare, Spell.GreatFireBall, Spell.FireBall,
+            // 道士
+            Spell.SoulFireBall,
+            // 弓手（客户端会校验必须佩戴弓类武器）
+            Spell.DoubleShot, Spell.ElementalShot, Spell.NapalmShot,
+            Spell.VampireShot, Spell.PoisonShot, Spell.CrippleShot,
+            Spell.DelayedExplosion, Spell.StraightShot,
+        };
+
+        private static readonly Spell[] AutoPlayAoeSpells =        // 群攻：被围攻时优先使用
+        {
+            // 法师（雷电风暴为周身范围，其余以目标为中心）
+            Spell.ThunderStorm, Spell.IceStorm, Spell.Blizzard,
+            Spell.MeteorStrike, Spell.FireBang, Spell.HellFire, Spell.IceThrust,
+            // 道士
+            Spell.PoisonCloud,
+        };
+
+        //道士隐身近砍节奏：隐身后被怪贴身近攻时，每砍 1 秒再继续放远程技能（近攻由 CheckInput 执行）
+        private const long AutoTaoistMeleeWindow = 1000;
+
+        //法师/道士的攻击无效降级：魔法（道术）试 4 秒无效 → 改物理；物理再试 4 秒无效 → 放弃该目标
+        private const long AutoPlayMagicProbeTime = 4000;      // 魔法阶段判定时长
+        private const long AutoPlayPhysicalProbeTime = 4000;   // 物理阶段判定时长（贴身之后开始算）
+        private const long AutoPlayMeleeReachTime = 5000;      // 切物理后走过去贴脸的时间上限，超时视为够不到
+        private const long AutoPlayCastAliveTime = 4000;       // 最近一次施法在此时间内才算「仍在持续施法」
+        private const long AutoPlayImmuneBlackTime = 30000;    // 魔法+物理都无效的目标拉黑时长
+
+        //道士辅助技能：隐身术 / 幽灵盾（魔法防御）/ 神圣战甲术（物理防御）——三者的施法目标都是自己
+        private static readonly Spell[] AutoPlayHidingSpells = { Spell.Hiding };
+        private static readonly Spell[] AutoPlaySoulShieldSpells = { Spell.SoulShield };
+        private static readonly Spell[] AutoPlayBlessedArmourSpells = { Spell.BlessedArmour };
+
+        //法师辅助：魔法盾（吸收伤害的护盾，施法目标是自己）
+        private static readonly Spell[] AutoPlayMagicShieldSpells = { Spell.MagicShield };
+
+        //法师按需群攻：地狱雷光（周身范围，服务端与火龙气焰同一处理）
+        private static readonly Spell[] AutoPlaySelfAoeSpells = { Spell.ThunderStorm, Spell.FlameField };
+        //法师：抗拒火环（把贴脸的怪推开）
+        private static readonly Spell[] AutoPlayRepulsorSpells = { Spell.Repulsion };
+        //法师：火墙（在怪最密集的地方放，落点是十字 5 格）
+        private static readonly Spell[] AutoPlayFireWallSpells = { Spell.FireWall };
+        //法师：疾光电影（沿一个方向打穿一条直线，最多 6 格）
+        private static readonly Spell[] AutoPlayLineSpells = { Spell.Lightning };
+        //法师：圣言术（只对不死系怪物生效）
+        private static readonly Spell[] AutoPlayTurnUndeadSpells = { Spell.TurnUndead };
+
+        //道士召唤：骷髅 → 神兽 → 月灵，三种**同时养**（各自数量为 0 就补谁，都齐了就不再召唤）
+        private static readonly Spell[] AutoPlaySummonSpells = { Spell.SummonSkeleton, Spell.SummonShinsu, Spell.SummonHolyDeva };
+
+        //识别自己召唤物用的名字关键字（与 AutoPlaySummonSpells 一一对应）：
+        //服务端宠物名格式是「怪物名(主人名)」，怪物名取自 Settings.ini 的 SkeletonName / ShinsuName / AngelName
+        private static readonly string[][] AutoPlaySummonPetKeywords =
+        {
+            new[] { "骷髅" },           // 变异骷髅
+            new[] { "神兽", "圣兽" },    // 神兽
+            new[] { "月灵" },           // 月灵
+        };
+
+        //道士：施毒术（消耗槽里的毒粉，灰色毒粉=绿毒持续掉血、黄色毒粉=红毒削弱防御）
+        private static readonly Spell[] AutoPlayPoisonSpells = { Spell.Poisoning };
+
+        //战士：血龙剑法（自身增益，攻击速度 +，持续 60 秒 + 每级 10 秒）
+        private static readonly Spell[] AutoPlayFurySpells = { Spell.Fury };
+
+        private const int AutoPlaySurroundCount = 3;     // 周身 1 格内怪数 ≥ 此值算「被围攻」
+        private const int AutoPlayClusterMinCount = 3;   // 火墙落点十字范围内怪数 ≥ 此值才值得放
+        private const int AutoPlayLineMinCount = 3;      // 一条直线上怪数 ≥ 此值才放疾光电影
+        private const int AutoPlayLineMaxTiles = 6;      // 疾光电影最大穿透格数（与服务端一致）
+        private const int AutoPlaySummonInterval = 3000; // 召唤技能的重试间隔
+        private const long AutoPlayFireWallInterval = 5000;  // 火墙节流（墙本身能烧十几秒）
+        private const long AutoPlaySaintInterval = 5000;     // 圣言术节流（很费蓝，对高级不死系还容易失败）
+        private const long AutoPlaySwapInterval = 700;       // 毒符互换发包节流
+        private const long AutoPlayFuryInterval = 15000;     // 血龙剑法没有增益时的重试间隔
+        private const long AutoPlayDashInterval = 2500;      // 野蛮冲撞节流（与服务端冷却一致）
+        private const long AutoPlayToggleInterval = 1000;    // 近攻开关技发包节流
+        private const long AutoPlayFlameBlockTime = 10500;   // 烈火剑法蓄力后的静默期（服务端 10 秒内不接受再次蓄力）
+
+        //给队友加血：单体治愈术 / 群体治疗术
+        private static readonly Spell[] AutoPlayAllyHealSpells = { Spell.Healing, Spell.HealingRare };
+        private static readonly Spell[] AutoPlayMassHealSpells = { Spell.MassHealing };
+        private const int AutoPlayAllyHealPercent = 80;            // 队友血量低于该百分比时自动加血
+
+        /// <summary>
+        /// 自动按需用技能：被围攻 → 群攻（放不出且开了躲避就走位）；
+        /// 远怪 → 远程单体技能；近怪 → 近战开关技 + 普通攻击（由 CheckInput 执行）。
+        /// </summary>
+        private void AutoPlayAutoSkill(MapObject target)
+        {
+            if (User.NextMagic != null) return;          // 玩家手动按的技能优先，不抢
+
+            // 该怪物魔法无效、已切到物理攻击：本阶段不再放技能，贴身用近距攻击（由 CheckInput 执行）
+            if (AutoPlayIsPhysicalTarget(target)) return;
+
+            // 1) 被围攻（周身 1 格内 ≥ 3 只怪）
+            if (AutoPlayCountMonsters(User.CurrentLocation, 1) >= AutoPlaySurroundCount)
+            {
+                // 法师优先用周身范围的技能自保：地狱雷光 → 抗拒火环 → 其他群攻
+                if (User.Class == MirClass.法师)
+                {
+                    if (AutoPlayTryCast(AutoPlaySelfAoeSpells, target)) return;
+                    if (AutoPlayTryCast(AutoPlayRepulsorSpells, target)) return;
+                }
+
+                if (AutoPlayTryCast(AutoPlayAoeSpells, target)) return;
+
+                if (Settings.AutoDodge && !_autoHoldStill && AutoPlayDodge())
+                {
+                    MapObject.TargetObjectID = 0;        // 本帧移动优先，避免被 CheckInput 的攻击覆盖
+                    return;
+                }
+            }
+
+            // 1.2) 法师专属：群怪抱团放火墙 / 怪排成一条线放疾光电影 / 不死系放圣言术
+            if (User.Class == MirClass.法师 && AutoPlayMageCombat(target)) return;
+
+            // 1.5) 道士：隐身状态下被怪物贴身（1 格内）近身攻击时，才用近身砍
+            //（近攻由 CheckInput 的「近距攻击1」执行）；其余情况一律以灵魂火符、施毒术等远程技能为主攻
+            if (User.Class == MirClass.道士 && _autoHoldStill && AutoPlayMonsterMeleeAdjacent(target))
+            {
+                if (CMain.Time < _autoTaoistMeleeUntil) return;          // 正在砍的这一小段，别插技能
+
+                _autoTaoistMeleeUntil = CMain.Time + AutoTaoistMeleeWindow;
+                _autoHiddenLastAttack = CMain.Time;                     // 近砍也算「攻击怪物」，重置隐身计时
+                return;                                                 // 本帧不放技能 → 交给近距攻击
+            }
+
+            // 1.8) 道士：目标身上还缺「槽里那种毒」时先补一发施毒术
+            //（毒符互换会在需要时把符换成毒，用完再换回符）
+            if (User.Class == MirClass.道士 && AutoPlayNeedPoison(target) &&
+                AutoPlayTryCast(AutoPlayPoisonSpells, target)) return;
+
+            // 2) 远程技能（战士/刺客没有可放的远程技能时会自然落到普通攻击）
+            if (AutoPlayTryCast(AutoPlayRangedSpells, target)) return;
+
+            // 3) 技能就绪但够不到目标（超出射程）→ 移动到打得到的位置，下一帧自动施法
+            //（隐身期间不移动，站在原地够不到就不动）
+            if (AutoPlayHasReadySpell(AutoPlayRangedSpells))
+            {
+                if (CMain.Time >= GameScene.SpellTime && Settings.AutoMove && !_autoHoldStill &&
+                    Functions.MaxDistance(target.CurrentLocation, User.CurrentLocation) > 1)
+                {
+                    AutoPlayStepTo(target.CurrentLocation);
+                    MapObject.TargetObjectID = 0;    // 本帧移动优先，避免被攻击动作覆盖
+                }
+
+                return;
+            }
+
+            // 4) 近战职业：确保近攻开关技已打开（刺杀/半月/烈火、风刃术）
+            AutoPlayEnableMeleeToggles();
+        }
+
+        /// <summary>技能列表里是否存在「已学会、已冷却完毕、蓝够」的技能（不校验射程）</summary>
+        private bool AutoPlayHasReadySpell(Spell[] list)
+        {
+            for (int i = 0; i < list.Length; i++)
+            {
+                ClientMagic magic = User.GetMagic(list[i]);
+
+                if (magic == null) continue;                                   // 未学会
+                if (CMain.Time <= magic.CastTime + magic.Delay) continue;      // 冷却中
+
+                int cost = magic.Level * magic.LevelCost + magic.BaseCost;
+                if (cost > User.MP) continue;                                  // 蓝不够
+                if (!AutoPlayHasSpellMaterials(list[i])) continue;             // 施法材料不够（道士符系技能）
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 按优先级挑第一个可用技能：已学会、不在冷却、蓝够。
+        /// 成功则挂到 NextMagic 上，同一帧由 CheckInput 统一走 UseMagic 施放（含射程/目标校验）。
+        /// </summary>
+        private bool AutoPlayTryCast(Spell[] list, MapObject target)
+        {
+            for (int i = 0; i < list.Length; i++)
+                if (AutoPlayTryCast(list[i], target)) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// 挑单个技能（`AutoPlayTryCast(list, target)` 的单项版，召唤技能按只判断时用）：
+        /// 已学会、不在冷却、施法间隔到了、蓝够、材料够、射程够 → 挂到 NextMagic 上。
+        /// </summary>
+        private bool AutoPlayTryCast(Spell spell, MapObject target)
+        {
+            ClientMagic magic = User.GetMagic(spell);
+
+            if (magic == null) return false;                               // 未学会
+            if (CMain.Time <= magic.CastTime + magic.Delay) return false;  // 冷却中
+            if (CMain.Time < GameScene.SpellTime) return false;            // 施法间隔未到，先不挑
+
+            int cost = magic.Level * magic.LevelCost + magic.BaseCost;
+            if (cost > User.MP) return false;                              // 蓝不够
+            if (!AutoPlayHasSpellMaterials(spell)) return false;           // 施法材料不够（道士符系技能）
+
+            // 射程校验：够不到的技能不放（否则施法失败白白耗掉一帧，人物会原地站着反复施法不移动）
+            if (magic.Range != 0 && !Functions.InRange(User.CurrentLocation, target.CurrentLocation, magic.Range)) return false;
+
+            User.NextMagicObject = target;
+            User.NextMagicLocation = target.CurrentLocation;
+            User.NextMagicDirection = Functions.DirectionFromPoint(User.CurrentLocation, target.CurrentLocation);
+            User.NextMagic = magic;
+
+            // 隐身计时用：隐身后最近一次真的对怪物出手（对自己上的辅助技能不算）
+            if (target is MonsterObject)
+                _autoHiddenLastAttack = CMain.Time;
+
+            // 法师/道士的「攻击无效」检测：记录确实施法过（魔法阶段计时靠这两个时间）
+            if (target is MonsterObject && target.ObjectID == _autoImmuneTargetID)
+            {
+                _autoImmuneLastCast = CMain.Time;
+
+                if (_autoImmuneMagicStart == 0)
+                    _autoImmuneMagicStart = CMain.Time;
+            }
+
+            return true;
+        }
+
+        #endregion
+
+        #region 战士专属：血龙剑法 / 野蛮冲撞 / 开关注能
+
+        /// <summary>
+        /// 战士内挂：
+        /// ① 自身没有血龙剑法增益时自动补（服务端 buff 60 秒 + 每级 10 秒，冷却 10 分钟）；
+        /// ② 被怪围住（贴脸 ≥ 3 只）时用野蛮冲撞朝怪最少的方向撞出去；
+        /// ③ 常开型开关技（刺杀剑术 / 半月弯刀 / 狂风斩）保持开启；
+        /// ④ 蓄力型一次性技能（烈火剑法 / 双龙斩）每次攻击前重新蓄力（服务端每次攻击消耗一次）。
+        /// 返回 true 表示本帧已挂上技能（调用方应直接 return，由 CheckInput 统一施放）。
+        /// </summary>
+        private bool AutoPlayWarriorSkills(MapObject target)
+        {
+            long now = CMain.Time;
+
+            // ① 血龙剑法：没增益就补，节流避免一直发包（失败多半是服务端还在冷却）
+            if (!AutoPlayHasBuff(BuffType.血龙剑法) && now >= _autoPlayNextFury)
+            {
+                _autoPlayNextFury = now + AutoPlayFuryInterval;
+
+                if (AutoPlayTryCast(AutoPlayFurySpells, User)) return true;
+            }
+
+            // ② 野蛮冲撞：被怪围住时撞出去（服务端会把挡在身前的低等级怪推开）
+            if (now >= _autoPlayNextDash && AutoPlayCountMonsters(User.CurrentLocation, 1) >= AutoPlaySurroundCount)
+            {
+                _autoPlayNextDash = now + AutoPlayDashInterval;
+
+                if (AutoPlayDashAway()) return true;
+            }
+
+            // ③④ 开关技与蓄力技
+            AutoPlayEnableMeleeToggles();
+
+            return false;
+        }
+
+        /// <summary>
+        /// 野蛮冲撞突围：八个方向里挑一个「面前 2 格没有怪物」且周围怪最少的方向撞出去。
+        /// 没有合适方向（全被堵死）或技能没学会/没蓝时返回 false（不发包，避免白扣蓝）。
+        /// </summary>
+        private bool AutoPlayDashAway()
+        {
+            ClientMagic magic = User.GetMagic(Spell.ShoulderDash);
+
+            if (magic == null) return false;
+            if (magic.Delay != 0 && CMain.Time <= magic.CastTime + magic.Delay) return false;
+            if (CMain.Time < GameScene.SpellTime) return false;
+
+            int cost = magic.Level * magic.LevelCost + magic.BaseCost;
+            if (cost > User.MP) return false;
+
+            Point cur = User.CurrentLocation;
+            MirDirection best = MirDirection.Up;
+            int bestCount = int.MaxValue;
+
+            for (int i = 0; i < 8; i++)
+            {
+                MirDirection dir = (MirDirection)i;
+                Point p1 = Functions.PointMove(cur, dir, 1);
+                Point p2 = Functions.PointMove(cur, dir, 2);
+
+                if (!ValidPoint(p1) || !ValidPoint(p2)) continue;
+                if (AutoPlayCountMonsters(p1, 1) > 0 || AutoPlayCountMonsters(p2, 1) > 0) continue;
+
+                int count = AutoPlayCountMonsters(p1, 2);
+
+                if (count >= bestCount) continue;
+
+                bestCount = count;
+                best = dir;
+            }
+
+            if (bestCount == int.MaxValue) return false;      // 四面八方都被怪堵着，撞不动
+
+            User.NextMagicObject = null;
+            User.NextMagicLocation = Functions.PointMove(cur, best, 1);
+            User.NextMagicDirection = best;
+            User.NextMagic = magic;
+
+            return true;
+        }
+
+        /// <summary>
+        /// 近战职业的近攻技能开关：
+        /// 「常开型」（刺杀剑术 / 半月弯刀 / 狂风斩 / 风剑术）状态由服务端保存、登录时回执，
+        /// 这里确保客户端处于开启状态（掉线重连、死亡复活后需要重开）。
+        /// 「蓄力型」（烈火剑法 / 双龙斩）服务端每次攻击消耗一次，所以每次攻击前重新蓄力；
+        /// 两者只蓄一个（都要扣蓝）：烈火剑法优先，它蓄力后服务端 10 秒内不接受再次蓄力，这期间用双龙斩。
+        /// </summary>
+        private void AutoPlayEnableMeleeToggles()
+        {
+            if (User.Class == MirClass.战士)
+            {
+                AutoPlayToggleMeleeSkill(Spell.Thrusting, User.Thrusting);
+                AutoPlayToggleMeleeSkill(Spell.HalfMoon, User.HalfMoon);
+                AutoPlayToggleMeleeSkill(Spell.CrossHalfMoon, User.CrossHalfMoon);
+
+                if (User.FlamingSword) return;        // 烈火已蓄好，等这一刀打出去，不用再蓄双龙斩
+
+                if (CMain.Time >= _autoFlameBlockUntil && User.GetMagic(Spell.FlamingSword) != null &&
+                    AutoPlayChargeMeleeSpell(Spell.FlamingSword))
+                {
+                    _autoFlameBlockUntil = CMain.Time + AutoPlayFlameBlockTime;
+                    return;
+                }
+
+                AutoPlayChargeMeleeSpell(Spell.TwinDrakeBlade);
+            }
+            else if (User.Class == MirClass.刺客)
+            {
+                AutoPlayToggleMeleeSkill(Spell.DoubleSlash, User.DoubleSlash);
+            }
+        }
+
+        /// <summary>
+        /// 隔位刺杀（战士面板「隔位刺杀」勾选后）不需要内挂总开关也生效：
+        /// 只要还没开启刺杀剑术就补一次开启请求（没学会时自动跳过）。
+        /// 由 MapControl.Process 每帧调用一次，开关请求自身有节流。
+        /// </summary>
+        private static void AutoPlayEnsureThrustingOn()
+        {
+            if (!Settings.AutoThrustingGap) return;
+            if (GameScene.User == null || GameScene.User.Class != MirClass.战士) return;
+            if (GameScene.User.Thrusting) return;
+
+            AutoPlayToggleMeleeSkill(Spell.Thrusting, false);
+        }
+
+        /// <summary>常开型开关技：没开启就发一次开启请求（开关状态由客户端记录，服务端只保存下来）</summary>
+        private static void AutoPlayToggleMeleeSkill(Spell spell, bool on)
+        {
+            if (on) return;
+
+            ClientMagic magic = User.GetMagic(spell);
+
+            if (magic == null) return;                        // 没学会
+            if (CMain.Time < _autoPlayNextToggle) return;     // 发包节流
+
+            _autoPlayNextToggle = CMain.Time + AutoPlayToggleInterval;
+
+            switch (spell)
+            {
+                case Spell.Thrusting: User.Thrusting = true; break;
+                case Spell.HalfMoon: User.HalfMoon = true; break;
+                case Spell.CrossHalfMoon: User.CrossHalfMoon = true; break;
+                case Spell.DoubleSlash: User.DoubleSlash = true; break;
+            }
+
+            Network.Enqueue(new C.SpellToggle { Spell = spell, CanUse = true });
+        }
+
+        /// <summary>蓄力型一次性技能（烈火剑法 / 双龙斩）：攻击前重新蓄一次，返回是否已发出请求</summary>
+        private bool AutoPlayChargeMeleeSpell(Spell spell)
+        {
+            ClientMagic magic = User.GetMagic(spell);
+
+            if (magic == null) return false;                  // 没学会
+            if (CMain.Time < _autoPlayNextToggle) return false;
+
+            int cost = magic.Level * magic.LevelCost + magic.BaseCost;
+            if (cost >= User.MP) return false;                // 与服务端一致：蓝必须比消耗多
+
+            _autoPlayNextToggle = CMain.Time + 500;           // 与客户端手动蓄力的节流一致
+
+            if (spell == Spell.TwinDrakeBlade)
+                User.TwinDrakeBlade = true;                   // 烈火剑法由服务端回执置位
+
+            Network.Enqueue(new C.SpellToggle { Spell = spell, CanUse = true });
+
+            return true;
+        }
+
+        #endregion
+
+        //治愈系技能：血量不足时自动补一口（只会从已学会的技能里挑，法师/道士才有）
+        private static readonly Spell[] AutoPlayHealSpells =
+        {
+            Spell.Healing, Spell.HealingRare,       // 治愈术 / 治愈术-秘籍
+            Spell.HealingCircle, Spell.HealingcircleRare,  // 治愈圆环（脚下持续回血）
+            Spell.MassHealing,                      // 群体治愈术
+        };
+
+        /// <summary>
+        /// 血量不足时自动使用治愈术系技能回复（与喝药互补，喝药照常进行）。
+        /// 触发阈值与自动喝药的 AutoPotHPPercent 相同；MP 不足没有可用的回蓝技能（本引擎无主动回蓝技），仍靠喝药。
+        /// </summary>
+        private void AutoPlayAutoHeal()
+        {
+            if (User.NextMagic != null) return;          // 玩家手动按的技能优先，不抢
+
+            int maxHP = User.Stats[Stat.HP];
+            if (maxHP <= 0) return;
+            if (User.HP * 100 / maxHP > Settings.AutoPotHPPercent) return;   // 血量充足
+
+            // 以自己为施法目标挂到 NextMagic，同一帧由 CheckInput 走 UseMagic 施放
+            AutoPlayTryCast(AutoPlayHealSpells, User);
+        }
+
+        /// <summary>
+        /// 道士辅助：身上没有对应 buff 时自动给自己补
+        /// 隐身术（有召唤宠物且附近怪 ≥2 只时才用）/ 幽灵盾（提高魔法防御）/ 神圣战甲术（提高物理防御）。
+        /// 三个技能服务端都要消耗护身符，没有护身符时会静默失败却照样扣蓝，所以先在客户端拦掉。
+        /// </summary>
+        private void AutoPlayTaoistSupport()
+        {
+            if (User.NextMagic != null) return;              // 正在施法（含玩家手动），不抢
+            if (CMain.Time < _autoPlayNextSupport) return;   // 节流：每次最多补一个 buff
+            if (!AutoPlayHasAmulet()) return;                // 没护身符，别白耗蓝
+
+            _autoPlayNextSupport = CMain.Time + 800;
+
+            if (AutoPlayShouldHide() && !AutoPlayHasBuff(BuffType.隐身术) && AutoPlayTryCast(AutoPlayHidingSpells, User)) return;
+            if (!AutoPlayHasBuff(BuffType.幽灵盾) && AutoPlayTryCast(AutoPlaySoulShieldSpells, User)) return;
+            if (!AutoPlayHasBuff(BuffType.神圣战甲术) && AutoPlayTryCast(AutoPlayBlessedArmourSpells, User)) return;
+        }
+
+        /// <summary>
+        /// 法师辅助：身上没有魔法盾时自动补一个（服务端为限时 buff，到期会自动续）。
+        /// </summary>
+        private void AutoPlayMageSupport()
+        {
+            if (User.NextMagic != null) return;                 // 正在施法（含玩家手动），不抢
+            if (CMain.Time < _autoPlayNextMageSupport) return;  // 节流
+            if (AutoPlayHasBuff(BuffType.魔法盾)) return;        // 已经有盾了
+
+            _autoPlayNextMageSupport = CMain.Time + 800;
+
+            AutoPlayTryCast(AutoPlayMagicShieldSpells, User);
+        }
+
+        /// <summary>
+        /// 道士自动召唤：**骷髅 → 神兽 → 月灵** 三种一起养（`AutoPlaySummonSpells` 的顺序），
+        /// 哪一只数量为 0 就补哪一只（有召唤骷髅就先召骷髅，骷髅 0 → 召骷髅；神兽 0 → 召神兽；以此类推）。
+        /// 三只都在场就不再召唤。服务端在「已有同类宠物」时只会把它召回身边、不消耗材料，
+        /// 但为了避免空转，客户端还是先按数量判断。
+        /// 服务端在「已有同类宠物 / 宠物已满 / 没有护身符」时会直接返回，
+        /// 但法力是在进技能处理前就扣掉的，所以这里先在客户端判断，避免白耗蓝。
+        /// </summary>
+        private void AutoPlayTaoistSummon()
+        {
+            if (User.NextMagic != null) return;                 // 正在施法（含玩家手动），不抢
+            if (CMain.Time < _autoPlayNextSummon) return;
+
+            for (int i = 0; i < AutoPlaySummonSpells.Length; i++)
+            {
+                if (User.GetMagic(AutoPlaySummonSpells[i]) == null) continue;   // 没学这种召唤术
+                if (AutoPlayPetCount(i) > 0) continue;                          // 这只已经养着了
+
+                _autoPlayNextSummon = CMain.Time + AutoPlaySummonInterval;
+
+                AutoPlayTryCast(AutoPlaySummonSpells[i], User);                 // 缺哪只补哪只
+                return;
+            }
+        }
+
+        /// <summary>场上自己养的这类召唤物的数量（按名字关键字区分：骷髅 / 神兽 / 月灵）</summary>
+        private int AutoPlayPetCount(int index)
+        {
+            if (string.IsNullOrEmpty(User.Name)) return 0;
+
+            string suffix = "(" + User.Name + ")";
+            string[] keywords = AutoPlaySummonPetKeywords[index];
+            int count = 0;
+
+            for (int i = 0; i < Objects.Count; i++)
+            {
+                MapObject ob = Objects[i];
+
+                if (ob == null || ob.Dead || !(ob is MonsterObject)) continue;
+                if (string.IsNullOrEmpty(ob.Name)) continue;
+                if (!ob.Name.EndsWith(suffix)) continue;          // 不是自己的宠物
+
+                for (int k = 0; k < keywords.Length; k++)
+                {
+                    if (!ob.Name.Contains(keywords[k])) continue;
+
+                    count++;
+                    break;
+                }
+            }
+
+            return count;
+        }
+
+        /// <summary>场上是否已有自己的宠物 / 召唤物（服务端把宠物名写成「怪物名(主人名)」）</summary>
+        private bool AutoPlayHasOwnPet()
+        {
+            if (string.IsNullOrEmpty(User.Name)) return false;
+
+            string suffix = "(" + User.Name + ")";
+
+            for (int i = 0; i < Objects.Count; i++)
+            {
+                MapObject ob = Objects[i];
+
+                if (ob == null || ob.Dead || !(ob is MonsterObject)) continue;
+                if (string.IsNullOrEmpty(ob.Name)) continue;
+
+                if (ob.Name.EndsWith(suffix)) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 法师专属的按需选技能（都不满足时返回 false，交给通用的远程技能/普攻流程）：
+        /// ① 群怪抱团（十字范围 ≥ 3 只）→ 火墙，落在怪最密集的地方；
+        /// ② 怪排成一条直线（同一方向 6 格内 ≥ 3 只）→ 疾光电影；
+        /// ③ 不死系怪 → 圣言术。
+        /// </summary>
+        private bool AutoPlayMageCombat(MapObject target)
+        {
+            // ① 群怪：找十字范围里怪最多的那个点放火墙。
+            // 火墙落点会持续十几秒，同一处反复放是白耗蓝，所以加个节流。
+            if (CMain.Time >= _autoPlayNextFireWall)
+            {
+                MapObject cluster = AutoPlayFindFireWallSpot();
+
+                if (cluster != null && AutoPlayTryCast(AutoPlayFireWallSpells, cluster))
+                {
+                    _autoPlayNextFireWall = CMain.Time + AutoPlayFireWallInterval;
+                    return true;
+                }
+            }
+
+            // ② 一条线：疾光电影（方向由目标决定，服务端沿该方向穿透 6 格）
+            MapObject lineTarget = AutoPlayFindLineTarget();
+
+            if (lineTarget != null && AutoPlayTryCast(AutoPlayLineSpells, lineTarget)) return true;
+
+            // ③ 不死系：圣言术（服务端只对 Undead 怪物生效，客户端按名字关键字判断）。
+            // 这招很费蓝、对高级不死系还容易失败，所以也加节流。
+            if (CMain.Time >= _autoPlayNextSaint && AutoPlayIsUndead(target) &&
+                AutoPlayTryCast(AutoPlayTurnUndeadSpells, target))
+            {
+                _autoPlayNextSaint = CMain.Time + AutoPlaySaintInterval;
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>火墙落点：在附近怪里挑一个「十字范围内怪最多」的位置（火墙落点是十字 5 格）</summary>
+        private MapObject AutoPlayFindFireWallSpot()
         {
             MapObject best = null;
-            int bestDistance = int.MaxValue;
-            int range = Settings.AutoSearchRange;
+            int bestCount = 0;
 
+            for (int i = 0; i < Objects.Count; i++)
+            {
+                MapObject ob = Objects[i];
+
+                if (!AutoPlayIsValidMonster(ob)) continue;
+                if (Functions.MaxDistance(ob.CurrentLocation, User.CurrentLocation) > 8) continue;
+
+                int count = AutoPlayCountMonsters(ob.CurrentLocation, 1);
+
+                if (count <= bestCount) continue;
+
+                best = ob;
+                bestCount = count;
+            }
+
+            return bestCount >= AutoPlayClusterMinCount ? best : null;
+        }
+
+        /// <summary>
+        /// 找一条「怪最多的直线」上的目标：沿 8 个方向各数 6 格（疾光电影最多穿透 6 格），
+        /// 怪数达标（≥ AutoPlayLineMinCount）时返回该方向上最近的那只，方向由它决定。
+        /// </summary>
+        private MapObject AutoPlayFindLineTarget()
+        {
+            MapObject best = null;
+            int bestCount = 0;
+
+            for (int d = 0; d < 8; d++)
+            {
+                MirDirection dir = (MirDirection)d;
+                int count = 0;
+                MapObject first = null;
+
+                for (int i = 1; i <= AutoPlayLineMaxTiles; i++)
+                {
+                    MapObject ob = AutoPlayMonsterAt(Functions.PointMove(User.CurrentLocation, dir, i));
+
+                    if (ob == null) continue;
+
+                    count++;
+
+                    if (first == null) first = ob;
+                }
+
+                if (count < AutoPlayLineMinCount || count <= bestCount) continue;
+
+                best = first;
+                bestCount = count;
+            }
+
+            return best;
+        }
+
+        /// <summary>某个格子上是否有可攻击的怪（用于一条线的判定）</summary>
+        private MapObject AutoPlayMonsterAt(Point location)
+        {
+            for (int i = 0; i < Objects.Count; i++)
+            {
+                MapObject ob = Objects[i];
+
+                if (ob == null || ob.CurrentLocation != location) continue;
+                if (!AutoPlayIsValidMonster(ob)) continue;
+
+                return ob;
+            }
+
+            return null;
+        }
+
+        /// <summary>是否是可攻击的怪（排除宠物、智能宠物、忽略名单、守卫、AI 970）</summary>
+        private bool AutoPlayIsValidMonster(MapObject ob)
+        {
+            if (ob == null || ob == User) return false;
+            if (!(ob is MonsterObject)) return false;
+            if (ob.Dead || ob.Hidden) return false;
+            if (ob.Race == ObjectType.Creature) return false;                 // 智能宠物
+
+            MonsterObject monster = (MonsterObject)ob;
+
+            if (monster.AI == 970) return false;
+            if (ob.Name != null && ob.Name.EndsWith(")")) return false;        // 玩家宠物
+            if (AutoPlayIsIgnored(ob.Name)) return false;
+            if (ob.NameColour == System.Drawing.Color.SkyBlue) return false;   // 守卫类怪物
+
+            return true;
+        }
+
+        /// <summary>
+        /// 是否是不死系怪物（圣言术只对不死系生效）。
+        /// 客户端拿不到服务端的怪物 Undead 标记，这里按怪物名字里的关键字判断，
+        /// 关键字可在 Mir2.ini 的 AutoSaintKeywords 里自行增删（英文逗号分隔）。
+        /// </summary>
+        private bool AutoPlayIsUndead(MapObject target)
+        {
+            if (target == null || string.IsNullOrEmpty(target.Name)) return false;
+
+            string[] keywords = AutoPlayKeywords(Settings.AutoSaintKeywords, ref _autoSaintSource, ref _autoSaintKeywords);
+
+            for (int i = 0; i < keywords.Length; i++)
+            {
+                string k = keywords[i].Trim();
+
+                if (k.Length > 0 && target.Name.Contains(k)) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 道士治疗：把「自己 / 自己的召唤宠物 / 队伍队友」里血量不足的单位找出来一起处理（射程 9 格）——
+        /// 一片区域（3×3）里有 2 个及以上单位掉血 → 用**群体治疗术**（以掉血最集中的那个单位为中心，一次奶一片）；
+        /// 只有 1 个单位掉血 → 用**单体治愈术**（治愈术 / 治愈术-秘籍），自己掉血优先治自己。
+        /// 服务端的群体治疗术按落点 3×3 范围结算，只要 `IsFriendlyTarget` 为真就能被奶到
+        /// （自己的宠物、队友都算），所以宠物也能一起回血。
+        /// </summary>
+        private void AutoPlayGroupHeal()
+        {
+            if (User.NextMagic != null) return;
+            if (CMain.Time < _autoPlayNextGroupHeal) return;
+
+            // ① 收集掉血到阈值以下的单位：自己 / 自己的召唤宠物 / 队伍队友
+            List<MapObject> hurt = new List<MapObject>();
+
+            if (User.PercentHealth < AutoPlayAllyHealPercent) hurt.Add(User);
+
+            string suffix = string.IsNullOrEmpty(User.Name) ? null : "(" + User.Name + ")";
+            List<string> group = GroupDialog.GroupList;
+
+            for (int i = 0; i < Objects.Count; i++)
+            {
+                MapObject ob = Objects[i];
+
+                if (ob == null || ob == User || ob.Dead) continue;
+                if (ob.PercentHealth >= AutoPlayAllyHealPercent) continue;             // 血够
+                if (!Functions.InRange(ob.CurrentLocation, User.CurrentLocation, 9)) continue;
+
+                if (ob is MonsterObject)
+                {
+                    // 自己召唤的宠物（服务端把宠物名写成「怪物名(主人名)」）
+                    if (suffix != null && ob.Name != null && ob.Name.EndsWith(suffix)) hurt.Add(ob);
+                }
+                else if (ob is PlayerObject)
+                {
+                    if (group != null && group.Contains(ob.Name)) hurt.Add(ob);        // 队伍队友
+                }
+            }
+
+            if (hurt.Count == 0) return;
+
+            // ② 挑「3×3 范围内掉血单位最多」的那个作为群体治疗术的落点（群体治疗术的作用范围）
+            MapObject best = null;
+            int bestScore = 0;
+
+            for (int i = 0; i < hurt.Count; i++)
+            {
+                int score = 0;
+
+                for (int j = 0; j < hurt.Count; j++)
+                {
+                    if (Functions.InRange(hurt[j].CurrentLocation, hurt[i].CurrentLocation, 1)) score++;
+                }
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = hurt[i];
+                }
+            }
+
+            if (best == null) return;
+
+            _autoPlayNextGroupHeal = CMain.Time + 1000;
+
+            // ③ 两个及以上挤在一起（全体失血）→ 群体治疗术，一次把大家奶上
+            if (bestScore >= 2 && AutoPlayTryCast(AutoPlayMassHealSpells, best)) return;
+
+            // ④ 只有一个单位掉血 → 单体治愈术；自己掉血优先治自己（治愈圆环等自身治疗技能也能用）
+            MapObject single = hurt.Contains(User) ? User : best;
+
+            AutoPlayTryCast(single == User ? AutoPlayHealSpells : AutoPlayAllyHealSpells, single);
+        }
+
+        /// <summary>自己身上是否挂着指定 buff（读客户端自身 buff 列表）</summary>
+        private bool AutoPlayHasBuff(BuffType type)
+        {
+            var buffs = GameScene.Scene.BuffsDialog.Buffs;
+
+            for (int i = 0; i < buffs.Count; i++)
+                if (buffs[i].Type == type) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// 身上是否带着护身符（道士隐身/幽灵盾/神圣战甲术的施法材料）。
+        /// 与服务端 GetAmulet 一致：看装备槽（EquipmentSlot.护身符）、要求 Shape=0 且数量够。
+        /// </summary>
+        private bool AutoPlayHasAmulet()
+        {
+            return AutoPlayHasItem(ItemType.护身符, 0, 1);
+        }
+
+        /// <summary>
+        /// 该技能要用的施法材料是否齐备。道士的符系技能服务端都要护身符：
+        /// 灵魂火符 / 隐身术 / 幽灵盾 / 神圣战甲术 各 1 张；毒雾要 5 张符 + 5 个毒粉。
+        /// 材料不够时服务端会静默失败却照样扣蓝，所以客户端先跳过，避免原地空放。
+        /// </summary>
+        private bool AutoPlayHasSpellMaterials(Spell spell)
+        {
+            switch (spell)
+            {
+                case Spell.SoulFireBall:
+                case Spell.Hiding:
+                case Spell.MassHiding:
+                case Spell.SoulShield:
+                case Spell.BlessedArmour:
+                    return AutoPlayHasItem(ItemType.护身符, 0, 1);
+                case Spell.PoisonCloud:
+                    return AutoPlayHasItem(ItemType.护身符, 0, 5) && AutoPlayHasItem(ItemType.护身符, 1, 5);
+                case Spell.HealingcircleRare:
+                    return AutoPlayHasItem(ItemType.护身符, 0, 3);   // 阴阳五行阵-秘籍要 3 张符
+                case Spell.SummonSkeleton:
+                    return AutoPlayHasItem(ItemType.护身符, 0, 1);   // 召唤骷髅要 1 张符
+                case Spell.SummonHolyDeva:
+                    return AutoPlayHasItem(ItemType.护身符, 0, 2);   // 精魂召唤术（月灵）要 2 张符
+                case Spell.SummonShinsu:
+                    return AutoPlayHasItem(ItemType.护身符, 0, 5);   // 召唤神兽要 5 张符
+                case Spell.Poisoning:
+                    return AutoPlayHasItem(ItemType.护身符, 1, 1) || AutoPlayHasItem(ItemType.护身符, 2, 1);   // 施毒术要 1 个毒粉（黄/灰都行）
+                default:
+                    return true;      // 其余技能不需要材料
+            }
+        }
+
+        /// <summary>装备槽里是否有一件指定类型/形态、剩余数量足够的物品（护身符、毒药等都放在装备槽）</summary>
+        private bool AutoPlayHasItem(ItemType type, byte shape, int count)
+        {
+            for (int i = 0; i < User.Equipment.Length; i++)
+            {
+                UserItem item = User.Equipment[i];
+
+                if (item == null || item.Info == null) continue;
+                if (item.Info.Type != type) continue;
+                if (item.Info.Shape != shape) continue;
+                if (item.Count < count) continue;
+
+                return true;
+            }
+
+            return false;
+        }
+
+        #region 毒符互换（道士）
+
+        /// <summary>背包里找一件指定形态的符/毒（shape：0=护身符、1=灰色毒粉(绿毒)、2=黄色毒粉(红毒)），找不到返回 -1</summary>
+        private int AutoPlayFindConsumable(byte shape)
+        {
+            if (User.Inventory == null) return -1;
+
+            for (int i = 0; i < User.Inventory.Length; i++)
+            {
+                UserItem item = User.Inventory[i];
+
+                if (item == null || item.Info == null) continue;
+                if (item.Info.Type != ItemType.护身符) continue;
+                if (item.Info.Shape != shape) continue;
+                if (item.Count < 1) continue;
+
+                return i;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// 把背包里的符/毒装到「护身符」槽。槽位被别的物品占着也没关系——
+        /// 服务端会把它换回背包（EquipItem 是交换式移动）。返回是否已发出换装请求。
+        /// </summary>
+        private bool AutoPlayEquipConsumable(byte shape)
+        {
+            int index = AutoPlayFindConsumable(shape);
+
+            if (index < 0) return false;
+
+            UserItem item = User.Inventory[index];
+
+            if (item == null || item.Info == null) return false;
+
+            // 同一件物品刚换过又要求换（本地状态多半没同步回来）→ 不再重复发包，避免死循环
+            if (item.UniqueID == _autoSwapLastID && CMain.Time - _autoSwapLastTime < 2000) return false;
+
+            _autoSwapLastID = item.UniqueID;
+            _autoSwapLastTime = CMain.Time;
+
+            Network.Enqueue(new C.EquipItem
+            {
+                Grid = MirGridType.Inventory,
+                UniqueID = item.UniqueID,
+                To = (int)EquipmentSlot.护身符
+            });
+
+            return true;
+        }
+
+        /// <summary>
+        /// 毒符互换（自动挂机用）：道士的「护身符（符纸）」和「毒药（黄色毒粉/灰色毒粉）」共用同一个装备槽，
+        /// 内挂只在「接下来要放的那个技能用什么材料」发生变化时才换一次：
+        ///  · 要放需要毒药的技能（施毒术）→ 槽里换成毒粉（两种毒粉按「一次使用交替一次」轮换）；
+        ///  · 要放需要符纸的技能（灵魂火符主攻 / 隐身术 / 幽灵盾 / 神圣战甲术 / 召唤术）→ 槽里换成护身符。
+        /// 判定是「粘住」的：槽里已经是当前需要的材料就一律不动，
+        /// 所以正常节奏是「怪来了装毒 → 放施毒术 → 换回符 → 一直丢灵魂火符」，
+        /// 不会出现两帧之间符/毒来回互切。
+        /// 背包里没有对应的物品时不换（不会把槽里的东西卸掉）。
+        /// 返回 true 表示本帧刚发出换装请求，调用方应跳过本帧战斗，等服务器回执。
+        /// </summary>
+        private bool AutoPlaySwapPoisonAmulet()
+        {
+            if (!Settings.AutoSwapPoison) return false;
+            if (User.Class != MirClass.道士) return false;
+            if (User.Inventory == null || User.Equipment == null) return false;
+            if (User.NextMagic != null) return false;        // 正在施法（含玩家手动），放完再换
+            if (CMain.Time < _autoManualHoldUntil) return false;   // 玩家刚手动换过装，这段时间以他为准
+            if (CMain.Time < _autoPlayNextSwap) return false;
+
+            if (User.ObjectID != _autoPoisonSwapUserID)
+            {
+                _autoPoisonSwapUserID = User.ObjectID;
+                _autoPoisonNextShape = 2;                 // 新角色第一次先用黄色毒粉，之后黄/灰交替
+            }
+
+            // 判定用的目标：开了自动攻击时优先用当前锁定目标，没有就用和战斗同一套索敌找一只
+            MapObject target = MapObject.TargetObject;
+
+            if (!AutoPlaySwappableTarget(target) && Settings.AutoAttack) target = AutoPlayFindMonster();
+
+            byte equipped = AutoPlayEquippedPoisonShape();   // 槽里现在是哪种毒（0=不是毒，多半是符）
+
+            // ① 接下来要放「施毒术」这种吃毒药的技能 → 槽里放毒
+            byte wantPoison;
+
+            if (AutoPlayWantPoison(target, out wantPoison))
+            {
+                if (equipped == wantPoison) return false;    // 槽里正好是要用的那种毒：粘住，等施毒术放出去
+
+                // 背包里没有想要的颜色就用另一种；另一种目标身上已经有了也不换（换了也白换）
+                byte load = 0;
+
+                if (AutoPlayFindConsumable(wantPoison) >= 0) load = wantPoison;
+                else
+                {
+                    byte other = (byte)(wantPoison == 1 ? 2 : 1);
+
+                    if (AutoPlayFindConsumable(other) >= 0 && !AutoPlayPoisoned(target, other)) load = other;
+                }
+
+                // 背包里有能用的毒、且槽里不是这种 → 换毒
+                if (load != 0 && equipped != load && AutoPlayEquipConsumable(load))
+                {
+                    AutoPlayUsePoisonShape(load);                            // 这次用的是它 → 下次换另一种
+                    _autoPlayNextSwap = CMain.Time + AutoPlaySwapInterval;
+                    return true;
+                }
+
+                // 背包里根本没有能用的毒 → 落到下面按「需要符纸的技能」处理，
+                // 否则会一直空着毒槽、连灵魂火符都放不出来
+            }
+
+            // ② 不需要毒 → 接下来要放「需要符纸」的技能（灵魂火符主攻 / 隐身 / 护盾 / 召唤）才换符
+            if (AutoPlayHasAmulet()) return false;                       // 槽里已经是符，不用换
+            if (!AutoPlayWantAmulet(target)) return false;               // 眼下既不用毒也不用符 → 保持现状
+            if (!AutoPlayEquipConsumable(0)) return false;               // 背包里没有符，不动
+
+            _autoPlayNextSwap = CMain.Time + AutoPlaySwapInterval;
+            return true;
+        }
+
+        /// <summary>目标身上是否已经中了指定形态的毒（1=灰色毒粉→绿毒 2=黄色毒粉→红毒）</summary>
+        private static bool AutoPlayPoisoned(MapObject target, byte shape)
+        {
+            if (target == null) return false;
+
+            return shape == 1
+                ? (target.Poison & PoisonType.Green) == PoisonType.Green
+                : (target.Poison & PoisonType.Red) == PoisonType.Red;
+        }
+
+        /// <summary>
+        /// 下一次「施毒术」要装哪种毒粉（1=灰色毒粉(绿毒) 2=黄色毒粉(红毒)）——
+        /// 两种毒粉「一次使用交替一次」，第一次是黄色毒粉。
+        /// </summary>
+        private static byte AutoPlayNextPoisonShape()
+        {
+            return _autoPoisonNextShape == 1 ? (byte)1 : (byte)2;
+        }
+
+        /// <summary>
+        /// 一次「施毒术」真的用掉了某种毒粉 —— 才把下一次要用的毒粉换成另一种（黄 → 灰 → 黄 …）。
+        /// 只有「确实要放出去的那一次」才算一次使用，所以不会一个技能被反复判定时来回乱切。
+        /// </summary>
+        private static void AutoPlayUsePoisonShape(int shape)
+        {
+            if (shape != 1 && shape != 2) return;
+
+            _autoPoisonNextShape = shape == 2 ? (byte)1 : (byte)2;
+        }
+
+        /// <summary>
+        /// 眼下「需要毒药」（out shape：槽里应该装那种毒，1=灰色毒粉 2=黄色毒粉）：
+        /// 要放「施毒术」——学了施毒术 + 有可下毒的目标 + 目标还缺某种毒。
+        /// 两种毒都缺时按「黄/灰交替」的顺序挑一种。
+        /// 注意：槽里放的**正好是目标还缺的那种毒**时同样返回 true（shape 就是槽里那种毒），
+        /// 表示「还需要毒、保持住」——只有返回 false 才轮到「换符」那一支，
+        /// 否则会出现「装上毒 → 立刻换回符 → 又换毒」的来回抖动。
+        /// </summary>
+        private bool AutoPlayWantPoison(MapObject target, out byte shape)
+        {
+            shape = 0;
+
+            if (User.GetMagic(Spell.Poisoning) == null) return false;         // 没学施毒术
+            if (!AutoPlaySwappableTarget(target)) return false;               // 没有可下毒的目标
+
+            bool needGreen = (target.Poison & PoisonType.Green) != PoisonType.Green;
+            bool needRed = (target.Poison & PoisonType.Red) != PoisonType.Red;
+
+            if (!needGreen && !needRed) return false;                         // 两种毒都上了，毒药没用了
+
+            byte equipped = AutoPlayEquippedPoisonShape();
+
+            // 槽里已经是「目标还缺的那种毒」→ 继续保持，等施毒术把它放出去（不要去换符）
+            if (equipped == 1 && needGreen) { shape = 1; return true; }
+            if (equipped == 2 && needRed) { shape = 2; return true; }
+
+            if (needGreen && needRed) shape = AutoPlayNextPoisonShape();      // 两种都缺 → 按黄/灰交替
+            else if (needGreen) shape = 1;
+            else shape = 2;
+
+            return true;
+        }
+
+        /// <summary>
+        /// 眼下要不要把槽里换成护身符（符纸）——符系技能都要它：
+        /// 正在打怪时主攻的「灵魂火符」要符；没打怪时补幽灵盾 / 神圣战甲术 / 隐身术 / 召唤也都要符。
+        /// </summary>
+        private bool AutoPlayWantAmulet(MapObject target)
+        {
+            if (AutoPlaySwappableTarget(target)) return true;                  // 正在打怪：主攻灵魂火符要符
+
+            if (User.GetMagic(Spell.SoulShield) != null && !AutoPlayHasBuff(BuffType.幽灵盾)) return true;
+            if (User.GetMagic(Spell.BlessedArmour) != null && !AutoPlayHasBuff(BuffType.神圣战甲术)) return true;
+            if (AutoPlayShouldHide() && !AutoPlayHasBuff(BuffType.隐身术)) return true;
+            if (AutoPlayNeedSummon()) return true;                             // 还有召唤物没养齐
+
+            return false;
+        }
+
+        /// <summary>是否还有「已学会但场上没有」的召唤物需要补（骷髅 / 神兽 / 月灵）</summary>
+        private bool AutoPlayNeedSummon()
+        {
+            for (int i = 0; i < AutoPlaySummonSpells.Length; i++)
+            {
+                if (User.GetMagic(AutoPlaySummonSpells[i]) == null) continue;   // 没学这种召唤术
+                if (AutoPlayPetCount(i) > 0) continue;                          // 这只已经养着了
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 服务端 GetPoison 取装备槽里第一个毒药（可能是右手镯这类槽位），返回它的形态：
+        /// 1=灰色毒粉（绿毒）2=黄色毒粉（红毒），0=装备槽里没有毒
+        /// </summary>
+        private byte AutoPlayEquippedPoisonShape()
+        {
+            if (User.Equipment == null) return 0;
+
+            for (int i = 0; i < User.Equipment.Length; i++)
+            {
+                UserItem item = User.Equipment[i];
+
+                if (item == null || item.Info == null) continue;
+                if (item.Info.Type != ItemType.护身符) continue;
+                if (item.Count < 1) continue;
+                if (item.Info.Shape != 1 && item.Info.Shape != 2) continue;
+
+                return (byte)item.Info.Shape;
+            }
+
+            return 0;
+        }
+
+        /// <summary>毒符互换的判定目标：必须是可以下毒的正常怪物（跳过宠物、守卫、忽略名单）</summary>
+        private bool AutoPlaySwappableTarget(MapObject target)
+        {
+            if (target == null || target.Dead) return false;
+            if (!(target is MonsterObject)) return false;
+            if (target.Race == ObjectType.Creature) return false;
+            if (target.Name != null && target.Name.EndsWith(")")) return false;      // 玩家宠物
+            if (target.NameColour == System.Drawing.Color.SkyBlue) return false;     // 守卫类
+            if (AutoPlayIsIgnored(target.Name)) return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// 道士是否需要对这个目标放施毒术：看装备槽里现在是哪种毒（服务端 GetPoison 取到的那种），
+        /// 目标身上缺这种毒才放（与服务端道士英雄的判定一致）。
+        /// </summary>
+        private bool AutoPlayNeedPoison(MapObject target)
+        {
+            if (target == null || target.Dead) return false;
+
+            byte shape = AutoPlayEquippedPoisonShape();
+
+            if (shape == 1) return (target.Poison & PoisonType.Green) != PoisonType.Green;
+            if (shape == 2) return (target.Poison & PoisonType.Red) != PoisonType.Red;
+
+            return false;
+        }
+
+        #endregion
+
+        #region 毒符互换（手动施法按需换装，不依赖内挂总开关）
+
+        /// <summary>
+        /// 技能要用的材料：0=护身符（符纸） 1=灰色毒粉(绿毒) 2=黄色毒粉(红毒) 3=任意毒粉（黄/灰交替）
+        /// -1=不吃符也不吃毒。
+        /// 与服务端《技能消耗》一一对应：
+        ///  · 符：灵魂火符 / 隐身术 / 集体隐身术 / 幽灵盾 / 神圣战甲术 / 困魔咒 / 诅咒术 / 强化术 /
+        ///        幻影术 / 阴阳五行阵-秘籍(3张) / 召唤骷髅(1) / 召唤神兽(5) / 精魂召唤术(2) / 回生术(3)；
+        ///  · 毒：施毒术（黄色毒粉或灰色毒粉都行）；
+        ///  · 毒雾、瘟疫术要「符 + 毒」同时消耗，一个槽位满足不了，交给玩家自己安排（返回 -1 不动）。
+        /// </summary>
+        private static int AutoPlaySpellMaterial(Spell spell)
+        {
+            switch (spell)
+            {
+                case Spell.Poisoning:
+                    return 3;
+
+                case Spell.SoulFireBall:
+                case Spell.Hiding:
+                case Spell.MassHiding:
+                case Spell.SoulShield:
+                case Spell.BlessedArmour:
+                case Spell.TrapHexagon:
+                case Spell.Curse:
+                case Spell.UltimateEnhancer:
+                case Spell.Hallucination:
+                case Spell.Reincarnation:
+                case Spell.HealingcircleRare:
+                case Spell.SummonSkeleton:
+                case Spell.SummonShinsu:
+                case Spell.SummonHolyDeva:
+                    return 0;
+
+                default:
+                    return -1;
+            }
+        }
+
+        /// <summary>护身符槽里现在装的是什么：0=符 1=灰色毒粉 2=黄色毒粉 -1=空</summary>
+        private int AutoPlayEquippedMaterial()
+        {
+            byte poison = AutoPlayEquippedPoisonShape();
+
+            if (poison != 0) return poison;
+
+            return AutoPlayHasAmulet() ? 0 : -1;
+        }
+
+        /// <summary>
+        /// 手动施法前的材料准备——面板勾选「毒符互换」后**不需要开内挂总开关**：
+        /// 玩家按技能键 / 点技能栏时，先看这个技能吃什么材料（吃符换符、吃毒换毒），
+        /// 材料已经就位就照常施放；需要换装时先把换装请求发出去并记住这个技能，
+        /// 等材料到位后由 AutoPlayRetryManualSpell() 自动把它补放出去。
+        /// 返回 true 表示本帧先别施放（等换装回执）。
+        ///
+        /// 关键：**一次技能操作只判定一次材料**。只要上一次的换装还在路上，就直接等它换好，
+        /// 绝不再重新算一遍「这次该装哪种毒」——否则黄色毒粉 / 灰色毒粉会被一帧一帧地翻来翻去
+        /// （补放重入 UseSpell 时尤其明显），就是「一用需要毒的技能就疯狂换毒」的原因。
+        /// </summary>
+        public bool AutoPlayPrepareManualSpell(ClientMagic magic)
+        {
+            // 这是「材料换好后」的补放重入（AutoPlayRetryManualSpell 里回调 UseSpell），
+            // 材料已经校验过了，直接放行，不再判材料。
+            if (_manualSpellCasting) return false;
+
+            if (!Settings.AutoSwapPoison) return false;
+            if (User == null || User.Class != MirClass.道士) return false;
+            if (User.Inventory == null || User.Equipment == null) return false;
+
+            // 换角色 / 重新上线：毒粉交替从头开始（第一次施毒术用黄色毒粉）
+            if (User.ObjectID != _autoPoisonSwapUserID)
+            {
+                _autoPoisonSwapUserID = User.ObjectID;
+                _autoPoisonNextShape = 2;
+            }
+
+            int want = AutoPlaySpellMaterial(magic.Spell);
+
+            if (want < 0) return false;                       // 这个技能不吃符也不吃毒，不动
+
+            // 上一次手动换装还没回来（第一次按下去的那次还没放出去）：
+            //  · 还是同一个技能 / 同样是「施毒术」→ 继续等它换好，不要重新判定材料；
+            //  · 换成别的技能了 → 放弃上一次的等待，按新技能重新准备。
+            if (_manualSpellKey != 0 && CMain.Time <= _manualSpellUntil)
+            {
+                if (_manualSpellKey == magic.Key) return true;
+                if (want == 3 && _manualSpellIsPoison) return true;
+
+                _manualSpellKey = 0;
+                _manualSpellIsPoison = false;
+            }
+
+            bool isPoison = want == 3;                        // 施毒术：黄色毒粉 / 灰色毒粉都能放
+
+            if (isPoison)
+            {
+                MapObject target = MapObject.TargetObject;
+
+                if (!AutoPlaySwappableTarget(target) && Settings.AutoAttack) target = AutoPlayFindMonster();
+
+                byte poison;
+
+                // 目标还缺某种毒 → 就用缺的那种；目标不缺毒 / 没目标 → 按「上一次用的另一种」交替
+                if (AutoPlayWantPoison(target, out poison)) want = poison;
+                else want = AutoPlayNextPoisonShape();
+            }
+
+            int load = want;
+
+            // 想要的那种毒背包里没有 → 用另一种颜色的毒粉顶上（施毒术两种毒粉都能放）
+            if ((load == 1 || load == 2) && AutoPlayFindConsumable((byte)load) < 0)
+            {
+                byte other = (byte)(load == 1 ? 2 : 1);
+
+                if (AutoPlayFindConsumable(other) >= 0) load = other;
+            }
+
+            if (AutoPlayEquippedMaterial() == load)
+            {
+                // 槽里已经是要用的材料 → 这一次就算用掉了它，下一次施毒术换另一种毒粉
+                if (isPoison) AutoPlayUsePoisonShape(load);
+
+                return false;                                 // 照常施放
+            }
+
+            if (!AutoPlayEquipConsumable((byte)load))
+                return false;                                 // 背包里没有 → 照常尝试（服务端自己会判失败）
+
+            _manualSpellKey = magic.Key;
+            _manualSpellWant = load;
+            _manualSpellIsPoison = isPoison;
+            _manualSpellTime = CMain.Time;
+            _manualSpellUntil = CMain.Time + 3000;            // 3 秒内材料还没到位就放弃这次补放
+            _autoManualHoldUntil = CMain.Time + 3000;         // 静默期：自动逻辑这段时间别把槽翻回去
+            _autoPlayNextSwap = CMain.Time + AutoPlaySwapInterval;
+
+            return true;                                      // 先别放，等材料到位的回执
+        }
+
+        /// <summary>
+        /// 手动施法因为要先换装而被推迟时的「补放」：材料真的换到位了就自动把玩家原本要放的那个技能放出去。
+        /// （等本地装备槽里看到目标材料才动，一般换装回执 100ms 内就回来了，手动体验几乎无延迟。）
+        /// </summary>
+        private void AutoPlayRetryManualSpell()
+        {
+            if (_manualSpellKey == 0) return;
+
+            if (User == null || User.Dead || CMain.Time > _manualSpellUntil || User.NextMagic != null)
+            {
+                _manualSpellKey = 0;
+                _manualSpellIsPoison = false;
+                return;
+            }
+
+            if (CMain.Time - _manualSpellTime < 120) return;         // 刚发出换装请求，稍等一下
+            if (AutoPlayEquippedMaterial() != _manualSpellWant) return;  // 材料还没换到位
+
+            int key = _manualSpellKey;
+            bool poison = _manualSpellIsPoison;
+            int used = _manualSpellWant;
+
+            _manualSpellKey = 0;
+            _manualSpellIsPoison = false;
+
+            // 这一次「施毒术」到这里才算真用掉：下一次自动换另一种毒粉（黄 → 灰 → 黄 …）
+            if (poison) AutoPlayUsePoisonShape(used);
+
+            // 补放期间重入 UseSpell 时不要再判材料（见 AutoPlayPrepareManualSpell 开头）
+            _manualSpellCasting = true;
+
+            try
+            {
+                GameScene.Scene.UseSpell(key);                            // 重新执行玩家那次技能操作
+            }
+            finally
+            {
+                _manualSpellCasting = false;
+            }
+        }
+
+        #endregion
+
+        #region 道士隐身（隐身术 / 原地不动 / 贴身近砍）
+
+        //隐身术的触发条件：身上有自己的召唤宠物 + 附近（索敌范围内）有 2 只以上怪物
+        private const int AutoPlayHideMonsterCount = 2;
+        private const int AutoPlayHideDetectRange = 8;      // 判断「附近有几只怪」的半径（不超过灵魂火符射程 9）
+
+        private const long AutoPlayMeleeAttackerAlive = 2500;   // 最近一次「被谁打」的有效时间窗
+
+        private const long AutoPlayHideIdleBreakTime = 25000;   // 隐身期间连续这么久没打到怪 → 自动解除隐身
+        private const long AutoPlayHidePoisonBreakTime = 25000; // 中毒持续这么久 → 自动解除隐身
+        private const long AutoPlayHideBanTime = 8000;          // 解除隐身后这段时间内不再隐身
+
+        private static bool _autoHoldStill;             // 本帧是否隐身原地不动（每帧在 ProcessAutoPlay 里刷新）
+        private static long _autoHiddenSince;           // 本次隐身的开始时间（0=当前没隐身）
+        private static long _autoHiddenLastAttack;      // 隐身后最近一次对怪物出手的时间
+        private static long _autoHiddenBreakUntil;      // 强制「解除隐身、放行移动」的截止时间
+        private static long _autoSelfPoisonSince;       // 自身中毒的开始时间（0=没中毒）
+
+        /// <summary>隐身术是否生效中（道士）</summary>
+        private bool AutoPlayHidden()
+        {
+            return User.Class == MirClass.道士 && AutoPlayHasBuff(BuffType.隐身术);
+        }
+
+        /// <summary>自己是否处于中毒状态（绿毒 / 红毒）</summary>
+        private bool AutoPlaySelfPoisoned()
+        {
+            return User.Poison.HasFlag(PoisonType.Green) || User.Poison.HasFlag(PoisonType.Red);
+        }
+
+        /// <summary>
+        /// 隐身状态维护（每帧调一次），处理两条「自动解除隐身」规则：
+        ///  ① 隐身期间 25 秒没有攻击到怪物（够不到 / 没材料等）→ 解除隐身，主动去打；
+        ///  ② 自己处于中毒状态 → 不进入隐身；已经在隐身中又中毒满 25 秒 → 解除隐身，主动去打。
+        /// 解除的方式是放开移动限制（服务端走 / 跑会 RemoveBuff(隐身术)），
+        /// 并在 AutoPlayHideBanTime 内不再隐身，先把该打的怪打掉。
+        /// </summary>
+        private void AutoPlayUpdateHiding(long now)
+        {
+            if (AutoPlaySelfPoisoned())
+            {
+                if (_autoSelfPoisonSince == 0) _autoSelfPoisonSince = now;
+            }
+            else
+            {
+                _autoSelfPoisonSince = 0;
+            }
+
+            if (!AutoPlayHidden())
+            {
+                _autoHiddenSince = 0;
+                return;
+            }
+
+            if (_autoHiddenSince == 0)
+            {
+                _autoHiddenSince = now;
+                _autoHiddenLastAttack = now;
+            }
+
+            // ① 隐身这么久一直没打到怪 → 解除隐身主动去打
+            if (now - _autoHiddenLastAttack >= AutoPlayHideIdleBreakTime)
+            {
+                _autoHiddenBreakUntil = now + AutoPlayHideBanTime;
+                return;
+            }
+
+            // ② 中毒满 25 秒 → 解除隐身主动去打
+            if (_autoSelfPoisonSince != 0 && now - _autoSelfPoisonSince >= AutoPlayHidePoisonBreakTime)
+                _autoHiddenBreakUntil = now + AutoPlayHideBanTime;
+        }
+
+        /// <summary>判断「附近有几只怪」用的半径：不超过灵魂火符射程（9），也不超过索敌半径</summary>
+        private static int AutoPlayHideRange()
+        {
+            return Math.Min(Settings.AutoSearchRange, AutoPlayHideDetectRange);
+        }
+
+        /// <summary>
+        /// 要不要用隐身术：道士的经典玩法——召唤宠物顶怪，自己隐身在一旁用灵魂火符远程输出。
+        /// 只在「有召唤宠物」并且「附近有 2 只以上怪物」时才用（怪太少没必要，也没宠物配合）；
+        /// 处于**中毒状态**时不隐身，刚被解除隐身（AutoPlayHideBanTime）内也不再隐身。
+        /// 隐身期间服务端走 / 跑都会立刻解除隐身，所以隐身时不移动（见 AutoPlayHoldStill）。
+        /// </summary>
+        private bool AutoPlayShouldHide()
+        {
+            if (User.GetMagic(Spell.Hiding) == null) return false;
+            if (!Settings.AutoSkill) return false;                        // 不放技能时隐身没有意义（只会站着挨打）
+            if (AutoPlaySelfPoisoned()) return false;                     // 中毒状态不进入隐身
+            if (CMain.Time < _autoHiddenBreakUntil) return false;          // 刚解除隐身，先主动打一会儿
+            if (!AutoPlayHasOwnPet()) return false;                       // 没有召唤宠物不隐身
+
+            return AutoPlayCountMonsters(User.CurrentLocation, AutoPlayHideRange()) >= AutoPlayHideMonsterCount;
+        }
+
+        /// <summary>
+        /// 隐身期间原地不动（服务端走一步就会解除隐身），只用灵魂火符、施毒术这类远程技能输出。
+        /// 只有「射程内一只可打的怪都没有」或「已判定要解除隐身主动去打」时才放行移动，避免彻底卡死。
+        /// </summary>
+        private bool AutoPlayHoldStill()
+        {
+            if (!AutoPlayHidden()) return false;
+            if (CMain.Time < _autoHiddenBreakUntil) return false;          // 已判定解除隐身 → 放开移动
+
+            return AutoPlayFindMonster(AutoPlayHideRange()) != null;
+        }
+
+        /// <summary>
+        /// 是否有怪物贴着身（1 格内）正在近身攻击玩家——隐身后只有这种情况才用近身砍：
+        /// 优先用 S.Struck 记下的攻击者（真的打到我身上才算「近攻」），
+        /// 退而用怪物自身的攻击目标（客户端远程攻击动作会带 TargetID）。
+        /// </summary>
+        private bool AutoPlayMonsterMeleeAdjacent(MapObject target)
+        {
+            if (!AutoPlaySwappableTarget(target)) return false;
+            if (Functions.MaxDistance(target.CurrentLocation, User.CurrentLocation) > 1) return false;
+
+            if (target.ObjectID == GameScene.LastStruckAttackerID &&
+                CMain.Time - GameScene.LastStruckAttackerTime <= AutoPlayMeleeAttackerAlive) return true;
+
+            MonsterObject monster = target as MonsterObject;
+
+            return monster != null && monster.TargetID == User.ObjectID;
+        }
+
+        /// <summary>
+        /// 隔位刺杀（战士「刀刀刺杀」）：目标正好落在正前方隔一格的第 2 格、中间那格是空地，
+        /// 且刺杀剑术处于开启状态 → 可以站在原地用剑气打（不贴脸）。
+        ///
+        /// 客户端机制：近距攻击动作在 PlayerObject 里会被改写成 Spell.Thrusting
+        /// （条件正是 User.Thrusting && 正前方 2 格有目标），服务端再把落点前移一格结算伤害。
+        ///
+        /// 面板勾选「隔位刺杀」后**不需要开内挂总开关**：手动点怪时 CheckInput 走同一段判定，
+        /// 一样会用剑气打（勾了就是刀刀刺杀）。
+        /// </summary>
+        private bool AutoPlayGapThrustingHit(MapObject target)
+        {
+            if (!Settings.AutoThrustingGap) return false;
+            if (User == null || User.Class != MirClass.战士) return false;
+            if (!User.Thrusting) return false;                              // 刺杀剑术没开，打不了剑气
+            if (target == null || target == User || target.Dead) return false;
+            if (!(target is MonsterObject)) return false;                   // 只对怪物，玩家/PK 不走这套
+
+            MirDirection dir = Functions.DirectionFromPoint(User.CurrentLocation, target.CurrentLocation);
+            Point mid = Functions.PointMove(User.CurrentLocation, dir, 1);
+
+            if (Functions.PointMove(User.CurrentLocation, dir, 2) != target.CurrentLocation) return false;   // 必须正好隔一格
+            if (!ValidPoint(mid) || HasTarget(mid)) return false;           // 隔的那格得是空地（有东西就正常近砍）
+
+            return true;
+        }
+
+        /// <summary>
+        /// 隔位刺杀是否处于「生效」状态：面板勾选 + 战士 + 刺杀剑术已开 + 目标是怪物 + 没被定身。
+        ///
+        /// 满足时战士的站位规则从「贴身」变成「与目标隔一格」——由 AutoPlayGapThrustingStep
+        /// 自动把人物挪到隔位，再靠剑气输出（勾选即生效，不依赖内挂总开关）。
+        /// 刺杀剑术没开（或没学会）时返回 false，退回普通贴脸打法，不会出现「站到隔位反而打不到」。
+        /// </summary>
+        private bool AutoPlayGapThrustingWanted(MapObject target)
+        {
+            if (!AutoPlayGapThrustingHitSettings()) return false;
+            if (_autoHoldStill) return false;                               // 隐身/定身期间不移动
+
+            return AutoPlayGapThrustingTargetValid(target);
+        }
+
+        /// <summary>隔位刺杀的开关与职业/技能条件（不含目标与移动状态判断）。</summary>
+        private bool AutoPlayGapThrustingHitSettings()
+        {
+            if (!Settings.AutoThrustingGap) return false;
+            if (User == null || User.Class != MirClass.战士) return false;
+            if (!User.Thrusting) return false;
+
+            return true;
+        }
+
+        /// <summary>隔位刺杀的目标条件：只对活着的怪物生效（玩家/PK 不走这套）。</summary>
+        private bool AutoPlayGapThrustingTargetValid(MapObject target)
+        {
+            if (target == null || target == User || target.Dead) return false;
+
+            return target is MonsterObject;
+        }
+
+        /// <summary>
+        /// 隔位刺杀的理想站位：从怪物沿「怪物 → 人物」方向再外推 2 格。
+        ///
+        /// 站在这里时人物与目标相距 2 格、方向正对、中间正好空一格，
+        /// 客户端近距攻击就会自动改写成刺杀剑气。贴身时这个位置正好在人物身后一步，
+        /// 所以「走到隔位」在贴身情况下表现为主动后退。
+        /// </summary>
+        private Point AutoPlayGapThrustingStand(MapObject target)
+        {
+            MirDirection away = Functions.DirectionFromPoint(target.CurrentLocation, User.CurrentLocation);
+
+            return Functions.PointMove(target.CurrentLocation, away, 2);
+        }
+
+        /// <summary>
+        /// 「自动走到隔位」的那一步：把人物朝隔位站位挪一格（贴身时就是往后退一步）。
+        /// 已经站好、或这一步走不出去时返回 null（交回原来的走位/攻击逻辑，避免站着不动）。
+        /// </summary>
+        private QueuedAction AutoPlayGapThrustingStep(MapObject target)
+        {
+            if (!AutoPlayGapThrustingWanted(target)) return null;
+
+            Point stand = AutoPlayGapThrustingStand(target);
+
+            if (User.CurrentLocation == stand) return null;                 // 已经站在隔位上
+
+            MirDirection dir = Functions.DirectionFromPoint(User.CurrentLocation, stand);
+            int gapToStand = Functions.MaxDistance(User.CurrentLocation, stand);
+
+            // 离站位还远时可以先跑一段：跑完剩下的距离仍 > 0，不会冲过站位变成贴脸
+            int runDistance = User.RidingMount || (User.Sprint && !User.Sneaking) ? 3 : 2;
+
+            if (Settings.AutoMoveRun && gapToStand > runDistance &&
+                (GameScene.CanRun || Settings.NoRunUp) && CMain.Time > GameScene.NextRunTime &&
+                User.HP >= 10 && (!User.Sneaking || (User.Sneaking && User.Sprint)) && CanRun(dir))
+            {
+                bool blocked = false;
+                for (int i = 1; i <= runDistance; i++)
+                {
+                    if (!CheckDoorOpen(Functions.PointMove(User.CurrentLocation, dir, i))) blocked = true;
+                }
+
+                if (!blocked)
+                {
+                    return new QueuedAction
+                    {
+                        Action = MirAction.跑步动作,
+                        Direction = dir,
+                        Location = Functions.PointMove(User.CurrentLocation, dir, runDistance)
+                    };
+                }
+            }
+
+            // 只走 1 格：贴脸时这一步自然是「向后退」，退到与目标隔一格的位置
+            for (int i = 0; i < 3; i++)
+            {
+                MirDirection tryDir = i switch
+                {
+                    0 => dir,
+                    1 => Functions.PreviousDir(dir),
+                    _ => Functions.NextDir(dir),
+                };
+
+                if (!CanWalk(tryDir, out MirDirection outDir)) continue;
+
+                Point next = Functions.PointMove(User.CurrentLocation, outDir, 1);
+
+                if (next == target.CurrentLocation) continue;            // 别踩到怪物身上
+                if (HasTarget(next)) continue;                           // 该格被占
+                if (!ValidPoint(next)) continue;
+                if (!CheckDoorOpen(next)) continue;
+
+                return new QueuedAction
+                {
+                    Action = MirAction.行走动作,
+                    Direction = outDir,
+                    Location = next
+                };
+            }
+
+            return null;                                                 // 走不出去：交回原逻辑贴脸砍
+        }
+
+        /// <summary>
+        /// 贴身（相邻 1 格）时是否可以照常近砍。
+        ///
+        /// 勾了「隔位刺杀」且还能退到隔位时返回 false —— 优先让走位把人物挪到隔位，
+        /// 免得贴脸一刀砍掉「隔位剑气」的打法；确实退不出去（被堵）才继续贴脸打。
+        /// </summary>
+        private bool AutoPlayCanMeleeNow(MapObject target)
+        {
+            if (!AutoPlayGapThrustingWanted(target)) return true;         // 没开隔位刺杀：照常贴脸打
+
+            return AutoPlayGapThrustingStep(target) == null;
+        }
+
+        #endregion
+
+        /// <summary>
+        /// 跑图找怪：攻击半径扩大一倍后仍视野内有怪就追过去（有怪自然转入战斗）；
+        /// 彻底没怪时每 1.5 秒随机换一个方向游走，实现自动跑图。
+        /// </summary>
+        private void AutoPlayRoam()
+        {
+            Point cur = User.CurrentLocation;
+
+            if (cur != _autoRoamLastPos)
+            {
+                _autoRoamLastPos = cur;
+                _autoRoamLastPosTime = CMain.Time;
+            }
+
+            // 扩大一倍半径追视野内的怪（进入攻击半径后自然转入战斗）；
+            // 直线追怪被地形卡住（2.5 秒位置没动）时，暂时转随机游走绕路，4 秒后再试
+            if (CMain.Time >= _autoRoamWanderUntil)
+            {
+                MapObject far = AutoPlayFindMonster(Settings.AutoSearchRange * 2);
+
+                if (far != null)
+                {
+                    if (CMain.Time - _autoRoamLastPosTime > 2500)
+                    {
+                        _autoRoamWanderUntil = CMain.Time + 4000;
+                    }
+                    else if (Settings.AutoMove)
+                    {
+                        AutoPlayStepTo(far.CurrentLocation);
+                        return;
+                    }
+                }
+            }
+
+            if (!Settings.AutoMove || CMain.Time < _autoRoamNextTime) return;
+
+            // 没怪可追：沿当前方向持续游走跑图，每 3 秒随机换一次方向
+            _autoRoamNextTime = CMain.Time + 600;
+
+            if (CMain.Time >= _autoRoamDirTime)
+            {
+                _autoRoamDirTime = CMain.Time + 3000;
+                _autoRoamDir = (MirDirection)CMain.Random.Next(8);
+            }
+
+            AutoPlayStepTo(Functions.PointMove(User.CurrentLocation, _autoRoamDir, 3));
+        }
+
+        /// <summary>在搜索半径内挑选最近的可攻击怪物（range=0 时取配置的 AutoSearchRange）</summary>
+        private MapObject AutoPlayFindMonster(int range = 0)
+        {
+            if (range <= 0) range = Settings.AutoSearchRange;
+
+            MapObject best = null;
+            int bestDistance = int.MaxValue;
             for (int i = 0; i < Objects.Count; i++)
             {
                 MapObject ob = Objects[i];
@@ -11931,11 +14064,21 @@ namespace Client.MirScenes
                 if (monster.Race == ObjectType.Creature) continue;   // 智能宠物不攻击
                 if (monster.AI == 970) continue;                     // 与客户端既有逻辑保持一致：该 AI 不作为目标
 
+                // 打不中检测拉黑期间的目标不重复选中
+                if (monster.ObjectID == _autoStuckTargetID && CMain.Time < _autoStuckBlackUntil) continue;
+
+                // 魔法 + 物理都打不动的怪物（同名）一段时间内不再选，直接找下一只
+                if (_autoImmuneBlackName != null && CMain.Time < _autoImmuneBlackUntil &&
+                    monster.Name == _autoImmuneBlackName) continue;
+
                 // 玩家自己的宠物（名字带括号）不攻击
                 if (monster.Name != null && monster.Name.EndsWith(")")) continue;
 
                 // 配置的忽略关键字（守卫、NPC 类怪物等）
                 if (AutoPlayIsIgnored(monster.Name)) continue;
+
+                // 守卫类怪物（名字天蓝色）不作为攻击目标
+                if (monster.NameColour == System.Drawing.Color.SkyBlue) continue;
 
                 if (!Functions.InRange(monster.CurrentLocation, User.CurrentLocation, range)) continue;
 
@@ -11954,20 +14097,42 @@ namespace Client.MirScenes
         {
             if (string.IsNullOrEmpty(name)) return false;
 
-            string ignore = Settings.AutoAttackIgnore;
+            string[] keywords = AutoPlayKeywords(Settings.AutoAttackIgnore, ref _autoIgnoreSource, ref _autoIgnoreKeywords);
 
-            if (string.IsNullOrWhiteSpace(ignore)) return false;
-
-            foreach (string keyword in ignore.Split(new[] { ',', '，', '|' }, StringSplitOptions.RemoveEmptyEntries))
+            for (int i = 0; i < keywords.Length; i++)
             {
-                if (name.Contains(keyword.Trim())) return true;
+                if (name.Contains(keywords[i].Trim())) return true;
             }
 
             return false;
         }
 
-        /// <summary>自动捡物：脚下的直接拾取，远处的（开启自动走位时）走过去</summary>
-        private void AutoPlayPickUpItem()
+        //关键字串被拆成数组后会缓存下来（这两个方法每帧都会被调用很多次，避免反复 Split 产生垃圾）
+        private static string _autoIgnoreSource;
+        private static string[] _autoIgnoreKeywords;
+        private static string _autoSaintSource;
+        private static string[] _autoSaintKeywords;
+
+        private static string[] AutoPlayKeywords(string value, ref string cachedSource, ref string[] cached)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                if (cached == null) cached = new string[0];
+
+                return cached;
+            }
+
+            if (!string.Equals(value, cachedSource, StringComparison.Ordinal))
+            {
+                cachedSource = value;
+                cached = value.Split(new[] { ',', '，', '|' }, StringSplitOptions.RemoveEmptyEntries);
+            }
+
+            return cached ?? new string[0];
+        }
+
+        /// <summary>自动捡物：脚下的直接拾取，远处的（开启自动走位时）走过去；有可捡物品返回 true</summary>
+        private bool AutoPlayPickUpItem()
         {
             MapObject nearest = null;
             int bestDistance = int.MaxValue;
@@ -11987,7 +14152,7 @@ namespace Client.MirScenes
                 bestDistance = distance;
             }
 
-            if (nearest == null) return;
+            if (nearest == null) return false;
 
             if (nearest.CurrentLocation == User.CurrentLocation)
             {
@@ -11997,17 +14162,52 @@ namespace Client.MirScenes
                     Network.Enqueue(new C.PickUp());
                 }
 
-                return;
+                return true;
             }
 
             if (Settings.AutoMove)
+            {
                 AutoPlayStepTo(nearest.CurrentLocation);
+                return true;
+            }
+
+            return false;
         }
 
-        /// <summary>朝目标点走一步（正方向走不通时尝试左右偏移）</summary>
+        /// <summary>
+        /// 朝目标点移动：优先跑动（开启走位跑步、跑得动、且路程 ≥ 2 格时跑 2/3 格），
+        /// 跑不动或被墙挡时降级为走一步（正方向走不通时尝试左右偏移）。
+        /// </summary>
         private void AutoPlayStepTo(Point destination)
         {
             MirDirection dir = Functions.DirectionFromPoint(User.CurrentLocation, destination);
+
+            // 跑动：与 CheckInput 的手动跑步条件保持一致
+            if (Settings.AutoMoveRun &&
+                (GameScene.CanRun || Settings.NoRunUp) && CMain.Time > GameScene.NextRunTime &&
+                User.HP >= 10 && (!User.Sneaking || (User.Sneaking && User.Sprint)) &&
+                Functions.MaxDistance(User.CurrentLocation, destination) >= 2)
+            {
+                int distance = User.RidingMount || (User.Sprint && !User.Sneaking) ? 3 : 2;
+
+                bool fail = false;
+                for (int i = 1; i <= distance; i++)
+                {
+                    if (!CheckDoorOpen(Functions.PointMove(User.CurrentLocation, dir, i))) fail = true;
+                }
+
+                if (!fail && CanRun(dir))
+                {
+                    User.QueuedAction = new QueuedAction
+                    {
+                        Action = MirAction.跑步动作,
+                        Direction = dir,
+                        Location = Functions.PointMove(User.CurrentLocation, dir, distance)
+                    };
+
+                    return;
+                }
+            }
 
             for (int i = 0; i < 3; i++)
             {
@@ -12125,8 +14325,16 @@ namespace Client.MirScenes
                         //  return;
                     }
 
-                    else if (Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1))
+                    else if ((!(Settings.AutoPlay && User.Class == MirClass.法师) || AutoPlayIsPhysicalTarget(MapObject.TargetObject)) &&
+                             (AutoPlayGapThrustingHit(MapObject.TargetObject) ||
+                              (Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1) &&
+                               AutoPlayCanMeleeNow(MapObject.TargetObject))))
                     {
+                        // 法师挂机时一般不近攻（改用与弓手相同的远程方式：放法术），贴脸由内挂的走位拉开；
+                        // 但若该怪物魔法无效（内挂已切物理阶段），则允许贴身用「近距攻击1」出手。
+                        // 战士「隔位刺杀」：目标隔一格时也走这里——客户端会把这次近距攻击转成 Spell.Thrusting，
+                        // 服务端把落点再前移一格，用剑气打到隔位那只怪；贴身时若还能退到隔位则先不还手
+                        //（AutoPlayCanMeleeNow=false），交给下面的走位把人物挪到隔位。
                         if (CMain.Time > GameScene.AttackTime && CanRideAttack() && !User.Poison.HasFlag(PoisonType.Dazed))
                         {
                             User.QueuedAction = new QueuedAction { Action = MirAction.近距攻击1, Direction = Functions.DirectionFromPoint(User.CurrentLocation, MapObject.TargetObject.CurrentLocation), Location = User.CurrentLocation };
@@ -12390,9 +14598,61 @@ namespace Client.MirScenes
             if (MapObject.TargetObject == null || MapObject.TargetObject.Dead) return;
             if (((!MapObject.TargetObject.Name.EndsWith(")") && !(MapObject.TargetObject is PlayerObject)) || !CMain.Shift) &&
                 (MapObject.TargetObject.Name.EndsWith(")") || !(MapObject.TargetObject is MonsterObject))) return;
+            // 隔位刺杀（战士，面板勾选即生效）：自动走到「与目标隔一格」的站位再出剑气。
+            //  · 已经站在隔位上 → 交给上面的攻击分支发剑气；
+            //  · 贴身 / 还没到 → 朝隔位站位挪一格（贴身时就是主动往后退一步）；
+            //  · 走不出去（被堵）→ 交回原逻辑贴脸普通砍，不至于站着不动。
+            // 这段必须放在 InRange(1) 提前返回之前，否则贴身时永远不会后退。
+            if (AutoPlayGapThrustingWanted(MapObject.TargetObject))
+            {
+                if (AutoPlayGapThrustingHit(MapObject.TargetObject)) return;
+
+                QueuedAction gapStep = AutoPlayGapThrustingStep(MapObject.TargetObject);
+
+                if (gapStep != null)
+                {
+                    User.QueuedAction = gapStep;
+                    return;
+                }
+            }
+
             if (Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1)) return;
-            if (User.Class == MirClass.弓箭 && User.HasClassWeapon && (MapObject.TargetObject is MonsterObject || MapObject.TargetObject is PlayerObject)) return; //ArcherTest - stop walking
+
+            if ((User.Class == MirClass.弓箭 && User.HasClassWeapon ||
+                 (Settings.AutoPlay && User.Class == MirClass.法师 && !AutoPlayIsPhysicalTarget(MapObject.TargetObject))) &&
+                (MapObject.TargetObject is MonsterObject || MapObject.TargetObject is PlayerObject)) return; //ArcherTest - stop walking（弓手/法师走位由 ProcessAutoPlay 的 AutoPlayCombatMove 处理，法师不贴身；切物理攻击后可追）
             direction = Functions.DirectionFromPoint(User.CurrentLocation, MapObject.TargetObject.CurrentLocation);
+
+            // 内挂自动走位的追击跑动：路况良好时直接跑 2/3 格；
+            // 战士要贴身砍，仍按 ≥3 格才跑（近身逐步走），其他职业（法师/道士/刺客/弓手）≥2 格就跑——
+            // 跑 2 格正好贴脸停下，刺客随后正常近攻，不影响近攻技能的施展。
+            int runGap = User.Class == MirClass.战士 ? 3 : 2;
+
+            if (Settings.AutoPlay && Settings.AutoMove && Settings.AutoMoveRun &&
+                (GameScene.CanRun || Settings.NoRunUp) && CMain.Time > GameScene.NextRunTime &&
+                User.HP >= 10 && (!User.Sneaking || (User.Sneaking && User.Sprint)) &&
+                Functions.MaxDistance(MapObject.TargetObject.CurrentLocation, User.CurrentLocation) >= runGap)
+            {
+                int distance = User.RidingMount || (User.Sprint && !User.Sneaking) ? 3 : 2;
+
+                bool fail = false;
+                for (int i = 1; i <= distance; i++)
+                {
+                    if (!CheckDoorOpen(Functions.PointMove(User.CurrentLocation, direction, i))) fail = true;
+                }
+
+                if (!fail && CanRun(direction))
+                {
+                    User.QueuedAction = new QueuedAction
+                    {
+                        Action = MirAction.跑步动作,
+                        Direction = direction,
+                        Location = Functions.PointMove(User.CurrentLocation, direction, distance)
+                    };
+
+                    return;
+                }
+            }
 
             if (!CanWalk(direction, out direction)) return;
 
@@ -12727,8 +14987,9 @@ namespace Client.MirScenes
 
                 if (ob.CurrentLocation == p && ob.Blocking)
                 {
-                    // 穿人（含穿怪）：开启时客户端跳过玩家/英雄/怪物的阻挡，否则不会发起动作，服务端放行也无效
-                    if (Settings.WalkThrough && ob != User && (ob is PlayerObject || ob is MonsterObject))
+                    // 穿人（含穿怪、穿 NPC）：开启时客户端跳过玩家/英雄/怪物/NPC 的阻挡，
+                    // 否则客户端不会发起移动动作，服务端放行也无效
+                    if (Settings.WalkThrough && ob != User && (ob is PlayerObject || ob is MonsterObject || ob is NPCObject))
                         continue;
                     return false;
                 }
@@ -12800,8 +15061,14 @@ namespace Client.MirScenes
         private bool CanRun(MirDirection dir)
         {
             if (User.InTrapRock) return false;
-            if (User.CurrentBagWeight > User.Stats[Stat.背包负重]) return false;
-            if (User.CurrentWearWeight > User.Stats[Stat.背包负重]) return false;
+
+            // 超负重：负重超限时不再禁止奔跑（与服务器 HumanObject.CanRun 保持一致）
+            if (!Settings.OverWeight)
+            {
+                if (User.CurrentBagWeight > User.Stats[Stat.背包负重]) return false;
+                if (User.CurrentWearWeight > User.Stats[Stat.背包负重]) return false;
+            }
+
             if (CanWalk(dir) && EmptyCell(Functions.PointMove(User.CurrentLocation, dir, 2)))
             {
                 if (User.RidingMount || User.Sprint && !User.Sneaking)

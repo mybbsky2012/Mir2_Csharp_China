@@ -393,11 +393,41 @@ namespace Server
             string tempGold = GoldTextBox.Text.Replace(",", "");
             string tempCredit = GameGoldTextBox.Text.Replace(",", "");
 
+            // 等级在 CharacterInfo 里是 ushort（0~65535），以前用 Convert.ToByte，
+            // 等级一超过 255 就 OverflowException 把整个服务端界面搞崩。
+            ushort level;
+            int pkPoints;
+            uint gold, credit;
+
+            if (!ushort.TryParse(LevelTextBox.Text, out level))
+            {
+                MessageBox.Show("等级必须是 0 ~ 65535 之间的整数。", "输入有误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!int.TryParse(PKPointsTextBox.Text, out pkPoints))
+            {
+                MessageBox.Show("PK点数必须是整数。", "输入有误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!uint.TryParse(tempGold, out gold))
+            {
+                MessageBox.Show("金币必须是 0 ~ 4,294,967,295 之间的整数。", "输入有误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!uint.TryParse(tempCredit, out credit))
+            {
+                MessageBox.Show("信用点必须是 0 ~ 4,294,967,295 之间的整数。", "输入有误", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             info.Name = NameTextBox.Text;
-            info.Level = Convert.ToByte(LevelTextBox.Text);
-            info.PKPoints = Convert.ToInt32(PKPointsTextBox.Text);
-            info.AccountInfo.Gold = Convert.ToUInt32(tempGold);
-            info.AccountInfo.Credit = Convert.ToUInt32(tempCredit);
+            info.Level = level;
+            info.PKPoints = pkPoints;
+            info.AccountInfo.Gold = gold;
+            info.AccountInfo.Credit = credit;
 
             UpdateTabs();
         }

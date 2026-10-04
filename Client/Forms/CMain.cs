@@ -394,10 +394,15 @@ namespace Client
                 DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
                 DXManager.Device.BeginScene();
                 DXManager.Sprite.Begin(SpriteFlags.AlphaBlend);
+                DXManager.ResetDrawState();   // 每帧复位混合/透明度状态，防止上一帧泄漏导致整屏半透明闪烁
                 DXManager.SetSurface(DXManager.MainSurface);
 
                 if (MirScene.ActiveScene != null)
                     MirScene.ActiveScene.Draw();
+
+                // 载入画面画在所有场景内容（含主面板、技能条、物品栏）之上，
+                // 避免进游戏载入时被 UI 盖在前面。
+                LoadingScreen.DrawOverlay();
 
                 DXManager.Sprite.End();
                 DXManager.Device.EndScene();
@@ -580,7 +585,7 @@ namespace Client
 
             if (MirScene.ActiveScene == GameScene.Scene)
             {
-                GameScene.Scene.MapControl.FloorValid = false; 
+                GameScene.Scene.MapControl.FloorValid = false;
                 GameScene.Scene.TextureValid = false;
             }
 

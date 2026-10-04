@@ -5168,10 +5168,15 @@ namespace Client.MirObjects
         {
             DrawBehindEffects(Settings.Effect);
 
+            // 闪烁修复：空库判空必须放在 SetOpacity 之前。
+            // BodyLibrary/Frame 为 null 正是「怪物的 lib 素材还没加载/微端还在读取」的时候；
+            // 若先 SetOpacity(0.5F) 再在这里 return，全局 BlendFactor 半透明混合状态就会泄漏，
+            // 这一帧剩下的所有绘制（其他对象、UI 面板、最终整屏合成）全部变成 ~50% alpha，
+            // 表现为整屏规律性发暗闪烁（每次底板纹理重建都会复发）。
+            if (BodyLibrary == null || Frame == null) return;
+
             float oldOpacity = DXManager.Opacity;
             if (Hidden && !DXManager.Blending) DXManager.SetOpacity(0.5F);
-
-            if (BodyLibrary == null || Frame == null) return;
 
             bool oldGrayScale = DXManager.GrayScale;
             Color drawColour = ApplyDrawColour();

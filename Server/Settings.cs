@@ -114,7 +114,9 @@ namespace Server
 
         //辅助开关（内挂相关，客户端可申请开启，服务器决定是否放行）
         public static bool EnableNoLamp = true,          // 免蜡：夜晚不需要照明道具
-                           EnableWalkThrough = true;     // 穿人：可以穿过其他玩家
+                           EnableWalkThrough = true,     // 穿人：可以穿过其他玩家/英雄/怪物/NPC
+                           EnableOverWeight = true,      // 超负重：负重超限仍可奔跑、装备不受负重限制
+                           EnableMountTai = true;        // 泰山：被攻击时不后仰、不打断跑动与施法
 
         //Database
         public static int SaveDelay = 5;
@@ -426,6 +428,8 @@ namespace Server
             //辅助开关
             EnableNoLamp = Reader.ReadBoolean("Optional", "EnableNoLamp", EnableNoLamp);
             EnableWalkThrough = Reader.ReadBoolean("Optional", "EnableWalkThrough", EnableWalkThrough);
+            EnableOverWeight = Reader.ReadBoolean("Optional", "EnableOverWeight", EnableOverWeight);
+            EnableMountTai = Reader.ReadBoolean("Optional", "EnableMountTai", EnableMountTai);
 
             //Database
             SaveDelay = Reader.ReadInt32("Database", "SaveDelay", SaveDelay);
@@ -713,6 +717,8 @@ namespace Server
             Reader.Write("Optional", "LineMessageTimer", LineMessageTimer);
             Reader.Write("Optional", "EnableNoLamp", EnableNoLamp);
             Reader.Write("Optional", "EnableWalkThrough", EnableWalkThrough);
+            Reader.Write("Optional", "EnableOverWeight", EnableOverWeight);
+            Reader.Write("Optional", "EnableMountTai", EnableMountTai);
 
             //Database
             Reader.Write("Database", "SaveDelay", SaveDelay);
