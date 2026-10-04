@@ -21,6 +21,7 @@ namespace Server
             StartHTTPCheckBox.Checked = Settings.StartHTTPService;
             EnableResourceCheckBox.Checked = Settings.EnableResourceService;
             ResourcePathTextBox.Text = Settings.ResourcePath;
+            ResourceAllowAnyIPCheckBox.Checked = Settings.ResourceAllowAnyIP;
             HTTPIPAddressTextBox.Text = Settings.HTTPIPAddress;
             HTTPTrustedIPAddressTextBox.Text = Settings.HTTPTrustedIPAddress;
 
@@ -73,6 +74,10 @@ namespace Server
             // 留空则保留原值（相对路径基于服务端目录，如 .\ClientResources\）。
             if (!string.IsNullOrWhiteSpace(ResourcePathTextBox.Text))
                 Settings.ResourcePath = ResourcePathTextBox.Text.Trim();
+
+            // 允许任意 IP 下载微端资源。关着的话非受信 IP 请求 /res 会拿到 notrusted:<IP> 文本，
+            // 客户端会把它当成资源清单，导致微端整个不可用。
+            Settings.ResourceAllowAnyIP = ResourceAllowAnyIPCheckBox.Checked;
 
             if (tryParseHttp())
                 Settings.HTTPIPAddress = HTTPIPAddressTextBox.Text.ToString();
@@ -208,6 +213,11 @@ namespace Server
         private void EnableResourceCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             Settings.EnableResourceService = EnableResourceCheckBox.Checked;
+        }
+
+        private void ResourceAllowAnyIPCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            Settings.ResourceAllowAnyIP = ResourceAllowAnyIPCheckBox.Checked;
         }
     }
 }

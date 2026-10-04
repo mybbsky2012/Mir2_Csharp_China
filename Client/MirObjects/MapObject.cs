@@ -127,6 +127,13 @@ namespace Client.MirObjects
         //Sound
         public int StruckWeapon;
 
+        //最近一次收到受击广播的时间（内挂「打不中检测」用：长时间无受击 = 打不到该目标）
+        public long LastStruckTime;
+
+        //最近一次被「自己或自己的英雄」打出伤害的时间（内挂「攻击无效检测」用：
+        //服务端只有真正造成伤害才广播受击，所以这个时间不变 = 自己的攻击打不动它）
+        public long LastStruckByMeTime;
+
         public MirLabel TempLabel;
 
         public static List<MirLabel> DamageLabelList = new List<MirLabel>();

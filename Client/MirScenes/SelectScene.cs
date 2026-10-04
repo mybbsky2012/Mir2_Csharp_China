@@ -21,6 +21,8 @@ namespace Client.MirScenes
         public List<SelectInfo> Characters = new List<SelectInfo>();
         private int _selected;
 
+        private long _loadingSince;                 // 载入画面出现的时间（服务器一直没回包时自动撤掉）
+
         public SelectScene(List<SelectInfo> characters)
         {
             SoundManager.PlayMusic(SoundList.SelectMusic, true);
@@ -280,6 +282,10 @@ namespace Client.MirScenes
             }
             StartGameButton.Enabled = false;
 
+            // 点「开始游戏」就立刻切到载入画面，盖住从现在起直到地图画出来的那段黑屏
+            _loadingSince = CMain.Time;
+            LoadingScreen.Show();
+
             Network.Enqueue(new C.StartGame
             {
                 CharacterIndex = Characters[_selected].Index
@@ -288,8 +294,12 @@ namespace Client.MirScenes
 
         public override void Process()
         {
-
-
+            // 服务器一直没回包（掉线/网络异常）：15 秒后自动退出载入画面，让玩家可以再点一次
+            if (LoadingScreen.Visible && CMain.Time - _loadingSince > 15000)
+            {
+                LoadingScreen.Hide();
+                StartGameButton.Enabled = _selected >= 0 && _selected < Characters.Count;
+            }
         }
         public override void ProcessPacket(Packet p)
         {
@@ -424,6 +434,7 @@ namespace Client.MirScenes
         private void StartGame(S.StartGameDelay p)
         {
             StartGameButton.Enabled = true;
+            LoadingScreen.Hide();
 
             long time = CMain.Time + p.Milliseconds;
 
@@ -444,6 +455,7 @@ namespace Client.MirScenes
         public void StartGame(S.StartGameBanned p)
         {
             StartGameButton.Enabled = true;
+            LoadingScreen.Hide();
 
             TimeSpan d = p.ExpiryDate - CMain.Now;
             MirMessageBox.Show(string.Format("此账户被禁用\n\n原因{0}\n解禁日期{1}\n倒计时{2:#,##0} 小时, {3} 分钟, {4} 秒", p.Reason,
@@ -456,15 +468,19 @@ namespace Client.MirScenes
             switch (p.Result)
             {
                 case 0:
+                    LoadingScreen.Hide();
                     MirMessageBox.Show("服务器维护禁止登录");
                     break;
                 case 1:
+                    LoadingScreen.Hide();
                     MirMessageBox.Show("尚未登录");
                     break;
                 case 2:
+                    LoadingScreen.Hide();
                     MirMessageBox.Show("没有激活角色");
                     break;
                 case 3:
+                    LoadingScreen.Hide();
                     MirMessageBox.Show("无效地图或没有新手出生点");
                     break;
                 case 4:
@@ -479,6 +495,11 @@ namespace Client.MirScenes
                     CMain.SetResolution(gameSize.Width, gameSize.Height);
 
                     ActiveScene = new GameScene();
+
+                    // 重新挂到刚建好的 GameScene 上：从点「进入游戏」到地图+角色画出来之间一直盖着，
+                    // 由 GameScene.Process 在世界就绪后撤掉（Armed 状态跨场景保留）。
+                    LoadingScreen.Show();
+
                     Dispose();
                     break;
             }
@@ -537,6 +558,7 @@ namespace Client.MirScenes
             {
                 Background = null;
                 _character = null;
+
 
                 ServerLabel = null;
                 CharacterDisplay = null;

@@ -394,6 +394,7 @@ namespace Client
                 DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
                 DXManager.Device.BeginScene();
                 DXManager.Sprite.Begin(SpriteFlags.AlphaBlend);
+                DXManager.ResetDrawState();   // 每帧复位混合/透明度状态，防止上一帧泄漏导致整屏半透明闪烁
                 DXManager.SetSurface(DXManager.MainSurface);
 
                 if (MirScene.ActiveScene != null)

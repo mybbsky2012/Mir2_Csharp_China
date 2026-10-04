@@ -337,6 +337,10 @@ namespace Launcher
         {
             using (HttpClient client = new())
             {
+                // 补丁服务器连不上时默认要等 100 秒才报错，「开始」按钮一直点不了；
+                // 收紧到 10 秒，失败就按「检查失败」走原来的错误提示流程。
+                client.Timeout = TimeSpan.FromSeconds(10);
+
                 client.DefaultRequestHeaders.Accept.Clear();
                 client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                 client.DefaultRequestHeaders.AcceptCharset.Clear();
