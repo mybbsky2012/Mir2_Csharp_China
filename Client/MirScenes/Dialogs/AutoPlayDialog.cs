@@ -16,7 +16,23 @@ namespace Client.MirScenes.Dialogs
         public MirButton CloseButton;
 
         public MirCheckBox AllBox, AttackBox, MoveBox, PickUpBox, PotHPBox, PotMPBox,
+<<<<<<< HEAD
                            AutoMoveRunBox, AutoSkillBox, AutoDodgeBox, PoisonSwapBox, ThrustingGapBox,
+=======
+<<<<<<< HEAD
+                           AutoMoveRunBox, AutoSkillBox, AutoDodgeBox, PoisonSwapBox, ThrustingGapBox,
+=======
+<<<<<<< HEAD
+                           AutoMoveRunBox, AutoSkillBox, AutoDodgeBox, PoisonSwapBox, ThrustingGapBox,
+=======
+<<<<<<< HEAD
+                           AutoMoveRunBox, AutoSkillBox, AutoDodgeBox, PoisonSwapBox, ThrustingGapBox,
+=======
+                           AutoMoveRunBox, AutoSkillBox, AutoDodgeBox, PoisonSwapBox,
+>>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
                            NoLampBox, WalkThroughBox, NoRunUpBox, OverWeightBox, MountTaiBox;
         public MirLabel HintLabel;
 
@@ -105,6 +121,16 @@ namespace Client.MirScenes.Dialogs
             AutoMoveRunBox = CreateBox(132, 162, "走位跑步", Settings.AutoMoveRun);
             AutoMoveRunBox.Click += (o, e) => { Settings.AutoMoveRun = AutoMoveRunBox.Checked; Settings.Save(); };
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
             // 战士隔位刺杀：勾选即生效（手动打怪也生效），不需要开内挂总开关
             ThrustingGapBox = CreateBox(132, 210, "隔位刺杀", Settings.AutoThrustingGap);
             ThrustingGapBox.Click += (o, e) =>
@@ -116,6 +142,17 @@ namespace Client.MirScenes.Dialogs
                     : "隔位刺杀已关闭");
             };
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
             AutoDodgeBox = CreateBox(132, 186, "自动躲避", Settings.AutoDodge);
             AutoDodgeBox.Click += (o, e) =>
             {
@@ -233,7 +270,22 @@ namespace Client.MirScenes.Dialogs
             AutoMoveRunBox.Checked = Settings.AutoMoveRun;
             AutoSkillBox.Checked = Settings.AutoSkill;
             AutoDodgeBox.Checked = Settings.AutoDodge;
+<<<<<<< HEAD
             ThrustingGapBox.Checked = Settings.AutoThrustingGap;
+=======
+<<<<<<< HEAD
+            ThrustingGapBox.Checked = Settings.AutoThrustingGap;
+=======
+<<<<<<< HEAD
+            ThrustingGapBox.Checked = Settings.AutoThrustingGap;
+=======
+<<<<<<< HEAD
+            ThrustingGapBox.Checked = Settings.AutoThrustingGap;
+=======
+>>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
             PoisonSwapBox.Checked = Settings.AutoSwapPoison;
 
             NoLampBox.Checked = Settings.NoLamp;

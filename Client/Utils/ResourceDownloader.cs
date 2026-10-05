@@ -90,6 +90,23 @@ namespace Client.Utils
         /// </summary>
         private static volatile bool _serverNotTrusted;
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+        /// <summary>
+        /// 服务端明确拒绝了本机 IP（返回 "notrusted:&lt;ip&gt;"）。
+        /// 这种情况下所有资源请求都会拿到同样的 200 + 错误文本 ——
+        /// 既不该把它写进本地文件，也不该反复发请求刷日志。
+        /// 等清单重新拉取成功（说明服务端已放行）时自动清除。
+        /// </summary>
+        private static volatile bool _serverNotTrusted;
+
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
         /// <summary>
         /// 资源清单到手时触发一次（仅成功时）。
         /// Libraries 用它把"降级初始化"的图库数组按正确长度重建。
