@@ -412,6 +412,15 @@ namespace Server.MirObjects
                 PlayerObject player = CurrentMap.Players[i];
                 if (player == this) continue;
 
+                // 假人身后没有客户端：发给它的包会被 BotConnection 直接丢掉，等于白扫。
+                // 而它同样躺在 Map.Players 里，假人一多，每条广播都要多扫 N 次 InRange。
+                // 这里直接跳过（收件人里 100% 是假人的情况下连 InRange 都不用算）。
+                if (player is FakePlayerObject)
+                {
+                    FakePlayerPerf.NoteBroadcastSkipped();
+                    continue;
+                }
+
                 if (Functions.InRange(CurrentLocation, player.CurrentLocation, Globals.DataRange))
                     player.Enqueue(p);
             }

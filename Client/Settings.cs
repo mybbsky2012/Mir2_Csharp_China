@@ -166,7 +166,12 @@ namespace Client
             AutoMove = true,            // 目标超出攻击距离时自动走近
             AutoPickup = true,          // 自动捡取身边物品
             AutoPotHP = false,          // 自动使用 HP 药水
-            AutoPotMP = false;          // 自动使用 MP 药水
+            AutoPotMP = false,          // 自动使用 MP 药水
+            AutoMoveRun = true,         // 自动走位时优先跑动（路况不佳自动降级为走路）
+            AutoSkill = true,           // 自动按需用技能：远怪用远程、近怪用近攻、围攻用群攻
+            AutoDodge = false,          // 被怪物围攻时自动躲避走位
+            AutoThrustingGap = true,    // 战士隔位刺杀（刀刀刺杀）：目标隔一格时原地用刺杀剑气打，不贴脸
+            AutoSwapPoison = true;      // 道士毒符互换：符与毒共用「护身符」装备槽，按需自动切换（换毒时红绿交替）
 
         public static int
             AutoPotHPPercent = 50,      // HP 低于该百分比时自动喝药
@@ -176,11 +181,39 @@ namespace Client
         //自动攻击时忽略的怪物名关键字（逗号分隔），用于避开守卫/NPC类怪物
         public static string AutoAttackIgnore = "守卫,卫士,大刀,弓箭手,城主,门卫";
 
+        //不死系怪物名关键字（逗号分隔）：法师内挂命中这些名字的怪时改用圣言术
+        public static string AutoSaintKeywords = "僵尸,骷髅,白骨,腐尸,尸,亡灵,死灵,幽灵,幽魂,巫妖,骨";
+
         //服务器开关型辅助功能（需要服务器放行，见 S.PlayerOption）
         public static bool
             NoLamp = false,             // 免蜡：夜晚不需要照明
-            WalkThrough = false,        // 穿人：可以穿过其他玩家和怪物
-            NoRunUp = false;            // 免助跑：无需先走一步即可直接奔跑
+            WalkThrough = false,        // 穿人：可以穿过其他玩家、怪物和 NPC
+            NoRunUp = false,            // 免助跑：无需先走一步即可直接奔跑
+            OverWeight = false,         // 超负重：负重超限仍可奔跑、装备不受负重限制
+            MountTai = false;           // 泰山：被攻击时不后仰，且不打断跑动与施法
+
+        //上列开关的「本地偏好」。服务器登录时会把这几个开关统一置为关闭并下发，
+        //若直接覆盖上面几个字段就会丢掉玩家的勾选。因此偏好单独存一份、单独落盘，
+        //进图后由 GameScene.RestorePlayerOptions() 再次向服务器申请。
+        public static bool
+            PreferredNoLamp = false,
+            PreferredWalkThrough = false,
+            PreferredNoRunUp = false,
+            PreferredOverWeight = false,
+            PreferredMountTai = false;
+
+        /// <summary>记录玩家对某个服务器开关的偏好（由 RequestPlayerOption 调用）</summary>
+        public static void SetPreferred(PlayerOptionType option, bool value)
+        {
+            switch (option)
+            {
+                case PlayerOptionType.NoLamp: PreferredNoLamp = value; break;
+                case PlayerOptionType.WalkThrough: PreferredWalkThrough = value; break;
+                case PlayerOptionType.NoRunUp: PreferredNoRunUp = value; break;
+                case PlayerOptionType.OverWeight: PreferredOverWeight = value; break;
+                case PlayerOptionType.MountTai: PreferredMountTai = value; break;
+            }
+        }
 
         public static int[,] SkillbarLocation = new int[2, 2] { { 0, 0 }, { 216, 0 }  };
 
@@ -307,10 +340,22 @@ namespace Client
             AutoPickup = Reader.ReadBoolean("AutoPlay", "AutoPickup", AutoPickup);
             AutoPotHP = Reader.ReadBoolean("AutoPlay", "AutoPotHP", AutoPotHP);
             AutoPotMP = Reader.ReadBoolean("AutoPlay", "AutoPotMP", AutoPotMP);
+            AutoMoveRun = Reader.ReadBoolean("AutoPlay", "AutoMoveRun", AutoMoveRun);
+            AutoSkill = Reader.ReadBoolean("AutoPlay", "AutoSkill", AutoSkill);
+            AutoDodge = Reader.ReadBoolean("AutoPlay", "AutoDodge", AutoDodge);
+            AutoThrustingGap = Reader.ReadBoolean("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
+            AutoSwapPoison = Reader.ReadBoolean("AutoPlay", "AutoSwapPoison", AutoSwapPoison);
             AutoPotHPPercent = Reader.ReadInt32("AutoPlay", "AutoPotHPPercent", AutoPotHPPercent);
             AutoPotMPPercent = Reader.ReadInt32("AutoPlay", "AutoPotMPPercent", AutoPotMPPercent);
             AutoSearchRange = Reader.ReadInt32("AutoPlay", "AutoSearchRange", AutoSearchRange);
             AutoAttackIgnore = Reader.ReadString("AutoPlay", "AutoAttackIgnore", AutoAttackIgnore);
+            AutoSaintKeywords = Reader.ReadString("AutoPlay", "AutoSaintKeywords", AutoSaintKeywords);
+
+            // 忽略名单被清空时恢复默认，保证守卫类怪物始终被过滤
+            if (string.IsNullOrWhiteSpace(AutoAttackIgnore)) AutoAttackIgnore = "守卫,卫士,大刀,弓箭手,城主,门卫";
+
+            // 不死系关键字被清空时恢复默认，保证圣言术仍能识别常见不死系
+            if (string.IsNullOrWhiteSpace(AutoSaintKeywords)) AutoSaintKeywords = "僵尸,骷髅,白骨,腐尸,尸,亡灵,死灵,幽灵,幽魂,巫妖,骨";
 
             if (AutoPotHPPercent < 1 || AutoPotHPPercent > 99) AutoPotHPPercent = 50;
             if (AutoPotMPPercent < 1 || AutoPotMPPercent > 99) AutoPotMPPercent = 30;
@@ -320,6 +365,15 @@ namespace Client
             NoLamp = Reader.ReadBoolean("AutoPlay", "NoLamp", NoLamp);
             WalkThrough = Reader.ReadBoolean("AutoPlay", "WalkThrough", WalkThrough);
             NoRunUp = Reader.ReadBoolean("AutoPlay", "NoRunUp", NoRunUp);
+            OverWeight = Reader.ReadBoolean("AutoPlay", "OverWeight", OverWeight);
+            MountTai = Reader.ReadBoolean("AutoPlay", "MountTai", MountTai);
+
+            // 启动时把 ini 里的值记为玩家偏好（运行时 Settings.* 会被服务器下发值覆盖）
+            SetPreferred(PlayerOptionType.NoLamp, NoLamp);
+            SetPreferred(PlayerOptionType.WalkThrough, WalkThrough);
+            SetPreferred(PlayerOptionType.NoRunUp, NoRunUp);
+            SetPreferred(PlayerOptionType.OverWeight, OverWeight);
+            SetPreferred(PlayerOptionType.MountTai, MountTai);
 
             for (int i = 0; i < SkillbarLocation.Length / 2; i++)
             {
@@ -455,13 +509,22 @@ namespace Client
             Reader.Write("AutoPlay", "AutoPickup", AutoPickup);
             Reader.Write("AutoPlay", "AutoPotHP", AutoPotHP);
             Reader.Write("AutoPlay", "AutoPotMP", AutoPotMP);
+            Reader.Write("AutoPlay", "AutoMoveRun", AutoMoveRun);
+            Reader.Write("AutoPlay", "AutoSkill", AutoSkill);
+            Reader.Write("AutoPlay", "AutoDodge", AutoDodge);
+            Reader.Write("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
+            Reader.Write("AutoPlay", "AutoSwapPoison", AutoSwapPoison);
             Reader.Write("AutoPlay", "AutoPotHPPercent", AutoPotHPPercent);
             Reader.Write("AutoPlay", "AutoPotMPPercent", AutoPotMPPercent);
             Reader.Write("AutoPlay", "AutoSearchRange", AutoSearchRange);
             Reader.Write("AutoPlay", "AutoAttackIgnore", AutoAttackIgnore);
-            Reader.Write("AutoPlay", "NoLamp", NoLamp);
-            Reader.Write("AutoPlay", "WalkThrough", WalkThrough);
-            Reader.Write("AutoPlay", "NoRunUp", NoRunUp);
+            Reader.Write("AutoPlay", "AutoSaintKeywords", AutoSaintKeywords);
+            // 落盘的是玩家偏好，不是服务器当前下发值，否则登录一次偏好就被清空
+            Reader.Write("AutoPlay", "NoLamp", PreferredNoLamp);
+            Reader.Write("AutoPlay", "WalkThrough", PreferredWalkThrough);
+            Reader.Write("AutoPlay", "NoRunUp", PreferredNoRunUp);
+            Reader.Write("AutoPlay", "OverWeight", PreferredOverWeight);
+            Reader.Write("AutoPlay", "MountTai", PreferredMountTai);
 
             for (int i = 0; i < SkillbarLocation.Length / 2; i++)
             {

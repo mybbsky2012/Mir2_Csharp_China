@@ -607,7 +607,9 @@ namespace Server.MirObjects
                 {
                     hitter.ReceiveChat(string.Format("你受到了正义的庇护"), ChatType.System);
                 }
-                else if (Envir.Time > BrownTime && PKPoints < 200)
+                // 假人杀人不记 PK 点数：它们会互相切磋，要是记点数，打几轮就全变红名，
+                // 复活回城立刻被卫兵追着射，直接变成死亡循环。
+                else if (Envir.Time > BrownTime && PKPoints < 200 && !(hitter is FakePlayerObject))
                 {
                     UserItem weapon = hitter.Info.Equipment[(byte)EquipmentSlot.武器];
 
@@ -675,6 +677,9 @@ namespace Server.MirObjects
         }
         private void RedDeathDrop(MapObject killer)
         {
+            //假人不爆装（理由见 HumanObject.DeathDrop）
+            if (this is FakePlayerObject) return;
+
             if (killer == null || killer.Race != ObjectType.Player)
             {
                 for (var i = 0; i < Info.Equipment.Length; i++)
@@ -2083,6 +2088,76 @@ namespace Server.MirObjects
 
                 switch (parts[0].ToUpper())
                 {
+                    //-----------------------------------------------------------------
+                    // 假人系统控制台（管理员）
+                    //   @假人            看状态
+                    //   @假人 reset      全部踢掉重新生成
+                    //   @假人 喊话       让一个在线假人立刻喊一句
+                    //   @假人 说话       让一个在线假人立刻说一句
+                    //   @假人 组队 N     拉身边 N 个假人入队（默认 3）
+                    //   @假人 性能       看假人吃了多少服务端资源（排查卡顿用）
+                    //-----------------------------------------------------------------
+                    case "假人":
+                    case "FAKEBOT":
+                        if (!IsGM) return;
+
+                        if (parts.Length >= 2)
+                        {
+                            switch (parts[1])
+                            {
+                                case "reset":
+                                case "重置":
+                                    SendReport(FakePlayerManager.RespawnAll());
+                                    return;
+
+                                case "喊话":
+                                case "shout":
+                                    SendReport(FakePlayerManager.ForceChat(true));
+                                    return;
+
+                                case "说话":
+                                case "say":
+                                    SendReport(FakePlayerManager.ForceChat(false));
+                                    return;
+
+                                case "组队":
+                                case "group":
+                                    {
+                                        int botCount = 3;
+
+                                        if (parts.Length >= 3) int.TryParse(parts[2], out botCount);
+                                        if (botCount < 1) botCount = 1;
+                                        if (botCount > 8) botCount = 8;
+
+                                        SendReport(FakePlayerManager.InviteNearbyBots(this, botCount, 15));
+                                    }
+                                    return;
+
+                                case "性能":
+                                case "perf":
+                                    if (parts.Length >= 3 && (parts[2] == "重置" || parts[2] == "reset"))
+                                        SendReport(FakePlayerManager.ResetPerfPeak());
+                                    else
+                                        SendReport(FakePlayerManager.PerfReport());
+                                    return;
+
+                                case "登录点":
+                                case "spawn":
+                                case "spawns":
+                                    SendReport(FakePlayerManager.SpawnReport());
+                                    return;
+
+                                case "药":
+                                case "potion":
+                                case "pots":
+                                    SendReport(FakePlayerManager.PotionReport());
+                                    return;
+                            }
+                        }
+
+                        SendReport(FakePlayerManager.StatusReport());
+                        return;
+
                     case "LOGIN":
                         GMLogin = true;
                         ReceiveChat("请输入管理员密码！", ChatType.Hint);
@@ -5567,7 +5642,8 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (temp.Weight + Hero.CurrentBagWeight > Hero.Stats[Stat.背包负重])
+            // 超负重：主人开启后，向英雄背包转移物品也不再校验英雄负重
+            if (!Hero.IgnoreWeight && temp.Weight + Hero.CurrentBagWeight > Hero.Stats[Stat.背包负重])
             {
                 ReceiveChat("太重了，无法移动", ChatType.System);
                 Enqueue(p);
@@ -7524,6 +7600,47 @@ namespace Server.MirObjects
         {
             Enqueue(new S.Chat { Message = text, Type = type });
         }
+
+        /// <summary>
+        /// 把多行报告拆成一条条短聊天消息发送。
+        /// 客户端聊天框不认换行符（只按像素宽度折行），整段发过去会被揉成一团长文本、
+        /// 折行错乱还超出聊天框 —— 所以这里按行拆开，超宽的行再按显示宽度切段，
+        /// 保证每一条都能完整落在聊天框里。
+        /// </summary>
+        private void SendReport(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+
+            string[] lines = text.Split('\n');
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i].TrimEnd('\r').TrimEnd();
+
+                if (line.Length == 0) continue;
+
+                // 一条消息最多 48 个显示宽度（中文 / 全角按 2 算），再宽小分辨率聊天框就装不下了
+                const int MaxWidth = 48;
+
+                int start = 0;
+                int width = 0;
+
+                for (int j = 0; j < line.Length; j++)
+                {
+                    width += line[j] > 255 ? 2 : 1;
+
+                    if (width < MaxWidth) continue;
+
+                    ReceiveChat(line.Substring(start, j - start + 1), ChatType.Hint);
+                    start = j + 1;
+                    width = 0;
+                }
+
+                if (start < line.Length)
+                    ReceiveChat(line.Substring(start), ChatType.Hint);
+            }
+        }
+
         public void ReceiveOutputMessage(string text, OutputMessageType type)
         {
             Enqueue(new S.SendOutputMessage { Message = text, Type = type });
@@ -13880,7 +13997,7 @@ namespace Server.MirObjects
 
         #endregion
 
-        #region 辅助开关（免蜡 / 穿人）
+        #region 辅助开关（免蜡 / 穿人 / 免助跑 / 超负重 / 泰山）
 
         /// <summary>
         /// 处理客户端提交的辅助开关请求。allowed 由服务器配置决定，
@@ -13901,17 +14018,50 @@ namespace Server.MirObjects
                 case PlayerOptionType.NoRunUp:
                     NoRunUp = effective;
                     break;
+                case PlayerOptionType.OverWeight:
+                    OverWeight = effective;
+                    break;
+                case PlayerOptionType.MountTai:
+                    MountTai = effective;
+                    break;
                 default:
                     return;
             }
+
+            SyncHeroOptions(Hero);
 
             Enqueue(new S.PlayerOption { Option = option, Allowed = allowed, Value = effective });
 
             if (!allowed)
             {
-                ReceiveChat(string.Format("本服务器未开放「{0}」功能。",
-                    option == PlayerOptionType.NoLamp ? "免蜡"
-                    : option == PlayerOptionType.NoRunUp ? "免助跑" : "穿人"), ChatType.System);
+                ReceiveChat(string.Format("本服务器未开放「{0}」功能。", OptionName(option)), ChatType.System);
+            }
+        }
+
+        /// <summary>
+        /// 把移动类辅助开关同步给英雄：玩家可切换操作英雄（客户端 UserHeroObject），
+        /// 若不同步，穿人 / 免助跑 / 超负重 在操作英雄时会失效。
+        /// 泰山只影响自身受击表现，无需同步。
+        /// </summary>
+        private void SyncHeroOptions(HeroObject hero)
+        {
+            if (hero == null) return;
+
+            hero.WalkThrough = WalkThrough;
+            hero.NoRunUp = NoRunUp;
+            hero.OverWeight = OverWeight;
+        }
+
+        private static string OptionName(PlayerOptionType option)
+        {
+            switch (option)
+            {
+                case PlayerOptionType.NoLamp: return "免蜡";
+                case PlayerOptionType.WalkThrough: return "穿人";
+                case PlayerOptionType.NoRunUp: return "免助跑";
+                case PlayerOptionType.OverWeight: return "超负重";
+                case PlayerOptionType.MountTai: return "泰山";
+                default: return option.ToString();
             }
         }
 
@@ -13921,6 +14071,8 @@ namespace Server.MirObjects
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.NoLamp, Allowed = Settings.EnableNoLamp, Value = NoLamp });
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThrough, Allowed = Settings.EnableWalkThrough, Value = WalkThrough });
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.NoRunUp, Allowed = true, Value = NoRunUp });
+            Enqueue(new S.PlayerOption { Option = PlayerOptionType.OverWeight, Allowed = Settings.EnableOverWeight, Value = OverWeight });
+            Enqueue(new S.PlayerOption { Option = PlayerOptionType.MountTai, Allowed = Settings.EnableMountTai, Value = MountTai });
         }
 
         #endregion
@@ -13955,6 +14107,7 @@ namespace Server.MirObjects
                 SpawnHero(hero);
 
             Hero = hero;
+            SyncHeroOptions(hero);
             Info.HeroSpawned = true;
             Enqueue(new S.UpdateHeroSpawnState { State = hero.Dead ? HeroSpawnState.Dead : HeroSpawnState.Summoned });
         }

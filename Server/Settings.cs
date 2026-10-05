@@ -114,7 +114,25 @@ namespace Server
 
         //辅助开关（内挂相关，客户端可申请开启，服务器决定是否放行）
         public static bool EnableNoLamp = true,          // 免蜡：夜晚不需要照明道具
-                           EnableWalkThrough = true;     // 穿人：可以穿过其他玩家
+                           EnableWalkThrough = true,     // 穿人：可以穿过其他玩家/英雄/怪物/NPC
+                           EnableOverWeight = true,      // 超负重：负重超限仍可奔跑、装备不受负重限制
+                           EnableMountTai = true;        // 泰山：被攻击时不后仰、不打断跑动与施法
+
+        //假人（AI 玩家）
+        public static bool FakePlayerEnabled = false;               // 总开关
+        public static int FakePlayerCount = 50;                     // 生成多少个
+        public static int FakePlayerLevelMin = 32;                  // 等级下限
+        public static int FakePlayerLevelMax = 45;                  // 等级上限
+        public static string FakePlayerMaps = "";                   // 练级地图（文件名或序号，逗号分隔）；留空=自动挑有怪物刷新的图
+        public static bool FakePlayerChat = true;                   // 允许假人说话 / 喊话
+        public static bool FakePlayerRandomLogin = true;            // 允许随机上下线
+        public static string FakePlayerChatFile = "FakePlayerChat.txt"; // 台词文件（相对 Configs 目录），留空用内置台词
+        public static string FakePlayerEquipFile = "FakePlayerEquip.txt"; // 装备方案文件（相对 Configs 目录）；文件不存在会自动生成模板
+        public static bool FakePlayerPK = false;                    // 假人之间随机 PK（在允许打架的野外互相切磋）
+        public static int FakePlayerPKChance = 6;                   // 每轮判定的「挑起 PK」概率（%）
+        public static bool FakePlayerFollow = true;                 // 允许假人接受组队邀请并跟随队长一起下图打怪
+        public static string FakePlayerSpawns = "";                 // 登录点（内联）：地图:X,Y; 地图:X,Y  —— 留空则只读登录点文件
+        public static string FakePlayerSpawnFile = "FakePlayerSpawns.txt"; // 登录点文件（相对 Configs 目录），每行一个「地图 X Y」
 
         //Database
         public static int SaveDelay = 5;
@@ -426,6 +444,31 @@ namespace Server
             //辅助开关
             EnableNoLamp = Reader.ReadBoolean("Optional", "EnableNoLamp", EnableNoLamp);
             EnableWalkThrough = Reader.ReadBoolean("Optional", "EnableWalkThrough", EnableWalkThrough);
+            EnableOverWeight = Reader.ReadBoolean("Optional", "EnableOverWeight", EnableOverWeight);
+            EnableMountTai = Reader.ReadBoolean("Optional", "EnableMountTai", EnableMountTai);
+
+            //假人（AI 玩家）
+            FakePlayerEnabled = Reader.ReadBoolean("FakePlayer", "Enabled", FakePlayerEnabled);
+            FakePlayerCount = Reader.ReadInt32("FakePlayer", "Count", FakePlayerCount);
+            FakePlayerLevelMin = Reader.ReadInt32("FakePlayer", "LevelMin", FakePlayerLevelMin);
+            FakePlayerLevelMax = Reader.ReadInt32("FakePlayer", "LevelMax", FakePlayerLevelMax);
+            FakePlayerMaps = Reader.ReadString("FakePlayer", "Maps", FakePlayerMaps);
+            FakePlayerChat = Reader.ReadBoolean("FakePlayer", "Chat", FakePlayerChat);
+            FakePlayerRandomLogin = Reader.ReadBoolean("FakePlayer", "RandomLogin", FakePlayerRandomLogin);
+            FakePlayerChatFile = Reader.ReadString("FakePlayer", "ChatFile", FakePlayerChatFile);
+            FakePlayerEquipFile = Reader.ReadString("FakePlayer", "EquipFile", FakePlayerEquipFile);
+            FakePlayerPK = Reader.ReadBoolean("FakePlayer", "PK", FakePlayerPK);
+            FakePlayerPKChance = Reader.ReadInt32("FakePlayer", "PKChance", FakePlayerPKChance);
+            FakePlayerFollow = Reader.ReadBoolean("FakePlayer", "Follow", FakePlayerFollow);
+            FakePlayerSpawns = Reader.ReadString("FakePlayer", "Spawns", FakePlayerSpawns);
+            FakePlayerSpawnFile = Reader.ReadString("FakePlayer", "SpawnFile", FakePlayerSpawnFile);
+
+            if (FakePlayerCount < 0) FakePlayerCount = 0;
+            if (FakePlayerCount > 300) FakePlayerCount = 300;
+            if (FakePlayerLevelMin < 1) FakePlayerLevelMin = 1;
+            if (FakePlayerLevelMax < FakePlayerLevelMin) FakePlayerLevelMax = FakePlayerLevelMin;
+            if (FakePlayerPKChance < 0) FakePlayerPKChance = 0;
+            if (FakePlayerPKChance > 100) FakePlayerPKChance = 100;
 
             //Database
             SaveDelay = Reader.ReadInt32("Database", "SaveDelay", SaveDelay);
@@ -713,6 +756,24 @@ namespace Server
             Reader.Write("Optional", "LineMessageTimer", LineMessageTimer);
             Reader.Write("Optional", "EnableNoLamp", EnableNoLamp);
             Reader.Write("Optional", "EnableWalkThrough", EnableWalkThrough);
+            Reader.Write("Optional", "EnableOverWeight", EnableOverWeight);
+            Reader.Write("Optional", "EnableMountTai", EnableMountTai);
+
+            //假人（AI 玩家）
+            Reader.Write("FakePlayer", "Enabled", FakePlayerEnabled);
+            Reader.Write("FakePlayer", "Count", FakePlayerCount);
+            Reader.Write("FakePlayer", "LevelMin", FakePlayerLevelMin);
+            Reader.Write("FakePlayer", "LevelMax", FakePlayerLevelMax);
+            Reader.Write("FakePlayer", "Maps", FakePlayerMaps);
+            Reader.Write("FakePlayer", "Chat", FakePlayerChat);
+            Reader.Write("FakePlayer", "RandomLogin", FakePlayerRandomLogin);
+            Reader.Write("FakePlayer", "ChatFile", FakePlayerChatFile);
+            Reader.Write("FakePlayer", "EquipFile", FakePlayerEquipFile);
+            Reader.Write("FakePlayer", "PK", FakePlayerPK);
+            Reader.Write("FakePlayer", "PKChance", FakePlayerPKChance);
+            Reader.Write("FakePlayer", "Follow", FakePlayerFollow);
+            Reader.Write("FakePlayer", "Spawns", FakePlayerSpawns);
+            Reader.Write("FakePlayer", "SpawnFile", FakePlayerSpawnFile);
 
             //Database
             Reader.Write("Database", "SaveDelay", SaveDelay);

@@ -35,6 +35,18 @@ namespace Server.MirObjects
 
         public Dictionary<int, bool> VisibleLog = new Dictionary<int, bool>();
 
+        /// <summary>
+        /// 玩家是否能看到本 NPC（未登记过的玩家一律视为「不可见」，不抛异常）。
+        /// 修复：假人/AI 玩家上线后走得快，NPC 的 Process 还没来得及登记它时，
+        /// HumanObject.Walk/Run 里直接 VisibleLog[Index] 会抛 KeyNotFoundException。
+        /// </summary>
+        public bool IsVisibleTo(int playerIndex)
+        {
+            bool canSee;
+            VisibleLog.TryGetValue(playerIndex, out canSee);
+            return canSee;
+        }
+
         public ConquestObject Conq;
         public List<QuestInfo> Quests = new List<QuestInfo>();
         public List<NPCSpeech> Speech = new List<NPCSpeech>();

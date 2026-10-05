@@ -76,6 +76,28 @@ namespace Server.MirNetwork
         public MirConnection(int sessionID, TcpClient client)
         {
             SessionID = sessionID;
+
+            // 假人（AI 玩家）通道：传入 client == null 表示「没有真实客户端」。
+            // 假人在服务端是真 PlayerObject，需要连接对象非空才能通过 Process() 里的守卫，
+            // 但它没有人收发数据包 —— 这里只把状态字段初始化好，不建 socket、不入网络轮询。
+            // 真正屏蔽发包的是 BotConnection.Enqueue 的重写。
+            if (client == null)
+            {
+                IPAddress = "bot";
+
+                TimeConnected = Envir.Time;
+                TimeOutTime = TimeConnected + Settings.TimeOut;
+
+                _lastPackets = new FixedSizedQueue<Packet>(10);
+
+                _receiveList = new ConcurrentQueue<Packet>();
+                _sendList = new ConcurrentQueue<Packet>();
+                _retryList = new Queue<Packet>();
+
+                Connected = true;
+                return;
+            }
+
             IPAddress = client.Client.RemoteEndPoint.ToString().Split(':')[0];
 
             Envir.UpdateIPBlock(IPAddress, TimeSpan.FromSeconds(Settings.IPBlockSeconds));
@@ -226,7 +248,7 @@ namespace Server.MirNetwork
             { }
         }
         
-        public void Enqueue(Packet p)
+        public virtual void Enqueue(Packet p)
         {
             if (p == null) return;
             if (_sendList != null && p != null)
@@ -237,7 +259,7 @@ namespace Server.MirNetwork
                 c.Enqueue(p);
         }
 
-        public void Process()
+        public virtual void Process()
         {
             if (_client == null || !_client.Connected)
             {
@@ -780,7 +802,7 @@ namespace Server.MirNetwork
             if (_client != null) _client.Client.Dispose();
             _client = null;
         }
-        public void SendDisconnect(byte reason)
+        public virtual void SendDisconnect(byte reason)
         {
             if (!Connected)
             {
@@ -2059,6 +2081,8 @@ namespace Server.MirNetwork
                 PlayerOptionType.NoLamp => Settings.EnableNoLamp,
                 PlayerOptionType.WalkThrough => Settings.EnableWalkThrough,
                 PlayerOptionType.NoRunUp => true, // 免助跑：纯移动便利开关，服务器始终放行
+                PlayerOptionType.OverWeight => Settings.EnableOverWeight,
+                PlayerOptionType.MountTai => Settings.EnableMountTai,
                 _ => false,
             };
 

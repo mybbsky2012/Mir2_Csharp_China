@@ -939,6 +939,9 @@ namespace Server.MirEnvir
                     }
                 }
             }
+
+            //假人系统：随机上下线巡检（内部自带 1 秒节流）
+            FakePlayerManager.Process();
         }
 
         private void ProcessAuction()
@@ -1893,6 +1896,9 @@ namespace Server.MirEnvir
             MonsterNPC = NPCScript.GetOrAdd((uint)Random.Next(2000000, 2999999), Settings.MonsterNPCFilename, NPCScriptType.AutoMonster);
             RobotNPC = NPCScript.GetOrAdd((uint)Random.Next(3000000, 3999999), Settings.RobotNPCFilename, NPCScriptType.Robot);
 
+            //假人（AI 玩家）：此时地图、物品、技能表都已就绪，可以生成了
+            FakePlayerManager.Init();
+
             MessageQueue.Enqueue("正在部署游戏环境......");
         }
         private void StartNetwork()
@@ -1921,6 +1927,9 @@ namespace Server.MirEnvir
 
         private void StopEnvir()
         {
+            //先让假人正常下线（会走 StopGame，把在线人数等计数还原）
+            FakePlayerManager.Close();
+
             SaveGoods(true);
 
             MapList.Clear();
@@ -3518,6 +3527,21 @@ namespace Server.MirEnvir
             if (ObjectID == id) return;
 
             CharacterInfo player = GetCharacterInfo(id);
+
+            // 假人（AI 玩家）不在 CharacterList 里，GetCharacterInfo 查不到；
+            // 直接从在线玩家里按 Info.Index 找，否则 Ctrl+点击假人看不到装备。
+            if (player == null)
+            {
+                for (int i = 0; i < Players.Count; i++)
+                {
+                    if (Players[i].Info.Index == id)
+                    {
+                        player = Players[i].Info;
+                        break;
+                    }
+                }
+            }
+
             if (player == null) return;
 
             CharacterInfo Lover = null;
@@ -3819,6 +3843,9 @@ namespace Server.MirEnvir
 
         public void CheckRankUpdate(CharacterInfo info)
         {
+            //假人只计入「在线人数」，不进入排行榜
+            if (info != null && info.Player is FakePlayerObject) return;
+
             List<RankCharacterInfo> Ranking;
 
             //first check overall top           

@@ -208,6 +208,10 @@ namespace Server.MirObjects
         {
             try
             {
+                // 假人的行为量极大（一直在打怪、捡东西、换装备），逐条写玩家日志会把磁盘写爆，
+                // 而且这些记录对管理员没有任何价值 —— 直接跳过。
+                if (_player is FakePlayerObject) return;
+
                 var logMessage = $"{_player.Name} - {source} : {message}";
 
                 log.Info(logMessage);

@@ -83,6 +83,13 @@ namespace Server.MirObjects
         }
 
         public long MaxExperience;
+
+        // 「最近主动打了谁」——只在目标是玩家（真人 / 假人）时才记录。
+        // 组队跟着玩家的假人靠这个字段知道「队长现在在跟谁打架」，从而上去帮忙 PK。
+        // 之所以不直接用受害者的 LastHitter：那个字段会被下一发攻击覆盖（假人自己打一下就把队长的记录顶掉了）。
+        public MapObject RecentPvPTarget;
+        public long RecentPvPTime;
+
         public byte Hair
         {
             get { return Info.Hair; }
@@ -132,7 +139,7 @@ namespace Server.MirObjects
         {
             get
             {
-                return !Dead && Envir.Time >= ActionTime && (_stepCounter > 0 || FastRun || NoRunUp) && (!Sneaking || ActiveSwiftFeet) && CurrentBagWeight <= Stats[Stat.背包负重] && !CurrentPoison.HasFlag(PoisonType.Paralysis) && !CurrentPoison.HasFlag(PoisonType.LRParalysis) && !CurrentPoison.HasFlag(PoisonType.Frozen);
+                return !Dead && Envir.Time >= ActionTime && (_stepCounter > 0 || FastRun || NoRunUp) && (!Sneaking || ActiveSwiftFeet) && (IgnoreWeight || CurrentBagWeight <= Stats[Stat.背包负重]) && !CurrentPoison.HasFlag(PoisonType.Paralysis) && !CurrentPoison.HasFlag(PoisonType.LRParalysis) && !CurrentPoison.HasFlag(PoisonType.Frozen);
             }
         }
         public virtual bool CanAttack
@@ -177,8 +184,15 @@ namespace Server.MirObjects
 
         //辅助开关（内挂）：由服务器校验后设置，见 PlayerObject.SetPlayerOption
         public bool NoLamp;         // 免蜡：夜晚无需照明（客户端渲染用，服务器仅记录/回执）
-        public bool WalkThrough;    // 穿人：移动时忽略其他玩家/英雄/怪物的阻挡
+        public bool WalkThrough;    // 穿人：移动时忽略其他玩家/英雄/怪物/NPC 的阻挡
         public bool NoRunUp;        // 免助跑：无需先走一步即可直接奔跑
+        public bool OverWeight;     // 超负重：负重超限仍可奔跑、装备不受腕力/装备负重限制
+        public bool MountTai;       // 泰山：被攻击时不后仰（客户端表现，服务器仅记录/回执）
+
+        /// <summary>
+        /// 是否忽略负重限制（超负重）。自身开启即生效；英雄跟随主人的开关，见 HeroObject。
+        /// </summary>
+        public virtual bool IgnoreWeight => OverWeight;
 
         public virtual int PotionBeltMinimum => 0;
         public virtual int PotionBeltMaximum => 4;
@@ -259,6 +273,13 @@ namespace Server.MirObjects
         public override void Process()
         {
             if ((Race == ObjectType.Player && Connection == null) || Node == null || Info == null) return;
+
+            // 「最近主动打了哪个玩家」的记录过期就清掉，免得一直攥着一个已经下线的对象
+            if (RecentPvPTarget != null && (Envir.Time > RecentPvPTime || RecentPvPTarget.Node == null))
+            {
+                RecentPvPTarget = null;
+                RecentPvPTime = 0;
+            }
 
             if (CellTime + 700 < Envir.Time) _stepCounter = 0;
 
@@ -1404,6 +1425,10 @@ namespace Server.MirObjects
         }
         protected void DeathDrop(MapObject killer)
         {
+            //假人不爆装：AI 玩家没有真人那种「回来捡尸体」的能力，一旦爆光装备就会变成
+            //光着身子的怪人，严重影响观感。它们本来也不产出任何收益，禁掉不影响平衡。
+            if (this is FakePlayerObject) return;
+
             var pkbodydrop = true;
 
             if (CurrentMap.Info.NoDropPlayer && (Race == ObjectType.Player || Race == ObjectType.Hero))
@@ -2464,13 +2489,13 @@ namespace Server.MirObjects
                 {
                     MapObject ob = cell.Objects[i];
 
-                    // 穿人：开启后忽略其他玩家/英雄/怪物的阻挡（NPC、地形仍然有效）
-                    if (WalkThrough && (ob.Race == ObjectType.Player || ob.Race == ObjectType.Hero || ob.Race == ObjectType.Monster)) continue;
+                    // 穿人：开启后忽略其他玩家/英雄/怪物/NPC 的阻挡（地形、门、障碍物仍然有效）
+                    if (WalkThrough && (ob.Race == ObjectType.Player || ob.Race == ObjectType.Hero || ob.Race == ObjectType.Monster || ob.Race == ObjectType.Merchant)) continue;
 
                     if (ob.Race == ObjectType.Merchant && Race == ObjectType.Player)
                     {
                         NPCObject NPC = (NPCObject)ob;
-                        if (!NPC.Visible || !NPC.VisibleLog[Info.Index]) continue;
+                        if (!NPC.Visible || !NPC.IsVisibleTo(Info.Index)) continue;
                     }
                     else
                         if (!ob.Blocking || (CheckCellTime && ob.CellTime >= Envir.Time)) continue;
@@ -2543,7 +2568,8 @@ namespace Server.MirObjects
         }
         public bool Run(MirDirection dir)
         {
-            if (CurrentBagWeight > Stats[Stat.背包负重])
+            // 超负重：背包超重时不再被强制降级为走路
+            if (!IgnoreWeight && CurrentBagWeight > Stats[Stat.背包负重])
             {
                 Walk(dir);
             }
@@ -2605,7 +2631,7 @@ namespace Server.MirObjects
                         if (ob.Race == ObjectType.Merchant && Race == ObjectType.Player)
                         {
                             NPCObject NPC = (NPCObject)ob;
-                            if (!NPC.Visible || !NPC.VisibleLog[Info.Index]) continue;
+                            if (!NPC.Visible || !NPC.IsVisibleTo(Info.Index)) continue;
                         }
                         else
                             if (!ob.Blocking || (CheckCellTime && ob.CellTime >= Envir.Time)) continue;
@@ -2798,6 +2824,13 @@ namespace Server.MirObjects
 
             if (target != null && !target.Dead && target.IsAttackTarget(this) && !target.IsFriendlyTarget(this))
             {
+                // 记下「我在打哪个玩家」——组队的假人靠这个判断该帮队长打谁
+                if (target.Race == ObjectType.Player)
+                {
+                    RecentPvPTarget = target;
+                    RecentPvPTime = Envir.Time + 15000;
+                }
+
                 if (this is PlayerObject player &&
                    player.PMode == PetMode.FocusMasterTarget)
                 {
@@ -3067,6 +3100,13 @@ namespace Server.MirObjects
 
                 if (ob != null && !ob.Dead && ob.IsAttackTarget(this) && !ob.IsFriendlyTarget(this))
                 {
+                    // 记下「我在打哪个玩家」——组队的假人靠这个判断该帮队长打谁（打怪不记，没这个需求）
+                    if (ob.Race == ObjectType.Player)
+                    {
+                        RecentPvPTarget = ob;
+                        RecentPvPTime = Envir.Time + 15000;
+                    }
+
                     if (this is PlayerObject player &&
                    player.PMode == PetMode.FocusMasterTarget)
                     {
@@ -3506,6 +3546,13 @@ namespace Server.MirObjects
 
             if (target != null && !target.Dead && target.IsAttackTarget(this) && !target.IsFriendlyTarget(this))
             {
+                // 记下「我在打哪个玩家」——组队的假人靠这个判断该帮队长打谁
+                if (target.Race == ObjectType.Player)
+                {
+                    RecentPvPTarget = target;
+                    RecentPvPTime = Envir.Time + 15000;
+                }
+
                 if (this is PlayerObject player &&
                    player.PMode == PetMode.FocusMasterTarget)
                 {
@@ -4434,7 +4481,8 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 2) return;
+            // 道士可以同时养「变异骷髅 + 神兽 + 月灵」三只（原上限 2）
+            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 3) return;
 
             UserItem item = GetAmulet(1);
             if (item == null) return;
@@ -4477,7 +4525,8 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 2) return;
+            // 道士可以同时养「变异骷髅 + 神兽 + 月灵」三只（原上限 2）
+            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 3) return;
 
             UserItem item = GetAmulet(5);
             if (item == null) return;
@@ -4766,7 +4815,8 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 2) return;
+            // 道士可以同时养「变异骷髅 + 神兽 + 月灵」三只（原上限 2）
+            if (Pets.Count(x => x.Race == ObjectType.Monster) >= 3) return;
 
             UserItem item = GetAmulet(2);
             if (item == null) return;
@@ -8027,14 +8077,18 @@ namespace Server.MirObjects
                     break;
             }
 
-            if (item.Info.Type == ItemType.武器 || item.Info.Type == ItemType.照明物)
+            // 超负重：不再校验腕力负重 / 装备负重
+            if (!IgnoreWeight)
             {
-                if (item.Weight - (Info.Equipment[slot] != null ? Info.Equipment[slot].Weight : 0) + CurrentHandWeight > Stats[Stat.腕力负重])
+                if (item.Info.Type == ItemType.武器 || item.Info.Type == ItemType.照明物)
+                {
+                    if (item.Weight - (Info.Equipment[slot] != null ? Info.Equipment[slot].Weight : 0) + CurrentHandWeight > Stats[Stat.腕力负重])
+                        return false;
+                }
+                else
+                    if (item.Weight - (Info.Equipment[slot] != null ? Info.Equipment[slot].Weight : 0) + CurrentWearWeight > Stats[Stat.装备负重])
                     return false;
             }
-            else
-                if (item.Weight - (Info.Equipment[slot] != null ? Info.Equipment[slot].Weight : 0) + CurrentWearWeight > Stats[Stat.装备负重])
-                return false;
 
             if (RidingMount && item.Info.Type != ItemType.照明物)
             {
