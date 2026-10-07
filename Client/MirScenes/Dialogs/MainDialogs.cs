@@ -11,6 +11,31 @@ using Client.Resolution;
 
 namespace Client.MirScenes.Dialogs
 {
+    /// <summary>
+    /// 整宽底栏填充层（自适应分辨率）。
+    ///
+    /// 原版底栏图只有 1024 宽，宽分辨率下它是居中的、两侧空悬（只靠两块小端帽意思一下）。
+    /// 这一层垫在 MainDialog 背后，用 PrguseEx.Lib 里按分辨率预生成的「整宽底栏」
+    /// （左珠盘 + 镜像平铺的栏杆中段 + 右按钮栏，1280/1366/1600/1920/2560 各一张）
+    /// 把栏杆拉满整个窗口宽度 —— 看起来就像底栏天生和窗口一样宽。
+    ///
+    /// MainDialog 本体（按钮、血球、经验条、所有锚定它的面板）一律不动：
+    /// 它还是 1024 逻辑宽度居中，正好压在填充层的中间部分上，左右两侧由填充层补齐。
+    /// 缺 PrguseEx.Lib 或分辨率不在支持列表里时，这一层不画，退回原版样子。
+    /// </summary>
+    public sealed class BottomBarFill : MirImageControl
+    {
+        public BottomBarFill()
+        {
+            if (!ResolutionHelper.HasFullWidthBar(Settings.Resolution)) return;
+
+            Index = ResolutionHelper.FullWidthBarIndex(Settings.Resolution);
+            Library = Libraries.PrguseEx;
+            Location = new Point(0, Settings.ScreenHeight - 152);
+            NotControl = true;      // 纯背景，不挡鼠标
+        }
+    }
+
     public sealed class MainDialog : MirImageControl
     {
         public static UserObject User
@@ -58,7 +83,7 @@ namespace Client.MirScenes.Dialogs
                 Visible = false
             };
 
-            if (ResolutionHelper.IsWide(Settings.Resolution))
+            if (ResolutionHelper.IsWide(Settings.Resolution) && !ResolutionHelper.HasFullWidthBar(Settings.Resolution))
             {
                 LeftCap.Visible = true;
                 RightCap.Visible = true;

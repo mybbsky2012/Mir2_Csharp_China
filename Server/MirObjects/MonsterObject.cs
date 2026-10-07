@@ -610,7 +610,8 @@ namespace Server.MirObjects
                     case 899:
                         return 5000;
                     default:
-                        return 180000;
+                        // 普通怪尸体停留时间，由服务端「其他选项」里的设置决定（Settings.CorpseTime，秒）
+                        return Settings.CorpseTime * 1000;
                 }
             }
         }

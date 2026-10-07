@@ -1,0 +1,22 @@
+生成启动时间为 2026-10-04 20:36:04。
+日志记录详细程度设置为: Normal。     1>项目“D:\mir2-20241027\Client\Client.csproj”在节点 1 上(Restore 个目标)。
+     1>_GetAllRestoreProjectPathItems:
+         正在确定要还原的项目…
+       Restore:
+         X.509 证书链验证将使用 .NET 选择的默认信任存储进行代码签名。
+         X.509 证书链验证将使用 .NET 选择的默认信任存储进行时间戳。
+         资产文件未改变。跳过资产文件写入。路径: D:\mir2-20241027\Shared\obj\project.assets.json
+         资产文件未改变。跳过资产文件写入。路径: D:\mir2-20241027\Client\obj\project.assets.json
+         已还原 D:\mir2-20241027\Client\Client.csproj (用时 37 毫秒)。
+         已还原 D:\mir2-20241027\Shared\Shared.csproj (用时 35 毫秒)。
+         
+         使用的 NuGet 配置文件:
+             C:\Users\Administrator\AppData\Roaming\NuGet\NuGet.Config
+         
+         使用的源:
+             https://api.nuget.org/v3/index.json
+         所有项目均是最新的，无法还原。
+     1>已完成生成项目“D:\mir2-20241027\Client\Client.csproj”(Restore 个目标)的操作。
+   1:7>项目“D:\mir2-20241027\Client\Client.csproj”在节点 1 上(Rebuild 个目标)。
+     1>CoreClean:
+         正在删除文件“D:\mir2-20241027\Build\Client\Release\runtimes\win-x64\native\WebView2Loader.dll”。

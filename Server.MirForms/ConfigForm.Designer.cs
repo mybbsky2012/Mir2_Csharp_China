@@ -47,6 +47,7 @@
             EnableResourceCheckBox = new CheckBox();
             ResourcePathLabel = new Label();
             ResourcePathTextBox = new TextBox();
+            ResourceAllowAnyIPCheckBox = new CheckBox();
             label15 = new Label();
             HTTPTrustedIPAddressTextBox = new TextBox();
             label14 = new Label();
@@ -83,6 +84,15 @@
             gameMasterEffect_CheckBox = new CheckBox();
             SafeZoneHealingCheckBox = new CheckBox();
             SafeZoneBorderCheckBox = new CheckBox();
+            label18 = new Label();
+            itemTimeOutTextBox = new TextBox();
+            label19 = new Label();
+            label20 = new Label();
+            playerDiedItemTimeOutTextBox = new TextBox();
+            label21 = new Label();
+            label22 = new Label();
+            corpseTimeTextBox = new TextBox();
+            label23 = new Label();
             VPathDialog = new OpenFileDialog();
             configTabs.SuspendLayout();
             tabPage1.SuspendLayout();
@@ -259,6 +269,7 @@
             tabPage2.Controls.Add(EnableResourceCheckBox);
             tabPage2.Controls.Add(ResourcePathLabel);
             tabPage2.Controls.Add(ResourcePathTextBox);
+            tabPage2.Controls.Add(ResourceAllowAnyIPCheckBox);
             tabPage2.Controls.Add(label15);
             tabPage2.Controls.Add(HTTPTrustedIPAddressTextBox);
             tabPage2.Controls.Add(label14);
@@ -321,6 +332,18 @@
             ResourcePathTextBox.Name = "ResourcePathTextBox";
             ResourcePathTextBox.Size = new Size(280, 23);
             ResourcePathTextBox.TabIndex = 26;
+            // 
+            // ResourceAllowAnyIPCheckBox
+            // 
+            ResourceAllowAnyIPCheckBox.AutoSize = true;
+            ResourceAllowAnyIPCheckBox.Location = new Point(28, 165);
+            ResourceAllowAnyIPCheckBox.Margin = new Padding(5, 7, 5, 7);
+            ResourceAllowAnyIPCheckBox.Name = "ResourceAllowAnyIPCheckBox";
+            ResourceAllowAnyIPCheckBox.Size = new Size(230, 21);
+            ResourceAllowAnyIPCheckBox.TabIndex = 27;
+            ResourceAllowAnyIPCheckBox.Text = "允许任意IP下载微端资源(微端必开)";
+            ResourceAllowAnyIPCheckBox.UseVisualStyleBackColor = true;
+            ResourceAllowAnyIPCheckBox.CheckedChanged += ResourceAllowAnyIPCheckBox_CheckedChanged;
             // 
             // label15
             // 
@@ -644,6 +667,15 @@
             tabPage5.Controls.Add(gameMasterEffect_CheckBox);
             tabPage5.Controls.Add(SafeZoneHealingCheckBox);
             tabPage5.Controls.Add(SafeZoneBorderCheckBox);
+            tabPage5.Controls.Add(label18);
+            tabPage5.Controls.Add(itemTimeOutTextBox);
+            tabPage5.Controls.Add(label19);
+            tabPage5.Controls.Add(label20);
+            tabPage5.Controls.Add(playerDiedItemTimeOutTextBox);
+            tabPage5.Controls.Add(label21);
+            tabPage5.Controls.Add(label22);
+            tabPage5.Controls.Add(corpseTimeTextBox);
+            tabPage5.Controls.Add(label23);
             tabPage5.Location = new Point(4, 26);
             tabPage5.Margin = new Padding(5, 7, 5, 7);
             tabPage5.Name = "tabPage5";
@@ -717,6 +749,99 @@
             SafeZoneBorderCheckBox.Text = "启用安全区边框";
             SafeZoneBorderCheckBox.UseVisualStyleBackColor = true;
             SafeZoneBorderCheckBox.CheckedChanged += SafeZoneBorderCheckBox_CheckedChanged;
+            // 
+            // label18
+            // 
+            label18.AutoSize = true;
+            label18.Location = new Point(22, 155);
+            label18.Margin = new Padding(5, 0, 5, 0);
+            label18.Name = "label18";
+            label18.Size = new Size(112, 17);
+            label18.TabIndex = 30;
+            label18.Text = "地面物品停留时间";
+            // 
+            // itemTimeOutTextBox
+            // 
+            itemTimeOutTextBox.Location = new Point(200, 149);
+            itemTimeOutTextBox.Margin = new Padding(5, 7, 5, 7);
+            itemTimeOutTextBox.MaxLength = 6;
+            itemTimeOutTextBox.Name = "itemTimeOutTextBox";
+            itemTimeOutTextBox.Size = new Size(60, 23);
+            itemTimeOutTextBox.TabIndex = 31;
+            itemTimeOutTextBox.Text = "30";
+            itemTimeOutTextBox.TextChanged += CheckNumber;
+            // 
+            // label19
+            // 
+            label19.AutoSize = true;
+            label19.Location = new Point(266, 155);
+            label19.Margin = new Padding(5, 0, 5, 0);
+            label19.Name = "label19";
+            label19.Size = new Size(32, 17);
+            label19.TabIndex = 32;
+            label19.Text = "分钟";
+            // 
+            // label20
+            // 
+            label20.AutoSize = true;
+            label20.Location = new Point(22, 185);
+            label20.Margin = new Padding(5, 0, 5, 0);
+            label20.Name = "label20";
+            label20.Size = new Size(140, 17);
+            label20.TabIndex = 33;
+            label20.Text = "死亡掉落物品停留时间";
+            // 
+            // playerDiedItemTimeOutTextBox
+            // 
+            playerDiedItemTimeOutTextBox.Location = new Point(200, 179);
+            playerDiedItemTimeOutTextBox.Margin = new Padding(5, 7, 5, 7);
+            playerDiedItemTimeOutTextBox.MaxLength = 6;
+            playerDiedItemTimeOutTextBox.Name = "playerDiedItemTimeOutTextBox";
+            playerDiedItemTimeOutTextBox.Size = new Size(60, 23);
+            playerDiedItemTimeOutTextBox.TabIndex = 34;
+            playerDiedItemTimeOutTextBox.Text = "120";
+            playerDiedItemTimeOutTextBox.TextChanged += CheckNumber;
+            // 
+            // label21
+            // 
+            label21.AutoSize = true;
+            label21.Location = new Point(266, 185);
+            label21.Margin = new Padding(5, 0, 5, 0);
+            label21.Name = "label21";
+            label21.Size = new Size(32, 17);
+            label21.TabIndex = 35;
+            label21.Text = "分钟";
+            // 
+            // label22
+            // 
+            label22.AutoSize = true;
+            label22.Location = new Point(22, 215);
+            label22.Margin = new Padding(5, 0, 5, 0);
+            label22.Name = "label22";
+            label22.Size = new Size(112, 17);
+            label22.TabIndex = 36;
+            label22.Text = "怪物尸体停留时间";
+            // 
+            // corpseTimeTextBox
+            // 
+            corpseTimeTextBox.Location = new Point(200, 209);
+            corpseTimeTextBox.Margin = new Padding(5, 7, 5, 7);
+            corpseTimeTextBox.MaxLength = 6;
+            corpseTimeTextBox.Name = "corpseTimeTextBox";
+            corpseTimeTextBox.Size = new Size(60, 23);
+            corpseTimeTextBox.TabIndex = 37;
+            corpseTimeTextBox.Text = "180";
+            corpseTimeTextBox.TextChanged += CheckNumber;
+            // 
+            // label23
+            // 
+            label23.AutoSize = true;
+            label23.Location = new Point(266, 215);
+            label23.Margin = new Padding(5, 0, 5, 0);
+            label23.Name = "label23";
+            label23.Size = new Size(32, 17);
+            label23.TabIndex = 38;
+            label23.Text = "秒";
             // 
             // VPathDialog
             // 
@@ -806,8 +931,18 @@
         private System.Windows.Forms.CheckBox EnableResourceCheckBox;
         private System.Windows.Forms.Label ResourcePathLabel;
         private System.Windows.Forms.TextBox ResourcePathTextBox;
+        private System.Windows.Forms.CheckBox ResourceAllowAnyIPCheckBox;
         private System.Windows.Forms.Label label16;
         private System.Windows.Forms.TextBox lineMessageTimeTextBox;
         private System.Windows.Forms.Label label17;
+        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.TextBox itemTimeOutTextBox;
+        private System.Windows.Forms.Label label19;
+        private System.Windows.Forms.Label label20;
+        private System.Windows.Forms.TextBox playerDiedItemTimeOutTextBox;
+        private System.Windows.Forms.Label label21;
+        private System.Windows.Forms.Label label22;
+        private System.Windows.Forms.TextBox corpseTimeTextBox;
+        private System.Windows.Forms.Label label23;
     }
 }

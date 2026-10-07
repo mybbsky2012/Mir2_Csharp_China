@@ -21,6 +21,10 @@ namespace Client.MirScenes
         public List<SelectInfo> Characters = new List<SelectInfo>();
         private int _selected;
 
+        private long _loadingSince;                 // 载入画面出现/进入请求发出的时间（服务器一直没回包时自动撤掉）
+        private bool _startPending;                 // 已点「开始游戏」，正在载入流程里（等资源/等回包）
+        private bool _startPacketSent;              // 进入请求是否已真正发出（资源加载完才发）
+
         public SelectScene(List<SelectInfo> characters)
         {
             SoundManager.PlayMusic(SoundList.SelectMusic, true);
@@ -256,29 +260,30 @@ namespace Client.MirScenes
 
         public void StartGame()
         {
-            if (!Libraries.Loaded)
-            {
-                MirAnimatedControl loadProgress = new MirAnimatedControl
-                {
-                    Library = Libraries.Prguse,
-                    Index = 940,
-                    Visible = true,
-                    Parent = this,
-                    Location = new Point(470, 680),
-                    Animated = true,
-                    AnimationCount = 9,
-                    AnimationDelay = 100,
-                    Loop = true,
-                };
-                loadProgress.AfterDraw += (o, e) =>
-                {
-                    if (!Libraries.Loaded) return;
-                    loadProgress.Dispose();
-                    StartGame();
-                };
-                return;
-            }
+            if (_startPending) return;   // 已经在进游戏流程里，防止重复触发
+
             StartGameButton.Enabled = false;
+            _startPending = true;
+            _startPacketSent = false;
+
+            // 点「开始游戏」的瞬间就切到载入画面：
+            // 此时游戏资源（图库）多半还在后台加载，载入背景从这一刻起就盖住全屏，
+            // 资源加载进度直接显示在载入画面上；加载完自动发出进入请求，全程不再露出大厅/黑屏。
+            _loadingSince = CMain.Time;
+            LoadingScreen.Show();
+
+            TrySendStartGame();
+        }
+
+        /// <summary>资源就绪后真正发出进入游戏的请求（资源没加载完时由 Process 轮询后再调）。</summary>
+        private void TrySendStartGame()
+        {
+            if (!_startPending || _startPacketSent) return;
+            if (!Libraries.Loaded) return;   // 游戏资源还在加载，等 Process 里的轮询
+
+            _startPacketSent = true;
+            _loadingSince = CMain.Time;      // 15 秒无回包保护从这一刻起算
+            LoadingScreen.SetStatus("正在进入游戏，请稍候...");
 
             Network.Enqueue(new C.StartGame
             {
@@ -288,8 +293,31 @@ namespace Client.MirScenes
 
         public override void Process()
         {
+            // 已点「开始游戏」但游戏资源（图库）还在后台加载：
+            // 载入画面保持全屏盖着，底部实时显示加载进度；加载完自动发出进入请求。
+            if (_startPending && !_startPacketSent)
+            {
+                if (!Libraries.Loaded)
+                {
+                    // 资源加载阶段不设超时：后台线程一定会加载完（缺文件也只是跳过），
+                    // 加载完自动发出进入请求；进入请求发出后才有 15 秒无回包保护。
+                    LoadingScreen.SetStatus(Libraries.Count > 0
+                        ? string.Format("正在加载游戏资源 {0}/{1}...", Libraries.Progress, Libraries.Count)
+                        : "正在加载游戏资源，请稍候...");
+                    return;
+                }
 
+                TrySendStartGame();
+                return;
+            }
 
+            // 进入请求已发出，但服务器一直没回包（掉线/网络异常）：15 秒后自动退出载入画面，让玩家可以再点一次
+            if (_startPending && _startPacketSent && LoadingScreen.Visible && CMain.Time - _loadingSince > 15000)
+            {
+                _startPending = false;
+                LoadingScreen.Hide();
+                StartGameButton.Enabled = _selected >= 0 && _selected < Characters.Count;
+            }
         }
         public override void ProcessPacket(Packet p)
         {
@@ -423,7 +451,9 @@ namespace Client.MirScenes
 
         private void StartGame(S.StartGameDelay p)
         {
+            _startPending = false;
             StartGameButton.Enabled = true;
+            LoadingScreen.Hide();
 
             long time = CMain.Time + p.Milliseconds;
 
@@ -443,7 +473,9 @@ namespace Client.MirScenes
         }
         public void StartGame(S.StartGameBanned p)
         {
+            _startPending = false;
             StartGameButton.Enabled = true;
+            LoadingScreen.Hide();
 
             TimeSpan d = p.ExpiryDate - CMain.Now;
             MirMessageBox.Show(string.Format("此账户被禁用\n\n原因{0}\n解禁日期{1}\n倒计时{2:#,##0} 小时, {3} 分钟, {4} 秒", p.Reason,
@@ -456,18 +488,27 @@ namespace Client.MirScenes
             switch (p.Result)
             {
                 case 0:
+                    _startPending = false;
+                    LoadingScreen.Hide();
                     MirMessageBox.Show("服务器维护禁止登录");
                     break;
                 case 1:
+                    _startPending = false;
+                    LoadingScreen.Hide();
                     MirMessageBox.Show("尚未登录");
                     break;
                 case 2:
+                    _startPending = false;
+                    LoadingScreen.Hide();
                     MirMessageBox.Show("没有激活角色");
                     break;
                 case 3:
+                    _startPending = false;
+                    LoadingScreen.Hide();
                     MirMessageBox.Show("无效地图或没有新手出生点");
                     break;
                 case 4:
+                    _startPending = false;   // 交给 GameScene.Process 接管载入画面（Armed 仍为 true）
 
                     // 服务端下发的 Resolution 是「允许的最大分辨率」，客户端选择超过上限时回落到上限。
                     if (Settings.Resolution == 0 || p.Resolution < Settings.Resolution)
@@ -479,6 +520,11 @@ namespace Client.MirScenes
                     CMain.SetResolution(gameSize.Width, gameSize.Height);
 
                     ActiveScene = new GameScene();
+
+                    // 重新挂到刚建好的 GameScene 上：从点「进入游戏」到地图+角色画出来之间一直盖着，
+                    // 由 GameScene.Process 在世界就绪后撤掉（Armed 状态跨场景保留）。
+                    LoadingScreen.Show();
+
                     Dispose();
                     break;
             }
@@ -537,6 +583,7 @@ namespace Client.MirScenes
             {
                 Background = null;
                 _character = null;
+
 
                 ServerLabel = null;
                 CharacterDisplay = null;

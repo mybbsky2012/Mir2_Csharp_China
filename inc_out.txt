@@ -1,0 +1,13 @@
+  正在确定要还原的项目…
+  所有项目均是最新的，无法还原。
+  Shared -> D:\mir2-20241027\Shared\bin\Release\Shared.dll
+D:\mir2-20241027\Client\MirScenes\Dialogs\MailDialogs.cs(13,34): warning CS0169: 从不使用字段“MailListDialog.TitleSenderLabel” [D:\mir2-20241027\Client\Client.csproj]
+D:\mir2-20241027\Client\MirObjects\MonsterObject.cs(66,28): warning CS0649: 从未对字段“MonsterObject.CurrentEffect”赋值，字段将一直保持其默认值 [D:\mir2-20241027\Client\Client.csproj]
+D:\mir2-20241027\Client\MirObjects\MonsterObject.cs(52,65): warning CS0649: 从未对字段“MonsterObject.EffectFrameInterval”赋值，字段将一直保持其默认值 0 [D:\mir2-20241027\Client\Client.csproj]
+D:\mir2-20241027\Client\MirScenes\Dialogs\MailDialogs.cs(13,18): warning CS0169: 从不使用字段“MailListDialog.TitleTypeLabel” [D:\mir2-20241027\Client\Client.csproj]
+D:\mir2-20241027\Client\MirScenes\Dialogs\MailDialogs.cs(11,25): warning CS0169: 从不使用字段“MailListDialog.TitleLabel” [D:\mir2-20241027\Client\Client.csproj]
+D:\mir2-20241027\Client\MirObjects\MonsterObject.cs(52,47): warning CS0649: 从未对字段“MonsterObject.EffectFrameIndex”赋值，字段将一直保持其默认值 0 [D:\mir2-20241027\Client\Client.csproj]
+D:\mir2-20241027\Client\MirScenes\Dialogs\MailDialogs.cs(13,52): warning CS0169: 从不使用字段“MailListDialog.TitleMessageLabel” [D:\mir2-20241027\Client\Client.csproj]
+D:\mir2-20241027\Client\MirObjects\MonsterObject.cs(55,22): warning CS0649: 从未对字段“MonsterObject.TargetPoint”赋值，字段将一直保持其默认值 [D:\mir2-20241027\Client\Client.csproj]
+D:\mir2-20241027\Client\MirScenes\Dialogs\ItemRentDialog.cs(198,22): warning CS0414: 字段“GuestItemRentDialog._guestGoldLocked”已被赋值，但从未使用过它的值 [D:\mir2-20241027\Client\Client.csproj]
+D:\mir2-20241027\Client\MirGraphics\Particles\Particle.cs(153,17): warning CA2200: 再次引发捕获到的异常会更改堆栈信息 (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2200) [D:\mir2-20241027\Client\Client.csproj]

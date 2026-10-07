@@ -55,12 +55,51 @@ namespace Client
                 if (Restart)
                 {
                     Application.Restart();
+                    return;
                 }
+
+                // 正常路径也走硬退出：Application.Run 返回后进程同样可能卡在 ExitProcess 的
+                // DLL 卸载阶段（和全屏退出是同一个坑：界面没了、进程还在）。这里直接内核回收。
+                HardExit();
             }
             catch (Exception ex)
             {
                 CMain.SaveError(ex.ToString());
             }
+        }
+
+        /// <summary>
+        /// 硬退出：先把启动器的 WebView2 限时释放掉，再用 TerminateProcess 直接结束进程。
+        ///
+        /// 为什么不用 Environment.Exit / 让 Main 自然结束：
+        /// 这两条路最终都会调用 ExitProcess，而 ExitProcess 必须逐个卸载进程里已经加载的 DLL
+        /// （每个 DLL 的 DllMain(DLL_PROCESS_DETACH) 都会被调用一次）。只要其中任何一个不返回
+        /// ——显示驱动 / Direct3D / WebView2 运行时都是常见的「卸载时卡住」对象，而且全屏独占
+        /// 模式下 D3D 设备的关系更复杂——进程就会永远停在那里：界面已经没了、进程还在，
+        /// 只能去任务管理器手动结束。这就是「全屏退出后进程驻留」。
+        /// TerminateProcess 不卸载任何 DLL、不等待任何线程，由内核直接回收进程，不存在被卡住的可能。
+        /// </summary>
+        public static void HardExit()
+        {
+            // ① 限时释放 WebView2：目的只是不留 msedgewebview2.exe 子进程。
+            //    放在独立后台线程里、最多等 1.2 秒 —— 它自己也可能卡住，绝不能让它拖住退出。
+            try
+            {
+                var release = new System.Threading.Thread(delegate ()
+                {
+                    try { if (PForm != null) PForm.ReleaseBrowser(); } catch { }
+                });
+                release.IsBackground = true;
+                release.Start();
+                release.Join(1200);
+            }
+            catch { }
+
+            // ② 硬杀：不经过 ExitProcess，所以不会被任何 DLL 的卸载过程卡住
+            try { Process.GetCurrentProcess().Kill(); } catch { }
+
+            // 理论上到不了这里；万一 Kill 失败再兜一层
+            Environment.Exit(0);
         }
 
         private static bool UpdatePatcher()

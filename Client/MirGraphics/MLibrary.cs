@@ -18,6 +18,7 @@ namespace Client.MirGraphics
             Prguse = new MLibrary(Settings.DataPath + "Prguse"),
             Prguse2 = new MLibrary(Settings.DataPath + "Prguse2"),
             Prguse3 = new MLibrary(Settings.DataPath + "Prguse3"),
+            PrguseEx = new MLibrary(Settings.DataPath + "PrguseEx"),   // 整宽底栏（自适应分辨率用）
             StateitemEffect = new MLibrary(Settings.DataPath + "StateitemEffect"),
             BuffIcon = new MLibrary(Settings.DataPath + "BuffIcon"),
             Help = new MLibrary(Settings.DataPath + "Help"),

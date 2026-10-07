@@ -21,6 +21,7 @@ namespace Server
             StartHTTPCheckBox.Checked = Settings.StartHTTPService;
             EnableResourceCheckBox.Checked = Settings.EnableResourceService;
             ResourcePathTextBox.Text = Settings.ResourcePath;
+            ResourceAllowAnyIPCheckBox.Checked = Settings.ResourceAllowAnyIP;
             HTTPIPAddressTextBox.Text = Settings.HTTPIPAddress;
             HTTPTrustedIPAddressTextBox.Text = Settings.HTTPTrustedIPAddress;
 
@@ -38,6 +39,11 @@ namespace Server
             SafeZoneHealingCheckBox.Checked = Settings.SafeZoneHealing;
             gameMasterEffect_CheckBox.Checked = Settings.GameMasterEffect;
             lineMessageTimeTextBox.Text = Settings.LineMessageTimer.ToString();
+
+            // 地面物品 / 尸体停留时间
+            itemTimeOutTextBox.Text = Settings.ItemTimeOut.ToString();
+            playerDiedItemTimeOutTextBox.Text = Settings.PlayerDiedItemTimeOut.ToString();
+            corpseTimeTextBox.Text = Settings.CorpseTime.ToString();
 
             SaveDelayTextBox.Text = Settings.SaveDelay.ToString();
 
@@ -73,6 +79,10 @@ namespace Server
             // 留空则保留原值（相对路径基于服务端目录，如 .\ClientResources\）。
             if (!string.IsNullOrWhiteSpace(ResourcePathTextBox.Text))
                 Settings.ResourcePath = ResourcePathTextBox.Text.Trim();
+
+            // 允许任意 IP 下载微端资源。关着的话非受信 IP 请求 /res 会拿到 notrusted:<IP> 文本，
+            // 客户端会把它当成资源清单，导致微端整个不可用。
+            Settings.ResourceAllowAnyIP = ResourceAllowAnyIPCheckBox.Checked;
 
             if (tryParseHttp())
                 Settings.HTTPIPAddress = HTTPIPAddressTextBox.Text.ToString();
@@ -115,6 +125,34 @@ namespace Server
             Settings.GameMasterEffect = gameMasterEffect_CheckBox.Checked;
             if (int.TryParse(lineMessageTimeTextBox.Text, out tempint))
                 Settings.LineMessageTimer = tempint;
+
+            // 地面物品 / 尸体停留时间（越界一律夹到合法区间，避免手滑写成 0 或天文数字）
+            Settings.ItemTimeOut = Clamp(ParseInt(itemTimeOutTextBox.Text, Settings.ItemTimeOut), 1, 10080);
+            Settings.PlayerDiedItemTimeOut = Clamp(ParseInt(playerDiedItemTimeOutTextBox.Text, Settings.PlayerDiedItemTimeOut), 1, 10080);
+            Settings.CorpseTime = Clamp(ParseInt(corpseTimeTextBox.Text, Settings.CorpseTime), 1, 3600);
+        }
+
+        /// <summary>文本框解析失败时保留旧值（不把配置写坏）。</summary>
+        private static int ParseInt(string text, int fallback)
+        {
+            int value;
+            return int.TryParse(text.Trim(), out value) ? value : fallback;
+        }
+
+        private static int Clamp(int value, int min, int max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
+        }
+
+        /// <summary>时间类输入框的即时校验：非数字标红（保存时另有区间夹取）。</summary>
+        private void CheckNumber(object sender, EventArgs e)
+        {
+            if (ActiveControl != sender) return;
+
+            int temp;
+            ActiveControl.BackColor = !int.TryParse(ActiveControl.Text.Trim(), out temp) ? Color.Red : SystemColors.Window;
         }
 
         private void IPAddressCheck(object sender, EventArgs e)
@@ -208,6 +246,11 @@ namespace Server
         private void EnableResourceCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             Settings.EnableResourceService = EnableResourceCheckBox.Checked;
+        }
+
+        private void ResourceAllowAnyIPCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            Settings.ResourceAllowAnyIP = ResourceAllowAnyIPCheckBox.Checked;
         }
     }
 }

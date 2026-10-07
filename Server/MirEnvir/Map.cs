@@ -2678,6 +2678,8 @@ namespace Server.MirEnvir
             {
                 PlayerObject player = Players[i];
 
+                if (player is FakePlayerObject) continue;   // 假人没有客户端，别白扫（见 MapObject.Broadcast）
+
                 if (Functions.InRange(location, player.CurrentLocation, Globals.DataRange))
                     player.Enqueue(p);                   
             }
@@ -2690,6 +2692,8 @@ namespace Server.MirEnvir
             for (int i = Players.Count - 1; i >= 0; i--)
             {
                 PlayerObject player = Players[i];
+
+                if (player is FakePlayerObject) continue;   // 同上
 
                 if (Functions.InRange(location, player.CurrentLocation, Globals.DataRange))
                     player.Enqueue(p);

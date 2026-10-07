@@ -71,6 +71,25 @@ namespace Client.Utils
         private static int _indexNextTry;                       // 拉取失败的冷却截止（Environment.TickCount）
         private const int IndexRetryMs = 30000;                 // 失败后 30 秒才允许再试，避免没起服务端时空转刷日志
 
+        // 等清单的总预算：服务端正常时 WarmUp 的请求几百毫秒就回来，这点预算足够拿到正确长度；
+        // 服务器连不上时请求要挂到超时（≥30 秒），预算耗尽后所有调用立即返回 null，
+        // 绝不让登录界面为了一份「拿不到的清单」干等 —— 这正是「点开始卡半分钟才出登录界面」的根源之一。
+        private static int _indexWaitBudget = IndexStartWaitMs;
+        private const int IndexStartWaitMs = 2500;
+        private const int IndexWaitStepMs = 250;
+
+        // 清单还没拿到时，阻塞等文件的上限：此时无法判断服务端有没有这个文件，
+        // 等满原来的超时（15~30 秒）也几乎不会有结果，只会把启动卡住。
+        private const int IndexUnavailableWaitMs = 1500;
+
+        /// <summary>
+        /// 服务端明确拒绝了本机 IP（返回 "notrusted:&lt;ip&gt;"）。
+        /// 这种情况下所有资源请求都会拿到同样的 200 + 错误文本 ——
+        /// 既不该把它写进本地文件，也不该反复发请求刷日志。
+        /// 等清单重新拉取成功（说明服务端已放行）时自动清除。
+        /// </summary>
+        private static volatile bool _serverNotTrusted;
+
         /// <summary>
         /// 资源清单到手时触发一次（仅成功时）。
         /// Libraries 用它把"降级初始化"的图库数组按正确长度重建。
@@ -165,6 +184,10 @@ namespace Client.Utils
 
                 if (!Settings.MicroClient) return false;
 
+                // 服务端已明确拒绝本机 IP：再发请求也只会拿到同样的错误文本，
+                // 静默返回即可（日志已在首次拒绝时写过一次）。
+                if (_serverNotTrusted) return false;
+
                 string relative = ToRelativePath(localPath);
                 if (relative == null) return false;   // 不在客户端目录内，无法映射到服务端资源
 
@@ -231,6 +254,13 @@ namespace Client.Utils
                 }
 
                 if (timeoutMs < 1000) timeoutMs = 1000;
+
+                // 清单还没拿到时没法判断服务端有没有这个文件，等满整个超时几乎不会有结果，
+                // 只会把调用线程（往往是启动阶段）卡住 —— 收缩到短等待，拿不到就按缺文件继续，
+                // 后台下载线程拿到清单后仍会继续把它补上。
+                if (!IsIndexAvailable && timeoutMs > IndexUnavailableWaitMs)
+                    timeoutMs = IndexUnavailableWaitMs;
+
                 handle.Wait(timeoutMs);
 
                 lock (_sync)
@@ -380,8 +410,13 @@ namespace Client.Utils
                     }
                     else
                     {
-                        _failed.Add(relative);
-                        _failedCount++;
+                        // 服务端拒绝本机 IP 时不算「这个文件不存在」——它是对所有文件的统一拒绝。
+                        // 记进负缓存会让本局再也补不回来，即使中途把服务端配置改对了。
+                        if (!_serverNotTrusted)
+                        {
+                            _failed.Add(relative);
+                            _failedCount++;
+                        }
                     }
 
                     if (_waiters.TryGetValue(relative, out var list))
@@ -446,6 +481,7 @@ namespace Client.Utils
                         // 先写临时文件再改名，避免半截文件被后续加载当成有效资源
                         string temp = localPath + ".tmp";
                         long total = 0;
+                        bool notTrusted = false;
 
                         using (var source = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
                         using (var target = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
@@ -456,6 +492,7 @@ namespace Client.Utils
                             var watch = Stopwatch.StartNew();
 
                             int read;
+                            bool firstChunk = true;
                             while (true)
                             {
                                 try
@@ -474,12 +511,37 @@ namespace Client.Utils
 
                                 if (read <= 0) break;
 
+                                if (firstChunk)
+                                {
+                                    firstChunk = false;
+
+                                    // 服务端拒绝来源 IP 时也是 HTTP 200，但内容只有 "notrusted:<ip>" 二十来字节。
+                                    // 这种响应绝不能落地 —— 写进 .Lib/.wav 等于把资源文件污染成垃圾。
+                                    if (IsNotTrustedBuffer(buffer, read))
+                                    {
+                                        notTrusted = true;
+                                        break;
+                                    }
+                                }
+
                                 target.Write(buffer, 0, read);
                                 total += read;
                                 Throttle(watch, total, limit);
                             }
 
                             target.Flush();
+                        }
+
+                        if (notTrusted)
+                        {
+                            try { File.Delete(temp); } catch { }
+
+                            // 只在第一次拒绝时写日志：后面每个文件都会撞同一堵墙，不该刷屏
+                            if (!_serverNotTrusted)
+                                Log("微端资源服务拒绝了本机 IP：服务端「网络」设置里未允许任意 IP 访问微端资源，"
+                                    + "已暂停资源下载（本机 IP 放行后会自动恢复，也可重启客户端）");
+                            _serverNotTrusted = true;
+                            return false;
                         }
 
                         if (total == 0)
@@ -620,8 +682,18 @@ namespace Client.Utils
 
                 if (_indexLoading)
                 {
-                    // 已有线程在拉，等它（预热线程通常已经拉好了）
-                    Monitor.Wait(_sync, 10000);
+                    // 已有线程在拉：本线程最多等一小段（总预算见 _indexWaitBudget）。
+                    // 以前这里是死等 10 秒，而 Libraries 初始化要调用本方法三十多次，
+                    // 服务器连不上时启动就会卡在几十秒的黑屏上。
+                    int budget = _indexWaitBudget;
+
+                    if (budget <= 0) return null;
+
+                    int step = Math.Min(budget, IndexWaitStepMs);
+
+                    Monitor.Wait(_sync, step);
+                    _indexWaitBudget = Math.Max(0, budget - step);
+
                     return _remoteIndex;
                 }
 
@@ -654,20 +726,43 @@ namespace Client.Utils
                     else
                     {
                         string text = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-                        index = ParseIndex(text);
 
-                        // 空清单不能当成有效结果缓存：服务端「微端资源服务」未开启或资源目录
-                        // 未配置时同样返回 200 + 空内容。若把空清单缓存下来，
-                        // ExistsOnServer 会对所有文件返回 false（包括音效索引表 SoundList.lst），
-                        // 索引表从此再也同步不下来 —— 整局音效全部落到默认命名上，声音全错。
-                        if (CountEntries(index) == 0)
+                        // 服务端「受信 IP」校验不通过时返回的是 HTTP 200 + 单行文本
+                        // "notrusted:<本机IP>"，而不是清单。必须当成获取失败：
+                        // 否则它会被解析成一份「只有 1 个文件」的清单并被缓存下来，
+                        // ExistsOnServer 判断一切文件都是「服务端没有」，
+                        // 微端一个资源都下不到，而且日志里只显示"清单加载完成，共 1 个文件"。
+                        if (IsNotTrustedText(text))
                         {
-                            Log("资源清单为空（服务端未开启微端资源服务或资源目录为空），稍后重试");
+                            Log("微端资源服务拒绝了本机 IP（" + text.Trim() + "）：服务端「网络」设置里未允许任意 IP 访问微端资源，"
+                                + "把本机 IP 填进“受信 IP”或勾选“允许任意 IP 访问微端资源”后会自动恢复");
                             index = null;
                         }
                         else
                         {
-                            Log("资源清单加载完成，共 " + CountEntries(index) + " 个文件");
+                            index = ParseIndex(text);
+
+                            // 空清单不能当成有效结果缓存：服务端「微端资源服务」未开启或资源目录
+                            // 未配置时同样返回 200 + 空内容。若把空清单缓存下来，
+                            // ExistsOnServer 会对所有文件返回 false（包括音效索引表 SoundList.lst），
+                            // 索引表从此再也同步不下来 —— 整局音效全部落到默认命名上，声音全错。
+                            if (CountEntries(index) == 0)
+                            {
+                                Log("资源清单为空（服务端未开启微端资源服务或资源目录为空），稍后重试");
+                                index = null;
+                            }
+                            else
+                            {
+                                // 清单能正常拿到，说明之前“服务端拒绝本机 IP”的状态已经解除，
+                                // 允许资源下载重新开始（否则要重启客户端才能恢复声音/图库）
+                                if (_serverNotTrusted)
+                                {
+                                    _serverNotTrusted = false;
+                                    Log("微端资源服务已放行本机 IP，恢复资源下载");
+                                }
+
+                                Log("资源清单加载完成，共 " + CountEntries(index) + " 个文件");
+                            }
                         }
                     }
                 }
@@ -706,6 +801,11 @@ namespace Client.Utils
                 string line = raw.Trim().Replace('\\', '/');
                 if (line.Length == 0) continue;
 
+                // 相对路径里不会出现冒号。服务端拒绝来源 IP 时回的是单行文本
+                // "notrusted:192.168.2.53"，若不挡掉就会被解析成「服务端只有这一个文件」，
+                // 于是所有资源都判定为服务端没有 —— 微端整局静默失效。
+                if (line.IndexOf(':') >= 0) continue;
+
                 int slash = line.LastIndexOf('/');
                 string dir = slash > 0 ? line.Substring(0, slash) : string.Empty;
                 string name = slash >= 0 ? line.Substring(slash + 1) : line;
@@ -728,6 +828,31 @@ namespace Client.Utils
             if (index != null)
                 foreach (var kv in index) n += kv.Value.Count;
             return n;
+        }
+
+        /// <summary>响应文本是否为服务端的「来源 IP 不受信」提示（notrusted:&lt;ip&gt;）。</summary>
+        private static bool IsNotTrustedText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+
+            string head = text.TrimStart();
+            return head.StartsWith("notrusted", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>响应内容是否以「来源 IP 不受信」提示开头（用于流式下载的头部字节判断）。</summary>
+        private static bool IsNotTrustedBuffer(byte[] buffer, int count)
+        {
+            const string tag = "notrusted";
+            if (count < tag.Length) return false;
+
+            for (int i = 0; i < tag.Length; i++)
+            {
+                char c = (char)buffer[i];
+                if (c >= 'A' && c <= 'Z') c = (char)(c + 32);
+                if (c != tag[i]) return false;
+            }
+
+            return true;
         }
 
         #endregion
