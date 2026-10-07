@@ -7,10 +7,38 @@ namespace Client.MirScenes
     /// <summary>
     /// 「载入中」画面：全屏黑底 + 金色 MIR2 标志 + Loading 动画。
     ///
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
     /// 绘制时机与层级：<b>不挂到任何场景的控件树上</b>，而是由 `CMain.RenderEnvironment()`
     /// 在 `ActiveScene.Draw()` 之后直接画一遍（见 `DrawOverlay()`）。这样它永远在所有
     /// 场景内容之上 —— 主面板、技能条、物品栏、聊天框都不会再盖在载入背景前面，
     /// 也不受场景切换/子控件排序/场景纹理缓存的影响。
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    /// 用途（玩家看到的时机）：在选人界面点「开始游戏 / 进入游戏」之后，一直到
+    /// 新地图底板和角色对象都真正画出来之前，用它盖住这段黑屏；画面挂在当前
+    /// ActiveScene 上，所以从 SelectScene 切到 GameScene 也不会丢。
+    ///
+    /// Armed 语义：Show() 表示「这段载入期需要盖着」，由 GameScene.Process 每帧检查，
+    /// 直到世界真的能画了才 Hide()；中途场景切换（SelectScene → GameScene）会重建控件，
+    /// 只要 Armed 还是 true，GameScene 会自己把它重新挂回去。
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
     ///
     /// 素材（实测 E:\micromir2\Data 图库，注意 ChrSel[17]/[18] 是近乎全黑的过渡帧，不能用）：
     ///  · 底图 —— Prguse 第 931~940 帧（Index 930~939，十张 800x600 整屏插画）里随机一张；
@@ -30,7 +58,22 @@ namespace Client.MirScenes
         private static readonly int[] BackgroundIndices = { 930, 931, 932, 933, 934, 935, 936, 937, 938, 939 };
 
         private static MirImageControl _root;
+<<<<<<< HEAD
         private static MirLabel _statusLabel;
+=======
+<<<<<<< HEAD
+        private static MirLabel _statusLabel;
+=======
+<<<<<<< HEAD
+        private static MirLabel _statusLabel;
+=======
+<<<<<<< HEAD
+        private static MirLabel _statusLabel;
+=======
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         private static long _shownTime;
 
         /// <summary>true = 当前处于「进游戏载入期」，GameScene 需要一直把载入画面盖着。</summary>
@@ -47,17 +90,64 @@ namespace Client.MirScenes
             get { return _root != null && !_root.IsDisposed; }
         }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         /// <summary>开始载入（点「开始游戏」时调用）：点亮画面，由 CMain 每帧画在最上层。</summary>
         public static void Show()
         {
             DisposeRoot();   // 只清掉旧画面，不影响 Armed
             _statusLabel = null;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        /// <summary>开始载入（点「开始游戏」时调用），并立即在当前场景上显示载入画面。</summary>
+        public static void Show()
+        {
+            MirScene scene = MirScene.ActiveScene;
+
+            if (scene == null || scene.IsDisposed) return;
+
+            DisposeRoot();   // 只清掉旧画面，不影响 Armed
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
 
             Armed = true;
             _shownTime = CMain.Time;
 
+<<<<<<< HEAD
             // 注意：不设置 Parent —— 载入画面不进任何场景的控件树，
             // 由 CMain.RenderEnvironment() 在场景画完之后单独调用 DrawOverlay() 画在最上层。
+=======
+<<<<<<< HEAD
+            // 注意：不设置 Parent —— 载入画面不进任何场景的控件树，
+            // 由 CMain.RenderEnvironment() 在场景画完之后单独调用 DrawOverlay() 画在最上层。
+=======
+<<<<<<< HEAD
+            // 注意：不设置 Parent —— 载入画面不进任何场景的控件树，
+            // 由 CMain.RenderEnvironment() 在场景画完之后单独调用 DrawOverlay() 画在最上层。
+=======
+<<<<<<< HEAD
+            // 注意：不设置 Parent —— 载入画面不进任何场景的控件树，
+            // 由 CMain.RenderEnvironment() 在场景画完之后单独调用 DrawOverlay() 画在最上层。
+=======
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
             _root = new MirImageControl
             {
                 AutoSize = false,
@@ -66,6 +156,19 @@ namespace Client.MirScenes
                 Size = new Size(Settings.ScreenWidth, Settings.ScreenHeight),
                 Location = new Point(0, 0),
                 NotControl = true,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+                Parent = scene,
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
             };
 
             // 每次随机挑一张整屏插画做背景（图库没就绪时退回 800x600 居中）
@@ -86,7 +189,23 @@ namespace Client.MirScenes
                 Parent = _root,
             };
 
+<<<<<<< HEAD
             _statusLabel = new MirLabel
+=======
+<<<<<<< HEAD
+            _statusLabel = new MirLabel
+=======
+<<<<<<< HEAD
+            _statusLabel = new MirLabel
+=======
+<<<<<<< HEAD
+            _statusLabel = new MirLabel
+=======
+            new MirLabel
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
             {
                 AutoSize = false,
                 Size = new Size(Settings.ScreenWidth, 22),
@@ -113,6 +232,16 @@ namespace Client.MirScenes
             };
         }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         /// <summary>
         /// 每帧最后调用一次：把载入画面直接画在**所有场景内容之上**。
         /// 由 `CMain.RenderEnvironment()` 在 `ActiveScene.Draw()` 之后调用。
@@ -125,12 +254,33 @@ namespace Client.MirScenes
             _root.Draw();
         }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         /// <summary>超时保护：显示超过 Timeout 还没等到下一步（地图/角色数据），自动撤掉。</summary>
         public static void CheckTimeout()
         {
             if (Visible && CMain.Time - _shownTime > Timeout) Hide();
         }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         /// <summary>
         /// 更新载入画面底部的状态文字（不重建画面）。
         /// 点「开始游戏」后先显示「正在加载游戏资源 x/y...」，
@@ -158,11 +308,37 @@ namespace Client.MirScenes
             _statusLabel.Text = text;
         }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         /// <summary>撤掉载入画面，并结束这一段载入期（世界已经可以正常绘制）。</summary>
         public static void Hide()
         {
             Armed = false;
+<<<<<<< HEAD
             _statusLabel = null;
+=======
+<<<<<<< HEAD
+            _statusLabel = null;
+=======
+<<<<<<< HEAD
+            _statusLabel = null;
+=======
+<<<<<<< HEAD
+            _statusLabel = null;
+=======
+>>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
+>>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
+>>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
+>>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
             DisposeRoot();
         }
 
