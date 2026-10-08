@@ -170,26 +170,7 @@ namespace Client
             AutoMoveRun = true,         // 自动走位时优先跑动（路况不佳自动降级为走路）
             AutoSkill = true,           // 自动按需用技能：远怪用远程、近怪用近攻、围攻用群攻
             AutoDodge = false,          // 被怪物围攻时自动躲避走位
-<<<<<<< HEAD
             AutoThrustingGap = true,    // 战士隔位刺杀（刀刀刺杀）：目标隔一格时原地用刺杀剑气打，不贴脸
-=======
-<<<<<<< HEAD
-            AutoThrustingGap = true,    // 战士隔位刺杀（刀刀刺杀）：目标隔一格时原地用刺杀剑气打，不贴脸
-=======
-<<<<<<< HEAD
-            AutoThrustingGap = true,    // 战士隔位刺杀（刀刀刺杀）：目标隔一格时原地用刺杀剑气打，不贴脸
-=======
-<<<<<<< HEAD
-            AutoThrustingGap = true,    // 战士隔位刺杀（刀刀刺杀）：目标隔一格时原地用刺杀剑气打，不贴脸
-=======
-<<<<<<< HEAD
-            AutoThrustingGap = true,    // 战士隔位刺杀（刀刀刺杀）：目标隔一格时原地用刺杀剑气打，不贴脸
-=======
->>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
             AutoSwapPoison = true;      // 道士毒符互换：符与毒共用「护身符」装备槽，按需自动切换（换毒时红绿交替）
 
         public static int
@@ -362,26 +343,7 @@ namespace Client
             AutoMoveRun = Reader.ReadBoolean("AutoPlay", "AutoMoveRun", AutoMoveRun);
             AutoSkill = Reader.ReadBoolean("AutoPlay", "AutoSkill", AutoSkill);
             AutoDodge = Reader.ReadBoolean("AutoPlay", "AutoDodge", AutoDodge);
-<<<<<<< HEAD
             AutoThrustingGap = Reader.ReadBoolean("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
-<<<<<<< HEAD
-            AutoThrustingGap = Reader.ReadBoolean("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
-<<<<<<< HEAD
-            AutoThrustingGap = Reader.ReadBoolean("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
-<<<<<<< HEAD
-            AutoThrustingGap = Reader.ReadBoolean("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
-<<<<<<< HEAD
-            AutoThrustingGap = Reader.ReadBoolean("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
->>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
             AutoSwapPoison = Reader.ReadBoolean("AutoPlay", "AutoSwapPoison", AutoSwapPoison);
             AutoPotHPPercent = Reader.ReadInt32("AutoPlay", "AutoPotHPPercent", AutoPotHPPercent);
             AutoPotMPPercent = Reader.ReadInt32("AutoPlay", "AutoPotMPPercent", AutoPotMPPercent);
@@ -550,26 +512,7 @@ namespace Client
             Reader.Write("AutoPlay", "AutoMoveRun", AutoMoveRun);
             Reader.Write("AutoPlay", "AutoSkill", AutoSkill);
             Reader.Write("AutoPlay", "AutoDodge", AutoDodge);
-<<<<<<< HEAD
             Reader.Write("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
-<<<<<<< HEAD
-            Reader.Write("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
-<<<<<<< HEAD
-            Reader.Write("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
-<<<<<<< HEAD
-            Reader.Write("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
-<<<<<<< HEAD
-            Reader.Write("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
-=======
->>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
             Reader.Write("AutoPlay", "AutoSwapPoison", AutoSwapPoison);
             Reader.Write("AutoPlay", "AutoPotHPPercent", AutoPotHPPercent);
             Reader.Write("AutoPlay", "AutoPotMPPercent", AutoPotMPPercent);

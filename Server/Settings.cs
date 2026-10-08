@@ -117,10 +117,6 @@ namespace Server
                            EnableWalkThrough = true,     // 穿人：可以穿过其他玩家/英雄/怪物/NPC
                            EnableOverWeight = true,      // 超负重：负重超限仍可奔跑、装备不受负重限制
                            EnableMountTai = true;        // 泰山：被攻击时不后仰、不打断跑动与施法
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
 
         //假人（AI 玩家）
         public static bool FakePlayerEnabled = false;               // 总开关
@@ -137,11 +133,6 @@ namespace Server
         public static bool FakePlayerFollow = true;                 // 允许假人接受组队邀请并跟随队长一起下图打怪
         public static string FakePlayerSpawns = "";                 // 登录点（内联）：地图:X,Y; 地图:X,Y  —— 留空则只读登录点文件
         public static string FakePlayerSpawnFile = "FakePlayerSpawns.txt"; // 登录点文件（相对 Configs 目录），每行一个「地图 X Y」
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
 
         //Database
         public static int SaveDelay = 5;
@@ -456,10 +447,6 @@ namespace Server
             EnableWalkThrough = Reader.ReadBoolean("Optional", "EnableWalkThrough", EnableWalkThrough);
             EnableOverWeight = Reader.ReadBoolean("Optional", "EnableOverWeight", EnableOverWeight);
             EnableMountTai = Reader.ReadBoolean("Optional", "EnableMountTai", EnableMountTai);
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
 
             //假人（AI 玩家）
             FakePlayerEnabled = Reader.ReadBoolean("FakePlayer", "Enabled", FakePlayerEnabled);
@@ -483,11 +470,6 @@ namespace Server
             if (FakePlayerLevelMax < FakePlayerLevelMin) FakePlayerLevelMax = FakePlayerLevelMin;
             if (FakePlayerPKChance < 0) FakePlayerPKChance = 0;
             if (FakePlayerPKChance > 100) FakePlayerPKChance = 100;
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
 
             //Database
             SaveDelay = Reader.ReadInt32("Database", "SaveDelay", SaveDelay);
@@ -785,10 +767,6 @@ namespace Server
             Reader.Write("Optional", "EnableWalkThrough", EnableWalkThrough);
             Reader.Write("Optional", "EnableOverWeight", EnableOverWeight);
             Reader.Write("Optional", "EnableMountTai", EnableMountTai);
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
 
             //假人（AI 玩家）
             Reader.Write("FakePlayer", "Enabled", FakePlayerEnabled);
@@ -805,11 +783,6 @@ namespace Server
             Reader.Write("FakePlayer", "Follow", FakePlayerFollow);
             Reader.Write("FakePlayer", "Spawns", FakePlayerSpawns);
             Reader.Write("FakePlayer", "SpawnFile", FakePlayerSpawnFile);
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
 
             //Database
             Reader.Write("Database", "SaveDelay", SaveDelay);
