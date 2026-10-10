@@ -82,6 +82,13 @@ namespace Client.MirScenes.Dialogs
 
             var buffLibrary = Libraries.BuffIcon;
 
+            //40000+ → 直接用技能图标库 MagIcon2（索引 = 技能 Info.Icon * 2）
+            if (buffImage >= 40000)
+            {
+                buffImage -= 40000;
+                buffLibrary = Libraries.MagIcon2;
+            }
+
             if (buffImage >= 20000)
             {
                 buffImage -= 20000;
@@ -131,6 +138,13 @@ namespace Client.MirScenes.Dialogs
 
                 var buffImage = BuffImage(buff.Type);
                 var buffLibrary = Libraries.BuffIcon;
+
+                //40000+ → 直接用技能图标库 MagIcon2（索引 = 技能 Info.Icon * 2）
+                if (buffImage >= 40000)
+                {
+                    buffImage -= 40000;
+                    buffLibrary = Libraries.MagIcon2;
+                }
 
                 //ArcherSpells - VampireShot,PoisonShot
                 if (buffImage >= 30000)
@@ -519,6 +533,12 @@ namespace Client.MirScenes.Dialogs
                 case BuffType.先天气功:
                     return 30114;
 
+                //新增：万效符 / 万效符-秘籍 的「灵魂火符升格」BUFF —— 直接复用万效版灵魂火符的技能图标（MagIcon2）
+                case BuffType.万效灵魂火符:
+                    return 40256;   // 40256 = 40000 + 128 * 2 → 灵魂火符(万效)
+                case BuffType.万效秘灵魂火符:
+                    return 40258;   // 40258 = 40000 + 129 * 2 → 灵魂火符(万效-秘)
+
                 case BuffType.轻身步:
                     return 30134;
                 case BuffType.风身术:
@@ -741,6 +761,13 @@ namespace Client.MirScenes.Dialogs
             var buffImage = BuffImage(buff.Type);
 
             var buffLibrary = Libraries.BuffIcon;
+
+            //40000+ → 直接用技能图标库 MagIcon2（索引 = 技能 Info.Icon * 2）
+            if (buffImage >= 40000)
+            {
+                buffImage -= 40000;
+                buffLibrary = Libraries.MagIcon2;
+            }
 
             if (buffImage >= 20000)
             {

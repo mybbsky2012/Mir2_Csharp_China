@@ -96,6 +96,48 @@ namespace Client.MirObjects
         public long StanceTime, MountTime, FishingTime;
         public long BlizzardStopTime, ReincarnationStopTime, SlashingBurstTime, GreatFireBallRareStopTime, DimensionalSwordTime;
 
+        /// <summary>影华连击：释放技能时人物化为虚影（完全不可见）的结束时间，与服务端「影化连击」隐藏及延迟位移同步。</summary>
+        public long ShadowComboStealthTime;
+
+        /// <summary>影华连击：每帧播放时长(ms)。数值越大整段动画越慢（唯一速度调节入口）。</summary>
+        private const int ShadowComboFrameInterval = 100;
+
+        /// <summary>影华连击：主体特效总时长（只播当前朝向那一个方向的 20 帧），必须与服务端 ShadowComboDuration 一致。</summary>
+        private const int ShadowComboDuration = 20 * ShadowComboFrameInterval;
+
+        /// <summary>影华连击-秘笈：主体播完后的爆炸时长（1560-1566 段的有效帧 1561-1566）。</summary>
+        private const int ShadowComboBurstDuration = 6 * ShadowComboFrameInterval;
+
+        /// <summary>影华连击-秘笈：主体 + 爆炸的总时长，必须与服务端 ShadowComboRareDuration 一致。</summary>
+        private const int ShadowComboRareDuration = ShadowComboDuration + ShadowComboBurstDuration;
+
+        /// <summary>
+        /// 时空剑-秘籍：整段技能特效（起手 300ms / 命中 1000ms / 收招爆炸 500+500ms，最长 1000ms）
+        /// **播完之后**，再单独补「最后一击」——Magic_32bit 1300-1379（8 方向 × 每方向 6 帧有效）那套劈砍动作。
+        /// ★必须与服务端 HumanObject.DimensionalSwordRareFinalDelay 完全一致，否则最后一击的伤害与视觉会错位。
+        /// </summary>
+        private const int DimensionalSwordFinalDelay = 1100;
+
+        /// <summary>
+        /// 影华连击：素材平均 alpha 只有 ~39%（爆炸段更低，实测 18-44%），单层画必然发虚；
+        /// 叠加多层把有效不透明度拉起来。层数越多越实（也越亮），是「实度」的调节入口之一。
+        /// </summary>
+        private const int ShadowComboLayers = 4;
+
+        /// <summary>
+        /// 影华连击：顶点色调制的 alpha（0-255），越小整段越暗、越透。★「亮度」的唯一调节入口。
+        /// 必须配合 Blend = false（普通 alpha 混合）使用 —— Effect.Blend 默认是 true（加色混合），
+        /// 加色混合会把红色刀光叠成高亮，而且 0+背景=背景 会整片吃掉素材里的黑色人物残影，
+        /// 这正是之前「太亮、连黑轮廓都没有」的根源。
+        /// </summary>
+        private const int ShadowComboDrawAlpha = 190;
+
+        /// <summary>
+        /// 拔刀术-秘籍：原地连砍的刀数（第一刀是本次施法动作，其余排队补足）。
+        /// 与服务端 HumanObject.FlashDashRareHits 保持一致。
+        /// </summary>
+        private const int FlashDashRareHits = 4;
+
         public short MountType = -1, TransformType = -1;
 
         public string GuildName;
@@ -1168,6 +1210,29 @@ namespace Client.MirObjects
                                     Network.Enqueue(new C.Magic { ObjectID = GameScene.User.ObjectID, Spell = Spell, Direction = Direction, });
                                 }
                                 break;
+                            case Spell.FlashDashRare: //拔刀术-秘籍：原地连砍 4 刀（无位移），收招把身前一排怪推开 4 格
+                                {
+                                    //砍掉野蛮冲撞式的位移：人物原地不动，本次动作就是第一刀
+                                    Frames.TryGetValue(MirAction.近距攻击1, out Frame);
+                                    JumpDistance = 0;
+
+                                    if (this == User)
+                                    {
+                                        MapControl.NextAction = CMain.Time;
+                                        GameScene.SpellTime = CMain.Time + 250; //Spell Delay
+
+                                        //音效沿用拔刀术
+                                        SoundManager.PlaySound(20000 + (ushort)Spell.FlashDash * 10 + (Gender == MirGender.男性 ? 0 : 1));
+
+                                        //余下 3 刀排进动作队列，与第一刀连成 4 刀
+                                        //（客户端 ActionFeed 会依次播完，服务端同时广播挥砍动作给其他玩家）
+                                        for (int i = 1; i < FlashDashRareHits; i++)
+                                            ActionFeed.Add(new QueuedAction { Action = MirAction.近距攻击1, Direction = Direction, Location = CurrentLocation });
+
+                                        Network.Enqueue(new C.Magic { ObjectID = GameScene.User.ObjectID, Spell = Spell, Direction = Direction, });
+                                    }
+                                }
+                                break;
                             case Spell.BladeAvalanche:
                                 Frames.TryGetValue(MirAction.近距攻击3, out Frame);
                                 if (this == User)
@@ -1541,8 +1606,15 @@ namespace Client.MirObjects
 
                                 Network.Enqueue(new C.Magic { ObjectID = GameScene.User.ObjectID, Spell = Spell, Direction = Direction, TargetID = targetID, Location = location });
 
-                                if (Spell == Spell.FlashDash)
+                                //影华连击：本地立即进入「化为虚影」状态（时长 = 特效总时长，与服务端隐藏、延迟位移同步）
+                                if (Spell == Spell.ShadowCombo)
+                                    ShadowComboStealthTime = CMain.Time + ShadowComboDuration;
+                                else if (Spell == Spell.ShadowComboRare)
+                                    ShadowComboStealthTime = CMain.Time + ShadowComboRareDuration;
+
+                                if (Spell == Spell.FlashDash || Spell == Spell.FlashDashRare)
                                 {
+                                    //拔刀术 / 拔刀术-秘籍：不走通用长冷却，位移动作由服务端下发
                                     GameScene.SpellTime = CMain.Time + 250;
                                     MapControl.NextAction = CMain.Time;
                                 }
@@ -1806,7 +1878,167 @@ namespace Client.MirObjects
                             #region ThunderBolt
 
                             case Spell.ThunderBolt:
-                                Effects.Add(new Effect(Libraries.Magic2, 20, 3, 300, this));
+                                //强击（韩服강격＝本服雷电术）：改用 Magic_32bit 721-724 的落雷素材
+                                Effects.Add(new Effect(Libraries.Magic_32bit, 721, 4, 400, this) { Blend = true });
+                                break;
+
+                            #endregion
+
+                            #region 新增技能施法特效（对照官网 mir2db）
+
+                            case Spell.ThunderBoltRare:      //强击-秘籍
+                                //需求：人物身上不要施法特效。
+                                //落雷由命中特效 SpellEffect.ThunderBoltStrike 落在每个被击中的目标身上
+                                //（Magic_32bit 721-724；命中 N 个目标就是 N 根雷电），这里不再挂人物特效。
+                                SoundManager.PlaySound(20000 + (ushort)Spell.ThunderBolt * 10);
+                                break;
+                            case Spell.DeathBlow:            //灭杀
+                                //需求：灭杀的落雷特效只在「已经用落雷杀-秘笈开出【灭杀窗口】」时才播放；
+                                //没开窗口就点灭杀（服务端会直接拒绝这次施法）时不要再闪一下。
+                                if (Buffs.Contains(BuffType.灭杀窗口))
+                                {
+                                    //用本次施法的目标点，不用 TargetPoint（本机施法时后者不会刷新，还留着上一次的旧值）
+                                    MapControl.Effects.Add(new Effect(Libraries.Magic_32bit, 1810, 15, 900, (Point)action.Params[2]) { Blend = true });
+                                    SoundManager.PlaySound(20000 + (ushort)Spell.ThunderBolt * 10);
+                                }
+                                break;
+                            case Spell.SkyThunderShot:       //落雷杀（Magic_32bit 1770-1809，音效同雷电术）
+                            case Spell.SkyThunderShotRare:   //落雷杀-秘笈
+                                {
+                                    //需求：只在本鼠标本次指定的位置播放，不要「在上次的位置再闪一下」。
+                                    //TargetPoint 只在 this != User 时才会被刷新，玩家自己施法时它还停留在上一次的值，
+                                    //所以不能用它；action.Params[2] 才是本次施法的目标点。
+                                    Point shotPoint = (Point)action.Params[2];
+
+                                    //1770-1809 三段式：1771-1773 起雷 → 1781-1788 主雷 → 1791-1793 消散，中间是空帧
+                                    Effect bolt = new Effect(Libraries.Magic_32bit, 1771, 14, 1000, shotPoint) { Blend = true };
+                                    bolt.FrameList = new[] { 1771, 1772, 1773, 1781, 1782, 1783, 1784, 1785, 1786, 1787, 1788, 1791, 1792, 1793 };
+                                    MapControl.Effects.Add(bolt);
+                                    SoundManager.PlaySound(20000 + (ushort)Spell.ThunderBolt * 10);
+                                }
+                                break;
+                            case Spell.AbsorbFlame:          //吸魔炎风
+                            case Spell.AbsorbFlameRare:      //吸魔炎风-秘籍
+                                //需求：人物身上不要施法特效。
+                                //旋风本体由 SpellObject 在目标/自身格子上铺开（Magic_32bit 1581-1613 / 1631-1688），
+                                //音效也在 SpellObject 里循环播放，这里都不再叠加。
+                                break;
+                            case Spell.ShadowCombo:          //影华连击（Magic_32bit 1390-1559，只取当前朝向那 20 帧）
+                            case Spell.ShadowComboRare:      //影华连击-秘笈（主体同普通版，播完后追加 1560-1566 的爆炸）
+                                {
+                                    bool rareCombo = Spell == Spell.ShadowComboRare;
+
+                                    //需求：素材 1390-1559 是 8 个方向 × 20 帧，**只播放当前朝向那一个方向的 20 帧**，
+                                    //      不是 8 个方向顺序全播；秘籍主体与普通版完全一致，结尾另加一段爆炸。
+                                    //实测帧分布：方向 d 的帧 = 1391 + d*20 .. 1410 + d*20
+                                    //（每方向前 16 帧是刀光、末 4 帧为透明过渡）；1551-1559 是空帧（无数据）不能取。
+                                    //Direction 在 ProcessFrames 开头已由 action.Direction 更新，就是本次施法的朝向
+                                    //（影华连击要求贴身，所以朝向即「指向目标」的方向）。
+                                    int comboDir = (int)Direction;          // 0..7
+                                    int comboBase = 1391 + comboDir * 20;
+
+                                    int[] comboFrames = new int[20];
+                                    for (int k = 0; k < 20; k++) comboFrames[k] = comboBase + k;
+
+                                    //素材是「鲜红刀光 + 实心黑人物残影」，两个条件都要满足才不会发虚：
+                                    //1) 用普通 alpha 混合 —— Blend=true 的加色混合会把黑色像素整片吃掉（0+背景=背景），
+                                    //   黑轮廓直接消失；
+                                    //2) 素材自身平均 alpha 只有 ~39%（实测），单层画必然半透明，
+                                    //   所以按 ShadowComboLayers 叠加多层，把有效不透明度顶到实心。
+                                    //总时长与服务端隐藏时长、延迟位移时间完全一致。
+                                    for (int layer = 0; layer < ShadowComboLayers; layer++)
+                                    {
+                                        Effect combo = new Effect(Libraries.Magic_32bit, comboFrames[0], comboFrames.Length, ShadowComboDuration, this)
+                                        {
+                                            //★显式关掉加色混合（Effect.Blend 默认就是 true）：加色混合会把红色刀光叠成高亮，
+                                            //  且 0+背景=背景 会整片吃掉素材里的黑色人物残影 —— 这是「太亮 / 没黑轮廓」的根源。
+                                            Blend = false,
+                                            //再用顶点色 alpha 整体压暗（亮度唯一调节入口）
+                                            DrawColour = Color.FromArgb(ShadowComboDrawAlpha, 255, 255, 255)
+                                        };
+                                        combo.FrameList = comboFrames;
+                                        Effects.Add(combo);
+                                    }
+
+                                    //秘籍：主体播完后追加爆炸（1560-1566 段里的有效帧 1561-1566）。
+                                    //这段也是亮核+暗烟混合内容，同样保持 alpha 混合 + 多层叠加，
+                                    //并且爆炸起点接在主体结束之后（此时人物仍隐藏，位移在爆炸结束时下发）。
+                                    if (rareCombo)
+                                    {
+                                        int[] burstFrames = { 1561, 1562, 1563, 1564, 1565, 1566 };
+
+                                        for (int layer = 0; layer < ShadowComboLayers; layer++)
+                                        {
+                                            Effect burst = new Effect(Libraries.Magic_32bit, burstFrames[0], burstFrames.Length, ShadowComboBurstDuration, this, CMain.Time + ShadowComboDuration)
+                                            {
+                                                Blend = false,
+                                                DrawColour = Color.FromArgb(ShadowComboDrawAlpha, 255, 255, 255)
+                                            };
+                                            burst.FrameList = burstFrames;
+                                            Effects.Add(burst);
+                                        }
+                                    }
+
+                                    //音效：
+                                    // · 普通影华连击：沿用自身施法音效；
+                                    // · 影华连击-秘籍：施法音效改用「月华乱舞」（与月华乱舞 / 月华乱舞-秘籍同一编号，
+                                    //   男女分轨 +0/+1，取齐月华乱舞本体的写法）；
+                                    // · 秘籍结尾爆炸：单独用「烈火身」替身爆炸的音效（与 GameScene.ObjectDied 里
+                                    //   DarkBody 幻象死亡时播放的编号完全一致），按主体时长延迟到爆炸开始那一刻触发。
+                                    if (rareCombo)
+                                    {
+                                        SoundManager.PlaySound(20000 + (ushort)Spell.CrescentSlash * 10 + (Gender == MirGender.男性 ? 0 : 1));
+                                        SoundManager.PlaySound(20000 + (ushort)Spell.DarkBody * 10 + 1, false, ShadowComboDuration);
+                                    }
+                                    else
+                                    {
+                                        SoundManager.PlaySound(20000 + (ushort)Spell * 10);
+                                    }
+                                }
+                                break;
+                            case Spell.CrescentSlashRare:    //月华乱舞-秘籍（Magic_32bit 761-920：8 方向×20 帧，方向基址 = 761 + Dir*20，每组有效 18 帧；音效同月华乱舞）
+                                {
+                                    //默认攻击范围 4 个方向（朝向 ±1 与 +2）各 3 格，特效按同样 4 个方向铺开
+                                    for (int k = 0; k < 4; k++)
+                                    {
+                                        MirDirection slashDir = (MirDirection)(((int)Direction + k - 1 + 8) % 8);
+                                        Effects.Add(new Effect(Libraries.Magic_32bit, 761 + (int)slashDir * 20, 18, 900, this) { Blend = true });
+                                    }
+
+                                    SoundManager.PlaySound(20000 + (ushort)Spell.CrescentSlash * 10 + (Gender == MirGender.男性 ? 0 : 1));
+                                }
+                                break;
+                            case Spell.GreatTalisman:        //万效符（火焰烧出「萬」字，Magic_32bit 1700-1729，有效帧 1701-1719，释放音效同灵魂火符）
+                                //加法混合下亮度 = 纹理alpha × 顶点色alpha；原本顶点色为纯白 255 导致过曝成白团，这里压到 ~39%
+                                //同时把默认的白光(Light=6 / Color.White)换成暖色小光，避免再叠一层白光
+                                Effects.Add(new Effect(Libraries.Magic_32bit, 1701, 19, 1500, this)
+                                {
+                                    Blend = true,
+                                    DrawColour = Color.FromArgb(100, 255, 255, 255),
+                                    Light = 2,
+                                    LightColour = Color.FromArgb(255, 255, 150, 60)
+                                });
+                                //需求：释放音效改成灵魂火符的（与 Spell.SoulFireBall 发射音效完全一致）
+                                SoundManager.PlaySound(20000 + (ushort)Spell.SoulFireBall * 10 + 1);
+                                break;
+                            case Spell.GreatTalismanRare:    //万效符-秘籍（Magic_32bit 1730-1769，有效帧 1731-1756，释放音效同灵魂火符）
+                                Effects.Add(new Effect(Libraries.Magic_32bit, 1731, 26, 2000, this)
+                                {
+                                    Blend = true,
+                                    DrawColour = Color.FromArgb(130, 255, 255, 255),
+                                    Light = 3,
+                                    LightColour = Color.FromArgb(255, 255, 160, 70)
+                                });
+                                //需求：释放音效改成灵魂火符的（与 Spell.SoulFireBall 发射音效完全一致）
+                                SoundManager.PlaySound(20000 + (ushort)Spell.SoulFireBall * 10 + 1);
+                                break;
+                            case Spell.SoulFireBallPlus:     //灵魂火符(万效)（音效 M113-0）
+                            case Spell.SoulFireBallPlusRare: //灵魂火符(万效-秘)（音效 M114-0）
+                                SoundManager.PlaySound(20000 + (ushort)Spell * 10);
+                                break;
+                            case Spell.PetEnhancerRare:      //血龙兽-秘籍：沿用血龙兽(血龙水)的施法特效与音效，宠物身上的血龙水由 buff 特效呈现
+                                Effects.Add(new Effect(Libraries.Magic3, 200, 8, 8 * FrameInterval, this));
+                                SoundManager.PlaySound(20000 + (ushort)Spell.PetEnhancer * 10);
                                 break;
 
                             #endregion
@@ -1946,8 +2178,9 @@ namespace Client.MirObjects
                             #region MoonMist
 
                             case Spell.MoonMist:
+                            case Spell.MoonMistRare:         //月影雾-秘籍：沿用月影雾的特效与音效
                                 MapControl.Effects.Add(new Effect(Libraries.Magic3, 680, 25, 1800, CurrentLocation));
-                                SoundManager.PlaySound(20000 + (ushort)Spell * 10);
+                                SoundManager.PlaySound(20000 + (ushort)Spell.MoonMist * 10);
                                 break;
 
                             #endregion
@@ -1990,7 +2223,11 @@ namespace Client.MirObjects
                             #region SummonShinsu
 
                             case Spell.SummonShinsu:
-                                Effects.Add(new Effect(Libraries.Magic2, 0, 10, Frame.Count * FrameInterval, this));
+                                //Magic2 0-9 是「红色碎片四散飘飞」的地面汇聚动画，画在人身上就是
+                                //一堆碎片围着人乱飞（实测观感极差）。神兽的出场表现由 MonsterObject
+                                //在宠物落点播放 170.Lib 自带的『召唤初现』（红色汇聚成型）负责；
+                                //施法者这里改用与召唤骷髅/月灵一致的蓝色召唤光效。
+                                Effects.Add(new Effect(Libraries.Magic, 1500, 10, Frame.Count * FrameInterval, this));
                                 SoundManager.PlaySound(20000 + (ushort)Spell * 10);
                                 break;
 
@@ -2278,7 +2515,6 @@ namespace Client.MirObjects
 
                             case Spell.DimensionalSwordRare:
                                 Effects.Add(new Effect(Libraries.Magic_32bit, 1160, 3, 300, this));
-                                Effects.Add(new Effect(Libraries.Magic_32bit, 1300 + (int)Direction * 10, 6, 6 * FrameInterval, this));
                                 SoundManager.PlaySound(20210);
 
                                 MapObject targetRare = MapControl.GetObject(TargetID);
@@ -2289,7 +2525,13 @@ namespace Client.MirObjects
                                 {
                                     Effects.Add(new Effect(Libraries.Magic_32bit, 990 + ((int)Direction * 20), 11, 1000, this));
                                     Effects.Add(new Effect(Libraries.Magic_32bit, 1270, 15, 500, this, CMain.Time + 500) { Blend = true });
-                                    SoundManager.PlaySound(20211);
+
+                                    //★★ 最后一击：1300-1379 那套劈砍动作**不在施法瞬间播**（会跟上面的命中/收招特效重叠），
+                                    //   而是延迟到整段技能特效播完之后（DimensionalSwordFinalDelay）单独补上，配同一刻的命中音效。
+                                    //   用 Effect 的 starttime 参数做延迟播放，时序与服务端 DimensionalSwordRareFinalDelay 对齐。
+                                    Effects.Add(new Effect(Libraries.Magic_32bit, 1300 + (int)Direction * 10, 6, 6 * FrameInterval, this, CMain.Time + DimensionalSwordFinalDelay));
+                                    SoundManager.PlaySound(20211, false, DimensionalSwordFinalDelay);
+
                                     DimensionalSwordTime = CMain.Time + 2000;
                                 }
                                 break;
@@ -2324,7 +2566,8 @@ namespace Client.MirObjects
                             #region FlashDash
 
                             case Spell.FlashDash:
-                                SoundManager.PlaySound(20000 + (ushort)Spell * 10 + (Gender == MirGender.男性 ? 0 : 1));
+                            case Spell.FlashDashRare:  //拔刀术-秘籍（野蛮冲撞 + 拔刀术 合体连招），音效沿用拔刀术
+                                SoundManager.PlaySound(20000 + (ushort)Spell.FlashDash * 10 + (Gender == MirGender.男性 ? 0 : 1));
                                 int attackDelay = (User.AttackSpeed - 120) <= 300 ? 300 : (User.AttackSpeed - 120);
 
                                 float attackRate = (float)(attackDelay / 300F * 10F);
@@ -3286,10 +3529,11 @@ namespace Client.MirObjects
 
                                         SoundManager.PlaySound(20000 + (ushort)Spell * 10);
 
+                                        //强击（雷电术）：命中落雷改用 Magic_32bit 721-724
                                         if (ob == null)
-                                            MapControl.Effects.Add(new Effect(Libraries.Magic2, 10, 5, 400, TargetPoint));
+                                            MapControl.Effects.Add(new Effect(Libraries.Magic_32bit, 721, 4, 400, TargetPoint) { Blend = true });
                                         else
-                                            ob.Effects.Add(new Effect(Libraries.Magic2, 10, 5, 400, ob));
+                                            ob.Effects.Add(new Effect(Libraries.Magic_32bit, 721, 4, 400, ob) { Blend = true });
                                         break;
 
                                     #endregion
@@ -3309,6 +3553,40 @@ namespace Client.MirObjects
                                                 SoundManager.PlaySound(20000 + (ushort)Spell.SoulFireBall * 10 + 2);
                                             };
                                         }
+                                        break;
+
+                                    #endregion
+
+                                    #region SoulFireBallPlus（灵魂火符(万效)：一次飞出 3 张符，秘籍 6 张）
+
+                                    case Spell.SoulFireBallPlus:
+                                    case Spell.SoulFireBallPlusRare:
+                                        SoundManager.PlaySound(20000 + (ushort)Spell.SoulFireBall * 10 + 1);
+
+                                        var talismanIDs = new List<uint> { TargetID };
+
+                                        if (SecondaryTargetIDs != null)
+                                        {
+                                            talismanIDs.AddRange(SecondaryTargetIDs);
+                                        }
+
+                                        foreach (var talismanID in talismanIDs)
+                                        {
+                                            missile = CreateProjectile(1160, Libraries.Magic, true, 3, 30, 7, targetID: talismanID);
+
+                                            if (missile.Target != null)
+                                            {
+                                                missile.Complete += (o, e) =>
+                                                {
+                                                    var sender = (Missile)o;
+                                                    if (sender.Target.CurrentAction == MirAction.死后尸体) return;
+                                                    sender.Target.Effects.Add(new Effect(Libraries.Magic, 1360, 10, 600, sender.Target));
+                                                    SoundManager.PlaySound(20000 + (ushort)Spell.SoulFireBall * 10 + 2);
+                                                };
+                                            }
+                                        }
+
+                                        SecondaryTargetIDs = null;   //消费后清空，避免残留污染后续施法
                                         break;
 
                                     #endregion
@@ -3581,12 +3859,13 @@ namespace Client.MirObjects
                                     #region PoisonCloud
 
                                     case Spell.PoisonCloud:
+                                        //毒雾：灵魂火符式投掷（飞行符），命中的音效按需求改成「集体隐身术」那一套
                                         missile = CreateProjectile(1160, Libraries.Magic, true, 3, 30, 7);
                                         missile.Explode = true;
 
                                         missile.Complete += (o, e) =>
                                             {
-                                                SoundManager.PlaySound(20000 + (ushort)Spell * 10);
+                                                SoundManager.PlaySound(20000 + (ushort)Spell.MassHiding * 10);
                                             };
 
                                         break;
@@ -5234,6 +5513,17 @@ namespace Client.MirObjects
         public override void Draw()
         {
             DrawBehindEffects(Settings.Effect);
+
+            //影华连击：释放技能时人物**完全不显示**（不是半透明「隐身」），技能播完由服务端下发位移（正前方 2 格）。
+            //★「影化连击」buff 是服务端同步的（BuffInfo.Visible = true 会对周围玩家广播），
+            //  用它判断可以让所有人（自己 + 其他玩家）在整段技能期间都看不到人物；
+            //  只靠施法动作那一瞬间或者被服务端 Hidden 画成半透明（0.5 透明度）都不符合需求。
+            bool shadowStealth = (this == User && CMain.Time < ShadowComboStealthTime)
+                || Buffs.Contains(BuffType.影化连击)
+                || ((Spell == Spell.ShadowCombo || Spell == Spell.ShadowComboRare)
+                    && (CurrentAction == MirAction.施法动作 || CurrentAction == MirAction.刺客冲击));
+
+            if (shadowStealth) return;
 
             float oldOpacity = DXManager.Opacity;
             if (Hidden && !DXManager.Blending) DXManager.SetOpacity(0.5F);

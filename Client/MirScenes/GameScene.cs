@@ -4789,7 +4789,8 @@ namespace Client.MirScenes
             if (!p.Cast) return;
 
             ClientMagic magic = User.GetMagic(p.Spell);
-            magic.CastTime = CMain.Time;
+            //防御：个别「万效版」技能客户端可能还没收到技能数据，取不到就跳过冷却刷新，避免 NRE
+            if (magic != null) magic.CastTime = CMain.Time;
         }
 
         private void MagicDelay(S.MagicDelay p)
@@ -4815,7 +4816,8 @@ namespace Client.MirScenes
             if (p.ObjectID == Hero?.ObjectID && p.Cast)
             {
                 ClientMagic magic = Hero.GetMagic(p.Spell);
-                magic.CastTime = CMain.Time;
+                //防御：同上，取不到技能数据时跳过
+                if (magic != null) magic.CastTime = CMain.Time;
             }
 
             for (int i = MapControl.Objects.Count - 1; i >= 0; i--)
@@ -5109,6 +5111,19 @@ namespace Client.MirScenes
                         break;
                     case SpellEffect.MoonMist:
                         ob.Effects.Add(new Effect(Libraries.Magic3, 705, 10, 800, ob));
+                        break;
+                    //新增：强击-秘籍 / 灭杀 —— 目标身上落下一道雷电（与雷电术同一素材，多个目标即「多根雷电」）
+                    case SpellEffect.ThunderBoltStrike:
+                        //强击-秘籍命中每个目标时落下一道落雷（Magic_32bit 721-724，多个目标就是「多根雷电」）
+                        ob.Effects.Add(new Effect(Libraries.Magic_32bit, 721, 4, 400, ob) { Blend = true });
+                        SoundManager.PlaySound(20000 + (ushort)Spell.ThunderBolt * 10);
+                        break;
+                    //新增：落雷杀-秘笈结束时的「最后一击」（素材 = 原灭杀的 Magic_32bit 1810-1824）。
+                    //用场景级特效（挂在落点上）而不是 ob.Effects，因为广播完这条之后服务端马上就会把这个
+                    //SpellObject 移除，挂在对象身上的特效会跟着一起消失。
+                    case SpellEffect.SkyThunderShotFinal:
+                        MapControl.Effects.Add(new Effect(Libraries.Magic_32bit, 1810, 15, 900, ob.CurrentLocation) { Blend = true });
+                        SoundManager.PlaySound(20000 + (ushort)Spell.ThunderBolt * 10);
                         break;
                     case SpellEffect.Mon562NLightning:
                         ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon562N], 666, 5, 300, ob) { Blend = true });
@@ -10733,6 +10748,24 @@ namespace Client.MirScenes
 
         #endregion
 
+        /// <summary>
+        /// 万效符 / 万效符-秘籍 的升格 BUFF 生效期间，返回「灵魂火符」当前应当显示为的万效版技能数据；
+        /// 没有 BUFF（或客户端还没收到该技能数据）时返回 null —— 此时灵魂火符就是普通版。
+        /// 用于技能栏 / 技能列表把「灵魂火符」的图标与描述一并换成万效版，BUFF 到期自动还原。
+        /// </summary>
+        public static ClientMagic GetSoulFireBallUpgrade()
+        {
+            if (User == null) return null;
+
+            if (User.Buffs.Contains(BuffType.万效秘灵魂火符))
+                return User.GetMagic(Spell.SoulFireBallPlusRare);
+
+            if (User.Buffs.Contains(BuffType.万效灵魂火符))
+                return User.GetMagic(Spell.SoulFireBallPlus);
+
+            return null;
+        }
+
     }
 
     public sealed class MapControl : MirControl
@@ -10958,36 +10991,9 @@ namespace Client.MirScenes
             // 毒符互换（手动）：玩家自己按技能时因为要先换符/换毒而被推迟的那次施法，材料到位后自动补放
             AutoPlayRetryManualSpell();
 
-<<<<<<< HEAD
             // 隔位刺杀（战士）：面板勾选后不需要内挂总开关，也保证刺杀剑术处于开启状态
             AutoPlayEnsureThrustingOn();
 
-=======
-<<<<<<< HEAD
-            // 隔位刺杀（战士）：面板勾选后不需要内挂总开关，也保证刺杀剑术处于开启状态
-            AutoPlayEnsureThrustingOn();
-
-=======
-<<<<<<< HEAD
-            // 隔位刺杀（战士）：面板勾选后不需要内挂总开关，也保证刺杀剑术处于开启状态
-            AutoPlayEnsureThrustingOn();
-
-=======
-<<<<<<< HEAD
-            // 隔位刺杀（战士）：面板勾选后不需要内挂总开关，也保证刺杀剑术处于开启状态
-            AutoPlayEnsureThrustingOn();
-
-=======
-<<<<<<< HEAD
-            // 隔位刺杀（战士）：面板勾选后不需要内挂总开关，也保证刺杀剑术处于开启状态
-            AutoPlayEnsureThrustingOn();
-
-=======
->>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
             CheckInput();
 
 
@@ -12029,7 +12035,8 @@ namespace Client.MirScenes
         private static ulong _autoSwapLastID;           // 上次换装请求的物品（防止本地状态没同步时反复发包）
         private static long _autoSwapLastTime;
         private static int _manualSpellKey;             // 手动施法因换装被推迟的技能（技能栏键位，0=无）
-        private static int _manualSpellWant = -1;       // 该技能需要槽里装什么：0=符 1=灰色毒粉 2=黄色毒粉
+        private static int _manualSpellWant = -1;       // 该技能需要槽里装什么：0=符纸 1=灰毒粉(绿毒) 2=黄毒粉(红毒) 3=苏生符
+        private static int _manualSpellNeed = 1;        // 该技能要几个（毒雾 5 个黄毒粉、苏生术 1 张苏生符…）
         private static bool _manualSpellIsPoison;       // 被推迟的这次手动施法是不是「施毒术」
         private static bool _manualSpellCasting;        // 正在补放（重入 UseSpell），本次不要再判材料
         private static long _manualSpellTime;           // 换装请求发出的时间
@@ -12460,23 +12467,35 @@ namespace Client.MirScenes
         private static readonly Spell[] AutoPlayRangedSpells =     // 远程单体：远怪/放风筝时用
         {
             // 法师
+            Spell.ThunderBoltRare,          //新增：强击-秘籍（对目标 5×5 内的敌人各落一次雷）
             Spell.ThunderBolt, Spell.FlameDisruptor, Spell.FrostCrunch,
             Spell.GreatFireBallRare, Spell.GreatFireBall, Spell.FireBall,
             // 道士
+            Spell.SoulFireBallPlusRare,     //新增：灵魂火符(万效-秘)（同时打 6 个目标）
+            Spell.SoulFireBallPlus,         //新增：灵魂火符(万效)（同时打 3 个目标）
             Spell.SoulFireBall,
             // 弓手（客户端会校验必须佩戴弓类武器）
+            Spell.DeathBlow,                //新增：灭杀（射程 1，需先用落雷杀-秘笈开出【灭杀窗口】）
             Spell.DoubleShot, Spell.ElementalShot, Spell.NapalmShot,
             Spell.VampireShot, Spell.PoisonShot, Spell.CrippleShot,
             Spell.DelayedExplosion, Spell.StraightShot,
+            // 刺客（射程 1，只能贴身；放最后，避免频繁向前位移打乱走位）
+            Spell.ShadowComboRare,          //新增：影华连击-秘笈
+            Spell.ShadowCombo,              //新增：影华连击
         };
 
         private static readonly Spell[] AutoPlayAoeSpells =        // 群攻：被围攻时优先使用
         {
             // 法师（雷电风暴为周身范围，其余以目标为中心）
+            Spell.AbsorbFlameRare,          //新增：吸魔炎风-秘籍（6 格群攻）
+            Spell.AbsorbFlame,              //新增：吸魔炎风（2 格群攻）
             Spell.ThunderStorm, Spell.IceStorm, Spell.Blizzard,
             Spell.MeteorStrike, Spell.FireBang, Spell.HellFire, Spell.IceThrust,
             // 道士
             Spell.PoisonCloud,
+            // 弓手（需要佩戴弓 + 气功石）
+            Spell.SkyThunderShotRare,       //新增：落雷杀-秘笈（8 格群攻）
+            Spell.SkyThunderShot,           //新增：落雷杀（4 格群攻）
         };
 
         //道士隐身近砍节奏：隐身后被怪贴身近攻时，每砍 1 秒再继续放远程技能（近攻由 CheckInput 执行）
@@ -12496,6 +12515,9 @@ namespace Client.MirScenes
 
         //法师辅助：魔法盾（吸收伤害的护盾，施法目标是自己）
         private static readonly Spell[] AutoPlayMagicShieldSpells = { Spell.MagicShield };
+
+        //道士辅助：万效符 / 万效符-秘籍（一次给自己+队友上全套增益，施法目标是自己，消耗 1 张护身符）
+        private static readonly Spell[] AutoPlayGreatTalismanSpells = { Spell.GreatTalismanRare, Spell.GreatTalisman };
 
         //法师按需群攻：地狱雷光（周身范围，服务端与火龙气焰同一处理）
         private static readonly Spell[] AutoPlaySelfAoeSpells = { Spell.ThunderStorm, Spell.FlameField };
@@ -12802,19 +12824,6 @@ namespace Client.MirScenes
             }
         }
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         /// <summary>
         /// 隔位刺杀（战士面板「隔位刺杀」勾选后）不需要内挂总开关也生效：
         /// 只要还没开启刺杀剑术就补一次开启请求（没学会时自动跳过）。
@@ -12831,22 +12840,6 @@ namespace Client.MirScenes
 
         /// <summary>常开型开关技：没开启就发一次开启请求（开关状态由客户端记录，服务端只保存下来）</summary>
         private static void AutoPlayToggleMeleeSkill(Spell spell, bool on)
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-=======
-        /// <summary>常开型开关技：没开启就发一次开启请求（开关状态由客户端记录，服务端只保存下来）</summary>
-        private void AutoPlayToggleMeleeSkill(Spell spell, bool on)
->>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         {
             if (on) return;
 
@@ -12931,6 +12924,9 @@ namespace Client.MirScenes
             if (AutoPlayShouldHide() && !AutoPlayHasBuff(BuffType.隐身术) && AutoPlayTryCast(AutoPlayHidingSpells, User)) return;
             if (!AutoPlayHasBuff(BuffType.幽灵盾) && AutoPlayTryCast(AutoPlaySoulShieldSpells, User)) return;
             if (!AutoPlayHasBuff(BuffType.神圣战甲术) && AutoPlayTryCast(AutoPlayBlessedArmourSpells, User)) return;
+            //新增：万效符 / 万效符-秘籍（一次给自己+队友上幽灵盾/神圣战甲术/无极真气/先天气功，并给自己挂减伤）
+            if (!AutoPlayHasBuff(BuffType.万效符) && !AutoPlayHasBuff(BuffType.万效符秘笈) &&
+                AutoPlayTryCast(AutoPlayGreatTalismanSpells, User)) return;
         }
 
         /// <summary>
@@ -13281,9 +13277,20 @@ namespace Client.MirScenes
                 case Spell.MassHiding:
                 case Spell.SoulShield:
                 case Spell.BlessedArmour:
+                //新增：灵魂火符(万效) / 万效符（都要消耗护身符）
+                case Spell.SoulFireBallPlus:
+                case Spell.SoulFireBallPlusRare:
+                case Spell.GreatTalisman:
+                case Spell.GreatTalismanRare:
                     return AutoPlayHasItem(ItemType.护身符, 0, 1);
+                //新增：落雷杀 / 落雷杀-秘笈 需要装备气功石（护身符类 Shape=4，不消耗）
+                case Spell.SkyThunderShot:
+                case Spell.SkyThunderShotRare:
+                    return AutoPlayHasItem(ItemType.护身符, 4, 1);
                 case Spell.PoisonCloud:
-                    return AutoPlayHasItem(ItemType.护身符, 0, 5) && AutoPlayHasItem(ItemType.护身符, 1, 5);
+                    //毒雾：服务端 PoisonCloud 现在灰粉/黄粉都认 —— 灰粉=绿毒(掉血)、黄粉=红毒(掉防)，
+                    //与施毒术一样两种都能放 → AnyPoison（黄/灰按「一次使用交替一次」轮换）
+                    return AutoPlayHasItem(ItemType.护身符, 1, 5) || AutoPlayHasItem(ItemType.护身符, 2, 5);
                 case Spell.HealingcircleRare:
                     return AutoPlayHasItem(ItemType.护身符, 0, 3);   // 阴阳五行阵-秘籍要 3 张符
                 case Spell.SummonSkeleton:
@@ -13319,8 +13326,12 @@ namespace Client.MirScenes
 
         #region 毒符互换（道士）
 
-        /// <summary>背包里找一件指定形态的符/毒（shape：0=护身符、1=灰色毒粉(绿毒)、2=黄色毒粉(红毒)），找不到返回 -1</summary>
-        private int AutoPlayFindConsumable(byte shape)
+        /// <summary>
+        /// 背包里找一件指定形态的符/毒（shape：0=护身符(符纸)、1=灰色毒粉(绿毒)、2=黄色毒粉(红毒)、
+        /// 3=苏生符、4=气功石），数量不足 minCount 的不算，找不到返回 -1。
+        /// 毒雾要「5 个黄色毒粉」这种就必须把 minCount 传 5，否则会换上一小叠、技能照样放不出来。
+        /// </summary>
+        private int AutoPlayFindConsumable(byte shape, int minCount = 1)
         {
             if (User.Inventory == null) return -1;
 
@@ -13331,7 +13342,7 @@ namespace Client.MirScenes
                 if (item == null || item.Info == null) continue;
                 if (item.Info.Type != ItemType.护身符) continue;
                 if (item.Info.Shape != shape) continue;
-                if (item.Count < 1) continue;
+                if (item.Count < minCount) continue;
 
                 return i;
             }
@@ -13343,9 +13354,9 @@ namespace Client.MirScenes
         /// 把背包里的符/毒装到「护身符」槽。槽位被别的物品占着也没关系——
         /// 服务端会把它换回背包（EquipItem 是交换式移动）。返回是否已发出换装请求。
         /// </summary>
-        private bool AutoPlayEquipConsumable(byte shape)
+        private bool AutoPlayEquipConsumable(byte shape, int minCount = 1)
         {
-            int index = AutoPlayFindConsumable(shape);
+            int index = AutoPlayFindConsumable(shape, minCount);
 
             if (index < 0) return false;
 
@@ -13372,7 +13383,7 @@ namespace Client.MirScenes
         /// <summary>
         /// 毒符互换（自动挂机用）：道士的「护身符（符纸）」和「毒药（黄色毒粉/灰色毒粉）」共用同一个装备槽，
         /// 内挂只在「接下来要放的那个技能用什么材料」发生变化时才换一次：
-        ///  · 要放需要毒药的技能（施毒术）→ 槽里换成毒粉（两种毒粉按「一次使用交替一次」轮换）；
+        ///  · 要放需要毒药的技能（施毒术 / 毒雾）→ 槽里换成毒粉（两种毒粉按「一次使用交替一次」轮换）；
         ///  · 要放需要符纸的技能（灵魂火符主攻 / 隐身术 / 幽灵盾 / 神圣战甲术 / 召唤术）→ 槽里换成护身符。
         /// 判定是「粘住」的：槽里已经是当前需要的材料就一律不动，
         /// 所以正常节奏是「怪来了装毒 → 放施毒术 → 换回符 → 一直丢灵魂火符」，
@@ -13401,6 +13412,45 @@ namespace Client.MirScenes
             if (!AutoPlaySwappableTarget(target) && Settings.AutoAttack) target = AutoPlayFindMonster();
 
             byte equipped = AutoPlayEquippedPoisonShape();   // 槽里现在是哪种毒（0=不是毒，多半是符）
+
+            // ⓪ 毒雾：服务端 PoisonCloud 现在灰粉/黄粉都认 —— 灰粉=绿毒(掉血)、黄粉=红毒(掉防)，
+            //    要求槽里 ≥5 个毒粉。两种都行 → 和施毒术一样按「目标缺哪种毒就用哪种」来换
+            //    （缺绿用灰粉、缺红用黄粉，都缺按黄/灰交替），一套毒雾正好把绿毒红毒都挂上；
+            //    槽里已经是够量的毒粉就粘住，等毒雾放出去，别在两种毒粉之间来回翻。
+            if (AutoPlayNeedPoisonCloud(target))
+            {
+                bool needGreen = (target.Poison & PoisonType.Green) != PoisonType.Green;
+                bool needRed = (target.Poison & PoisonType.Red) != PoisonType.Red;
+
+                // 槽里已是够量的毒粉（灰/黄任一），且正是「要挂的那种」或目标两种毒都齐了 → 粘住
+                if (equipped != 0 && AutoPlayEquippedMaterialCount(equipped) >= 5)
+                {
+                    if (!needGreen && !needRed) return false;
+                    if (equipped == 1 && needGreen) return false;
+                    if (equipped == 2 && needRed) return false;
+                }
+
+                // 缺绿毒 → 灰粉；缺红毒 → 黄粉；两种都齐 / 都缺 → 按黄/灰交替
+                byte wantCloud = (!needGreen && !needRed) ? AutoPlayNextPoisonShape()
+                               : needGreen ? (byte)1 : (byte)2;
+
+                if (AutoPlayFindConsumable(wantCloud, 5) >= 0 && AutoPlayEquipConsumable(wantCloud, 5))
+                {
+                    _autoPlayNextSwap = CMain.Time + AutoPlaySwapInterval;
+                    return true;
+                }
+
+                // 想要的那种不够 5 个 → 换另一种试试（两种毒粉对毒雾都有效，效果不同而已）
+                byte otherCloud = (byte)(wantCloud == 1 ? 2 : 1);
+
+                if (AutoPlayFindConsumable(otherCloud, 5) >= 0 && AutoPlayEquipConsumable(otherCloud, 5))
+                {
+                    _autoPlayNextSwap = CMain.Time + AutoPlaySwapInterval;
+                    return true;
+                }
+
+                // 两种都不够 5 个 → 不硬换，落到下面按「施毒术 / 符系技能」处理
+            }
 
             // ① 接下来要放「施毒术」这种吃毒药的技能 → 槽里放毒
             byte wantPoison;
@@ -13520,6 +13570,27 @@ namespace Client.MirScenes
             return false;
         }
 
+        /// <summary>
+        /// 内挂眼下会不会真的去放「毒雾」——用来决定要不要把护身符槽换成「毒粉」（灰/黄都可）。
+        /// 触发条件与 ProcessAutoPlay 里选群攻技能的那一处保持一致：
+        /// 学了毒雾 + 开了自动技能 + 不在冷却 + 蓝够 + 有可打的目标 + 被围攻（周身 1 格内 ≥3 只怪）。
+        /// 不满足任何一条就别换毒，免得把槽一直钉在毒粉上、连施毒术/灵魂火符都放不顺。
+        /// </summary>
+        private bool AutoPlayNeedPoisonCloud(MapObject target)
+        {
+            ClientMagic magic = User.GetMagic(Spell.PoisonCloud);
+
+            if (magic == null) return false;                                   // 没学毒雾
+            if (!Settings.AutoSkill) return false;                             // 自动技能关着，不会去放毒雾
+            if (!AutoPlaySwappableTarget(target)) return false;                // 没有可打的目标
+            if (CMain.Time <= magic.CastTime + magic.Delay) return false;      // 冷却中
+
+            int cost = magic.Level * magic.LevelCost + magic.BaseCost;
+            if (cost > User.MP) return false;                                  // 蓝不够
+
+            return AutoPlayCountMonsters(User.CurrentLocation, 1) >= AutoPlaySurroundCount;   // 被围攻才值得放
+        }
+
         /// <summary>是否还有「已学会但场上没有」的召唤物需要补（骷髅 / 神兽 / 月灵）</summary>
         private bool AutoPlayNeedSummon()
         {
@@ -13590,20 +13661,35 @@ namespace Client.MirScenes
 
         #region 毒符互换（手动施法按需换装，不依赖内挂总开关）
 
+        /// <summary>施毒术 / 毒雾专用：黄色毒粉 / 灰色毒粉都行（按「一次使用交替一次」轮换），其余技能都是固定一种 Shape。</summary>
+        private const int AutoPlayMaterialAnyPoison = 10;
+
         /// <summary>
-        /// 技能要用的材料：0=护身符（符纸） 1=灰色毒粉(绿毒) 2=黄色毒粉(红毒) 3=任意毒粉（黄/灰交替）
-        /// -1=不吃符也不吃毒。
+        /// 技能要用的材料（返回值直接就是「护身符」类物品的 Shape）：
+        /// 0=符纸(护身符) 1=灰色毒粉(绿毒) 2=黄色毒粉(红毒) 3=苏生符 4=气功石；
+        /// 10=任意毒粉（施毒术 / 毒雾，黄/灰交替）；-1=不吃材料。
         /// 与服务端《技能消耗》一一对应：
-        ///  · 符：灵魂火符 / 隐身术 / 集体隐身术 / 幽灵盾 / 神圣战甲术 / 困魔咒 / 诅咒术 / 强化术 /
-        ///        幻影术 / 阴阳五行阵-秘籍(3张) / 召唤骷髅(1) / 召唤神兽(5) / 精魂召唤术(2) / 回生术(3)；
-        ///  · 毒：施毒术（黄色毒粉或灰色毒粉都行）；
-        ///  · 毒雾、瘟疫术要「符 + 毒」同时消耗，一个槽位满足不了，交给玩家自己安排（返回 -1 不动）。
+        ///  · 符纸：灵魂火符 / 隐身术 / 集体隐身术 / 幽灵盾 / 神圣战甲术 / 困魔咒 / 诅咒术 / 强化术 /
+        ///          幻影术 / 阴阳五行阵-秘籍(3张) / 召唤骷髅(1) / 召唤神兽(5) / 精魂召唤术(2) /
+        ///          血龙兽(血龙水) / 血龙兽-秘籍（秘籍要符才能把召唤物召出来）；
+        ///  · 毒粉：施毒术（黄/灰都行 → AnyPoison）、毒雾（服务端 GetPoison(5)，黄/灰都行 → AnyPoison，
+        ///          灰粉=绿毒掉血、黄粉=红毒掉防）；
+        ///  · 苏生符：苏生术（服务端 GetAmulet(1, 3)，1 张苏生符）。
         /// </summary>
         private static int AutoPlaySpellMaterial(Spell spell)
         {
             switch (spell)
             {
                 case Spell.Poisoning:
+                    return AutoPlayMaterialAnyPoison;
+
+                //毒雾：服务端 PoisonCloud 用 GetPoison(5) —— 灰色/黄色毒粉都能放（效果见 ProcessSpell：
+                //灰粉=绿毒掉血、黄粉=红毒掉防），所以和施毒术一样走「任意毒粉」。
+                case Spell.PoisonCloud:
+                    return AutoPlayMaterialAnyPoison;
+
+                //苏生术：服务端 Reincarnation 用 GetAmulet(1, 3) —— 要「苏生符」(Shape=3)，普通护身符不行
+                case Spell.Reincarnation:
                     return 3;
 
                 case Spell.SoulFireBall:
@@ -13615,11 +13701,13 @@ namespace Client.MirScenes
                 case Spell.Curse:
                 case Spell.UltimateEnhancer:
                 case Spell.Hallucination:
-                case Spell.Reincarnation:
                 case Spell.HealingcircleRare:
                 case Spell.SummonSkeleton:
                 case Spell.SummonShinsu:
                 case Spell.SummonHolyDeva:
+                //新增：血龙兽（血龙水）/ 血龙兽-秘籍 —— 同属符系技能，槽里要保持护身符
+                case Spell.PetEnhancer:
+                case Spell.PetEnhancerRare:
                     return 0;
 
                 default:
@@ -13627,14 +13715,45 @@ namespace Client.MirScenes
             }
         }
 
-        /// <summary>护身符槽里现在装的是什么：0=符 1=灰色毒粉 2=黄色毒粉 -1=空</summary>
-        private int AutoPlayEquippedMaterial()
+        /// <summary>
+        /// 技能要消耗几个材料（与服务端一致）：毒雾 5 个黄毒粉、阴阳五行阵-秘籍 3 张符、
+        /// 召唤神兽 5 张符、精魂召唤术 2 张符，其余都是 1 个。
+        /// </summary>
+        private static int AutoPlaySpellMaterialCount(Spell spell)
         {
-            byte poison = AutoPlayEquippedPoisonShape();
+            switch (spell)
+            {
+                case Spell.PoisonCloud: return 5;
+                case Spell.HealingcircleRare: return 3;
+                case Spell.SummonShinsu: return 5;
+                case Spell.SummonHolyDeva: return 2;
+                default: return 1;
+            }
+        }
 
-            if (poison != 0) return poison;
+        /// <summary>
+        /// 护身符槽里「指定形态」的符/毒一共有几个（0=没有）。
+        /// shape：0=符纸 1=灰色毒粉(绿毒) 2=黄色毒粉(红毒) 3=苏生符 4=气功石。
+        /// 用来同时校验「形态对不对」和「数量够不够」——毒雾要 5 个黄毒粉，只有 1 个也不算到位。
+        /// </summary>
+        private int AutoPlayEquippedMaterialCount(int shape)
+        {
+            if (User.Equipment == null) return 0;
 
-            return AutoPlayHasAmulet() ? 0 : -1;
+            int total = 0;
+
+            for (int i = 0; i < User.Equipment.Length; i++)
+            {
+                UserItem item = User.Equipment[i];
+
+                if (item == null || item.Info == null) continue;
+                if (item.Info.Type != ItemType.护身符) continue;
+                if (item.Info.Shape != shape) continue;
+
+                total += item.Count;
+            }
+
+            return total;
         }
 
         /// <summary>
@@ -13675,13 +13794,13 @@ namespace Client.MirScenes
             if (_manualSpellKey != 0 && CMain.Time <= _manualSpellUntil)
             {
                 if (_manualSpellKey == magic.Key) return true;
-                if (want == 3 && _manualSpellIsPoison) return true;
+                if (want == AutoPlayMaterialAnyPoison && _manualSpellIsPoison) return true;
 
                 _manualSpellKey = 0;
                 _manualSpellIsPoison = false;
             }
 
-            bool isPoison = want == 3;                        // 施毒术：黄色毒粉 / 灰色毒粉都能放
+            bool isPoison = want == AutoPlayMaterialAnyPoison;  // 施毒术 / 毒雾：黄色毒粉 / 灰色毒粉都能放
 
             if (isPoison)
             {
@@ -13697,28 +13816,31 @@ namespace Client.MirScenes
             }
 
             int load = want;
+            int need = AutoPlaySpellMaterialCount(magic.Spell);   // 这个技能要几个（毒雾要 5 个毒粉）
 
-            // 想要的那种毒背包里没有 → 用另一种颜色的毒粉顶上（施毒术两种毒粉都能放）
-            if ((load == 1 || load == 2) && AutoPlayFindConsumable((byte)load) < 0)
+            // 只有「施毒术 / 毒雾」才允许黄/灰毒粉互相顶替 —— 苏生术只认苏生符，
+            // 是服务端的硬性要求，拿别的种类顶替只会白换一次、技能照样出不来。
+            if (isPoison && (load == 1 || load == 2) && AutoPlayFindConsumable((byte)load, need) < 0)
             {
                 byte other = (byte)(load == 1 ? 2 : 1);
 
-                if (AutoPlayFindConsumable(other) >= 0) load = other;
+                if (AutoPlayFindConsumable(other, need) >= 0) load = other;
             }
 
-            if (AutoPlayEquippedMaterial() == load)
+            if (AutoPlayEquippedMaterialCount(load) >= need)
             {
-                // 槽里已经是要用的材料 → 这一次就算用掉了它，下一次施毒术换另一种毒粉
+                // 槽里已经是要用的材料（数量和形态都对）→ 这一次就算用掉了它，下一次施毒术换另一种毒粉
                 if (isPoison) AutoPlayUsePoisonShape(load);
 
                 return false;                                 // 照常施放
             }
 
-            if (!AutoPlayEquipConsumable((byte)load))
+            if (!AutoPlayEquipConsumable((byte)load, need))
                 return false;                                 // 背包里没有 → 照常尝试（服务端自己会判失败）
 
             _manualSpellKey = magic.Key;
             _manualSpellWant = load;
+            _manualSpellNeed = need;
             _manualSpellIsPoison = isPoison;
             _manualSpellTime = CMain.Time;
             _manualSpellUntil = CMain.Time + 3000;            // 3 秒内材料还没到位就放弃这次补放
@@ -13744,7 +13866,7 @@ namespace Client.MirScenes
             }
 
             if (CMain.Time - _manualSpellTime < 120) return;         // 刚发出换装请求，稍等一下
-            if (AutoPlayEquippedMaterial() != _manualSpellWant) return;  // 材料还没换到位
+            if (AutoPlayEquippedMaterialCount(_manualSpellWant) < _manualSpellNeed) return;  // 材料（形态+数量）还没换到位
 
             int key = _manualSpellKey;
             bool poison = _manualSpellIsPoison;
@@ -13896,19 +14018,6 @@ namespace Client.MirScenes
             return monster != null && monster.TargetID == User.ObjectID;
         }
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         /// <summary>
         /// 隔位刺杀（战士「刀刀刺杀」）：目标正好落在正前方隔一格的第 2 格、中间那格是空地，
         /// 且刺杀剑术处于开启状态 → 可以站在原地用剑气打（不贴脸）。
@@ -14065,20 +14174,6 @@ namespace Client.MirScenes
             return AutoPlayGapThrustingStep(target) == null;
         }
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-=======
->>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
         #endregion
 
         /// <summary>
@@ -14411,19 +14506,6 @@ namespace Client.MirScenes
                     }
 
                     else if ((!(Settings.AutoPlay && User.Class == MirClass.法师) || AutoPlayIsPhysicalTarget(MapObject.TargetObject)) &&
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
                              (AutoPlayGapThrustingHit(MapObject.TargetObject) ||
                               (Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1) &&
                                AutoPlayCanMeleeNow(MapObject.TargetObject))))
@@ -14433,24 +14515,6 @@ namespace Client.MirScenes
                         // 战士「隔位刺杀」：目标隔一格时也走这里——客户端会把这次近距攻击转成 Spell.Thrusting，
                         // 服务端把落点再前移一格，用剑气打到隔位那只怪；贴身时若还能退到隔位则先不还手
                         //（AutoPlayCanMeleeNow=false），交给下面的走位把人物挪到隔位。
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
-=======
-                             Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1))
-                    {
-                        // 法师挂机时一般不近攻（改用与弓手相同的远程方式：放法术），贴脸由内挂的走位拉开；
-                        // 但若该怪物魔法无效（内挂已切物理阶段），则允许贴身用「近距攻击1」出手。
->>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
                         if (CMain.Time > GameScene.AttackTime && CanRideAttack() && !User.Poison.HasFlag(PoisonType.Dazed))
                         {
                             User.QueuedAction = new QueuedAction { Action = MirAction.近距攻击1, Direction = Functions.DirectionFromPoint(User.CurrentLocation, MapObject.TargetObject.CurrentLocation), Location = User.CurrentLocation };
@@ -14733,26 +14797,7 @@ namespace Client.MirScenes
             }
 
             if (Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1)) return;
-<<<<<<< HEAD
 
-=======
-<<<<<<< HEAD
-
-=======
-<<<<<<< HEAD
-
-=======
-<<<<<<< HEAD
-
-=======
-<<<<<<< HEAD
-
-=======
->>>>>>> 47baf6042e798ed36472152258ad576f62b810f0
->>>>>>> 387da1057651bb867b9fab9d85af1be42ce16c01
->>>>>>> 7eeff19091ec70721f299b982289ed347c0f740b
->>>>>>> 7c699bd4ee3c46cb11ca30fd0e30d4c1767e660a
->>>>>>> f8fcb17699a047662b6d41157c79ca9cfcc17c41
             if ((User.Class == MirClass.弓箭 && User.HasClassWeapon ||
                  (Settings.AutoPlay && User.Class == MirClass.法师 && !AutoPlayIsPhysicalTarget(MapObject.TargetObject))) &&
                 (MapObject.TargetObject is MonsterObject || MapObject.TargetObject is PlayerObject)) return; //ArcherTest - stop walking（弓手/法师走位由 ProcessAutoPlay 的 AutoPlayCombatMove 处理，法师不贴身；切物理攻击后可追）
@@ -14795,8 +14840,7 @@ namespace Client.MirScenes
         }
 
         public void UseMagic(ClientMagic magic, UserObject actor)
-        {
-            if (User.Dead) return;
+        {            if (User.Dead) return;
             if (CMain.Time < GameScene.SpellTime || actor.Poison.HasFlag(PoisonType.Stun))
             {
                 actor.ClearMagic();
@@ -14868,6 +14912,13 @@ namespace Client.MirScenes
                 case Spell.MeteorShower:
                 case Spell.DimensionalSword:
                 case Spell.DimensionalSwordRare:
+                //新增技能：强击-秘籍 / 灵魂火符(万效) / 灭杀 / 影华连击
+                case Spell.ThunderBoltRare:
+                case Spell.SoulFireBallPlus:
+                case Spell.SoulFireBallPlusRare:
+                case Spell.DeathBlow:
+                case Spell.ShadowCombo:
+                case Spell.ShadowComboRare:
                     if (actor.NextMagicObject != null)
                     {
                         if (!actor.NextMagicObject.Dead && actor.NextMagicObject.Race != ObjectType.Item && actor.NextMagicObject.Race != ObjectType.Merchant)
@@ -14890,9 +14941,20 @@ namespace Client.MirScenes
                 case Spell.SummonVampire:
                 case Spell.SummonToad:
                 case Spell.SummonSnakes:
+                //新增技能：落雷杀 / 落雷杀-秘笈 / 爆闪-秘籍
+                case Spell.SkyThunderShot:
+                case Spell.SkyThunderShotRare:
+                case Spell.DelayedExplosionRare:
                     if (!actor.HasClassWeapon)
                     {
                         GameScene.Scene.OutputMessage("必须戴着弓箭才能施展此项技能");
+                        actor.ClearMagic();
+                        return;
+                    }
+                    //落雷杀系列额外要求装备气功石
+                    if ((magic.Spell == Spell.SkyThunderShot || magic.Spell == Spell.SkyThunderShotRare) && !actor.HasEnergyStone)
+                    {
+                        GameScene.Scene.OutputMessage("必须装备【气功石】才能施展此项技能");
                         actor.ClearMagic();
                         return;
                     }
@@ -14940,6 +15002,12 @@ namespace Client.MirScenes
                 case Spell.UltimateEnhancer:
                 case Spell.EnergyShield:
                 case Spell.PetEnhancer:
+                //新增技能：万效符 / 万效符-秘籍 / 血龙兽-秘籍 / 月影雾-秘籍 / 气流术-秘籍
+                case Spell.GreatTalisman:
+                case Spell.GreatTalismanRare:
+                case Spell.PetEnhancerRare:
+                case Spell.MoonMistRare:
+                case Spell.ConcentrationRare:
                     if (actor.NextMagicObject != null)
                     {
                         if (!actor.NextMagicObject.Dead && actor.NextMagicObject.Race != ObjectType.Item && actor.NextMagicObject.Race != ObjectType.Merchant)
@@ -14955,6 +15023,9 @@ namespace Client.MirScenes
                 case Spell.HealingCircle:
                 case Spell.CatTongue:
 				case Spell.HealingcircleRare:
+                //新增技能：吸魔炎风 / 吸魔炎风-秘籍
+                case Spell.AbsorbFlame:
+                case Spell.AbsorbFlameRare:
                     if (actor.NextMagicObject != null)
                     {
                         if (!actor.NextMagicObject.Dead && actor.NextMagicObject.Race != ObjectType.Item && actor.NextMagicObject.Race != ObjectType.Merchant)
@@ -15013,6 +15084,9 @@ namespace Client.MirScenes
                     }
                     //isTargetSpell = false;
                     break;
+                case Spell.FlashDashRare: //拔刀术-秘籍：原地连砍 4 刀（无位移），收招把身前一排怪推开 4 格，随时可放
+                    //isTargetSpell = false;
+                    break;
                 default:
                     //isTargetSpell = false;
                         break;
@@ -15024,7 +15098,7 @@ namespace Client.MirScenes
 
             uint targetID = target != null ? target.ObjectID : 0;
 
-            if (magic.Spell == Spell.FlashDash)
+            if (magic.Spell == Spell.FlashDash || magic.Spell == Spell.FlashDashRare)
                 dir = actor.Direction;
 
             if ((magic.Range != 0) && (!Functions.InRange(actor.CurrentLocation, location, magic.Range)))
@@ -15040,17 +15114,26 @@ namespace Client.MirScenes
 
             GameScene.LogTime = CMain.Time + Globals.LogDelay;
 
+            //需求：万效符 / 万效符-秘籍 的升格 BUFF 期间，「灵魂火符」按「万效灵魂火符」/「万效秘灵魂火符」释放
+            //（多目标连发、特效与发包一起升格）；BUFF 到期自动消失即还原为普通灵魂火符。
+            Spell castSpell = magic.Spell;
+            if (magic.Spell == Spell.SoulFireBall)
+            {
+                if (actor.Buffs.Contains(BuffType.万效秘灵魂火符)) castSpell = Spell.SoulFireBallPlusRare;
+                else if (actor.Buffs.Contains(BuffType.万效灵魂火符)) castSpell = Spell.SoulFireBallPlus;
+            }
+
             if (actor == User)
             {
                 User.QueuedAction = new QueuedAction { Action = MirAction.施法动作, Direction = dir, Location = User.CurrentLocation, Params = new List<object>() };
-                User.QueuedAction.Params.Add(magic.Spell);
+                User.QueuedAction.Params.Add(castSpell);
                 User.QueuedAction.Params.Add(targetID);
                 User.QueuedAction.Params.Add(location);
                 User.QueuedAction.Params.Add(magic.Level);
             }
             else
             {
-                Network.Enqueue(new C.Magic { ObjectID = actor.ObjectID, Spell = magic.Spell, Direction = dir, TargetID = targetID, Location = location, SpellTargetLock = CMain.SpellTargetLock });
+                Network.Enqueue(new C.Magic { ObjectID = actor.ObjectID, Spell = castSpell, Direction = dir, TargetID = targetID, Location = location, SpellTargetLock = CMain.SpellTargetLock });
             }
         }
 

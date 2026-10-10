@@ -639,7 +639,22 @@ namespace Client.MirGraphics
 
         public FrameSet Frames
         {
-            get { return _frames; }
+            get
+            {
+                //微端「资源清单就绪」后会整体重建图库数组（InitLibrary 里是 new MLibrary），
+                //重建出来的实例尚未初始化，_frames 为空。而怪物的『召唤初现』等出场动作
+                //完全依赖 .Lib 内嵌的帧段 —— 一旦这里返回 null，MonsterObject 就会退回到
+                //FrameSet.DefaultMonster（里面没有出场动作），宠物就只能凭空出现。
+                //这里补一次懒加载：谁在什么时候问，都保证能拿到真实的帧定义。
+                //缺文件时 Initialize 只把请求丢进后台下载队列并立即返回，不会阻塞线程；
+                //损坏的图库按「无帧」处理，交给上层 DefaultMonster 兜底，绝不向上抛异常。
+                if (!_initialized && !_loadFailed)
+                {
+                    try { Initialize(); }
+                    catch { }
+                }
+                return _frames;
+            }
         }
 
         public MLibrary(string filename)

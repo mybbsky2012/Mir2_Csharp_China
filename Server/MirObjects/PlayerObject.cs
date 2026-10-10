@@ -566,6 +566,18 @@ namespace Server.MirObjects
                 case DelayedType.SpellEffect:
                     CompleteSpellEffect(action.Params);
                     break;
+                case DelayedType.ShadowComboDash:
+                    CompleteShadowComboDash(action.Params);
+                    break;
+                case DelayedType.FlashDashRarePush:
+                    CompleteFlashDashRarePush(action.Params);
+                    break;
+                case DelayedType.PetEnhancerRareApply:
+                    CompletePetEnhancerRareApply(action.Params);
+                    break;
+                case DelayedType.DimensionalSwordFinal:
+                    CompleteDimensionalSwordFinal(action.Params);
+                    break;
             }
         }
         protected override void Moved()
@@ -5994,6 +6006,7 @@ namespace Server.MirObjects
 
                     Info.Magics.Add(magic);
                     SendMagicInfo(magic);
+                    GrantLinkedMagics((Spell)item.Info.Shape);
                     RefreshStats();
                     break;
                 case ItemType.特殊消耗品:

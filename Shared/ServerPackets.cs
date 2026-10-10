@@ -3341,8 +3341,10 @@ namespace ServerPackets
             writer.Write(Cast);
             writer.Write(Level);
 
-            writer.Write(SecondaryTargetIDs.Count);
-            foreach (var targetID in SecondaryTargetIDs)
+            // 防御性判空：绝大多数技能不设置副目标，字段可能为 null
+            var secondaryTargetIDs = SecondaryTargetIDs ?? new List<uint>();
+            writer.Write(secondaryTargetIDs.Count);
+            foreach (var targetID in secondaryTargetIDs)
             {
                 writer.Write(targetID);
             }
@@ -3439,8 +3441,10 @@ namespace ServerPackets
             writer.Write(Level);
             writer.Write(SelfBroadcast);
 
-            writer.Write(SecondaryTargetIDs.Count);
-            foreach (var targetID in SecondaryTargetIDs)
+            // 防御性判空：绝大多数技能不设置副目标，字段可能为 null
+            var secondaryTargetIDs = SecondaryTargetIDs ?? new List<uint>();
+            writer.Write(secondaryTargetIDs.Count);
+            foreach (var targetID in secondaryTargetIDs)
             {
                 writer.Write(targetID);
             }

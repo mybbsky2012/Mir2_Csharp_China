@@ -1350,6 +1350,27 @@ public enum Spell : byte
     FireBounce = 154,
     MeteorShower = 155,
 
+    //新增技能（110 版空号，对应韩版 v117 的独家技能 + 官网 mir2db 的新技能）
+    //数值与图标均取自官网 mir2db（技能列表 49~53），Icon = 官网技能id - 1
+    ThunderBoltRare = 108,        //强击-秘籍（法师，自动对 5x5 内敌人各放一次雷电术）      官网id115
+    AbsorbFlame = 109,            //吸魔炎风（法师，火焰旋风把普通怪卷进来，持续3秒）      官网id120
+    AbsorbFlameRare = 110,        //吸魔炎风-秘籍（持续6秒）                              官网id125
+    GreatTalisman = 111,          //万效符（道士，给自身与队友上幽灵盾/神圣战甲术/无极真气/先天气功）官网id121
+    GreatTalismanRare = 112,      //万效符-秘籍（额外净化1次、减伤更高）                  官网id126
+    SoulFireBallPlus = 113,       //灵魂火符(万效)（道士，向范围内敌人连发3张符）          官网id129
+    SoulFireBallPlusRare = 114,   //灵魂火符(万效-秘)（连发4张）                          官网id130
+    PetEnhancerRare = 115,        //血龙兽-秘籍（道士，同时召唤全部召唤物并施加血龙水）      官网id116
+    CrescentSlashRare = 116,      //月华乱舞-秘籍（刺客，范围更大、2段伤害并致盲）          官网id114
+    ShadowCombo = 117,            //影华连击（刺客，化虚影免疫伤害并连击6次）              官网id119
+    ShadowComboRare = 118,        //影华连击-秘笈（连击10次）                            官网id124
+    SkyThunderShot = 119,         //落雷杀（弓手，定点持续落雷，需要气）                  官网id122
+    SkyThunderShotRare = 120,     //落雷杀-秘笈                                         官网id127
+    DeathBlow = 142,              //灭杀（弓手，落雷杀-秘笈命中后10秒内的强力单体落雷）      官网id128
+    FlashDashRare = 143,          //拔刀术-秘籍（刺客）                                  官网id111
+    MoonMistRare = 144,           //月影雾-秘籍（刺客）                                  官网id88
+    DelayedExplosionRare = 145,   //爆闪-秘籍（弓手）                                    官网id112
+    ConcentrationRare = 146,      //气流术-秘籍（弓手）                                  官网id117
+
     //Map Events
     DigOutZombie = 200,
     Rubble = 201,
@@ -1440,7 +1461,12 @@ public enum SpellEffect : byte
     Mon563NPoisonCloud,
     Mon564NFlame,
     Mon572NLightning,
-    Mon573NCobweb
+    Mon573NCobweb,
+    //新增：强击-秘籍 / 灭杀 —— 目标身上落下一道雷电（与雷电术同一套素材）
+    ThunderBoltStrike,
+
+    //新增：落雷杀-秘笈结束时落点的「最后一击」（素材 = 原灭杀的 Magic_32bit 1810-1824）
+    SkyThunderShotFinal
 }
 
 
@@ -1476,6 +1502,13 @@ public enum BuffType : byte
     魔法盾,
     金刚术,
     天上秘术,
+    万效符,          //新增：万效符减伤
+    万效符秘笈,      //新增：万效符-秘籍减伤
+    影化连击,        //新增：影华连击施法期间免疫伤害
+    灭杀窗口,        //新增：落雷杀-秘笈命中后 10 秒内可施放「灭杀」
+    月华乱舞减准,    //新增：月下乱舞-秘籍 命中后降低目标准确
+    万效灵魂火符,    //新增：万效符施放后 5 分钟 BUFF —— 期间「灵魂火符」升格为「万效灵魂火符」
+    万效秘灵魂火符,  //新增：万效符-秘籍施放后 10 分钟 BUFF —— 期间「灵魂火符」升格为「万效秘灵魂火符」
 
     //Monster
     HornedArcherBuff = 50,

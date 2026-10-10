@@ -44,6 +44,15 @@ namespace Server.MirDatabase
                 new BuffInfo { Type = BuffType.魔法盾, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration },
                 new BuffInfo { Type = BuffType.金刚术, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration },
 
+                //新增技能 Buff（新增：必须在此注册，否则 AddBuff 会抛 NotImplementedException）
+                new BuffInfo { Type = BuffType.万效符, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration, Visible = true },
+                new BuffInfo { Type = BuffType.万效符秘笈, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration, Visible = true },
+                new BuffInfo { Type = BuffType.影化连击, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration, Visible = true },
+                new BuffInfo { Type = BuffType.灭杀窗口, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration, Visible = true },
+                new BuffInfo { Type = BuffType.月华乱舞减准, Properties = BuffProperty.Debuff | BuffProperty.RemoveOnDeath, StackType = BuffStackType.ResetDuration, Visible = true },
+                new BuffInfo { Type = BuffType.万效灵魂火符, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration, Visible = true },
+                new BuffInfo { Type = BuffType.万效秘灵魂火符, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration, Visible = true },
+
                 //Monsters
                 new BuffInfo { Type = BuffType.HornedArcherBuff, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration, Visible = true },
                 new BuffInfo { Type = BuffType.ColdArcherBuff, Properties = BuffProperty.None, StackType = BuffStackType.ResetDuration, Visible = true },

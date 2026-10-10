@@ -19,6 +19,10 @@ namespace Client.MirObjects
 
         public int Light = 6;
         public Color LightColour = Color.White;
+        /// <summary>顶点色（含 alpha）。加法混合下实际强度 = 纹理alpha × 该顶点色alpha，改这里可整体调暗/调亮。</summary>
+        public Color DrawColour = Color.White;
+        /// <summary>自定义帧序列（用于素材中间夹空帧的情况，如落雷杀 1770-1809）。非空时按此列表取帧，Count 需等于其长度。</summary>
+        public int[] FrameList;
 
         public bool Blend = true;
         public float Rate = 1F;
@@ -126,10 +130,13 @@ namespace Client.MirObjects
             }
 
 
+            //素材中间可能夹空帧（如落雷杀 1770-1809），此时按 FrameList 取帧
+            int index = (FrameList != null && CurrentFrame < FrameList.Length) ? FrameList[CurrentFrame] : BaseIndex + CurrentFrame;
+
             if (Blend)
-                Library.DrawBlend(BaseIndex + CurrentFrame, DrawLocation, Color.White, true, Rate);
+                Library.DrawBlend(index, DrawLocation, DrawColour, true, Rate);
             else
-                Library.Draw(BaseIndex + CurrentFrame, DrawLocation, Color.White, true);
+                Library.Draw(index, DrawLocation, DrawColour, true);
         }
 
         public void Clear()
@@ -390,7 +397,6 @@ namespace Client.MirObjects
     public class BuffEffect : Effect
     {
         public BuffType BuffType;
-        public Color DrawColour { get; set; } = Color.White;
 
         public BuffEffect(MLibrary library, int baseIndex, int count, int duration, MapObject owner, bool blend, BuffType buffType, Color? drawColour = null)
             : base(library, baseIndex, count, duration, owner, 0)

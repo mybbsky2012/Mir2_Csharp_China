@@ -1,5 +1,5 @@
 using System.Drawing;
-﻿using Server.MirDatabase;
+using Server.MirDatabase;
 using Server.MirEnvir;
 using Server.MirNetwork;
 using Server.MirObjects.Monsters;
@@ -500,6 +500,9 @@ namespace Server.MirObjects
                             }
                             break;
                         }
+                        break;
+                    case BuffType.影化连击: //影华连击的「化为虚影」结束，恢复显形
+                        Hidden = false;
                         break;
                     case BuffType.绝对封锁:
                         if (!HasAnyBuffs(BuffType.绝对封锁))
@@ -2334,6 +2337,40 @@ namespace Server.MirObjects
         {
             Enqueue(magic.GetInfo(false));
         }
+
+        /// <summary>
+        /// 新增技能的联动授予：
+        ///   学会「万效符」        → 自动学会「灵魂火符(万效)」
+        ///   学会「万效符-秘籍」    → 自动学会「灵魂火符(万效-秘)」
+        ///   学会「落雷杀-秘笈」    → 自动学会「灭杀」
+        /// </summary>
+        public void GrantLinkedMagics(Spell learned)
+        {
+            switch (learned)
+            {
+                case Spell.GreatTalisman:
+                    GrantMagic(Spell.SoulFireBallPlus);
+                    break;
+                case Spell.GreatTalismanRare:
+                    GrantMagic(Spell.SoulFireBallPlusRare);
+                    break;
+                case Spell.SkyThunderShotRare:
+                    GrantMagic(Spell.DeathBlow);
+                    break;
+            }
+        }
+
+        public void GrantMagic(Spell spell)
+        {
+            for (int i = 0; i < Info.Magics.Count; i++)
+                if (Info.Magics[i].Spell == spell) return;
+
+            UserMagic magic = new UserMagic(spell);
+            if (magic.Info == null) return;
+
+            Info.Magics.Add(magic);
+            SendMagicInfo(magic);
+        }
         private void RemoveTempSkills(IEnumerable<string> skillsToRemove)
         {
             foreach (var skill in skillsToRemove)
@@ -2507,12 +2544,15 @@ namespace Server.MirObjects
 
             if (HasBuff(BuffType.气流术, out Buff concentration))
             {
-                concentration.Set("InterruptTime", Envir.Time + (Settings.Second * 3));
-
-                if (!concentration.Get<bool>("Interrupted"))
+                if (!concentration.Get<bool>("Moveable"))      //气流术-秘籍：移动中不中断气功凝聚
                 {
-                    concentration.Set("Interrupted", true);
-                    UpdateConcentration(true, true);
+                    concentration.Set("InterruptTime", Envir.Time + (Settings.Second * 3));
+
+                    if (!concentration.Get<bool>("Interrupted"))
+                    {
+                        concentration.Set("Interrupted", true);
+                        UpdateConcentration(true, true);
+                    }
                 }
             }
 
@@ -2584,12 +2624,15 @@ namespace Server.MirObjects
 
             if (HasBuff(BuffType.气流术, out Buff concentration))
             {
-                concentration.Set("InterruptTime", Envir.Time + (Settings.Second * 3));
-
-                if (!concentration.Get<bool>("Interrupted"))
+                if (!concentration.Get<bool>("Moveable"))      //气流术-秘籍：移动中不中断气功凝聚
                 {
-                    concentration.Set("Interrupted", true);
-                    UpdateConcentration(true, true);
+                    concentration.Set("InterruptTime", Envir.Time + (Settings.Second * 3));
+
+                    if (!concentration.Get<bool>("Interrupted"))
+                    {
+                        concentration.Set("Interrupted", true);
+                        UpdateConcentration(true, true);
+                    }
                 }
             }            
 
@@ -2748,12 +2791,15 @@ namespace Server.MirObjects
             {
                 if (HasBuff(BuffType.气流术, out Buff concentration))
                 {
-                    concentration.Set("InterruptTime", Envir.Time + (Settings.Second * 3));
-
-                    if (!concentration.Get<bool>("Interrupted"))
+                    if (!concentration.Get<bool>("Moveable"))      //气流术-秘籍：移动中不中断气功凝聚
                     {
-                        concentration.Set("Interrupted", true);
-                        UpdateConcentration(true, true);
+                        concentration.Set("InterruptTime", Envir.Time + (Settings.Second * 3));
+
+                        if (!concentration.Get<bool>("Interrupted"))
+                        {
+                            concentration.Set("Interrupted", true);
+                            UpdateConcentration(true, true);
+                        }
                     }
                 }
 
@@ -3478,13 +3524,45 @@ namespace Server.MirObjects
 
             UserMagic magic = GetMagic(spell);
 
+            //需求：万效符 / 万效符-秘籍 施放后另外挂一个「万效灵魂火符」/「万效秘灵魂火符」BUFF（5 / 10 分钟），
+            //这段时间内「灵魂火符」升格为「万效灵魂火符」/「万效秘灵魂火符」；BUFF 到时自动消失即还原成普通灵魂火符。
+            //★万效符技能本身的原有功能（幽灵盾/神圣战甲术/无极真气/先天气功、自身减伤、秘籍净化）完全不动，
+            //  升格效果走的是独立 BUFF，互不影响。
+            //注意：等级、MP 消耗、冷却都继续按「灵魂火符」自身的数据结算（magic 取 SoulFireBall）。
+            if (spell == Spell.SoulFireBall || spell == Spell.SoulFireBallPlus || spell == Spell.SoulFireBallPlusRare)
+            {
+                bool talismanUpgraded = false;
+
+                if (HasBuff(BuffType.万效秘灵魂火符))
+                {
+                    spell = Spell.SoulFireBallPlusRare;
+                    talismanUpgraded = true;
+                }
+                else if (HasBuff(BuffType.万效灵魂火符))
+                {
+                    spell = Spell.SoulFireBallPlus;
+                    talismanUpgraded = true;
+                }
+
+                //升格期间统一用「灵魂火符」的魔法数据；顺带兜住「老角色没学过万效版」的情况，
+                //避免客户端升格后发包、服务端却报「尚未学习该技能」
+                if (talismanUpgraded)
+                    magic = GetMagic(Spell.SoulFireBall) ?? magic;
+            }
+
             if (magic == null)
             {
+                //原来是静默失败（只回一发 UserLocation），玩家会完全看不到反应，这里补一条提示便于自查
+                ReceiveChat("尚未学习该技能，无法施展", ChatType.Hint);
                 Enqueue(new S.UserLocation { Direction = Direction, Location = CurrentLocation });
                 return;
             }
 
-            if ((location.X != 0) && (location.Y != 0) && magic.Info.Range != 0 && Functions.InRange(CurrentLocation, location, magic.Info.Range) == false) return;
+            if ((location.X != 0) && (location.Y != 0) && magic.Info.Range != 0 && Functions.InRange(CurrentLocation, location, magic.Info.Range) == false)
+            {
+                ReceiveChat("目标距离太远，无法施展", ChatType.Hint);
+                return;
+            }
 
             if (Hidden)
             {
@@ -3890,6 +3968,54 @@ namespace Server.MirObjects
                 case Spell.FireBounce:
                     if (!FireBounce(target, magic, this)) targetID = 0;
                     break;
+
+                //—— 新增技能（对照官网 mir2db）——
+
+                case Spell.ThunderBoltRare: //强击-秘籍：自动对 5x5 范围内敌人各放一次雷电术
+                    if (!ThunderBoltRare(target, magic)) targetID = 0;
+                    break;
+                case Spell.AbsorbFlame: //吸魔炎风
+                case Spell.AbsorbFlameRare: //吸魔炎风-秘籍
+                    AbsorbFlame(magic, spellTargetLock ? (target != null ? target.CurrentLocation : location) : location, spell == Spell.AbsorbFlameRare, out cast);
+                    break;
+                case Spell.GreatTalisman: //万效符
+                case Spell.GreatTalismanRare: //万效符-秘籍
+                    GreatTalisman(magic, spell == Spell.GreatTalismanRare, out cast);
+                    break;
+                case Spell.SoulFireBallPlus: //灵魂火符(万效)
+                case Spell.SoulFireBallPlusRare: //灵魂火符(万效-秘)
+                    if (!SoulFireballPlus(target, magic, spell == Spell.SoulFireBallPlusRare ? 6 : 3)) targetID = 0;
+                    break;
+                case Spell.PetEnhancerRare: //血龙兽-秘籍
+                    PetEnhancerRare(magic, out cast);
+                    break;
+                case Spell.CrescentSlashRare: //月华乱舞-秘籍
+                    CrescentSlashRare(magic);
+                    break;
+                case Spell.ShadowCombo: //影华连击
+                case Spell.ShadowComboRare: //影华连击-秘笈
+                    if (!ShadowCombo(target, magic, spell == Spell.ShadowComboRare)) targetID = 0;
+                    break;
+                case Spell.SkyThunderShot: //落雷杀
+                case Spell.SkyThunderShotRare: //落雷杀-秘笈
+                    SkyThunderShot(magic, spellTargetLock ? (target != null ? target.CurrentLocation : location) : location, spell == Spell.SkyThunderShotRare, out cast);
+                    break;
+                case Spell.DeathBlow: //灭杀
+                    if (!DeathBlow(target, magic)) targetID = 0;
+                    break;
+                case Spell.FlashDashRare: //拔刀术-秘籍（野蛮冲撞 + 拔刀术 合体连招）
+                    FlashDashRare(magic);
+                    return;
+                case Spell.MoonMistRare: //月影雾-秘籍
+                    MoonMistRare(magic);
+                    break;
+                case Spell.DelayedExplosionRare: //爆闪-秘籍
+                    if (!DelayedExplosion(target, magic)) targetID = 0;
+                    break;
+                case Spell.ConcentrationRare: //气流术-秘籍
+                    ConcentrationRare(magic);
+                    break;
+
                 default:
                     cast = false;
                     break;
@@ -3900,8 +4026,13 @@ namespace Server.MirObjects
                 magic.CastTime = Envir.Time;
             }
 
-            Enqueue(new S.Magic { Spell = spell, TargetID = targetID, Target = location, Cast = cast, Level = level });
-            Broadcast(new S.ObjectMagic { ObjectID = ObjectID, Direction = Direction, Location = CurrentLocation, Spell = spell, TargetID = targetID, Target = location, Cast = cast, Level = level });
+            //灵魂火符(万效)等多目标技能：附带副目标列表，客户端据此为每个目标画一张飞行符
+            //注意：绝大多数技能不设置副目标，这里必须取快照并保证非 null，否则 S.Magic 写包会 NRE
+            List<uint> secondaryTargetIDs = _secondaryTargetIDs ?? new List<uint>();
+            _secondaryTargetIDs = null;
+
+            Enqueue(new S.Magic { Spell = spell, TargetID = targetID, Target = location, Cast = cast, Level = level, SecondaryTargetIDs = secondaryTargetIDs });
+            Broadcast(new S.ObjectMagic { ObjectID = ObjectID, Direction = Direction, Location = CurrentLocation, Spell = spell, TargetID = targetID, Target = location, Cast = cast, Level = level, SecondaryTargetIDs = secondaryTargetIDs });
         }
 
         #region Elemental System
@@ -4247,6 +4378,721 @@ namespace Server.MirObjects
             DelayedAction action = new DelayedAction(DelayedType.Magic, Envir.Time + 500, magic, damage, target);
 
             ActionList.Add(action);
+        }
+
+        //==================================================================
+        //  新增技能实现（数值/图标对照官网 mir2db 技能列表 49~53）
+        //==================================================================
+
+        /// <summary>收集以 centre 为中心、边长为 size 的方形内全部敌对目标（怪物/玩家/英雄）。</summary>
+        private List<MapObject> GetHostileInSquare(Point centre, int size)
+        {
+            var list = new List<MapObject>();
+            int r = (size - 1) / 2;
+
+            for (int x = centre.X - r; x <= centre.X + r; x++)
+            {
+                for (int y = centre.Y - r; y <= centre.Y + r; y++)
+                {
+                    Point p = new Point(x, y);
+                    if (!CurrentMap.ValidPoint(p)) continue;
+
+                    Cell cell = CurrentMap.GetCell(p);
+                    if (cell == null || cell.Objects == null) continue;
+
+                    for (int i = 0; i < cell.Objects.Count; i++)
+                    {
+                        MapObject ob = cell.Objects[i];
+                        if (ob == null || ob.Dead) continue;
+                        if (ob.Race != ObjectType.Player && ob.Race != ObjectType.Monster && ob.Race != ObjectType.Hero) continue;
+                        if (!ob.IsAttackTarget(this)) continue;
+                        if (list.Contains(ob)) continue;
+                        list.Add(ob);
+                    }
+                }
+            }
+            return list;
+        }
+
+        //强击-秘籍（法师）：自动对 5x5 范围内的敌人各施放一次雷电术
+        private bool ThunderBoltRare(MapObject target, UserMagic magic)
+        {
+            if (target == null || !target.IsAttackTarget(this))
+            {
+                ReceiveChat("请先选择一个可攻击的目标", ChatType.Hint);
+                return false;
+            }
+
+            int damage = magic.GetDamage(GetAttackPower(Stats[Stat.MinMC], Stats[Stat.MaxMC]));
+
+            //官网：0级基准 5 格范围；3级"攻击范围增加"（本服最高 3 级，取 7x7 近似）
+            int size = magic.Level >= 3 ? 7 : 5;
+
+            var hit = GetHostileInSquare(target.CurrentLocation, size);
+
+            if (hit.Count == 0) return false;
+
+            //官网：2 级起有 25% 几率落雷数量翻倍
+            int times = (magic.Level >= 2 && Envir.Random.Next(4) == 0) ? 2 : 1;
+
+            for (int t = 0; t < times; t++)
+            {
+                for (int i = 0; i < hit.Count; i++)
+                {
+                    MapObject ob = hit[i];
+                    ActionList.Add(new DelayedAction(DelayedType.Magic, Envir.Time + 500 + (t * 300), magic, damage, ob, ob.CurrentLocation));
+                }
+            }
+            return true;
+        }
+
+        //吸魔炎风（法师）：在指定位置卷起火焰旋风，把普通怪物卷进来并持续造成伤害（秘籍版持续 6 秒）
+        private void AbsorbFlame(UserMagic magic, Point location, bool rare, out bool cast)
+        {
+            cast = false;
+            if (!CurrentMap.ValidPoint(location))
+            {
+                ReceiveChat("该位置无法施展吸魔炎风", ChatType.Hint);
+                return;
+            }
+
+            int duration = rare ? 6 : 3;
+            int damage = magic.GetDamage(GetAttackPower(Stats[Stat.MinMC], Stats[Stat.MaxMC]));
+            int delay = Functions.MaxDistance(CurrentLocation, location) * 50 + 500;
+
+            CurrentMap.ActionList.Add(new DelayedAction(DelayedType.Magic, Envir.Time + delay, this, magic, damage, location, duration));
+            cast = true;
+        }
+
+        //万效符（道士）：给自身与范围内队友挂上幽灵盾/神圣战甲术/无极真气/先天气功，自身额外减伤
+        /// <summary>万效符施放后「灵魂火符 → 万效灵魂火符」的升格 BUFF 时长（秒）</summary>
+        private const int GreatTalismanUpgradeDuration = 300;        // 5 分钟
+        /// <summary>万效符-秘籍施放后「灵魂火符 → 万效秘灵魂火符」的升格 BUFF 时长（秒）</summary>
+        private const int GreatTalismanUpgradeRareDuration = 600;    // 10 分钟
+
+        private void GreatTalisman(UserMagic magic, bool rare, out bool cast)
+        {
+            cast = false;
+
+            UserItem item = GetAmulet(1);
+            if (item == null)
+            {
+                ReceiveChat("必须装备护身符才能施展万效符", ChatType.Hint);
+                return;
+            }
+            cast = true;
+
+            int duration = 30 + (magic.Level + 1) * 20;                    //秒
+            int power = magic.GetPower(GetAttackPower(Stats[Stat.MinSC], Stats[Stat.MaxSC]));
+            //官网：万效符自身减伤 10%；万效符-秘籍 0级减伤 20%，之后每级再 +5%（25% / 35%）
+            int reduction = rare ? (20 + magic.Level * 5) : 10;             //减伤 %
+            int scBonus = Math.Max(1, Stats[Stat.MaxSC] / 5);
+
+            var targets = new List<HumanObject> { this };
+
+            if (GroupMembers != null)
+            {
+                for (int i = 0; i < GroupMembers.Count; i++)
+                {
+                    HumanObject member = GroupMembers[i];
+                    if (member == null || member.Node == null || member.Dead) continue;
+                    if (member.CurrentMap != CurrentMap) continue;
+                    if (Functions.MaxDistance(CurrentLocation, member.CurrentLocation) > 5) continue;
+                    if (targets.Contains(member)) continue;
+                    targets.Add(member);
+                }
+            }
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                HumanObject ob = targets[i];
+
+                ob.AddBuff(BuffType.幽灵盾, this, Settings.Second * duration, new Stats { [Stat.MaxMAC] = ob.Level / 7 + 4 });
+                ob.AddBuff(BuffType.神圣战甲术, this, Settings.Second * duration, new Stats { [Stat.MaxAC] = ob.Level / 7 + 4 });
+                ob.AddBuff(BuffType.无极真气, this, Settings.Second * duration, new Stats { [Stat.MaxSC] = scBonus });
+                ob.AddBuff(BuffType.先天气功, this, Settings.Second * duration, new Stats
+                {
+                    [Stat.气功盾恢复数率] = 10,
+                    [Stat.气功盾恢复生命值] = power
+                });
+
+                //万效符-秘籍：额外净化 1 次
+                if (rare)
+                {
+                    for (int k = 0; k < ob.Buffs.Count; k++)
+                    {
+                        var buff = ob.Buffs[k];
+                        if (!buff.Properties.HasFlag(BuffProperty.Debuff)) continue;
+                        ob.RemoveBuff(buff.Type);
+                    }
+
+                    if (ob.PoisonList.Any(x => x.PType == PoisonType.DelayedExplosion))
+                    {
+                        ob.ExplosionInflictedTime = 0;
+                        ob.ExplosionInflictedStage = 0;
+                    }
+
+                    ob.PoisonList.Clear();
+                }
+
+                ob.OperateTime = 0;
+            }
+
+            AddBuff(rare ? BuffType.万效符秘笈 : BuffType.万效符, this, Settings.Second * duration, new Stats
+            {
+                [Stat.伤害降低数率] = reduction
+            });
+
+            //★需求：万效符 / 万效符-秘籍 施放后，额外挂一个「灵魂火符升格」BUFF（普通 5 分钟 / 秘籍 10 分钟）。
+            //  该 BUFF 只负责把「灵魂火符」升格为「万效灵魂火符」/「万效秘灵魂火符」，到时自动消失即还原成普通灵魂火符。
+            //  ★万效符原有功能（护盾、减伤、净化）与时长完全不动，这里是纯新增的独立 BUFF。
+            AddBuff(rare ? BuffType.万效秘灵魂火符 : BuffType.万效灵魂火符, this,
+                Settings.Second * (rare ? GreatTalismanUpgradeRareDuration : GreatTalismanUpgradeDuration), new Stats());
+
+            //确保客户端已学会对应的「万效版灵魂火符」，否则客户端升格后发来的施法包在本地取不到技能数据
+            GrantMagic(rare ? Spell.SoulFireBallPlusRare : Spell.SoulFireBallPlus);
+
+            OperateTime = 0;
+
+            ConsumeItem(item, 1);
+            LevelMagic(magic);
+        }
+
+        //灵魂火符(万效)（道士）：向范围内的敌人连续施放 N 张灵魂火符（秘籍版 4 张）
+        private List<uint> _secondaryTargetIDs;   //灵魂火符(万效)等多目标技能的副目标，随 S.Magic/S.ObjectMagic 下发
+
+        //灵魂火符(万效)：一次飞出 count 张符，同时攻击 count 个目标（秘籍 6 张，普通 3 张）
+        private bool SoulFireballPlus(MapObject target, UserMagic magic, int count)
+        {
+            UserItem item = GetAmulet(1);
+            if (item == null)
+            {
+                ReceiveChat("必须装备护身符才能施展灵魂火符(万效)", ChatType.Hint);
+                return false;
+            }
+
+            if (target == null || !target.IsAttackTarget(this))
+            {
+                ReceiveChat("请先选择一个可攻击的目标", ChatType.Hint);
+                return false;
+            }
+
+            int damage = magic.GetDamage(GetAttackPower(Stats[Stat.MinSC], Stats[Stat.MaxSC]));
+
+            //主目标优先，其余从目标 5×5 范围内补充，最多 count 个目标、一符一目标
+            var targets = new List<MapObject> { target };
+            foreach (var ob in GetHostileInSquare(target.CurrentLocation, 5))
+            {
+                if (targets.Count >= count) break;
+                if (ob == target || !ob.IsAttackTarget(this)) continue;
+                targets.Add(ob);
+            }
+
+            int distance = Functions.MaxDistance(CurrentLocation, target.CurrentLocation);
+            int baseDelay = distance * 50 + 500;
+
+            _secondaryTargetIDs = new List<uint>();
+            for (int i = 1; i < targets.Count; i++)
+                _secondaryTargetIDs.Add(targets[i].ObjectID);
+
+            foreach (var ob in targets)
+                ActionList.Add(new DelayedAction(DelayedType.Magic, Envir.Time + baseDelay, magic, damage, ob, ob.CurrentLocation));
+
+            ConsumeItem(item, 1);
+            return true;
+        }
+
+        //血龙兽-秘籍（道士）：血龙水的增强版。
+        //
+        //需求（2026-10-10 澄清）：
+        //  一次性把「身上所有召唤技能」全部施放一遍（召唤骷髅 / 召唤神兽 / 精魂召唤术），
+        //  把能召唤的召唤物一次全叫出来，然后给身上所有召唤物统一挂上「血龙水」（宠物身上出特效），
+        //  持续时间 = 普通血龙水的 2 倍。
+        //  注意：不再是「把已有召唤物召回 + 强化」，也不是「只强化已有的那几只」。
+        private void PetEnhancerRare(UserMagic magic, out bool cast)
+        {
+            cast = false;
+
+            //本服道士的三个召唤技能；没学会的直接跳过（GetMagic 返回 null）。
+            //各自沿用原有规则：已有同名召唤物则召回；缺护身符材料 / 达数量上限则该项跳过。
+            Spell[] summonSpells = { Spell.SummonSkeleton, Spell.SummonShinsu, Spell.SummonHolyDeva };
+            string[] summonPetNames = { Settings.SkeletonName, Settings.ShinsuName, Settings.AngelName };
+            int[] summonAmuletCosts = { 1, 5, 2 };
+
+            //先做一次护身符预算检查（只用于提示）：材料不够时召唤会静默跳过，
+            //玩家会以为「秘籍没生效」，所以提前算一遍并给出原因。
+            bool amuletShort = false;
+
+            int amuletLeft = 0;
+            for (int i = 0; i < Info.Equipment.Length; i++)
+            {
+                UserItem equipped = Info.Equipment[i];
+                if (equipped == null) continue;
+                if (equipped.Info.Type != ItemType.护身符 || equipped.Info.Shape != 0) continue;
+
+                amuletLeft += equipped.Count;
+            }
+
+            for (int i = 0; i < summonSpells.Length; i++)
+            {
+                if (GetMagic(summonSpells[i]) == null) continue;
+
+                //身上已有同名召唤物 → 走「召回」流程，不消耗护身符
+                bool exists = false;
+                for (int p = 0; p < Pets.Count; p++)
+                {
+                    MonsterObject check = Pets[p];
+                    if (check == null || check.Dead || check.Node == null) continue;
+                    if (check.Info.Name != summonPetNames[i]) continue;
+
+                    exists = true;
+                    break;
+                }
+
+                if (exists) continue;
+
+                if (amuletLeft < summonAmuletCosts[i])
+                {
+                    amuletShort = true;
+                    continue;
+                }
+
+                amuletLeft -= summonAmuletCosts[i];
+            }
+
+            bool hasSummonSpell = false;
+
+            for (int i = 0; i < summonSpells.Length; i++)
+            {
+                UserMagic summonMagic = GetMagic(summonSpells[i]);
+                if (summonMagic == null) continue;
+
+                hasSummonSpell = true;
+
+                switch (summonSpells[i])
+                {
+                    case Spell.SummonSkeleton:
+                        SummonSkeleton(summonMagic);
+                        break;
+                    case Spell.SummonShinsu:
+                        SummonShinsu(summonMagic);
+                        break;
+                    case Spell.SummonHolyDeva:
+                        SummonHolyDeva(summonMagic);
+                        break;
+                }
+            }
+
+            if (amuletShort)
+                ReceiveChat("护身符不足，部分召唤物未能召唤", ChatType.Hint);
+
+            bool hasPets = false;
+            for (int i = 0; i < Pets.Count; i++)
+            {
+                MonsterObject pet = Pets[i];
+                if (pet == null || pet.Dead || pet.Node == null) continue;
+
+                hasPets = true;
+                break;
+            }
+
+            //没学会任何召唤技能、身上也没宠物 —— 这本秘籍就没有任何作用，给出提示
+            if (!hasSummonSpell && !hasPets)
+            {
+                ReceiveChat("尚未学会任何召唤技能，身上也没有召唤物", ChatType.Hint);
+                return;
+            }
+
+            //血龙水持续时间 =（道术攻击力 + 技能强度）× 2（普通血龙水的 2 倍）
+            int duration = (GetAttackPower(Stats[Stat.MinSC], Stats[Stat.MaxSC]) + magic.GetPower()) * 2;
+
+            //召唤是延迟落地的（召唤骷髅 / 召唤神兽 500ms、精魂召唤术 1500ms），
+            //所以往后推一段时间，等全部召唤物都进 Pets 了再统一挂血龙水，
+            //否则刚召唤出来的那几只会被漏掉。
+            ActionList.Add(new DelayedAction(DelayedType.PetEnhancerRareApply, Envir.Time + PetEnhancerRareApplyDelay, duration));
+
+            cast = true;
+            LevelMagic(magic);
+        }
+
+        //「一次性召唤」全部落地所需等待时间（大于精魂召唤术的 1500ms）
+        private const int PetEnhancerRareApplyDelay = 2000;
+
+        //血龙兽-秘籍：等召唤全部落地后，统一给身上所有召唤物挂上血龙水（时长已按 2 倍算好）
+        protected void CompletePetEnhancerRareApply(IList<object> data)
+        {
+            if (Dead) return;
+
+            int duration = (int)data[0];
+
+            for (int i = 0; i < Pets.Count; i++)
+            {
+                MonsterObject pet = Pets[i];
+                if (pet == null || pet.Dead || pet.Node == null) continue;
+
+                int dcInc = 2 + pet.Level * 2;
+                int acInc = 4 + pet.Level;
+
+                //血龙水本体效果（DC / AC 提升），客户端会按 BuffType.血龙水 播放宠物身上的血龙水特效
+                pet.AddBuff(BuffType.血龙水, this, Settings.Second * duration, new Stats
+                {
+                    [Stat.MinDC] = dcInc,
+                    [Stat.MaxDC] = dcInc,
+                    [Stat.MinAC] = acInc,
+                    [Stat.MaxAC] = acInc
+                });
+            }
+        }
+
+        //月华乱舞-秘籍（刺客）：默认攻击范围 4 个方向各 3 格，2 段伤害并眩晕
+        private void CrescentSlashRare(UserMagic magic)
+        {
+            int damageBase = GetAttackPower(Stats[Stat.MinDC], Stats[Stat.MaxDC]);
+            if (Envir.Random.Next(0, 100) <= Stats[Stat.准确])
+                damageBase += damageBase;
+            int damageFinal = magic.GetDamage(damageBase);
+
+            //默认攻击范围：4 个方向（朝向 -1 / 朝向 / 朝向 +1 / 朝向 +2），每个方向 3 格
+            const int slashDirs = 4;
+            const int slashReach = 3;
+
+            var hitTargets = new List<MapObject>();
+
+            for (int d = 0; d < slashDirs; d++)
+            {
+                MirDirection dir = (MirDirection)(((int)Direction + d - 1 + 8) % 8);
+
+                for (int step = 1; step <= slashReach; step++)
+                {
+                    Point hitPoint = Functions.PointMove(CurrentLocation, dir, step);
+                    if (!CurrentMap.ValidPoint(hitPoint)) break;
+
+                    Cell cell = CurrentMap.GetCell(hitPoint);
+                    if (cell == null || cell.Objects == null) continue;
+
+                    for (int j = 0; j < cell.Objects.Count; j++)
+                    {
+                        MapObject target = cell.Objects[j];
+                        if (target.Race != ObjectType.Monster && target.Race != ObjectType.Player) continue;
+                        if (!target.IsAttackTarget(this)) continue;
+                        if (hitTargets.Contains(target)) continue;
+
+                        hitTargets.Add(target);
+                    }
+                }
+            }
+
+            for (int i = 0; i < hitTargets.Count; i++)
+            {
+                MapObject target = hitTargets[i];
+
+                //2 段伤害
+                ActionList.Add(new DelayedAction(DelayedType.Damage, Envir.Time + AttackSpeed, target, damageFinal, DefenceType.AC, true));
+                ActionList.Add(new DelayedAction(DelayedType.Damage, Envir.Time + AttackSpeed + 150, target, damageFinal, DefenceType.AC, true));
+
+                //眩晕（官网：0级基准眩晕5秒，每级+1秒）
+                target.ApplyPoison(new Poison
+                {
+                    Owner = this,
+                    PType = PoisonType.Stun,
+                    Duration = 5 + magic.Level,
+                    TickSpeed = 1000
+                }, this);
+
+                //眩晕期间降低 (1 + 等级) 点准确（官网：0级降1点，每级+1点）
+                target.AddBuff(BuffType.月华乱舞减准, this, Settings.Second * (5 + magic.Level), new Stats
+                {
+                    [Stat.准确] = -(1 + magic.Level)
+                });
+
+                LevelMagic(magic);
+            }
+        }
+
+        //影华连击（刺客）：化成虚影（隐藏 + 免疫伤害），位移至正前方 2 格（秘笈 3 格）后对目标连续攻击
+        private bool ShadowCombo(MapObject target, UserMagic magic, bool rare)
+        {
+            //★类型必须先判：ItemObject 的 IsAttackTarget 是直接 throw 的，
+            //  FindObject(targetID) 有可能返回玩家脚边的掉落物，不能无脑调用。
+            if (target == null || (!(target is HumanObject) && !(target is MonsterObject)) || !target.IsAttackTarget(this))
+            {
+                ReceiveChat("请先选择一个可攻击的目标", ChatType.Hint);
+                return false;
+            }
+            if (Functions.MaxDistance(CurrentLocation, target.CurrentLocation) > 1)
+            {
+                ReceiveChat("影华连击必须贴身（1 格内）才能施展", ChatType.Hint);
+                return false;
+            }
+            if ((Info.MentalState != 1) && !CanFly(target.CurrentLocation)) return false;
+
+            int damage = magic.GetDamage(GetAttackPower(Stats[Stat.MinDC], Stats[Stat.MaxDC]));
+
+            //官网：影华连击-秘籍 3 级时解除自身所有状态异常（状态异常中也可使用）
+            if (rare && magic.Level >= 3)
+            {
+                for (int k = 0; k < Buffs.Count; k++)
+                {
+                    var buff = Buffs[k];
+                    if (!buff.Properties.HasFlag(BuffProperty.Debuff)) continue;
+                    RemoveBuff(buff.Type);
+                }
+
+                PoisonList.Clear();
+            }
+
+            //化虚影：人物隐藏（变成影子）+ 化虚影期间免疫伤害
+            //Hidden 的 setter 只广播给别人、不含自己，所以要单独 Enqueue 一份
+            //隐藏时长与客户端特效同步：只播当前朝向那一个方向的 20 帧
+            int duration = rare ? ShadowComboRareDuration : ShadowComboDuration;
+
+            Hidden = true;
+            Enqueue(new S.ObjectHidden { ObjectID = ObjectID, Hidden = true });
+            //隐藏比位移多持续 ShadowComboStealthExtra，确保位移先生效、人物再在新位置显形
+            AddBuff(BuffType.影化连击, this, duration + ShadowComboStealthExtra, new Stats { [Stat.伤害降低数率] = 100 });
+
+            //需求：特效播完后人物才位移，落点为正前方 2 格；被地形挡住就停在能走到的最远处。
+            //★这里**绝不能把生物当阻挡**：影华连击要求贴身（目标就在正前方 1 格），
+            //  一旦用生物阻挡，第一格就被占住、destination 始终等于 CurrentLocation，
+            //  下面那句 if (destination != CurrentLocation) 永远为 false → 延迟位移根本不会入队，
+            //  表现就是「释放完技能人物没有位移」（这就是之前那个 bug 的根因）。
+            //  改用 CanFly（只看地图边界 + 地形是否可走，**忽略生物**）实现「化虚影穿透」。
+            int jump = 2;
+            Point destination = CurrentLocation;
+
+            for (int i = 0; i < jump; i++)
+            {
+                Point next = Functions.PointMove(destination, Direction, 1);
+                if (!CanFly(next)) break;
+                destination = next;
+            }
+
+            if (destination != CurrentLocation)
+            {
+                ActionList.Add(new DelayedAction(DelayedType.ShadowComboDash, Envir.Time + duration, destination, Direction));
+            }
+
+            //★★ 群体连击：影华连击/秘籍是群攻技能，打的是**自身周围 3×3**。
+            //  每个方向的挥砍动作各算一次攻击 → 整段特效连续造成若干次伤害（普通 6 次 / 秘籍 10 次），
+            //  每一次伤害都同时结算 3×3 范围内的**所有**可攻击目标。
+            List<MapObject> targets = new List<MapObject>();
+
+            for (int x = CurrentLocation.X - 1; x <= CurrentLocation.X + 1; x++)
+            {
+                for (int y = CurrentLocation.Y - 1; y <= CurrentLocation.Y + 1; y++)
+                {
+                    Point p = new Point(x, y);
+                    if (!CurrentMap.ValidPoint(p)) continue;
+
+                    Cell cell = CurrentMap.GetCell(p);
+                    if (cell == null || cell.Objects == null) continue;
+
+                    for (int k = 0; k < cell.Objects.Count; k++)
+                    {
+                        MapObject ob = cell.Objects[k];
+                        if (ob == this) continue;
+
+                        //★必须先按**类型**过滤再问 IsAttackTarget：
+                        //  ItemObject（地上的掉落物）的 IsAttackTarget 是直接 throw NotSupportedException 的，
+                        //  不分青红皂白地调用会把内循环线程打断（曾经就是这里报 NotSupportedException）。
+                        //  能被打的只有 HumanObject（玩家/英雄）和 MonsterObject（怪物/宠物）。
+                        if (!(ob is HumanObject) && !(ob is MonsterObject)) continue;
+
+                        if (ob.Dead) continue;
+                        if (!ob.IsAttackTarget(this)) continue;
+                        if (targets.Contains(ob)) continue;
+
+                        targets.Add(ob);
+                    }
+                }
+            }
+
+            //兜底：3×3 扫描没命中任何目标时（例如目标刚好在被地形判定挡住的格上），
+            //至少把玩家选定的那个目标打进连击，避免「放了技能却没伤害」。
+            if (targets.Count == 0) targets.Add(target);
+
+            //连击伤害：按动画节奏均匀分布到**挥砍主体动画**（ShadowComboDuration）里
+            //（动画期间人物隐藏，伤害不能挤在最前面打完，否则动画还没播完怪就已经倒地）
+            //秘籍的收招爆炸段（2000-2600ms）留给下面那记「最后一击」，不与连击段混在一起。
+            int hits = rare ? ShadowComboRareHits : ShadowComboHits;
+            int step = (ShadowComboDuration - 250) / hits;
+            for (int i = 0; i < hits; i++)
+            {
+                for (int t = 0; t < targets.Count; t++)
+                {
+                    MapObject ob = targets[t];
+                    ActionList.Add(new DelayedAction(DelayedType.Magic, Envir.Time + 250 + (i * step), magic, damage, ob, ob.CurrentLocation));
+                }
+            }
+
+            //秘籍专属：收招「最后一击」再补一次满伤害（本体 20 帧播完、收招爆炸段的正中间），
+            //伤害按**最大物理攻击**结算（取 MaxDC，不再随机下限），让收招那一下明显比其他连击重。
+            if (rare)
+            {
+                int finalDamage = magic.GetDamage(Stats[Stat.MaxDC]);
+
+                for (int t = 0; t < targets.Count; t++)
+                {
+                    MapObject ob = targets[t];
+                    ActionList.Add(new DelayedAction(DelayedType.Magic, Envir.Time + ShadowComboRareFinalTime, magic, finalDamage, ob, ob.CurrentLocation));
+                }
+            }
+
+            return true;
+        }
+
+        //影华连击连击段数：整段特效连续造成多少次伤害（每个方向的挥砍动作算一次攻击）
+        private const int ShadowComboHits = 6;
+        private const int ShadowComboRareHits = 10;
+
+        //秘籍收招「最后一击」的触发时刻：主体 20 帧（2000ms）播完、收招爆炸 6 帧（2000-2600ms）的正中间，
+        //正好对上客户端那一段爆炸特效的最亮时刻，也确保它排在 10 次连击（最晚 1825ms）之后
+        private const int ShadowComboRareFinalTime = 2300;
+
+        //影华连击动画总时长（客户端 Magic_32bit 1390-1559 中「当前朝向」那一个方向的 20 帧，每帧 100ms = 2000ms），
+        //隐藏时长与延迟位移都以它为准，必须与客户端 ShadowComboDuration 保持一致
+        private const int ShadowComboDuration = 2000;
+
+        //影华连击-秘籍：20 帧本体 + 收招最后一击 6 帧 = 26 帧，必须与客户端 ShadowComboRareDuration 一致
+        private const int ShadowComboRareDuration = 2600;
+
+        //「影化连击」buff 的额外容差：让隐藏比位移多持续一点，
+        //保证「位移包先到、人物再显形」，否则人物会在原地闪一帧再跳过去。
+        private const int ShadowComboStealthExtra = 300;
+
+        //影华连击：特效播完后的延迟位移（把人物移到施法时算好的落点）
+        protected void CompleteShadowComboDash(IList<object> data)
+        {
+            if (Dead) return;
+
+            Point destination = (Point)data[0];
+            MirDirection direction = (MirDirection)data[1];
+
+            if (destination == CurrentLocation) return;
+
+            //只校验落点地形是否合法。
+            //★不再因为「落点有生物」就取消本次位移：影华连击本来就是化虚影穿透，
+            //  如果因为 2 秒后落点恰好站了别的怪就整段取消，玩家会完全看不到位移。
+            Cell cell = CurrentMap.GetCell(destination);
+            if (cell == null || !cell.Valid) return;
+
+            int distance = Functions.MaxDistance(CurrentLocation, destination);
+            CurrentMap.GetCell(CurrentLocation).Remove(this);
+            RemoveObjects(direction, 1);
+            CurrentLocation = destination;
+            CurrentMap.GetCell(CurrentLocation).Add(this);
+            AddObjects(direction, 1);
+            Enqueue(new S.UserDashAttack { Direction = direction, Location = destination });
+            Broadcast(new S.ObjectDashAttack { ObjectID = ObjectID, Direction = direction, Location = destination, Distance = distance });
+        }
+
+        //落雷杀（弓手）：在指定位置持续引发群体落雷；普通 4 格、秘笈 8 格（范围在 Map.CompleteMagic 里展开）
+        private void SkyThunderShot(UserMagic magic, Point location, bool rare, out bool cast)
+        {
+            cast = false;
+            if (!CurrentMap.ValidPoint(location))
+            {
+                ReceiveChat("该位置无法施展落雷杀", ChatType.Hint);
+                return;
+            }
+
+            //落雷杀系列必须装备「气功石」（护身符类、Shape=4）；仅作为施法前置，不消耗
+            if (GetAmulet(1, 4) == null)
+            {
+                ReceiveChat("必须装备【气功石】才能施展落雷杀", ChatType.Hint);
+                return;
+            }
+
+            int damage = magic.GetDamage(GetRangeAttackPower(Stats[Stat.MinMC], Stats[Stat.MaxMC], 3));
+            damage = ApplyArcherState(damage);
+
+            //持续时间固定：气功术为被动技能，玩家无法主动凝聚气功，因此不再消耗/依赖气功层数
+            int duration = rare ? 6 : 4;
+
+            int delay = Functions.MaxDistance(CurrentLocation, location) * 50 + 500;
+
+            CurrentMap.ActionList.Add(new DelayedAction(DelayedType.Magic, Envir.Time + delay, this, magic, damage, location, duration));
+
+            if (rare)
+                AddBuff(BuffType.灭杀窗口, this, Settings.Second * 10, new Stats());
+
+            cast = true;
+        }
+
+        //灭杀（弓手）：落雷杀-秘笈生效后的 10 秒内，对 1 格范围内的单个敌人打出更强的落雷
+        private bool DeathBlow(MapObject target, UserMagic magic)
+        {
+            if (target == null || !target.IsAttackTarget(this)) return false;
+
+            if (!HasBuff(BuffType.灭杀窗口, out _))
+            {
+                ReceiveChat("需要先施放「落雷杀-秘笈」", ChatType.Hint);
+                return false;
+            }
+
+            int distance = Functions.MaxDistance(CurrentLocation, target.CurrentLocation);
+            if (distance > 1 && Info.MentalState != 1)
+            {
+                ReceiveChat("灭杀必须贴身（1 格内）才能施展", ChatType.Hint);
+                return false;
+            }
+
+            int damage = magic.GetDamage(GetRangeAttackPower(Stats[Stat.MinMC], Stats[Stat.MaxMC], distance));
+            damage = ApplyArcherState(damage);
+
+            ActionList.Add(new DelayedAction(DelayedType.Magic, Envir.Time + 400, magic, damage, target, target.CurrentLocation));
+            return true;
+        }
+
+        //月影雾-秘籍（刺客）：沿用月影雾的特效与音效，隐身持续时长增加 2 倍（攻击范围在 Map.CompleteMagic 里同步扩大 2 倍）
+        private void MoonMistRare(UserMagic magic)
+        {
+            for (int i = 0; i < Buffs.Count; i++)
+            {
+                if (Buffs[i].Type == BuffType.月影术) return;
+            }
+
+            var time = GetAttackPower(Stats[Stat.MinAC], Stats[Stat.MaxAC]);
+
+            //月影雾时长 (time + (等级+1)*5) * 500 → 秘籍翻倍
+            AddBuff(BuffType.月影术, this, (time + (magic.Level + 1) * 5) * 1000, new Stats());
+
+            CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.MoonMist }, CurrentLocation);
+
+            //攻击力翻倍（攻击范围扩大到 4 格由 Map.CompleteMagic 的 MoonMistRare 分支处理）
+            //注意 data[2] 必须是伤害值：这里原来误传了 time，会被当成伤害结算
+            int damage = magic.GetDamage(GetAttackPower(Stats[Stat.MinDC], Stats[Stat.MaxDC])) * 2;
+
+            DelayedAction action = new DelayedAction(DelayedType.Magic, Envir.Time + 500, this, magic, damage, CurrentLocation, Direction);
+            CurrentMap.ActionList.Add(action);
+
+            LevelMagic(magic);
+        }
+
+        //气流术-秘籍（弓手）：可在移动时凝聚气功，并立即获得 (等级+1) 层气功
+        private void ConcentrationRare(UserMagic magic)
+        {
+            int duration = 60 + (20 * magic.Level);
+
+            var buff = AddBuff(BuffType.气流术, this, Settings.Second * duration, new Stats());
+
+            buff.Set("InterruptTime", (long)0);
+            buff.Set("Interrupted", false);
+            buff.Set("Moveable", true);                 //官网：可以在移动时获得气功
+
+            //官网：升级 1~4 级时，使用时立即获得 1/2/3/4 层气功（0 级不额外获得）
+            if (GetMagic(Spell.Meditation) != null)
+            {
+                for (int i = 0; i < magic.Level; i++)
+                {
+                    ObtainElement(false);
+                }
+            }
+
+            LevelMagic(magic);
+            OperateTime = 0;
+
+            UpdateConcentration(true, false);
         }
         private void FireBang(UserMagic magic, Point location)
         {
@@ -4607,18 +5453,33 @@ namespace Server.MirObjects
         {
             cast = false;
 
-            UserItem amulet = GetAmulet(5);
-            if (amulet == null) return;
+            //需求：毒雾 = 灵魂火符式投掷 + 群毒，携带「灰色毒粉」或「黄色毒粉」都能放，
+            //效果由用掉的毒粉决定（与施毒术完全一致）：
+            //  · 灰色毒粉(Shape=1) → 绿毒(PoisonType.Green) → 持续掉血；
+            //  · 黄色毒粉(Shape=2) → 红毒(PoisonType.Red)   → 降低防御。
+            //基础伤害（对点 Value）两种毒都一样，只有中毒种类不同。
+            //
+            //注意一个坑，会让玩家觉得「按了完全没反应」：
+            //  「护身符」和「毒粉」共用同一个装备槽（EquipmentSlot.护身符，见 CanEquip 里
+            //  被注释掉的 `|| item.Info.Shape == 0`）：同一个槽不可能同时装着 5 张符和 5 个毒粉，
+            //  所以不能要求「5 符 + 5 毒粉」的双重条件，否则毒雾永远放不出来。
+            //  这里只校验「5 个毒粉」，灰/黄皆可（GetPoison(5) 的 shape=0 正是取 1 或 2 的任一）。
+            UserItem poison = GetPoison(5);
+            if (poison == null)
+            {
+                ReceiveChat("必须装备 5 个毒粉才能施展毒雾（灰色毒粉=掉血 / 黄色毒粉=掉防）", ChatType.Hint);
+                return;
+            }
 
-            UserItem poison = GetPoison(5, 1);
-            if (poison == null) return;
+            byte poisonShape = (byte)poison.Info.Shape;
 
             int delay = Functions.MaxDistance(CurrentLocation, location) * 50 + 500; //50 MS per Step
             int damage = magic.GetDamage(GetAttackPower(Stats[Stat.MinSC], Stats[Stat.MaxSC]));
 
-            DelayedAction action = new DelayedAction(DelayedType.Magic, Envir.Time + delay, this, magic, damage, location, (byte)Envir.Random.Next(Stats[Stat.毒素伤害]));
+            //data[5] = 用掉的毒粉形态，带到 Map.CompleteMagic → SpellObject，决定这一片云挂绿毒还是红毒
+            DelayedAction action = new DelayedAction(DelayedType.Magic, Envir.Time + delay, this, magic, damage, location, (byte)Envir.Random.Next(Stats[Stat.毒素伤害]), poisonShape);
 
-            ConsumeItem(amulet, 5);
+            //只消耗 5 个毒粉（护身符与毒粉共用一个槽，无法同时要求两样）
             ConsumeItem(poison, 5);
 
             CurrentMap.ActionList.Add(action);
@@ -5108,9 +5969,20 @@ namespace Server.MirObjects
 
         private void ShoulderDash(UserMagic magic)
         {
+            ShoulderDash(magic, true);
+        }
+
+        /// <summary>
+        /// 野蛮冲撞的位移与推挤逻辑。
+        /// finalise = true（普通野蛮冲撞）：由本函数负责结算技能等级并下发施法包。
+        /// finalise = false（拔刀术-秘籍连招的「野蛮」阶段）：只做位移与推挤，结算交给连招函数统一处理。
+        /// 返回本次实际突进的格数。
+        /// </summary>
+        private int ShoulderDash(UserMagic magic, bool finalise)
+        {
             if (InTrapRock || !CanWalk)
             {
-                return;
+                return 0;
             }
 
             Point _nextLocation;
@@ -5273,7 +6145,7 @@ namespace Server.MirObjects
             else
             {
                 _target?.Attacked(this, magic.GetDamage(0), DefenceType.None, false);
-                LevelMagic(magic);
+                if (finalise) LevelMagic(magic);
 
                 // Broadcast(new S.ObjectDash { ObjectID = ObjectID, Direction = Direction, Location = Front });
             }
@@ -5281,10 +6153,12 @@ namespace Server.MirObjects
             long now = Envir.Time;
 
             magic.CastTime = now;
-            Enqueue(new S.MagicCast { Spell = magic.Spell });
+            if (finalise) Enqueue(new S.MagicCast { Spell = magic.Spell });
 
             CellTime = now + 500;
             _stepCounter = 0;
+
+            return _cellsTravelled;
         }
 
         private void SlashingBurst(UserMagic magic, out bool cast)
@@ -5391,7 +6265,39 @@ namespace Server.MirObjects
 
                 target.Attacked(this, damageFinal, DefenceType.AC, false);
                 cast = true;
+
+                //★★ 最后一击：客户端 Magic_32bit 1300-1379（8 方向 × 每方向 6 帧有效）那套劈砍动作
+                //   播完之后，再补一记重击。伤害按**最大物理攻击**结算（取 MaxDC，不再随机下限）。
+                //   时机 = 施法起 600ms（客户端该特效是 6 帧 × FrameInterval≈100ms）。
+                int finalDamage = magic.GetDamage(Stats[Stat.MaxDC]);
+
+                ActionList.Add(new DelayedAction(DelayedType.DimensionalSwordFinal, Envir.Time + DimensionalSwordRareFinalDelay, magic, target, finalDamage));
             }
+        }
+
+        //时空剑-秘籍「最后一击」的触发时刻：等**整段技能特效播完**再补这一击。
+        //客户端那一套特效是 起手 300ms / 命中 1000ms / 收招爆炸 500+500ms，最长 1000ms；
+        //取 1100ms（1000ms + 100ms 间隔），确保这一击与技能本体效果不重叠。
+        //★★ 必须与客户端 PlayerObject.DimensionalSwordFinalDelay 完全一致。
+        private const int DimensionalSwordRareFinalDelay = 1100;
+
+        //时空剑-秘籍：特效播完后的「最后一击」——对同一目标再结算一次最大伤害
+        protected void CompleteDimensionalSwordFinal(IList<object> data)
+        {
+            if (Dead) return;
+
+            UserMagic magic = (UserMagic)data[0];
+            MapObject target = (MapObject)data[1];
+            int damage = (int)data[2];
+
+            if (magic == null || target == null || target.Dead) return;
+            if (target.CurrentMap != CurrentMap || target.Node == null) return;
+            if (!target.IsAttackTarget(this)) return;
+
+            //瞬移后应贴身，给 2 格容差；目标跑远就放弃这一击（不跨屏追打）
+            if (Functions.MaxDistance(CurrentLocation, target.CurrentLocation) > 2) return;
+
+            if (target.Attacked(this, damage, DefenceType.AC, false) > 0) LevelMagic(magic);
         }
         private void FurySpell(UserMagic magic, out bool cast)
         {
@@ -5609,12 +6515,26 @@ namespace Server.MirObjects
 
         private void FlashDash(UserMagic magic)
         {
+            FlashDash(magic, 0, false);
+        }
+
+        /// <summary>
+        /// 拔刀术的冲刺与斩杀逻辑。
+        /// minJump：强制的最小冲刺格数。拔刀术-秘籍连招时传 1，保证「推怪」之后一定还会再向前冲一格，
+        ///          客户端才会播放「刺客冲击（拔刀）」动作。
+        /// partOfCombo：true 表示这是连招的一段，本函数不结算技能等级、也不重复下发施法包，由连招函数统一处理。
+        /// attackDistance：挥刀的攻击距离（格）。普通拔刀术 1 格，拔刀术-秘籍 2 格。
+        /// 返回是否命中目标。
+        /// </summary>
+        private bool FlashDash(UserMagic magic, int minJump, bool partOfCombo, int attackDistance = 1)
+        {
             bool success = false;
             ActionTime = Envir.Time;
 
             int travel = 0;
             bool blocked = false;
             int jumpDistance = (magic.Level <= 1) ? 0 : 1;//3 max
+            if (jumpDistance < minJump) jumpDistance = minJump;
             Point location = CurrentLocation;
             for (int i = 0; i < jumpDistance; i++)
             {
@@ -5660,41 +6580,194 @@ namespace Server.MirObjects
             AttackTime = Envir.Time + attackDelay;
             SpellTime = Envir.Time + 300;
 
-            location = Functions.PointMove(location, Direction, 1);
-            if (CurrentMap.ValidPoint(location))
+            //攻击判定：从冲刺落点起，沿面朝方向最多检查 attackDistance 格，命中第一个目标即停
+            Point attackLocation = location;
+            for (int d = 0; d < attackDistance; d++)
             {
-                Cell cInfo = CurrentMap.GetCell(location);
-                if (cInfo.Objects != null)
+                attackLocation = Functions.PointMove(attackLocation, Direction, 1);
+                if (!CurrentMap.ValidPoint(attackLocation)) break;
+
+                Cell cInfo = CurrentMap.GetCell(attackLocation);
+                if (cInfo.Objects == null) continue;
+
+                for (int c = 0; c < cInfo.Objects.Count; c++)
                 {
-                    for (int c = 0; c < cInfo.Objects.Count; c++)
+                    MapObject ob = cInfo.Objects[c];
+                    switch (ob.Race)
                     {
-                        MapObject ob = cInfo.Objects[c];
-                        switch (ob.Race)
-                        {
-                            case ObjectType.Monster:
-                            case ObjectType.Player:
-                                //Only targets
-                                if (ob.IsAttackTarget(this))
+                        case ObjectType.Monster:
+                        case ObjectType.Player:
+                            //Only targets
+                            if (ob.IsAttackTarget(this))
+                            {
+                                DelayedAction action = new DelayedAction(DelayedType.Damage, AttackTime, ob, magic.GetDamage(GetAttackPower(Stats[Stat.MinDC], Stats[Stat.MaxDC])), DefenceType.AC, true);
+                                ActionList.Add(action);
+                                success = true;
+                                if ((((ob.Race != ObjectType.Player) || Settings.PvpCanResistPoison) && (Envir.Random.Next(Settings.PoisonAttackWeight) >= ob.Stats[Stat.毒物躲避])) && (Envir.Random.Next(15) <= magic.Level + 1))
                                 {
-                                    DelayedAction action = new DelayedAction(DelayedType.Damage, AttackTime, ob, magic.GetDamage(GetAttackPower(Stats[Stat.MinDC], Stats[Stat.MaxDC])), DefenceType.AC, true);
-                                    ActionList.Add(action);
-                                    success = true;
-                                    if ((((ob.Race != ObjectType.Player) || Settings.PvpCanResistPoison) && (Envir.Random.Next(Settings.PoisonAttackWeight) >= ob.Stats[Stat.毒物躲避])) && (Envir.Random.Next(15) <= magic.Level + 1))
-                                    {
-                                        DelayedAction pa = new DelayedAction(DelayedType.Poison, AttackTime, ob, PoisonType.Stun, SpellEffect.TwinDrakeBlade, magic.Level + 1, 1000);
-                                        ActionList.Add(pa);
-                                    }
+                                    DelayedAction pa = new DelayedAction(DelayedType.Poison, AttackTime, ob, PoisonType.Stun, SpellEffect.TwinDrakeBlade, magic.Level + 1, 1000);
+                                    ActionList.Add(pa);
                                 }
-                                break;
-                        }
+                            }
+                            break;
                     }
                 }
+
+                if (success) break;
             }
-            if (success) //technicaly this makes flashdash lvl when it casts rather then when it hits (it wont lvl if it's not hitting!)
+            if (success && !partOfCombo) //technicaly this makes flashdash lvl when it casts rather then when it hits (it wont lvl if it's not hitting!)
                 LevelMagic(magic);
 
             magic.CastTime = Envir.Time;
+            if (!partOfCombo) Enqueue(new S.MagicCast { Spell = magic.Spell });
+
+            return success;
+        }
+
+        //拔刀术-秘籍：原地连砍的刀数
+        private const int FlashDashRareHits = 4;
+
+        //拔刀术-秘籍：每刀之间的间隔（ms），必须与客户端排队播放的节奏大体一致
+        private const int FlashDashRareHitDelay = 220;
+
+        //拔刀术-秘籍：收招推怪的搜索距离（身前面朝方向几格内的怪）
+        private const int FlashDashRarePushRange = 4;
+
+        //拔刀术-秘籍：收招把怪推开的格数
+        private const int FlashDashRarePushDistance = 4;
+
+        /// <summary>
+        /// 拔刀术-秘籍：不再有野蛮冲撞的位移与推挤。
+        /// 人物原地连续挥砍 FlashDashRareHits 刀（每刀独立结算一次伤害），
+        /// 收招时把身前面朝方向 FlashDashRarePushRange 格内的怪沿该方向推开 FlashDashRarePushDistance 格。
+        /// </summary>
+        private void FlashDashRare(UserMagic magic)
+        {
+            if (InTrapRock || !CanWalk)
+            {
+                Enqueue(new S.UserLocation { Direction = Direction, Location = CurrentLocation });
+                return;
+            }
+
+            ActionTime = Envir.Time;
+
+            int attackDelay = (AttackSpeed - 120) <= 300 ? 300 : (AttackSpeed - 120);
+            AttackTime = Envir.Time + attackDelay;
+            SpellTime = Envir.Time + 300;
+
+            bool hit = false;
+
+            for (int i = 0; i < FlashDashRareHits; i++)
+            {
+                //每一刀都重新找一次身前的第一个可攻击目标（前面几刀打死了，后面的刀自然落空）
+                MapObject target = FindFlashDashRareTarget(2);
+
+                //挥砍动作：本机由客户端自己排队播放，这里广播给其他玩家
+                //（客户端会把连续收到的动作排进 ActionFeed 依次播完，自然形成连砍）
+                Broadcast(new S.ObjectAttack { ObjectID = ObjectID, Direction = Direction, Location = CurrentLocation });
+
+                if (target == null) continue;
+
+                long hitTime = Envir.Time + (i * FlashDashRareHitDelay);
+
+                ActionList.Add(new DelayedAction(DelayedType.Damage,
+                    hitTime,
+                    target,
+                    magic.GetDamage(GetAttackPower(Stats[Stat.MinDC], Stats[Stat.MaxDC])),
+                    DefenceType.AC, true));
+                hit = true;
+
+                //每一刀都独立判定一次麻痹/眩晕，判定条件与普通拔刀术完全一致：
+                //先过毒物躲避，再过 Random(15) <= 等级+1（0/1/2 级约 13% / 20% / 27%），
+                //命中则上 PoisonType.Stun（麻痹·眩晕），时长 = 等级+1 秒，并广播 TwinDrakeBlade 命中特效。
+                //4 刀各判一次 → 概率叠加，整体「至少中一次」的概率明显高于普通拔刀术。
+                if ((((target.Race != ObjectType.Player) || Settings.PvpCanResistPoison) && (Envir.Random.Next(Settings.PoisonAttackWeight) >= target.Stats[Stat.毒物躲避])) && (Envir.Random.Next(15) <= magic.Level + 1))
+                {
+                    ActionList.Add(new DelayedAction(DelayedType.Poison,
+                        hitTime,
+                        target, PoisonType.Stun, SpellEffect.TwinDrakeBlade, magic.Level + 1, 1000));
+                }
+            }
+
+            //收招：等最后一刀打完，把身前一排怪推开 4 格
+            ActionList.Add(new DelayedAction(DelayedType.FlashDashRarePush,
+                Envir.Time + (FlashDashRareHits * FlashDashRareHitDelay),
+                Direction, FlashDashRarePushRange, FlashDashRarePushDistance));
+
+            //整段连砍命中就结算一次修炼值
+            if (hit) LevelMagic(magic);
+
+            //连招结束：只下发一次施法包，冷却从连招结束时算起
+            magic.CastTime = Envir.Time;
             Enqueue(new S.MagicCast { Spell = magic.Spell });
+        }
+
+        /// <summary>沿面朝方向最多 maxDistance 格，找第一个可攻击的目标（怪或玩家）。</summary>
+        private MapObject FindFlashDashRareTarget(int maxDistance)
+        {
+            Point scan = CurrentLocation;
+
+            for (int d = 0; d < maxDistance; d++)
+            {
+                scan = Functions.PointMove(scan, Direction, 1);
+                if (!CurrentMap.ValidPoint(scan)) break;
+
+                Cell cell = CurrentMap.GetCell(scan);
+                if (cell == null || cell.Objects == null) continue;
+
+                for (int c = 0; c < cell.Objects.Count; c++)
+                {
+                    MapObject ob = cell.Objects[c];
+                    if (ob.Race != ObjectType.Monster && ob.Race != ObjectType.Player) continue;
+                    if (ob.Dead || ob.Node == null || !ob.IsAttackTarget(this)) continue;
+                    return ob;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>拔刀术-秘籍的延迟收招：把身前面朝方向上指定范围内的怪沿该方向推开。</summary>
+        protected void CompleteFlashDashRarePush(IList<object> data)
+        {
+            if (Dead) return;
+
+            MirDirection direction = (MirDirection)data[0];
+            int searchCells = (int)data[1];
+            int pushCells = (int)data[2];
+
+            PushMonstersInFront(direction, searchCells, pushCells);
+        }
+
+        /// <summary>把身前面朝方向 searchCells 格内的怪物沿该方向推开 pushCells 格，返回被推开的目标数。</summary>
+        private int PushMonstersInFront(MirDirection direction, int searchCells, int pushCells)
+        {
+            int pushed = 0;
+            Point scan = CurrentLocation;
+
+            for (int i = 0; i < searchCells; i++)
+            {
+                scan = Functions.PointMove(scan, direction, 1);
+                if (!CurrentMap.ValidPoint(scan)) break;
+
+                Cell cell = CurrentMap.GetCell(scan);
+                if (cell == null || cell.Objects == null) continue;
+
+                //先做快照：Pushed 会把对象移出格子，Cell.Remove 可能把 Objects 置 null
+                MapObject[] snapshot = new MapObject[cell.Objects.Count];
+                cell.Objects.CopyTo(snapshot);
+
+                for (int k = 0; k < snapshot.Length; k++)
+                {
+                    MapObject ob = snapshot[k];
+                    if (ob == null || ob.Node == null || ob.Dead) continue;
+                    if (ob.Race != ObjectType.Monster) continue;
+
+                    pushed += ob.Pushed(this, direction, pushCells);
+                }
+            }
+
+            return pushed;
         }
         #endregion
 
@@ -6108,12 +7181,40 @@ namespace Server.MirObjects
                 case Spell.StraightShot:
                 case Spell.DoubleShot:
                 case Spell.MeteorShower:
+                //新增：强击-秘籍 / 灵魂火符(万效) / 灭杀 —— 与单体法术同一结算方式
+                case Spell.ThunderBoltRare:
+                case Spell.SoulFireBallPlus:
+                case Spell.SoulFireBallPlusRare:
+                case Spell.DeathBlow:
                     value = (int)data[1];
                     target = (MapObject)data[2];
                     targetLocation = (Point)data[3];
 
                     if (target == null || !target.IsAttackTarget(this) || target.CurrentMap != CurrentMap || target.Node == null || !Functions.InRange(target.CurrentLocation, targetLocation, 2)) return;
+
+                    //强击-秘籍 / 灭杀：每个被命中的目标身上各落一道雷电（多个目标就是「多根雷电」）
+                    //Broadcast 不含自己，所以施法者要单独补一份
+                    if (magic.Spell == Spell.ThunderBoltRare || magic.Spell == Spell.DeathBlow)
+                    {
+                        Broadcast(new S.ObjectEffect { ObjectID = target.ObjectID, Effect = SpellEffect.ThunderBoltStrike });
+                        Enqueue(new S.ObjectEffect { ObjectID = target.ObjectID, Effect = SpellEffect.ThunderBoltStrike });
+                    }
+
                     if (target.Attacked(this, value, DefenceType.MAC, false) > 0) LevelMagic(magic);
+                    break;
+
+                #endregion
+
+                #region ShadowCombo, ShadowComboRare（新增：影华连击）
+
+                case Spell.ShadowCombo:
+                case Spell.ShadowComboRare:
+                    value = (int)data[1];
+                    target = (MapObject)data[2];
+                    targetLocation = (Point)data[3];
+
+                    if (target == null || !target.IsAttackTarget(this) || target.CurrentMap != CurrentMap || target.Node == null || !Functions.InRange(target.CurrentLocation, targetLocation, 2)) return;
+                    if (target.Attacked(this, value, DefenceType.AC, false) > 0) LevelMagic(magic);
                     break;
 
                 #endregion
@@ -6748,6 +7849,7 @@ namespace Server.MirObjects
                 #region DelayedExplosion
 
                 case Spell.DelayedExplosion:
+                case Spell.DelayedExplosionRare: //新增：爆闪-秘籍
                     value = (int)data[1];
                     target = (MapObject)data[2];
                     targetLocation = (Point)data[3];

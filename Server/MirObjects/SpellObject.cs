@@ -32,6 +32,9 @@ namespace Server.MirObjects
         public Point CastLocation;
         public bool Show, Decoration;
 
+        //PoisonCloud：施放时用掉的毒粉形态（1=灰色毒粉→绿毒掉血、2=黄色毒粉→红毒掉防）
+        public byte PoisonShape;
+
         //ExplosiveTrap
         public int ExplosiveTrapID;
         public int ExplosiveTrapCount;
@@ -51,9 +54,16 @@ namespace Server.MirObjects
         {
             if (Decoration) return;
 
+            if (CurrentMap == null)
+            {
+                Despawn();
+                return;
+            }
+
             if (Caster != null && Caster.Node == null) Caster = null;
 
-            if (Envir.Time > ExpireTime || ((Spell == Spell.FireWall || Spell == Spell.Portal || Spell == Spell.ExplosiveTrap || Spell == Spell.Reincarnation || Spell == Spell.HealingCircle && Caster == null || Spell == Spell.HealingcircleRare) && Caster == null) || (Spell == Spell.TrapHexagon && Target != null) || (Spell == Spell.Trap && Target != null))
+            if (Envir.Time > ExpireTime || ((Spell == Spell.FireWall || Spell == Spell.Portal || Spell == Spell.ExplosiveTrap || Spell == Spell.Reincarnation || Spell == Spell.HealingCircle && Caster == null || Spell == Spell.HealingcircleRare
+                || Spell == Spell.AbsorbFlame || Spell == Spell.AbsorbFlameRare || Spell == Spell.SkyThunderShot || Spell == Spell.SkyThunderShotRare) && Caster == null) || (Spell == Spell.TrapHexagon && Target != null) || (Spell == Spell.Trap && Target != null))
             {
                 if (Spell == Spell.TrapHexagon && Target != null || Spell == Spell.Trap && Target != null)
                 {
@@ -71,6 +81,14 @@ namespace Server.MirObjects
                 if ((Spell == Spell.Blizzard || Spell == Spell.MeteorStrike) && Caster != null)
                 {
                     ((HumanObject)Caster).ActiveBlizzard = false;
+                }
+
+                //落雷杀-秘笈：结束前在落点补一段「最后一击」（素材 = 原灭杀的 Magic_32bit 1810-1824）。
+                //必须在 RemoveObject 之前广播 —— 客户端正是靠这个（唯一 Show=true 的）SpellObject 的
+                //ObjectID 找到落点位置，晚一步对象在客户端就已经不存在了。
+                if (Spell == Spell.SkyThunderShotRare && Show)
+                {
+                    CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.SkyThunderShotFinal }, CurrentLocation);
                 }
 
                 CurrentMap.RemoveObject(this);
@@ -119,11 +137,46 @@ namespace Server.MirObjects
             TickTime = Envir.Time + TickSpeed;
 
             Cell cell = CurrentMap.GetCell(CurrentLocation);
-            for (int i = 0; i < cell.Objects.Count; i++)
-                if (cell != null)
+            if (cell != null && cell.Objects != null)
+                for (int i = 0; i < cell.Objects.Count; i++)
                 {
                     ProcessSpell(cell.Objects[i]);
                 }
+
+            //吸魔炎风：把周围的普通怪物卷向旋风中心
+            //群攻化后范围里每一格都有一个 SpellObject，只有落点那一份负责推挤，
+            //否则每格都按自己为中心推，怪物会被来回拉扯
+            if ((Spell == Spell.AbsorbFlame || Spell == Spell.AbsorbFlameRare) && Caster != null && CurrentLocation == CastLocation)
+            {
+                for (int y = CastLocation.Y - 2; y <= CastLocation.Y + 2; y++)
+                {
+                    for (int x = CastLocation.X - 2; x <= CastLocation.X + 2; x++)
+                    {
+                        Point p = new Point(x, y);
+                        if (p == CastLocation) continue;
+                        if (!CurrentMap.ValidPoint(p)) continue;
+
+                        Cell nearby = CurrentMap.GetCell(p);
+                        if (nearby == null || nearby.Objects == null) continue;
+
+                        //先做快照再遍历：Pushed 会把对象移出格子，
+                        //Cell.Remove 在格子清空时会把 Objects 置 null，
+                        //循环条件再次读取 nearby.Objects.Count 会触发 NullReferenceException
+                        MapObject[] snapshot = new MapObject[nearby.Objects.Count];
+                        nearby.Objects.CopyTo(snapshot);
+
+                        for (int i = 0; i < snapshot.Length; i++)
+                        {
+                            MapObject ob = snapshot[i];
+                            if (ob == null || ob.Node == null || ob.Dead) continue;
+                            if (ob.Race != ObjectType.Monster) continue;
+
+                            MirDirection dir = Functions.DirectionFromPoint(ob.CurrentLocation, CastLocation);
+                            ob.Pushed(Caster, dir, 1);
+                        }
+                    }
+                }
+            }
 
             if ((Spell == Spell.MapLava) || (Spell == Spell.MapLightning)) Value = 0;
         }
@@ -160,14 +213,39 @@ namespace Server.MirObjects
                         if (!ob.IsAttackTarget(Caster)) return;
                         ob.Attacked(((HumanObject)Caster), Value, DefenceType.MAC, false);
                         if (!ob.Dead)
-                            ob.ApplyPoison(new Poison
+                        {
+                            //需求：中毒时长由施毒者的道术高低决定。
+                            //基础 6 秒，道术（MinSC/MaxSC 的平均值）每 10 点 +1 秒，上限 30 秒。
+                            //例：道术 50 → 11 秒，道术 100 → 16 秒，道术 200 → 26 秒。
+                            int poisonSC = (Caster.Stats[Stat.MinSC] + Caster.Stats[Stat.MaxSC]) / 2;
+                            int poisonDuration = 6 + poisonSC / 10;
+                            if (poisonDuration > 30) poisonDuration = 30;
+
+                            //需求：毒雾挂哪种毒由「施放时用掉的毒粉」决定，基础对点伤害 Value 不变：
+                            //  · 灰色毒粉(Shape=1) → 绿毒：持续掉血（数值由道术 + BonusDmg 决定，与老版本完全一致）；
+                            //  · 黄色毒粉(Shape=2) → 红毒：降低防御（与施毒术一致，红毒不需要 Value）。
+                            if (PoisonShape == 2)
                             {
-                                Duration = 12,
-                                Owner = Caster,
-                                PType = PoisonType.Green,
-                                TickSpeed = TickSpeed,
-                                Value = (Caster.Stats[Stat.MinSC] + Caster.Stats[Stat.MaxSC]) / 2 + BonusDmg
-                            }, Caster, false, false);
+                                ob.ApplyPoison(new Poison
+                                {
+                                    Duration = poisonDuration,
+                                    Owner = Caster,
+                                    PType = PoisonType.Red,
+                                    TickSpeed = TickSpeed,
+                                }, Caster, false, false);
+                            }
+                            else
+                            {
+                                ob.ApplyPoison(new Poison
+                                {
+                                    Duration = poisonDuration,
+                                    Owner = Caster,
+                                    PType = PoisonType.Green,
+                                    TickSpeed = TickSpeed,
+                                    Value = poisonSC + BonusDmg
+                                }, Caster, false, false);
+                            }
+                        }
                     }
                     break;
                 case Spell.Blizzard:
@@ -185,6 +263,37 @@ namespace Server.MirObjects
                                 PType = PoisonType.Slow,
                                 TickSpeed = 2000,
                             }, Caster);
+                    }
+                    break;
+                //新增：吸魔炎风 / 吸魔炎风-秘籍
+                case Spell.AbsorbFlame:
+                case Spell.AbsorbFlameRare:
+                    {
+                        if (ob.Race != ObjectType.Monster && ob.Race != ObjectType.Player) return;
+                        if (ob.Dead) return;
+                        if (ob == Caster) return;
+                        if (Caster == null) return;
+                        if (!ob.IsAttackTarget(Caster)) return;
+                        if (Value == 0) return;
+
+                        ob.Attacked(((HumanObject)Caster), Value, DefenceType.MAC, false);
+                    }
+                    break;
+                //新增：落雷杀 / 落雷杀-秘笈
+                case Spell.SkyThunderShot:
+                case Spell.SkyThunderShotRare:
+                    {
+                        if (ob.Race != ObjectType.Monster && ob.Race != ObjectType.Player && ob.Race != ObjectType.Hero) return;
+                        if (ob.Dead) return;
+                        if (ob == Caster) return;
+                        if (Caster == null) return;
+                        if (!ob.IsAttackTarget(Caster)) return;
+                        if (Value == 0) return;
+
+                        ob.Attacked(((HumanObject)Caster), Value, DefenceType.MAC, false);
+
+                        if (!ob.Dead && Envir.Random.Next(6) == 0)
+                            ob.ApplyPoison(new Poison { PType = PoisonType.Paralysis, Duration = 2, TickSpeed = 1000 }, Caster);
                     }
                     break;
                 case Spell.MeteorStrike:
@@ -732,7 +841,25 @@ namespace Server.MirObjects
             {
                 case Spell.Healing:
                     return null;
+                //毒雾：一片云是由多朵云拼出来的（网格点上各一朵），所以每朵必须画在自己的格子上，
+                //不能像其它范围技能那样统一用 CastLocation，否则多朵云会全部叠在落点。
                 case Spell.PoisonCloud:
+                    if (!Show)
+                        return null;
+
+                    return new S.ObjectSpell
+                    {
+                        ObjectID = ObjectID,
+                        Location = CurrentLocation,
+                        Spell = Spell,
+                        Direction = Direction
+                    };
+                //新增：落雷杀 / 落雷杀-秘笈 —— 范围内只有落点那一份下发特效（Show 过滤）
+                case Spell.SkyThunderShot:
+                case Spell.SkyThunderShotRare:
+                //新增：吸魔炎风 / 吸魔炎风-秘籍 —— 群攻化后同样只显示落点那一份
+                case Spell.AbsorbFlame:
+                case Spell.AbsorbFlameRare:
                 case Spell.Blizzard:
                 case Spell.MeteorStrike:
                 case Spell.StoneGolemQuake:

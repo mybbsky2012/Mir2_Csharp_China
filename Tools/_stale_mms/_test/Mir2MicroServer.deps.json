@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "Mir2MicroServer/1.0.0": {
+        "runtime": {
+          "Mir2MicroServer.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Mir2MicroServer/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

@@ -58,6 +58,14 @@ namespace Client.MirObjects
         public byte Stage;
         public int BaseSound;
 
+        //召唤物（骷髅/神兽/月灵）出场动画状态：落地那一刻在本体这一格播放「汇聚成型」特效，
+        //期间先不画本体，特效收尾时宠物才显形 —— 盛大原版的表现。
+        //用独立的特效对象实现，不走 MirAction.召唤初现 动作队列：那条路一旦图库没就绪，
+        //SetAction 取不到帧会把 Frame 置成 null，而 ProcessFrames 以 Frame != null 为前提推进，
+        //对象就永久不绘制（表现就是「宠物招不出来」）。特效对象完全独立，绝不影响本体动作状态。
+        public bool SummonAppearPlayed;
+        private long SummonAppearUntil;
+
         public long ShockTime;
         public bool BindingShotCenter;
 
@@ -211,9 +219,8 @@ namespace Client.MirObjects
 
             switch (BaseImage)
             {
-                case Monster.BoneFamiliar:
-                case Monster.Shinsu:
-                case Monster.HolyDeva: //172
+                //注：HellKnight / LightningBead 等野外怪保持原版的『召唤初现』排队逻辑；
+                //    骷髅/神兽/月灵三个召唤物的出场动画在下面 Frames 赋好值之后用独立特效实现（见该处注释）。
                 case Monster.HellKnight1:
                 case Monster.HellKnight2:
                 case Monster.HellKnight3:
@@ -224,6 +231,7 @@ namespace Client.MirObjects
                 case Monster.PowerUpBead:
                     if (!info.Extra) ActionFeed.Add(new QueuedAction { Action = MirAction.召唤初现, Direction = Direction, Location = CurrentLocation });
                     break;
+
                 case Monster.FrostTiger:
                 case Monster.FlameTiger:
                 case Monster.DragonArcher: //436
@@ -281,6 +289,26 @@ namespace Client.MirObjects
                     }
                     break;
             }
+
+            //召唤物出场动画（盛大原版表现）：骷髅/神兽/月灵落地那一刻，在它自己这一格播放
+            //「汇聚成型」特效，帧都取自怪物自己的图库（盛大客户端按固定帧号硬取，动作表里没登记）：
+            //  神兽  170.Lib 帧0-79  = 8方向×10帧，按宠物朝向取段（红色碎片汇聚成型）
+            //  骷髅  036.Lib 帧224-233 = 8方向同一组（黑烟腾起、骷髅从中显现）
+            //  月灵  172.Lib 帧224-233 = 8方向同一组（蓝光汇聚、仙子成型）
+            //特效期间先不画本体，播完后宠物才「成型」显形。
+            //
+            //【为什么不用 MirAction.召唤初现 走动作队列】往 ActionFeed 塞动作后，SetAction 取帧
+            //一旦失败（图库没就绪/动作缺失）会把 Frame 置成 null，而 ProcessFrames 以
+            //Frame != null 为前提推进，对象就永久不绘制 —— 表现就是「宠物招不出来」。
+            //独立特效对象不碰动作状态机，本体任何情况下都正常出现。
+            //
+            //【为什么用 !info.Extra 判断】info.Extra = 服务端 MonsterInfo.Summoned。首次召唤时
+            //服务端 Shinsu/BoneFamiliar/HolyDeva.Spawned() 都是先 base.Spawned()（内部广播首包）
+            //之后才 Summoned = true，所以首包 Extra=false；重复召唤走 Recall=Teleport，客户端
+            //会收到 ObjectRemove + 重发的封包（此时 Summoned 已置位，Extra=true）。因此
+            //!Extra 正好等于「真召唤落地」，召回/已存在的宠物不会重播出场特效。
+            if (!SummonAppearPlayed && !info.Extra && BodyLibrary != null && IsSummonPet(BaseImage))
+                TryStartSummonAppear();
 
             SetAction();
             SetCurrentEffects();
@@ -479,6 +507,70 @@ namespace Client.MirObjects
             if (Poison.HasFlag(PoisonType.DelayedExplosion))
                 DrawColour = Color.Orange;
             if (colour != DrawColour) GameScene.Scene.MapControl.TextureValid = false;
+        }
+
+        //骷髅(36)/神兽(170)/月灵(172) 三个召唤物对应的图库编号
+        private static bool IsSummonPet(Monster image)
+        {
+            switch (image)
+            {
+                case Monster.BoneFamiliar:
+                case Monster.Shinsu:
+                case Monster.HolyDeva:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        //播放召唤物出场动画。只对「真正的召唤物」播：服务端宠物名格式是「怪物名(主人名)」
+        //（Server MonsterObject.cs:537），野外同名怪的名字不带括号，不会误播。
+        private void TryStartSummonAppear()
+        {
+            bool namedLikePet = !string.IsNullOrEmpty(Name) && Name.Contains("(") && Name.EndsWith(")");
+            if (!namedLikePet) return;
+
+            switch ((Monster)BaseImage)
+            {
+                case Monster.Shinsu: //170：帧0-79 = 8方向×10帧，按宠物朝向取段（红色碎片汇聚成型）
+                    //【普通alpha】碎片是不透明的深红色实体粒子（平均色 R105 G54 B34，与神兽本体
+                    //R105 G49 B28 几乎一致，且不含纯黑像素）。走加法混合会变成 深红+背景色，
+                    //在草地上被冲成金黄发白——表现就是「特效太透明、颜色淡、和神兽不同色」。
+                    StartAppear((int)Direction * 10, 10, 200, blend: false);
+                    break;
+
+                case Monster.BoneFamiliar: //36：帧224-233，8方向同一组（黑烟腾起、骷髅从中显现）
+                    //【加法混合】烟是灰色调（平均 R84 G88 B91），普通绘制会画出黑烟块（黑边），
+                    //加法混合下纯暗像素贡献为 0，呈发光白烟。
+                    StartAppear(224, 10, 120, blend: true);
+                    break;
+
+                case Monster.HolyDeva: //172：帧224-233，8方向同一组（蓝光汇聚、仙子成型）
+                    //【加法混合】同骷髅：光效类帧，普通绘制会出现深色底块。
+                    StartAppear(224, 10, 200, blend: true);
+                    break;
+            }
+        }
+
+        //开始播一段出场特效。帧号是盛大客户端按固定下标硬取的（这三段都不在 .Lib 动作表登记的
+        //范围里），所以这里同样直接用帧号，不查动作表。
+        //
+        //【blend 参数按素材性质选，不能一刀切】三类帧都是硬边 alpha（只有 0/255 两级、无半透明过渡），
+        //但内容分两类：
+        //  · 光/烟类（骷髅灰烟、月灵蓝光）：像素偏暗偏灰，普通绘制会把暗部照实画出（黑边/黑块），
+        //    必须走 Effect 默认的 Blend=true → DrawBlend 加法混合（SourceAlpha / Dest=One），
+        //    暗像素加算贡献≈0 自动透明，呈发光体。
+        //  · 实体碎片类（神兽红碎片）：像素本身就是神兽本体的深红色，加法混合会叠加背景色被冲淡，
+        //    必须用 Blend=false → Library.Draw 普通 alpha，保住原色。
+        private void StartAppear(int start, int count, int interval, bool blend)
+        {
+            int dur = count * interval;
+            SummonAppearPlayed = true;
+            SummonAppearUntil = CMain.Time + dur;
+            Effect eff = new Effect(BodyLibrary, start, count, dur, this);
+            eff.Blend = blend;
+            Effects.Add(eff);
+            PlaySummonSound();
         }
 
         public bool SetAction()
@@ -1390,7 +1482,16 @@ namespace Client.MirObjects
 
         private void ProcessFrames()
         {
-            if (Frame == null) return;
+            if (Frame == null)
+            {
+                //Frame 为 null 只可能是「当前动作在这个图库里没有帧段」（SetAction 取帧失败：
+                //图库还没下载/初始化好，或者该动作本身不存在）。而本函数是唯一还能再次触发
+                //SetAction 的入口 —— 如果在这里直接 return，对象就会永久停在 Frame == null：
+                //既不绘制也不推进，表现就是「召唤出来的宠物/怪物根本不出现」。
+                //这里补一次重试，让它退回站立动作，任何情况下都至少能显示出来。
+                SetAction();
+                if (Frame == null) return;
+            }
 
             switch (CurrentAction)
             {
@@ -5175,6 +5276,10 @@ namespace Client.MirObjects
             // 表现为整屏规律性发暗闪烁（每次底板纹理重建都会复发）。
             if (BodyLibrary == null || Frame == null) return;
 
+            //出场「汇聚成型」期间不画本体：等出场特效收尾，宠物才从里面显形（盛大原版的表现）。
+            //在 SetOpacity 之前 return，与上面的空库判空同一套路，不会泄漏半透明混合状态。
+            if (CMain.Time < SummonAppearUntil) return;
+
             float oldOpacity = DXManager.Opacity;
             if (Hidden && !DXManager.Blending) DXManager.SetOpacity(0.5F);
 
@@ -5396,7 +5501,9 @@ namespace Client.MirObjects
                             Libraries.Monsters[(ushort)Monster.HolyDeva].DrawBlend(144 + FrameIndex + (int)Direction * 10, DrawLocation, Color.DarkRed, true);
                             break;
                         case MirAction.召唤初现:
-                            Libraries.Monsters[(ushort)Monster.HolyDeva].DrawBlend(224 + FrameIndex * 10, DrawLocation, Color.DarkOrchid, true);
+                            //172.Lib 的『召唤初现』段实测是 帧458-467（count=10, skip=-10，
+                            //即全方向共用同一组帧）。原代码写死 224 会画到行走/攻击那几帧上。
+                            Libraries.Monsters[(ushort)Monster.HolyDeva].DrawBlend(458 + FrameIndex, DrawLocation, Color.DarkOrchid, true);
                             break;
                     }
                     break;

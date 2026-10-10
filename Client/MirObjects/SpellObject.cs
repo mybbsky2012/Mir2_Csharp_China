@@ -20,6 +20,9 @@ namespace Client.MirObjects
         public Spell Spell;
         public Point AnimationOffset = new(0, 0);
         public int FrameCount, FrameInterval, FrameIndex;
+        public int[] FrameList;                 //新增：非连续帧序列（跳过库中空帧），为空时按 DrawFrame + FrameIndex 线性播放
+        public int LoopStart = -1;              //新增：循环段起始索引（-1 = 每轮从头循环）。用于"起手动画播一次、之后只循环稳定帧"的特效（如毒雾云）
+        public int LoopInterval = -1;           //新增：循环段帧间隔（-1 = 沿用 FrameInterval），让稳定段的波动更从容
         public bool Repeat, Ended, DrawBehind;
 
 
@@ -56,12 +59,71 @@ namespace Client.MirObjects
                     Blend = true;
                     break;
                 case Spell.PoisonCloud:
+                    //毒雾：Magic2 1280-1299 这一段里，只有 1280-1289 是云（1290-1299 全是空白帧）。
+                    //这 10 帧是"云从小团扩散成一大片"的动画：1280 是小团，1287-1289 才是最大且稳定的云形态。
+                    //起手 1280-1289 完整扩散一次，之后只循环 1287-1289（LoopStart=7）——
+                    //云会一直保持一大片，不再缩回小团重来（之前每 1.5 秒重头循环，看起来云中途消失）。
+                    //整片毒云由服务端按网格铺的 9 朵云拼成（见 Server/MirEnvir/Map.cs）。
                     BodyLibrary = Libraries.Magic2;
-                    DrawFrame = 1650;
-                    FrameInterval = 120;
-                    FrameCount = 20;
+                    FrameList = new[] { 1280, 1281, 1282, 1283, 1284, 1285, 1286, 1287, 1288, 1289 };
+                    FrameCount = FrameList.Length;
+                    FrameInterval = 150;
+                    LoopStart = 7;          //稳定段 = 帧 1287/1288/1289
+                    LoopInterval = 250;     //稳定段 3 帧 750ms 一轮，波动更从容
                     Light = 3;
                     Blend = true;
+                    Repeat = true;
+                    SoundManager.PlaySound(20000 + (ushort)Spell.MassHiding * 10);
+                    break;
+                //新增：吸魔炎风 / 吸魔炎风-秘籍（火焰旋风，Magic_32bit）
+                //★实测 Magic_32bit.Lib 的帧分布（w=0 才是真空帧）：
+                //   普通版  1580-1583 火焰升起(起手) → 1590-1601 稳定燃烧(12帧) → 1610-1613 熄灭(alpha 逐帧降到 2.4)
+                //   秘籍版  1630-1633 升起      → 1640-1651 稳定燃烧(12帧) → 1660-1663 熄灭 → 1680-1687 消散
+                //   旧帧表把「熄灭段」也塞进了循环（秘籍还多带了 1634/1652/1664/1688 四个 w=0 真空帧），
+                //   于是每转一圈火焰都会灭一次再重燃 —— 这就是"中间图像帧中断"的根因。
+                //   现在只保留 起手 + 稳定段，起手播一次后只循环稳定段（LoopStart=4），火焰一直烧不断。
+                case Spell.AbsorbFlame:
+                    DrawColour = Color.White;
+                    BodyLibrary = Libraries.Magic_32bit;
+                    FrameList = new[]
+                    {
+                        1580, 1581, 1582, 1583,
+                        1590, 1591, 1592, 1593, 1594, 1595, 1596, 1597, 1598, 1599, 1600, 1601,
+                    };
+                    FrameCount = FrameList.Length;
+                    FrameInterval = 80;
+                    LoopStart = 4;      //起手 4 帧播一次，之后循环 1590-1601
+                    Light = 4;
+                    Blend = true;
+                    Repeat = true;
+                    SoundManager.PlaySound(20000 + (ushort)Spell.FireWall * 10 + 1);
+                    break;
+                case Spell.AbsorbFlameRare:
+                    DrawColour = Color.White;
+                    BodyLibrary = Libraries.Magic_32bit;
+                    FrameList = new[]
+                    {
+                        1630, 1631, 1632, 1633,
+                        1640, 1641, 1642, 1643, 1644, 1645, 1646, 1647, 1648, 1649, 1650, 1651,
+                    };
+                    FrameCount = FrameList.Length;
+                    FrameInterval = 80;
+                    LoopStart = 4;      //起手 4 帧播一次，之后循环 1640-1651
+                    Light = 5;
+                    Blend = true;
+                    Repeat = true;
+                    SoundManager.PlaySound(20000 + (ushort)Spell.FireWall * 10 + 1);
+                    break;
+                //新增：落雷杀 / 落雷杀-秘笈（定点持续落雷，Magic_32bit 1770-1809；1770/1774-1780/1789-1790/1794+ 是空帧）
+                case Spell.SkyThunderShot:
+                case Spell.SkyThunderShotRare:
+                    BodyLibrary = Libraries.Magic_32bit;
+                    FrameList = new[] { 1771, 1772, 1773, 1781, 1782, 1783, 1784, 1785, 1786, 1787, 1788, 1791, 1792, 1793 };
+                    FrameCount = FrameList.Length;
+                    FrameInterval = 90;
+                    Light = 5;
+                    Blend = true;
+                    Repeat = true;
                     break;
                 case Spell.DigOutZombie:
                     BodyLibrary = (ushort)Monster.DigOutZombie < Libraries.Monsters.Count() ? Libraries.Monsters[(ushort)Monster.DigOutZombie] : Libraries.Magic;
@@ -530,14 +592,28 @@ namespace Client.MirObjects
             {
                 if (++FrameIndex >= FrameCount && Repeat)
                 {
-                    FrameIndex = 0;
+                    //循环回绕：配置了 LoopStart 的特效（如毒雾云）回到稳定段起始帧，
+                    //而不是第 0 帧，避免起手动画反复重播、特效中途"消失重来"。
+                    FrameIndex = (LoopStart >= 0 && LoopStart < FrameCount) ? LoopStart : 0;
                     Ended = true;
                 }
 
-                NextMotion = CMain.Time + FrameInterval;
+                //循环段可用独立的帧间隔（LoopInterval），让稳定段的波动更从容
+                int interval = (LoopStart >= 0 && FrameIndex >= LoopStart && LoopInterval > 0)
+                    ? LoopInterval : FrameInterval;
+
+                NextMotion = CMain.Time + interval;
 
                 switch (Spell)
                 {
+                    case Spell.AbsorbFlame:          //吸魔炎风：每圈循环开始时响一次旋风音效（起手那次在 Load 里已播过）
+                    case Spell.AbsorbFlameRare:
+                        if (FrameIndex == LoopStart) SoundManager.PlaySound(20000 + (ushort)Spell * 10 + 1);
+                        break;
+                    case Spell.SkyThunderShot:       //落雷杀：每圈播放一次雷电术的音效（M36-0，与雷电术完全同一个）
+                    case Spell.SkyThunderShotRare:   //落雷杀-秘笈：同上
+                        if (FrameIndex == 0) SoundManager.PlaySound(20000 + (ushort)Spell.ThunderBolt * 10);
+                        break;
                     case Spell.TucsonGeneralRock:
                         if (FrameIndex == 10) SoundManager.PlaySound(8305);
                         break;
@@ -592,17 +668,21 @@ namespace Client.MirObjects
             if (FrameIndex >= FrameCount && !Repeat) return;
             if (BodyLibrary == null) return;
 
+            int frame = FrameList != null && FrameIndex >= 0 && FrameIndex < FrameList.Length
+                ? FrameList[FrameIndex]
+                : DrawFrame + FrameIndex;
+
             if (Blend)
             {
                 BodyLibrary.DrawBlend(
-                    DrawFrame + FrameIndex,
+                    frame,
                     AnimationOffset == default ? DrawLocation : GetDrawWithOffset(),
                     DrawColour, true,
                     0.8F);
             }
             else
             {
-                BodyLibrary.Draw(DrawFrame + FrameIndex,
+                BodyLibrary.Draw(frame,
                     AnimationOffset == default ? DrawLocation : GetDrawWithOffset(),
                     DrawColour,
                     true);

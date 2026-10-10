@@ -1552,6 +1552,9 @@ namespace Client.MirScenes.Dialogs
 
         public MirImageControl[] CoolDowns = new MirImageControl[8];
 
+        /// <summary>上一帧「灵魂火符」在技能栏上显示的技能（万效符升格 BUFF 会把它换成万效版）；用于检测变化并刷新。</summary>
+        private Spell _lastSoulFireBallDisplay = Spell.None;
+
         public SkillBarDialog()
         {
             Index = 2190;
@@ -1715,8 +1718,21 @@ namespace Client.MirScenes.Dialogs
 
                     //string key = m.Key > 8 ? string.Format("CTRL F{0}", i) : string.Format("F{0}", m.Key);
 
-                    Cells[i - 1].Index = magic.Icon*2;
-                    Cells[i - 1].Hint = string.Format("{0}\n法力值消耗 {1}\n技能冷却 {2}\n快捷键 {3}", magic.Name,
+                    //需求：万效符 / 万效符-秘籍 的升格 BUFF 期间，技能栏上的「灵魂火符」图标与名称一起换成万效版
+                    int cellIcon = magic.Icon * 2;
+                    string cellName = magic.Name;
+                    if (m.Spell == Spell.SoulFireBall)
+                    {
+                        ClientMagic upgraded = GameScene.GetSoulFireBallUpgrade();
+                        if (upgraded != null)
+                        {
+                            cellIcon = upgraded.Icon * 2;
+                            cellName = upgraded.Name;
+                        }
+                    }
+
+                    Cells[i - 1].Index = cellIcon;
+                    Cells[i - 1].Hint = string.Format("{0}\n法力值消耗 {1}\n技能冷却 {2}\n快捷键 {3}", cellName,
                         (magic.BaseCost + (magic.LevelCost * magic.Level)), Functions.PrintTimeSpanFromMilliSeconds(magic.Delay), key);
 
                     KeyNameLabels[i - 1].Text = "";
@@ -1728,6 +1744,17 @@ namespace Client.MirScenes.Dialogs
         public void Process()
         {
             ProcessSkillDelay();
+
+            //万效符 / 万效符-秘籍 的「灵魂火符升格」BUFF 变化时，刷新本栏：
+            //让「灵魂火符」在 BUFF 生效瞬间显示为万效版（图标 + 名称 + 描述），BUFF 到期立刻还原成普通版。
+            ClientMagic upgraded = GameScene.GetSoulFireBallUpgrade();
+            Spell nowDisplay = upgraded != null ? upgraded.Spell : Spell.SoulFireBall;
+
+            if (nowDisplay != _lastSoulFireBallDisplay)
+            {
+                _lastSoulFireBallDisplay = nowDisplay;
+                Update();
+            }
         }
 
         private void ProcessSkillDelay()
@@ -3900,7 +3927,7 @@ namespace Client.MirScenes.Dialogs
                     SkillButton.Hint = string.Format("苏生术：\n主动技能\n复活其他玩家\n成功几率随等级提升", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
                     break;
                 case Spell.PoisonCloud:
-                    SkillButton.Hint = string.Format("毒雾：\n主动技能\n扔出会在目标区域造成毒云的护符\n需装备绿色毒药\n基础伤害等于道术平均值", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    SkillButton.Hint = string.Format("毒雾：\n主动技能\n以灵魂火符的方式扔出毒符，命中后形成毒云\n需装备黄色毒粉\n对 6 格范围内的敌人造成伤害并使其中绿毒\n基础伤害等于道术平均值", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
                     break;
                 case Spell.EnergyShield:
                     SkillButton.Hint = string.Format("先天气功：\n主动技能\n受到攻击一定几率缓慢恢复生命值", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
@@ -4037,6 +4064,63 @@ namespace Client.MirScenes.Dialogs
                     SkillButton.Hint = string.Format("精神状态：\n主动技能(需开启)\n可以调整弓箭的攻击模式", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
                     break;
 
+                //—— 新增技能说明（对照官网 mir2db 技能列表 49~53）——
+
+                case Spell.ThunderBoltRare:
+                    SkillButton.Hint = string.Format("强击-秘籍：\n主动技能\n作为强击的升级武功，使用时自动对 5x5 范围内的敌人释放落雷\n2 级起有 25% 几率落雷数量翻倍\n伤害随魔法和技能等级提升", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.AbsorbFlame:
+                    SkillButton.Hint = string.Format("吸魔炎风：\n主动技能\n将火焰魔法化作旋风卷向目标，范围 2 格\n把范围内的普通怪物卷入其中\n持续 3 秒", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.AbsorbFlameRare:
+                    SkillButton.Hint = string.Format("吸魔炎风-秘籍：\n主动技能\n凝聚更大更强的火魔与雷电之气，范围 6 格\n把范围内的普通怪物卷入其中\n持续 6 秒", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.GreatTalisman:
+                    SkillButton.Hint = string.Format("万效符：\n主动技能\n使自身以及范围内的队友获得幽灵盾、神圣战甲术、无极真气、先天气功\n自身所受伤害降低 10%\n同时把「灵魂火符」强化为「灵魂火符(万效)」", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.GreatTalismanRare:
+                    SkillButton.Hint = string.Format("万效符-秘籍：\n主动技能\n同上，并额外净化 1 次\n自身所受伤害降低 20%（随等级提升至 25% / 35%）", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.SoulFireBallPlus:
+                    SkillButton.Hint = string.Format("灵魂火符(万效)：\n主动技能\n受到万效符强化，向范围内的敌人施放 3 次灵魂火符\n技能冷却大幅增加", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.SoulFireBallPlusRare:
+                    SkillButton.Hint = string.Format("灵魂火符(万效-秘)：\n主动技能\n受到万效符-秘籍强化，向范围内的敌人施放 4 次灵魂火符", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.PetEnhancerRare:
+                    SkillButton.Hint = string.Format("血龙兽-秘籍：\n主动技能\n同时召回全部召唤物并对它们施加血龙水\n召唤物受到的怪物伤害降低 25%\n召唤物强度随道术和技能等级提升", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.CrescentSlashRare:
+                    SkillButton.Hint = string.Format("月华乱舞-秘籍：\n主动技能\n默认攻击范围 4 个方向各 3 格，回收剑气造成 2 次伤害\n使目标眩晕 5 秒并降低准确 1 点\n眩晕时间与降低的准确随等级提升", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.ShadowCombo:
+                    SkillButton.Hint = string.Format("影华连击：\n主动技能\n施放时化为影子（人物隐藏、暂时不受伤害）\n并前移至面朝方向 2 格\n沿 8 个方向来回穿梭，对敌人进行 6 次连续攻击", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.ShadowComboRare:
+                    SkillButton.Hint = string.Format("影华连击-秘笈：\n主动技能\n施放时化为影子（人物隐藏、暂时不受伤害）\n并前移至面朝方向 3 格\n沿 8 个方向来回穿梭，对敌人进行 10 次连续攻击并追加收招最后一击\n3 级时可在状态异常中使用并解除自身异常", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.SkyThunderShot:
+                    SkillButton.Hint = string.Format("落雷杀：\n主动技能\n需要装备【气功石】\n在指定位置引发 4 格范围的群体落雷\n伤害随破坏力、魔力和技能等级提升", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.SkyThunderShotRare:
+                    SkillButton.Hint = string.Format("落雷杀-秘笈：\n主动技能\n需要装备【气功石】\n在指定位置引发 8 格范围的群体落雷\n使用后 10 秒内可对 1 格范围内的单个敌人施放「灭杀」", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.DeathBlow:
+                    SkillButton.Hint = string.Format("灭杀：\n主动技能\n使用落雷杀-秘笈命中后的 10 秒内\n可对 1 格范围内的单个敌人施放威力更大的闪电攻击", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.FlashDashRare:
+                    SkillButton.Hint = string.Format("拔刀术-秘籍：\n主动技能\n先沿面朝方向将身前的怪物推开 2 格\n随后立刻使用拔刀术冲刺并挥刀斩杀\n攻击距离延长到 2 格\n对目标造成伤害并有几率麻痹（对 BOSS 麻痹时间减半）\n伤害、麻痹几率、麻痹时间均随技能等级提升", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.MoonMistRare:
+                    SkillButton.Hint = string.Format("月影雾-秘籍：\n主动技能\n沿用月影雾的效果与音效\n隐身持续时长增加 2 倍\n攻击力增加 2 倍，攻击范围扩大到 4 格", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.DelayedExplosionRare:
+                    SkillButton.Hint = string.Format("爆闪-秘籍：\n主动技能\n对目标射出一只延迟爆炸的箭\n爆炸时对 5x5 范围内的 3 个目标造成伤害", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+                case Spell.ConcentrationRare:
+                    SkillButton.Hint = string.Format("气流术-秘籍：\n主动技能(需开启)\n持续时间更长的气流术\n可以在移动时获得气功\n施放时立即获得 (等级+1) 层气功", Magic.Level, Magic.Level == 0 ? Magic.Level1 : Magic.Level == 1 ? Magic.Level2 : Magic.Level == 2 ? Magic.Level3 : 0, Magic.BaseCost);
+                    break;
+
                 default:
 
                     break;
@@ -4045,6 +4129,22 @@ namespace Client.MirScenes.Dialogs
 
             SkillButton.Index = Magic.Icon * 2;
             SkillButton.PressedIndex = Magic.Icon * 2 + 1;
+
+            //需求：万效符 / 万效符-秘籍 的升格 BUFF 期间，技能列表里的「灵魂火符」整格都换成万效版
+            //（图标 + 描述一起变），BUFF 到期自动还原成普通灵魂火符。
+            if (Magic.Spell == Spell.SoulFireBall)
+            {
+                ClientMagic upgraded = GameScene.GetSoulFireBallUpgrade();
+                if (upgraded != null)
+                {
+                    bool upgradedRare = upgraded.Spell == Spell.SoulFireBallPlusRare;
+
+                    SkillButton.Index = upgraded.Icon * 2;
+                    SkillButton.PressedIndex = upgraded.Icon * 2 + 1;
+                    SkillButton.Hint = string.Format("{0}：\n主动技能\n受到万效符{1}强化，向范围内的敌人一次施放 {2} 张灵魂火符\n强化持续期间自动生效，到时还原为普通灵魂火符\n技能等级与冷却仍按灵魂火符计算",
+                        upgraded.Name, upgradedRare ? "-秘籍" : "", upgradedRare ? 6 : 3);
+                }
+            }
 
             SetDelay();
         }

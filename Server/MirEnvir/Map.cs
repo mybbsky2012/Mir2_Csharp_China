@@ -1455,15 +1455,17 @@ namespace Server.MirEnvir
                 #region MoonMist
 
                 case Spell.MoonMist:
+                case Spell.MoonMistRare: //新增：月影雾-秘籍（攻击范围增加 2 倍：半径 2 → 4）
 
                     value = (int)data[2];
                     location = (Point)data[3];
-                    for (int y = location.Y - 2; y <= location.Y + 2; y++)
+                    int moonRadius = magic.Spell == Spell.MoonMistRare ? 4 : 2;
+                    for (int y = location.Y - moonRadius; y <= location.Y + moonRadius; y++)
                     {
                         if (y < 0) continue;
                         if (y >= Height) break;
 
-                        for (int x = location.X - 2; x <= location.X + 2; x++)
+                        for (int x = location.X - moonRadius; x <= location.X + moonRadius; x++)
                         {
                             if (x < 0) continue;
                             if (x >= Width) break;
@@ -1584,15 +1586,26 @@ namespace Server.MirEnvir
                     value = (int)data[2];
                     location = (Point)data[3];
                     byte bonusdmg = (byte)data[4];
+                    //data[5] = 施放时用掉的毒粉形态（1=灰色毒粉→绿毒掉血、2=黄色毒粉→红毒掉防）。
+                    //旧数据（或无该位）时按 0 处理，SpellObject 会走「绿毒」分支，行为与老版本一致。
+                    byte poisonShape = data.Count > 5 ? (byte)data[5] : (byte)0;
                     train = true;
-                    bool show = true;
+                    bool show = true; //★这个 switch 后面的多个 case（HealingCircle 等）共用 show 变量，此处必须保留它的声明
 
-                    for (int y = location.Y - 1; y <= location.Y + 1; y++)
+                    //毒雾：群体绿毒，范围 6 格（13×13）
+                    const int poisonRadius = 6;
+
+                    //需求：特效要「持续一整片云」，中间不留空白。
+                    //云素材（Magic2 1280-1289）单朵张开后约 9×6 格大，所以按 4 格间隔在网格点上各显示一朵，
+                    //9 朵云正好互相重叠着盖满整个 13×13 范围；其余格子只负责伤害/中毒，不下发显示。
+                    const int cloudStep = 4;
+
+                    for (int y = location.Y - poisonRadius; y <= location.Y + poisonRadius; y++)
                     {
                         if (y < 0) continue;
                         if (y >= Height) break;
 
-                        for (int x = location.X - 1; x <= location.X + 1; x++)
+                        for (int x = location.X - poisonRadius; x <= location.X + poisonRadius; x++)
                         {
                             if (x < 0) continue;
                             if (x >= Width) break;
@@ -1614,21 +1627,23 @@ namespace Server.MirEnvir
 
                             if (!cast) continue;
 
+                            //只有落在网格点上的格子才显示云，多朵连成一整片
+                            bool cloudShow = ((x - location.X) % cloudStep == 0) && ((y - location.Y) % cloudStep == 0);
+
                             SpellObject ob = new SpellObject
                                 {
                                     Spell = Spell.PoisonCloud,
                                     Value = value,
                                     BonusDmg = bonusdmg,
+                                    PoisonShape = poisonShape,
                                     ExpireTime = Envir.Time + 6000,
                                     TickSpeed = 1000,
                                     Caster = player,
                                     CurrentLocation = new Point(x, y),
                                     CastLocation = location,
-                                    Show = show,
+                                    Show = cloudShow,
                                     CurrentMap = this,
                                 };
-
-                            show = false;
 
                             AddObject(ob);
                             ob.Spawned();
@@ -2587,6 +2602,141 @@ namespace Server.MirEnvir
                     break;
 
                     #endregion
+
+                #region AbsorbFlame, AbsorbFlameRare（新增：吸魔炎风）
+
+                case Spell.AbsorbFlame:
+                case Spell.AbsorbFlameRare:
+                    value = (int)data[2];
+                    location = (Point)data[3];
+                    int flameSeconds = (int)data[4];
+
+                    if (!ValidPoint(location)) break;
+
+                    //吸魔炎风：群体。普通 2 格（5×5），秘籍 6 格（13×13）
+                    int flameRadius = magic.Spell == Spell.AbsorbFlameRare ? 6 : 2;
+
+                    //只有落点那一份下发特效（SpellObject.GetInfo 按 Show 过滤），其余格子只做伤害结算
+                    bool flameShow = true;
+
+                    for (int y = location.Y - flameRadius; y <= location.Y + flameRadius; y++)
+                    {
+                        if (y < 0) continue;
+                        if (y >= Height) break;
+
+                        for (int x = location.X - flameRadius; x <= location.X + flameRadius; x++)
+                        {
+                            if (x < 0) continue;
+                            if (x >= Width) break;
+
+                            cell = GetCell(x, y);
+                            if (!cell.Valid) continue;
+
+                            bool flameCast = true;
+                            if (cell.Objects != null)
+                                for (int o = 0; o < cell.Objects.Count; o++)
+                                {
+                                    MapObject target = cell.Objects[o];
+                                    if (target.Race != ObjectType.Spell || ((SpellObject)target).Spell != magic.Spell) continue;
+
+                                    flameCast = false;
+                                    break;
+                                }
+
+                            if (!flameCast) continue;
+
+                            SpellObject flame = new SpellObject
+                            {
+                                Spell = magic.Spell,
+                                Value = value,
+                                ExpireTime = Envir.Time + (flameSeconds * 1000),
+                                TickSpeed = 1000,
+                                Caster = player,
+                                CurrentLocation = new Point(x, y),
+                                CastLocation = location,
+                                Show = flameShow,
+                                CurrentMap = this,
+                            };
+
+                            flameShow = false;
+
+                            AddObject(flame);
+                            flame.Spawned();
+                        }
+                    }
+
+                    train = true;
+                    break;
+
+                #endregion
+
+                #region SkyThunderShot, SkyThunderShotRare（新增：落雷杀）
+
+                case Spell.SkyThunderShot:
+                case Spell.SkyThunderShotRare:
+                    value = (int)data[2];
+                    location = (Point)data[3];
+                    int thunderSeconds = (int)data[4];
+
+                    if (!ValidPoint(location)) break;
+
+                    //落雷杀：群体落雷。普通 4 格（9×9），秘笈 8 格（17×17）
+                    int thunderRadius = magic.Spell == Spell.SkyThunderShotRare ? 8 : 4;
+
+                    //只有落点那一份会下发特效（SpellObject.GetInfo 里按 Show 过滤），
+                    //其余格子仅用于伤害结算，避免一次铺出上百个循环播放的落雷特效把客户端拖垮
+                    bool thunderShow = true;
+
+                    for (int y = location.Y - thunderRadius; y <= location.Y + thunderRadius; y++)
+                    {
+                        if (y < 0) continue;
+                        if (y >= Height) break;
+
+                        for (int x = location.X - thunderRadius; x <= location.X + thunderRadius; x++)
+                        {
+                            if (x < 0) continue;
+                            if (x >= Width) break;
+
+                            cell = GetCell(x, y);
+                            if (!cell.Valid) continue;
+
+                            bool thunderCast = true;
+                            if (cell.Objects != null)
+                                for (int o = 0; o < cell.Objects.Count; o++)
+                                {
+                                    MapObject target = cell.Objects[o];
+                                    if (target.Race != ObjectType.Spell || ((SpellObject)target).Spell != magic.Spell) continue;
+
+                                    thunderCast = false;
+                                    break;
+                                }
+
+                            if (!thunderCast) continue;
+
+                            SpellObject thunder = new SpellObject
+                            {
+                                Spell = magic.Spell,
+                                Value = value,
+                                ExpireTime = Envir.Time + (thunderSeconds * 1000),
+                                TickSpeed = 600,
+                                Caster = player,
+                                CurrentLocation = new Point(x, y),
+                                CastLocation = location,
+                                Show = thunderShow,
+                                CurrentMap = this,
+                            };
+
+                            thunderShow = false;
+
+                            AddObject(thunder);
+                            thunder.Spawned();
+                        }
+                    }
+
+                    train = true;
+                    break;
+
+                #endregion
         }
 
             if (train)

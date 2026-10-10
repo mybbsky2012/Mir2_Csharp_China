@@ -35,6 +35,25 @@ namespace Client.MirObjects
         public virtual BuffDialog GetBuffDialog => GameScene.Scene.BuffsDialog;
 
         public UserItem[] Inventory = new UserItem[46], Equipment = new UserItem[14], Trade = new UserItem[10], QuestInventory = new UserItem[40];
+
+        /// <summary>是否装备着「气功石」（护身符类、Shape=4）——落雷杀系列的前置要求（不消耗）</summary>
+        public bool HasEnergyStone
+        {
+            get
+            {
+                for (int i = 0; i < Equipment.Length; i++)
+                {
+                    UserItem item = Equipment[i];
+                    if (item == null || item.Info == null) continue;
+                    if (item.Info.Type != ItemType.护身符) continue;
+                    if (item.Info.Shape != 4) continue;
+
+                    return true;
+                }
+
+                return false;
+            }
+        }
         public int BeltIdx = 6, HeroBeltIdx = 2;
         public bool HasExpandedStorage = false;
         public DateTime ExpandedStorageExpiryTime;
