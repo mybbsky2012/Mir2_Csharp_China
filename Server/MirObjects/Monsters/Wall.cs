@@ -25,6 +25,12 @@ namespace Server.MirObjects.Monsters
         }
         protected override bool CanMove { get { return false; } }
 
+        //城墙是攻城时的「堵门」，归「穿城墙」那一档开关管（见 Settings.EnableWalkThroughWall）
+        public override bool BlockWalkThrough
+        {
+            get { return true; }
+        }
+
         public override void Turn(MirDirection dir) { }
 
         public override bool Walk(MirDirection dir) { return false; }

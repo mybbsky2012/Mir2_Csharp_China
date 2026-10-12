@@ -2496,6 +2496,28 @@ namespace Server.MirObjects
         {
             return false;
         }
+
+        /// <summary>
+        /// 「穿人」的细粒度判定：按对象类型分别查《服务器设置 → 其他选项》里的 4 个开关。
+        /// 玩家/英雄 → 穿人；怪物 → 穿怪（但城门、城墙这类 BlockWalkThrough 对象归「穿城墙」那一档）；
+        /// NPC/商人 → 穿NPC。
+        /// 只有开关开着才允许穿过去，否则照常被挡住。
+        /// </summary>
+        private static bool CanWalkThrough(MapObject ob)
+        {
+            switch (ob.Race)
+            {
+                case ObjectType.Player:
+                case ObjectType.Hero:
+                    return Settings.EnableWalkThrough;
+                case ObjectType.Monster:
+                    return ob.BlockWalkThrough ? Settings.EnableWalkThroughWall : Settings.EnableWalkThroughMonster;
+                case ObjectType.Merchant:
+                    return Settings.EnableWalkThroughNPC;
+                default:
+                    return false;
+            }
+        }
         public bool Walk(MirDirection dir)
         {
             if (!CanMove || !CanWalk)
@@ -2526,8 +2548,12 @@ namespace Server.MirObjects
                 {
                     MapObject ob = cell.Objects[i];
 
-                    // 穿人：开启后忽略其他玩家/英雄/怪物/NPC 的阻挡（地形、门、障碍物仍然有效）
-                    if (WalkThrough && (ob.Race == ObjectType.Player || ob.Race == ObjectType.Hero || ob.Race == ObjectType.Monster || ob.Race == ObjectType.Merchant)) continue;
+                    // 穿人：开启后忽略玩家/英雄/怪物/NPC 的阻挡。
+                    // 具体放行哪几类由《服务器设置 → 其他选项》里的 4 个开关分别决定（见 CanWalkThrough）：
+                    //   穿人 = EnableWalkThrough、穿怪 = EnableWalkThroughMonster、
+                    //   穿NPC = EnableWalkThroughNPC、穿城墙 = EnableWalkThroughWall。
+                    // 地形、普通门、障碍物始终有效。
+                    if (WalkThrough && CanWalkThrough(ob)) continue;
 
                     if (ob.Race == ObjectType.Merchant && Race == ObjectType.Player)
                     {
@@ -2668,8 +2694,8 @@ namespace Server.MirObjects
                     {
                         MapObject ob = cell.Objects[i];
 
-                        // 穿人：开启后忽略其他玩家/英雄/怪物的阻挡（NPC、地形仍然有效）
-                        if (WalkThrough && (ob.Race == ObjectType.Player || ob.Race == ObjectType.Hero || ob.Race == ObjectType.Monster)) continue;
+                        // 穿人：奔跑路径上不穿 NPC（保持原有行为），其余按 4 档开关判定
+                        if (WalkThrough && ob.Race != ObjectType.Merchant && CanWalkThrough(ob)) continue;
 
                         if (ob.Race == ObjectType.Merchant && Race == ObjectType.Player)
                         {

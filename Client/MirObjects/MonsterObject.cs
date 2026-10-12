@@ -69,6 +69,9 @@ namespace Client.MirObjects
         public long ShockTime;
         public bool BindingShotCenter;
 
+        //攻城城门/城墙：服务端标记，开着「穿人」也不能穿过（本地预测要一致，否则会一直撞门）
+        public bool NoWalkThrough;
+
         public Color OldNameColor;
 
         public SpellEffect CurrentEffect;
@@ -98,6 +101,7 @@ namespace Client.MirObjects
             Hidden = info.Hidden;
             ShockTime = CMain.Time + info.ShockTime;
             BindingShotCenter = info.BindingShotCenter;
+            NoWalkThrough = info.NoWalkThrough;
 
             Buffs = info.Buffs;
 

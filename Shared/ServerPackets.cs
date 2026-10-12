@@ -2229,6 +2229,8 @@ namespace ServerPackets
         public byte ExtraByte;
         public long ShockTime;
         public bool BindingShotCenter;
+        /// <summary>攻城城门/城墙等「堵门」阻挡物：即使客户端开着穿人也不能穿过。</summary>
+        public bool NoWalkThrough;
 
         public List<BuffType> Buffs = new List<BuffType>();
 
@@ -2257,6 +2259,8 @@ namespace ServerPackets
             {
                 Buffs.Add((BuffType)reader.ReadByte());
             }
+
+            NoWalkThrough = reader.ReadBoolean();
         }
 
         protected override void WritePacket(BinaryWriter writer)
@@ -2285,6 +2289,8 @@ namespace ServerPackets
             {
                 writer.Write((byte)Buffs[i]);
             }
+
+            writer.Write(NoWalkThrough);
         }
 
     }

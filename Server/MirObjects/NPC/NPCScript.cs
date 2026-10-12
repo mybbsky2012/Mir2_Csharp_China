@@ -618,14 +618,43 @@ namespace Server.MirObjects
 
             NPCSegment segment = new NPCSegment(page, say, buttons, elseSay, elseButtons, gotoButtons);
 
+            // ★解析阶段也加护栏：任何一行写错都只记日志并跳过该行，
+            //   不允许异常冒到 @RELOADNPCS 的调用链（那会直接崩服）。
             for (int i = 0; i < checks.Count; i++)
-                segment.ParseCheck(checks[i]);
+            {
+                try
+                {
+                    segment.ParseCheck(checks[i], FileName);
+                }
+                catch (Exception ex)
+                {
+                    MessageQueue.Enqueue(string.Format("NPC脚本解析错误：{0} 的 [{1}] 段「{2}」—— {3}", FileName, page == null ? "?" : page.Key, checks[i], ex.Message));
+                }
+            }
 
             for (int i = 0; i < acts.Count; i++)
-                segment.ParseAct(segment.ActList, acts[i]);
+            {
+                try
+                {
+                    segment.ParseAct(segment.ActList, acts[i]);
+                }
+                catch (Exception ex)
+                {
+                    MessageQueue.Enqueue(string.Format("NPC脚本解析错误：{0} 的 [{1}] 段「{2}」—— {3}", FileName, page == null ? "?" : page.Key, acts[i], ex.Message));
+                }
+            }
 
             for (int i = 0; i < elseActs.Count; i++)
-                segment.ParseAct(segment.ElseActList, elseActs[i]);
+            {
+                try
+                {
+                    segment.ParseAct(segment.ElseActList, elseActs[i]);
+                }
+                catch (Exception ex)
+                {
+                    MessageQueue.Enqueue(string.Format("NPC脚本解析错误：{0} 的 [{1}] 段「{2}」—— {3}", FileName, page == null ? "?" : page.Key, elseActs[i], ex.Message));
+                }
+            }
 
             currentButtons = new List<string>();
             currentButtons.AddRange(buttons);
@@ -850,6 +879,10 @@ namespace Server.MirObjects
                 {
                     if (player.NPCObjectID != objectID) return;
 
+                    // 玩家可能压根没打开过这个 NPC 就发来调用（旧客户端 / 改包），
+                    // 这里没判空 → NullReferenceException 同样会冒到 WorkLoop 崩服。
+                    if (player.NPCPage == null) return;
+
                     bool found = false;
 
                     foreach (NPCSegment segment in player.NPCPage.SegmentList)
@@ -970,6 +1003,11 @@ namespace Server.MirObjects
                     ProcessSegment(player, page, segment, objectID);
                 }
             }
+            catch (Exception ex)
+            {
+                // ★后台脚本（泡点/定时器/登录触发等）出错只记日志，绝不外抛崩服。
+                MessageQueue.Enqueue(string.Format("[NPC脚本执行错误] {0} 的 [{1}] 段（静默执行）—— {2}", FileName, page == null ? "?" : page.Key, ex));
+            }
             finally
             {
                 player.NPCObjectID = oldObjectID;
@@ -987,24 +1025,60 @@ namespace Server.MirObjects
         {
             player.Enqueue(new S.NPCResponse { Page = player.NPCSpeech });
 
-            ProcessSpecial(player, page);
+            // ★面板生成（商店/仓库/精炼/合成等）出错也不能外抛，否则会崩服。
+            try
+            {
+                ProcessSpecial(player, page);
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format("[NPC脚本执行错误] {0} 的 [{1}] 段（面板处理）—— {2}", FileName, page == null ? "?" : page.Key, ex));
+            }
         }
 
         private void ProcessSegment(PlayerObject player, NPCPage page, NPCSegment segment, uint objectID)
         {
             player.NPCObjectID = objectID;
             player.NPCScriptID = ScriptID;
-            player.NPCSuccess.Add(segment, segment.Check(player));
+
+            try
+            {
+                // 用索引器而不是 Add：同一段被重复处理时 Add 会抛「重复键」，
+                // 同样会一路冒到 WorkLoop 把服务器带崩。
+                player.NPCSuccess[segment] = segment.Check(player);
+            }
+            catch (Exception ex)
+            {
+                // ★脚本写错只影响这一段：按「条件不成立」处理 + 记日志，绝不外抛。
+                player.NPCSuccess[segment] = false;
+
+                MessageQueue.Enqueue(string.Format("[NPC脚本执行错误] {0} 的 [{1}] 段 —— {2}", FileName, page == null ? "?" : page.Key, ex));
+            }
+
             player.NPCPage = page;
         }
 
         private void ProcessSegment(MonsterObject monster, NPCPage page, NPCSegment segment)
         {
-            segment.Check(monster);
+            try
+            {
+                segment.Check(monster);
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format("[NPC脚本执行错误] {0} 的 [{1}] 段（怪物触发）—— {2}", FileName, page == null ? "?" : page.Key, ex));
+            }
         }
         private void ProcessSegment(NPCPage page, NPCSegment segment)
         {
-            segment.Check();
+            try
+            {
+                segment.Check();
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format("[NPC脚本执行错误] {0} 的 [{1}] 段（无对象触发）—— {2}", FileName, page == null ? "?" : page.Key, ex));
+            }
         }
 
         private void ProcessSpecial(PlayerObject player, NPCPage page)

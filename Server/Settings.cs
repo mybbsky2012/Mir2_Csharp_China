@@ -114,7 +114,10 @@ namespace Server
 
         //辅助开关（内挂相关，客户端可申请开启，服务器决定是否放行）
         public static bool EnableNoLamp = true,          // 免蜡：夜晚不需要照明道具
-                           EnableWalkThrough = true,     // 穿人：可以穿过其他玩家/英雄/怪物/NPC
+                           EnableWalkThrough = true,     // 穿人：可以穿过其他玩家/英雄
+                           EnableWalkThroughMonster = true,  // 穿怪：可以穿过普通怪物
+                           EnableWalkThroughNPC = true,      // 穿NPC：可以穿过商人/NPC
+                           EnableWalkThroughWall = false,    // 穿城墙：可以穿过攻城城门/城墙（默认关，保证攻城时门能堵住人）
                            EnableOverWeight = true,      // 超负重：负重超限仍可奔跑、装备不受负重限制
                            EnableMountTai = true;        // 泰山：被攻击时不后仰、不打断跑动与施法
 
@@ -445,6 +448,9 @@ namespace Server
             //辅助开关
             EnableNoLamp = Reader.ReadBoolean("Optional", "EnableNoLamp", EnableNoLamp);
             EnableWalkThrough = Reader.ReadBoolean("Optional", "EnableWalkThrough", EnableWalkThrough);
+            EnableWalkThroughMonster = Reader.ReadBoolean("Optional", "EnableWalkThroughMonster", EnableWalkThroughMonster);
+            EnableWalkThroughNPC = Reader.ReadBoolean("Optional", "EnableWalkThroughNPC", EnableWalkThroughNPC);
+            EnableWalkThroughWall = Reader.ReadBoolean("Optional", "EnableWalkThroughWall", EnableWalkThroughWall);
             EnableOverWeight = Reader.ReadBoolean("Optional", "EnableOverWeight", EnableOverWeight);
             EnableMountTai = Reader.ReadBoolean("Optional", "EnableMountTai", EnableMountTai);
 
@@ -765,6 +771,9 @@ namespace Server
             Reader.Write("Optional", "LineMessageTimer", LineMessageTimer);
             Reader.Write("Optional", "EnableNoLamp", EnableNoLamp);
             Reader.Write("Optional", "EnableWalkThrough", EnableWalkThrough);
+            Reader.Write("Optional", "EnableWalkThroughMonster", EnableWalkThroughMonster);
+            Reader.Write("Optional", "EnableWalkThroughNPC", EnableWalkThroughNPC);
+            Reader.Write("Optional", "EnableWalkThroughWall", EnableWalkThroughWall);
             Reader.Write("Optional", "EnableOverWeight", EnableOverWeight);
             Reader.Write("Optional", "EnableMountTai", EnableMountTai);
 

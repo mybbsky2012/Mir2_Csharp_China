@@ -22,6 +22,12 @@ namespace Server.MirObjects.Monsters
             }
         }
 
+        //城墙格子（城门关闭时显形的那些阻挡位）：和城门一样，开着穿人也必须挡住
+        public override bool BlockWalkThrough
+        {
+            get { return true; }
+        }
+
         public override bool Walk(MirDirection dir) { return false; }
 
         public override bool IsAttackTarget(MonsterObject attacker)

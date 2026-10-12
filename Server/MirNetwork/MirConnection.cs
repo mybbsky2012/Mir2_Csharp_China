@@ -2079,10 +2079,15 @@ namespace Server.MirNetwork
             bool allowed = packet.Option switch
             {
                 PlayerOptionType.NoLamp => Settings.EnableNoLamp,
-                PlayerOptionType.WalkThrough => Settings.EnableWalkThrough,
+                // 「穿人」是玩家勾选的总意愿：4 档里只要有一档开放就允许勾上，具体能穿什么由 CanWalkThrough 按档位判定
+                PlayerOptionType.WalkThrough => Settings.EnableWalkThrough || Settings.EnableWalkThroughMonster || Settings.EnableWalkThroughNPC || Settings.EnableWalkThroughWall,
                 PlayerOptionType.NoRunUp => true, // 免助跑：纯移动便利开关，服务器始终放行
                 PlayerOptionType.OverWeight => Settings.EnableOverWeight,
                 PlayerOptionType.MountTai => Settings.EnableMountTai,
+                // 下面 3 项只由服务器下发、客户端不会申请；列在这里只为状态一致
+                PlayerOptionType.WalkThroughMonster => Settings.EnableWalkThroughMonster,
+                PlayerOptionType.WalkThroughNPC => Settings.EnableWalkThroughNPC,
+                PlayerOptionType.WalkThroughWall => Settings.EnableWalkThroughWall,
                 _ => false,
             };
 

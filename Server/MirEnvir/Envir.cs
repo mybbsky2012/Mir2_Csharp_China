@@ -3904,7 +3904,16 @@ namespace Server.MirEnvir
 
             foreach (var key in keys)
             {
-                Scripts[key].Load();
+                // ★在线热重载（@RELOADNPCS）必须容错：单个脚本写错只能自己加载失败，
+                //   不能把异常抛到调用链上（那会被 WorkLoop 的 catch 接住 → 踢玩家 + 停服）。
+                try
+                {
+                    Scripts[key].Load();
+                }
+                catch (Exception ex)
+                {
+                    MessageQueue.Enqueue(string.Format("NPC脚本加载失败（已跳过）：{0} —— {1}", Scripts[key].FileName, ex.Message));
+                }
             }
 
             MessageQueue.Enqueue("NPC脚本已重新加载");

@@ -140,11 +140,25 @@ namespace Client.MirScenes.Dialogs
             WalkThroughBox = CreateBox(132, 66, "穿人/怪/NPC", Settings.WalkThrough);
             WalkThroughBox.Click += (o, e) =>
             {
-                if (!GameScene.WalkThroughAllowed)
+                if (!GameScene.WalkThroughAllowed && !GameScene.WalkThroughMonsterAllowed
+                    && !GameScene.WalkThroughNPCAllowed && !GameScene.WalkThroughWallAllowed)
                 {
                     WalkThroughBox.Checked = false;
                     GameScene.Scene.OutputMessage("本服务器未开放穿人功能");
                     return;
+                }
+
+                if (WalkThroughBox.Checked)
+                {
+                    string can = "";
+                    if (GameScene.WalkThroughAllowed) can += "玩家 ";
+                    if (GameScene.WalkThroughMonsterAllowed) can += "怪物 ";
+                    if (GameScene.WalkThroughNPCAllowed) can += "NPC ";
+                    if (GameScene.WalkThroughWallAllowed) can += "城门城墙 ";
+                    if (can.Length == 0) can = "（无）";
+
+                    GameScene.Scene.OutputMessage("穿人已开启，可穿过：" + can.Trim()
+                        + (GameScene.WalkThroughWallAllowed ? "" : "；城门、城墙不可穿"));
                 }
 
                 GameScene.RequestPlayerOption(PlayerOptionType.WalkThrough, WalkThroughBox.Checked);
@@ -243,7 +257,9 @@ namespace Client.MirScenes.Dialogs
             MountTaiBox.Checked = Settings.MountTai;
 
             NoLampBox.Enabled = GameScene.NoLampAllowed;
-            WalkThroughBox.Enabled = GameScene.WalkThroughAllowed;
+            //4 档里任意一档开放，玩家就能勾选「穿人」（具体能穿什么由服务器按档位判定）
+            WalkThroughBox.Enabled = GameScene.WalkThroughAllowed || GameScene.WalkThroughMonsterAllowed
+                                     || GameScene.WalkThroughNPCAllowed || GameScene.WalkThroughWallAllowed;
             NoRunUpBox.Enabled = GameScene.NoRunUpAllowed;
             OverWeightBox.Enabled = GameScene.OverWeightAllowed;
             MountTaiBox.Enabled = GameScene.MountTaiAllowed;

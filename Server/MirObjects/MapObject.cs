@@ -192,6 +192,17 @@ namespace Server.MirObjects
             get { return true; }
         }
 
+        /// <summary>
+        /// 「穿人」（WalkThrough）开启时是否仍然阻挡移动。
+        /// 攻城城门、城墙这类「堵门」用的阻挡物必须返回 true，
+        /// 否则内挂开着穿人就能直接穿过关着的城门，攻城就没意义了。
+        /// 注意：只影响穿人；正常情况下仍由 Blocking 决定阻挡。
+        /// </summary>
+        public virtual bool BlockWalkThrough
+        {
+            get { return false; }
+        }
+
         public Point Front
         {
             get { return Functions.PointMove(CurrentLocation, Direction, 1); }
