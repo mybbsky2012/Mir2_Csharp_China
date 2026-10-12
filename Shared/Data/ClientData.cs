@@ -560,9 +560,20 @@ public class ClientBuff
 
     public int[] Values;
 
+    //★★ 自定义 BUFF 的显示名与图标（2026-10-12 新增，随 AddBuff 封包下发）
+    //   Name：显示名。为空时客户端回退到「枚举名」，所以原有 BUFF 完全不受影响。
+    //   Icon：图标索引，沿用客户端既有的图库编码约定
+    //         0        = 用原有的枚举名硬编码映射（老 BUFF 走这条）
+    //         10000+   = Prguse2 图库
+    //         20000+   = MagIcon 图库
+    //         40000+   = MagIcon2 图库（值为 40000 + 技能Icon*2）
+    public string Name;
+    public int Icon;
+
     public ClientBuff()
     {
         Stats = new Stats();
+        Name = string.Empty;
     }
 
     public ClientBuff(BinaryReader reader)
@@ -586,6 +597,9 @@ public class ClientBuff
         {
             Values[i] = reader.ReadInt32();
         }
+
+        Name = reader.ReadString();
+        Icon = reader.ReadInt32();
     }
 
     public void Save(BinaryWriter writer)
@@ -604,6 +618,10 @@ public class ClientBuff
         {
             writer.Write(Values[i]);
         }
+
+        //★ 顺序必须与读取端逐字对齐：Name 在前、Icon 在后
+        writer.Write(Name ?? string.Empty);
+        writer.Write(Icon);
     }
 }
 

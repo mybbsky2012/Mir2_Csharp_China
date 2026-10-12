@@ -2809,10 +2809,18 @@ namespace Server.MirObjects
                         break;
                     case CheckType.CheckBuff:
                         {
-                            if (!Enum.TryParse(param[0], true, out BuffType buffType))
+                            BuffType buffType;
+
+                            //★ 兼容自定义 BUFF：除了枚举名，还可以写配置里的显示名（羽化登仙）或槽位号（1）
+                            if (!Enum.TryParse(param[0], true, out buffType) || !Enum.IsDefined(typeof(BuffType), buffType))
                             {
-                                failed = true;
-                                break;
+                                string resolved = BuffConfig.ResolveScriptName(param[0]);
+
+                                if (resolved == null || !Enum.TryParse(resolved, true, out buffType))
+                                {
+                                    failed = true;
+                                    break;
+                                }
                             }
 
                             failed = !player.HasBuff(buffType);
@@ -3686,6 +3694,21 @@ namespace Server.MirObjects
                             }
 
                             var lines = File.ReadAllLines(path);
+
+                            //★ 兼容自定义 BUFF：脚本里除了写枚举名（Custom1 / 隐身术），
+                            //  还可以直接写配置里的显示名（羽化登仙）或槽位号（1）。
+                            //  原有的枚举名写法完全不受影响。
+                            if (!Enum.IsDefined(typeof(BuffType), param[0]))
+                            {
+                                string resolved = BuffConfig.ResolveScriptName(param[0]);
+
+                                if (resolved == null)
+                                {
+                                    return;
+                                }
+
+                                param[0] = resolved;
+                            }
 
                             if (!Enum.IsDefined(typeof(BuffType), param[0]))
                             {

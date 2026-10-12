@@ -91,6 +91,7 @@ namespace Server
             accountToolStripMenuItem = new ToolStripMenuItem();
             databaseFormsToolStripMenuItem = new ToolStripMenuItem();
             mapInfoToolStripMenuItem = new ToolStripMenuItem();
+            buffConfigToolStripMenuItem = new ToolStripMenuItem();
             itemInfoToolStripMenuItem = new ToolStripMenuItem();
             monsterInfoToolStripMenuItem = new ToolStripMenuItem();
             itemNEWToolStripMenuItem = new ToolStripMenuItem();
@@ -577,7 +578,7 @@ namespace Server
             // 
             // databaseFormsToolStripMenuItem
             // 
-            databaseFormsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { mapInfoToolStripMenuItem, itemInfoToolStripMenuItem, monsterInfoToolStripMenuItem, itemNEWToolStripMenuItem, monsterExperimentalToolStripMenuItem, nPCInfoToolStripMenuItem, questInfoToolStripMenuItem, magicInfoToolStripMenuItem, gameshopToolStripMenuItem, recipeToolStripMenuItem });
+            databaseFormsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { mapInfoToolStripMenuItem, buffConfigToolStripMenuItem, itemInfoToolStripMenuItem, monsterInfoToolStripMenuItem, itemNEWToolStripMenuItem, monsterExperimentalToolStripMenuItem, nPCInfoToolStripMenuItem, questInfoToolStripMenuItem, magicInfoToolStripMenuItem, gameshopToolStripMenuItem, recipeToolStripMenuItem });
             databaseFormsToolStripMenuItem.Name = "databaseFormsToolStripMenuItem";
             databaseFormsToolStripMenuItem.Size = new Size(56, 21);
             databaseFormsToolStripMenuItem.Text = "数据库";
@@ -588,6 +589,13 @@ namespace Server
             mapInfoToolStripMenuItem.Size = new Size(181, 22);
             mapInfoToolStripMenuItem.Text = "地图信息(导入导出)";
             mapInfoToolStripMenuItem.Click += mapInfoToolStripMenuItem_Click;
+            // 
+            // buffConfigToolStripMenuItem
+            // 
+            buffConfigToolStripMenuItem.Name = "buffConfigToolStripMenuItem";
+            buffConfigToolStripMenuItem.Size = new Size(181, 22);
+            buffConfigToolStripMenuItem.Text = "自定义BUFF属性";
+            buffConfigToolStripMenuItem.Click += buffConfigToolStripMenuItem_Click;
             // 
             // itemInfoToolStripMenuItem
             // 
@@ -868,6 +876,7 @@ namespace Server
         private ToolStripMenuItem accountToolStripMenuItem;
         private ToolStripMenuItem databaseFormsToolStripMenuItem;
         private ToolStripMenuItem mapInfoToolStripMenuItem;
+        private ToolStripMenuItem buffConfigToolStripMenuItem;
         private ToolStripMenuItem itemInfoToolStripMenuItem;
         private ToolStripMenuItem monsterInfoToolStripMenuItem;
         private ToolStripMenuItem nPCInfoToolStripMenuItem;

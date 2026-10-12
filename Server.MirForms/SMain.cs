@@ -234,6 +234,14 @@ namespace Server
             form.ShowDialog();
         }
 
+        //★ 自定义 BUFF 属性编辑器（Configs\BuffSystem.ini）
+        private void buffConfigToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            BuffConfigForm form = new BuffConfigForm();
+
+            form.ShowDialog();
+        }
+
         private void itemInfoToolStripMenuItem_Click_1(object sender, EventArgs e)
         {
             ItemInfoForm form = new ItemInfoForm();

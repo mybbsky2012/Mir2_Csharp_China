@@ -8865,7 +8865,12 @@ namespace Server.MirObjects
 
         public override Buff AddBuff(BuffType type, MapObject owner, int duration, Stats stats, bool refreshStats = true, bool updateOnly = false, params int[] values)
         {
+            //★ 配置属性注入要在 base 之前判「本来就有没有」，base 之后 buff 已经进列表了。
+            bool existed = HasBuff(type, out Buff _);
+
             Buff b = base.AddBuff(type, owner, duration, stats, refreshStats, updateOnly, values);
+
+            ApplyBuffConfigStats(b, owner, existed, stats);
 
             switch (b.Type)
             {
@@ -8892,6 +8897,47 @@ namespace Server.MirObjects
             }
 
             return b;
+        }
+
+        /// <summary>
+        /// 把 Configs\BuffSystem.ini 里配的属性加成挂到 buff 上。
+        ///
+        /// 两种情况的处理刻意不同：
+        ///   · 自定义槽位（Custom1~Custom24）：以「本次调用带进来的属性」为底，再叠加配置属性。
+        ///       —— 底值必须保留：脚本的 GIVEBUFF 是带属性调用的（如 MaxDC=12），
+        ///          如果直接整体替换，脚本给的那部分会被静默吃掉。
+        ///          而「本次调用带进来的」是确定值，重复施法重建出来的结果一致，不会越滚越大。
+        ///   · 已有 BUFF（如 [隐身术] 补充一条属性）：只在第一次挂上时追加一次。
+        ///      它们大多是 ResetDuration 堆叠，没法从 buff.Stats 里区分「代码给的」和「配置给的」，
+        ///      每次重放都追加会越滚越大，所以刻意只加一次。
+        /// </summary>
+        private void ApplyBuffConfigStats(Buff buff, MapObject owner, bool existed, Stats source)
+        {
+            if (buff == null) return;
+
+            BuffDef def = BuffConfig.Get(buff.Type);
+
+            if (def == null || def.Stats.Count == 0) return;
+
+            if (!def.IsCustom && existed) return;
+
+            // 等级取施法者等级；没有施法者时取目标自身（GM 给自己加 = 按自己等级算）
+            MapObject caster = owner ?? this;
+            int level = caster == null ? 0 : caster.Level;
+
+            Stats bonus = def.BuildStats(level);
+
+            if (def.IsCustom)
+            {
+                Stats merged = new Stats(source ?? new Stats());
+                merged.Add(bonus);
+
+                buff.Stats = merged;
+            }
+            else
+            {
+                buff.Stats.Add(bonus);
+            }
         }
 
         public override void PauseBuff(Buff b)

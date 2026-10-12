@@ -1,0 +1,11034 @@
+{
+ "classes": {
+  "AncientBringer": {
+   "file": "Server/MirObjects/Monsters/AncientBringer.cs",
+   "lines": 195,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "远程攻击",
+    "施毒",
+    "直线/穿透攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    329
+   ],
+   "used_ais": [
+    329
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "丹墨",
+    "满月之丹墨"
+   ]
+  },
+  "AncientStoneGolem": {
+   "file": "Server/MirObjects/Monsters/AncientStoneGolem.cs",
+   "lines": 197,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "直线/穿透攻击",
+    "血量分段行为",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    514
+   ],
+   "used_ais": [
+    514
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "昆仑石碑兽"
+   ]
+  },
+  "AntCommander": {
+   "file": "Server/MirObjects/Monsters/AntCommander.cs",
+   "lines": 169,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed",
+    "Green",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [],
+   "ais": [
+    456
+   ],
+   "used_ais": [
+    456
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "腐食虫"
+   ]
+  },
+  "ArcaneTotem": {
+   "file": "Server/MirObjects/Monsters/ArcaneTotem.cs",
+   "lines": 38,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    525
+   ],
+   "used_ais": [
+    525
+   ],
+   "monster_count": 5,
+   "game_names": [
+    "BlueArcaneTotem",
+    "GreenArcaneTotem",
+    "RedArcaneTotem",
+    "WarpGate",
+    "YellowArcaneTotem"
+   ]
+  },
+  "ArcherGuard": {
+   "file": "Server/MirObjects/Monsters/ArcherGuard.cs",
+   "lines": 45,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    982
+   ],
+   "used_ais": [
+    982
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "卫兵",
+    "卫士",
+    "带刀侍卫"
+   ]
+  },
+  "Armadillo": {
+   "file": "Server/MirObjects/Monsters/Armadillo.cs",
+   "lines": 202,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能"
+   ],
+   "magics": [
+    "DigOutArmadillo"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    347
+   ],
+   "used_ais": [
+    347
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "犰狳"
+   ]
+  },
+  "ArmadilloElder": {
+   "file": "Server/MirObjects/Monsters/ArmadilloElder.cs",
+   "lines": 65,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    348
+   ],
+   "used_ais": [
+    348
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "犰狳长老"
+   ]
+  },
+  "AssassinBird": {
+   "file": "Server/MirObjects/Monsters/AssassinBird.cs",
+   "lines": 60,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    358
+   ],
+   "used_ais": [
+    358
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "鸟人刺客"
+   ]
+  },
+  "AvengingSpirit": {
+   "file": "Server/MirObjects/Monsters/AvengingSpirit.cs",
+   "lines": 82,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    388
+   ],
+   "used_ais": [
+    388
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "沉船恶灵"
+   ]
+  },
+  "AvengingWarrior": {
+   "file": "Server/MirObjects/Monsters/AvengingWarrior.cs",
+   "lines": 89,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Red"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    390
+   ],
+   "used_ais": [
+    390
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "幽灵勇士"
+   ]
+  },
+  "AxePlant": {
+   "file": "Server/MirObjects/Monsters/AxePlant.cs",
+   "lines": 50,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    391
+   ],
+   "used_ais": [
+    391
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "幽灵重锤将"
+   ]
+  },
+  "AxeSkeleton": {
+   "file": "Server/MirObjects/Monsters/AxeSkeleton.cs",
+   "lines": 104,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    21
+   ],
+   "used_ais": [
+    21
+   ],
+   "monster_count": 46,
+   "game_names": [
+    "业火投石手",
+    "冰原鬼弓士",
+    "变异毒妖族弓手",
+    "变异的监工",
+    "古代掷斧骷髅",
+    "古代祖玛弓箭手",
+    "古代骷髅弓箭手",
+    "幽灵弓箭手",
+    "掷斧骷髅",
+    "暗之魔龙射手",
+    "暗之魔龙铁蛾",
+    "暗黑战士",
+    "机关车",
+    "毒妖族弓箭手",
+    "祖玛弓箭手",
+    "蚩尤天王",
+    "被诅咒的秦陵弓兵",
+    "陶俑弓兵",
+    "骷髅弓箭手",
+    "魔龙射手",
+    "魔龙巨蛾",
+    "黑龙祖玛弓箭手"
+   ]
+  },
+  "Behemoth": {
+   "file": "Server/MirObjects/Monsters/Behemoth.cs",
+   "lines": 277,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "瞬移",
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Bleeding",
+    "Dazed",
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    57
+   ],
+   "used_ais": [
+    57
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "怨恶"
+   ]
+  },
+  "BlackFoxman": {
+   "file": "Server/MirObjects/Monsters/BlackFoxman.cs",
+   "lines": 59,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    230
+   ],
+   "used_ais": [
+    230
+   ],
+   "monster_count": 15,
+   "game_names": [
+    "冰原鬼兵",
+    "寒冰侍卫",
+    "异秘战士",
+    "灵猫武士",
+    "蜥蜴",
+    "被诅咒的秦陵枪兵",
+    "陶俑枪兵",
+    "黑狐"
+   ]
+  },
+  "BlackHammerCat": {
+   "file": "Server/MirObjects/Monsters/BlackHammerCat.cs",
+   "lines": 71,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    334
+   ],
+   "used_ais": [
+    334
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "犀牛武士",
+    "黑锤猫卫"
+   ]
+  },
+  "BlackTortoise": {
+   "file": "Server/MirObjects/Monsters/BlackTortoise.cs",
+   "lines": 108,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    433
+   ],
+   "used_ais": [
+    433
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "强壮洞窟玄武",
+    "沼玄武"
+   ]
+  },
+  "BloodLord": {
+   "file": "Server/MirObjects/Monsters/BloodLord.cs",
+   "lines": 74,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    532
+   ],
+   "used_ais": [
+    532
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "变异白骨沃玛"
+   ]
+  },
+  "BlueSoul": {
+   "file": "Server/MirObjects/Monsters/BlueSoul.cs",
+   "lines": 38,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    407
+   ],
+   "used_ais": [
+    407
+   ],
+   "monster_count": 10,
+   "game_names": [
+    "毒妖花",
+    "魂火",
+    "魔风旋",
+    "黑暗精灵"
+   ]
+  },
+  "BombSpider": {
+   "file": "Server/MirObjects/Monsters/BombSpider.cs",
+   "lines": 60,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    67,
+    133
+   ],
+   "used_ais": [
+    67,
+    133
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "抱脸虫",
+    "炸弹蜘蛛",
+    "爆炸龟"
+   ]
+  },
+  "BoneFamiliar": {
+   "file": "Server/MirObjects/Monsters/BoneFamiliar.cs",
+   "lines": 44,
+   "overrides": [
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    36
+   ],
+   "used_ais": [
+    36
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "变异骷髅"
+   ]
+  },
+  "BoneLord": {
+   "file": "Server/MirObjects/Monsters/BoneLord.cs",
+   "lines": 124,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    196
+   ],
+   "used_ais": [
+    196
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "古代骸骨盘王",
+    "骸骨盘王"
+   ]
+  },
+  "BoneSpearman": {
+   "file": "Server/MirObjects/Monsters/BoneSpearman.cs",
+   "lines": 49,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    193
+   ],
+   "used_ais": [
+    193
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "古代骷髅士兵",
+    "骷髅士兵"
+   ]
+  },
+  "BoulderSpirit": {
+   "file": "Server/MirObjects/Monsters/BoulderSpirit.cs",
+   "lines": 54,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    408
+   ],
+   "used_ais": [
+    408
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "岩弹"
+   ]
+  },
+  "BugBagMaggot": {
+   "file": "Server/MirObjects/Monsters/BugBagMaggot.cs",
+   "lines": 54,
+   "overrides": [
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    41
+   ],
+   "used_ais": [
+    41
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "角蝇",
+    "黑龙角蝇"
+   ]
+  },
+  "BurningZombie": {
+   "file": "Server/MirObjects/Monsters/BurningZombie.cs",
+   "lines": 73,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    319
+   ],
+   "used_ais": [
+    319
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "冰僵尸",
+    "火僵尸"
+   ]
+  },
+  "Butcher": {
+   "file": "Server/MirObjects/Monsters/Butcher.cs",
+   "lines": 305,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能",
+    "给目标上 BUFF",
+    "直线/穿透攻击",
+    "血量分段行为",
+    "治疗/回复"
+   ],
+   "magics": [
+    "ButcherFlyAxe"
+   ],
+   "buffs": [
+    "死亡印记"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "3"
+   ],
+   "ais": [
+    516
+   ],
+   "used_ais": [
+    516
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "巨型沃玛"
+   ]
+  },
+  "CannibalPlant": {
+   "file": "Server/MirObjects/Monsters/CannibalPlant.cs",
+   "lines": 97,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "变身/换形态"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    10
+   ],
+   "used_ais": [
+    10
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "食人花"
+   ]
+  },
+  "CannibalTentacles": {
+   "file": "Server/MirObjects/Monsters/CannibalTentacles.cs",
+   "lines": 129,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    353
+   ],
+   "used_ais": [
+    353
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "噬人龙"
+   ]
+  },
+  "CargoBox": {
+   "file": "Server/MirObjects/Monsters/CargoBox.cs",
+   "lines": 26,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    461
+   ],
+   "used_ais": [
+    461
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "鹿箱"
+   ]
+  },
+  "CatShaman": {
+   "file": "Server/MirObjects/Monsters/CatShaman.cs",
+   "lines": 113,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Red"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    336
+   ],
+   "used_ais": [
+    336
+   ],
+   "monster_count": 12,
+   "game_names": [
+    "冰封学者",
+    "冰封贤者",
+    "变异巨头奥玛",
+    "道士高手",
+    "陵庙巫师",
+    "魔法高手"
+   ]
+  },
+  "CaveMaggot": {
+   "file": "Server/MirObjects/Monsters/CaveMaggot.cs",
+   "lines": 50,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    24
+   ],
+   "used_ais": [
+    24
+   ],
+   "monster_count": 14,
+   "game_names": [
+    "古代月之月魔蜘蛛",
+    "暗之粪虫",
+    "月之月魔蜘蛛",
+    "月魔蜘蛛",
+    "楔蛾",
+    "洞蛆",
+    "粪虫"
+   ]
+  },
+  "CaveStatue": {
+   "file": "Server/MirObjects/Monsters/CaveStatue.cs",
+   "lines": 38,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    380
+   ],
+   "used_ais": [
+    380
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "山洞石像"
+   ]
+  },
+  "CharmedSnake": {
+   "file": "Server/MirObjects/Monsters/CharmedSnake.cs",
+   "lines": 266,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [
+    "CharmedSnake"
+   ],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    423
+   ],
+   "used_ais": [
+    423
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "魅蛇"
+   ]
+  },
+  "ChieftainArcher": {
+   "file": "Server/MirObjects/Monsters/ChieftainArcher.cs",
+   "lines": 144,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    417
+   ],
+   "used_ais": [
+    417
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "流觞弓匠"
+   ]
+  },
+  "ChieftainSword": {
+   "file": "Server/MirObjects/Monsters/ChieftainSword.cs",
+   "lines": 346,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能",
+    "给目标上 BUFF",
+    "直线/穿透攻击",
+    "拉拽/击退",
+    "治疗/回复"
+   ],
+   "magics": [
+    "YangDragonFlame",
+    "YangDragonIcyBurst"
+   ],
+   "buffs": [
+    "ChieftainSwordBuff"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [
+    "2"
+   ],
+   "ais": [
+    414
+   ],
+   "used_ais": [
+    414
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "阳龙王"
+   ]
+  },
+  "CityGate": {
+   "file": "Server/MirObjects/Monsters/CityGate.cs",
+   "lines": 242,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "治疗/回复",
+    "挡路(城墙/城门)",
+    "自动复活"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [
+    "EvilMirBody"
+   ],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    972
+   ],
+   "used_ais": [
+    972
+   ],
+   "monster_count": 6,
+   "game_names": [
+    "南蛮城墙",
+    "寒冰之门",
+    "栅栏门",
+    "燃烧昆仑城门",
+    "通道门"
+   ]
+  },
+  "ConquestArcher": {
+   "file": "Server/MirObjects/Monsters/ConquestArcher.cs",
+   "lines": 79,
+   "overrides": [
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    960
+   ],
+   "used_ais": [
+    960
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "守卫",
+    "弓箭手"
+   ]
+  },
+  "CrazyManworm": {
+   "file": "Server/MirObjects/Monsters/CrazyManworm.cs",
+   "lines": 50,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    138
+   ],
+   "used_ais": [
+    138
+   ],
+   "monster_count": 9,
+   "game_names": [
+    "变异多头奥玛",
+    "峡谷尼尔道士",
+    "毒妖族战士",
+    "疯狂破坏者"
+   ]
+  },
+  "CreeperPlant": {
+   "file": "Server/MirObjects/Monsters/CreeperPlant.cs",
+   "lines": 97,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "变身/换形态"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    383
+   ],
+   "used_ais": [
+    383
+   ],
+   "monster_count": 6,
+   "game_names": [
+    "变异棘蔓草",
+    "变异食虫草",
+    "大食人花"
+   ]
+  },
+  "CrystalBeast": {
+   "file": "Server/MirObjects/Monsters/CrystalBeast.cs",
+   "lines": 237,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "直线/穿透攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed",
+    "Frozen"
+   ],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    449
+   ],
+   "used_ais": [
+    449
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "青神石魔"
+   ]
+  },
+  "CrystalSpider": {
+   "file": "Server/MirObjects/Monsters/CrystalSpider.cs",
+   "lines": 102,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    223
+   ],
+   "used_ais": [
+    223
+   ],
+   "monster_count": 9,
+   "game_names": [
+    "古代月之水晶蜘蛛",
+    "月之水晶蜘蛛",
+    "水晶蜘蛛",
+    "满月之毒魔蛛",
+    "神石毒魔蛛"
+   ]
+  },
+  "DarkBeast": {
+   "file": "Server/MirObjects/Monsters/DarkBeast.cs",
+   "lines": 71,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Bleeding"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    325
+   ],
+   "used_ais": [
+    325
+   ],
+   "monster_count": 18,
+   "game_names": [
+    "南蛮白虎",
+    "南蛮黑虎",
+    "双头黑虎",
+    "地宫角斗士",
+    "强化变异熊",
+    "愤怒的狒狒",
+    "熊",
+    "长枪猫卫",
+    "黑猩猩"
+   ]
+  },
+  "DarkCaptain": {
+   "file": "Server/MirObjects/Monsters/DarkCaptain.cs",
+   "lines": 178,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "瞬移",
+    "远程攻击",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [
+    "0",
+    "1",
+    "2"
+   ],
+   "ais": [
+    395
+   ],
+   "used_ais": [
+    395
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "黑暗船长"
+   ]
+  },
+  "DarkDevil": {
+   "file": "Server/MirObjects/Monsters/DarkDevil.cs",
+   "lines": 63,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    182
+   ],
+   "used_ais": [
+    182
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "黑天魔王"
+   ]
+  },
+  "DarkDevourer": {
+   "file": "Server/MirObjects/Monsters/DarkDevourer.cs",
+   "lines": 91,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    54,
+    139
+   ],
+   "used_ais": [
+    54,
+    139
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "噬夢者",
+    "暗黑噬夢者"
+   ]
+  },
+  "DarkOmaKing": {
+   "file": "Server/MirObjects/Monsters/DarkOmaKing.cs",
+   "lines": 193,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能"
+   ],
+   "magics": [
+    "DarkOmaKingNuke"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    378
+   ],
+   "used_ais": [
+    378
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "黑暗之王"
+   ]
+  },
+  "DarkWraith": {
+   "file": "Server/MirObjects/Monsters/DarkWraith.cs",
+   "lines": 165,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    447
+   ],
+   "used_ais": [
+    447
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "刺客高手",
+    "黑暗亡灵"
+   ]
+  },
+  "DeathCrawler": {
+   "file": "Server/MirObjects/Monsters/DeathCrawler.cs",
+   "lines": 44,
+   "overrides": [
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    318
+   ],
+   "used_ais": [
+    318
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "爬行亡灵"
+   ]
+  },
+  "Deer": {
+   "file": "Server/MirObjects/Monsters/Deer.cs",
+   "lines": 82,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    161
+   ],
+   "used_ais": [
+    161
+   ],
+   "monster_count": 10,
+   "game_names": [
+    "兔子",
+    "牛",
+    "羊",
+    "鸡",
+    "鹿"
+   ]
+  },
+  "DemonGuard": {
+   "file": "Server/MirObjects/Monsters/DemonGuard.cs",
+   "lines": 83,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "自动复活"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    308
+   ],
+   "used_ais": [
+    308
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地狱犬",
+    "遗忘地狱犬"
+   ]
+  },
+  "DemonWolf": {
+   "file": "Server/MirObjects/Monsters/DemonWolf.cs",
+   "lines": 149,
+   "overrides": [
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Bleeding"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    323
+   ],
+   "used_ais": [
+    323
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "恶魔之狼"
+   ]
+  },
+  "DigOutZombie": {
+   "file": "Server/MirObjects/Monsters/DigOutZombie.cs",
+   "lines": 116,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "变身/换形态"
+   ],
+   "magics": [
+    "DigOutZombie"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    50
+   ],
+   "used_ais": [
+    50
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "僵尸"
+   ]
+  },
+  "DragonArcher": {
+   "file": "Server/MirObjects/Monsters/DragonArcher.cs",
+   "lines": 122,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道",
+    "拉拽/击退"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    436
+   ],
+   "used_ais": [
+    436
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "龙骨弓士"
+   ]
+  },
+  "DragonStatue": {
+   "file": "Server/MirObjects/Monsters/DragonStatue.cs",
+   "lines": 120,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "拉拽/击退",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    902
+   ],
+   "used_ais": [
+    902
+   ],
+   "monster_count": 6,
+   "game_names": [
+    "四龙神像",
+    "天龙神像",
+    "归龙神像",
+    "火龙神像",
+    "破龙神像",
+    "魔龙神像"
+   ]
+  },
+  "DragonWarrior": {
+   "file": "Server/MirObjects/Monsters/DragonWarrior.cs",
+   "lines": 58,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "拉拽/击退",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    435
+   ],
+   "used_ais": [
+    435
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "龙骨战士"
+   ]
+  },
+  "EarthGolem": {
+   "file": "Server/MirObjects/Monsters/EarthGolem.cs",
+   "lines": 175,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能"
+   ],
+   "magics": [
+    "EarthGolemPile"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    363
+   ],
+   "used_ais": [
+    363
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "土巨人"
+   ]
+  },
+  "ElementGuard": {
+   "file": "Server/MirObjects/Monsters/ElementGuard.cs",
+   "lines": 110,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "Red"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    307
+   ],
+   "used_ais": [
+    307
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "火焰鬼法",
+    "遗忘火焰鬼法"
+   ]
+  },
+  "ElephantMan": {
+   "file": "Server/MirObjects/Monsters/ElephantMan.cs",
+   "lines": 78,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    361
+   ],
+   "used_ais": [
+    361
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "巨象锤兵"
+   ]
+  },
+  "EvilCentipede": {
+   "file": "Server/MirObjects/Monsters/EvilCentipede.cs",
+   "lines": 136,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕",
+    "变身/换形态"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    140
+   ],
+   "used_ais": [
+    140
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "触龙神"
+   ]
+  },
+  "EvilMir": {
+   "file": "Server/MirObjects/Monsters/EvilMir.cs",
+   "lines": 206,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "拉拽/击退",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    900
+   ],
+   "used_ais": [
+    900
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "破天魔龙"
+   ]
+  },
+  "EvilMirBody": {
+   "file": "Server/MirObjects/Monsters/EvilMirBody.cs",
+   "lines": 104,
+   "overrides": [
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "拉拽/击退"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    901
+   ],
+   "used_ais": [
+    901
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "魔龙尸体"
+   ]
+  },
+  "FeralFlameFurbolg": {
+   "file": "Server/MirObjects/Monsters/FeralFlameFurbolg.cs",
+   "lines": 202,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "变身/换形态"
+   ],
+   "magics": [
+    "FireWall"
+   ],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    522
+   ],
+   "used_ais": [
+    522
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "熊怪祭司"
+   ]
+  },
+  "FeralTundraFurbolg": {
+   "file": "Server/MirObjects/Monsters/FeralTundraFurbolg.cs",
+   "lines": 111,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [],
+   "ais": [
+    521
+   ],
+   "used_ais": [
+    521
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "千年乌龟神灵"
+   ]
+  },
+  "FinialTurtle": {
+   "file": "Server/MirObjects/Monsters/FinialTurtle.cs",
+   "lines": 95,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    243
+   ],
+   "used_ais": [
+    243
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "寿龟"
+   ]
+  },
+  "FlameAssassin": {
+   "file": "Server/MirObjects/Monsters/FlameAssassin.cs",
+   "lines": 81,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    298
+   ],
+   "used_ais": [
+    298
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "业火双刀"
+   ]
+  },
+  "FlameMage": {
+   "file": "Server/MirObjects/Monsters/FlameMage.cs",
+   "lines": 86,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    296
+   ],
+   "used_ais": [
+    296
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "业火法师"
+   ]
+  },
+  "FlameQueen": {
+   "file": "Server/MirObjects/Monsters/FlameQueen.cs",
+   "lines": 87,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    299
+   ],
+   "used_ais": [
+    299
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "业火女王"
+   ]
+  },
+  "FlameScythe": {
+   "file": "Server/MirObjects/Monsters/FlameScythe.cs",
+   "lines": 117,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    297
+   ],
+   "used_ais": [
+    297
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "业火镰刀"
+   ]
+  },
+  "FlameSpear": {
+   "file": "Server/MirObjects/Monsters/FlameSpear.cs",
+   "lines": 114,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    295
+   ],
+   "used_ais": [
+    295
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "业火长枪手"
+   ]
+  },
+  "FlamingMutant": {
+   "file": "Server/MirObjects/Monsters/FlamingMutant.cs",
+   "lines": 124,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    257
+   ],
+   "used_ais": [
+    257
+   ],
+   "monster_count": 8,
+   "game_names": [
+    "古代月之巨镰蜘蛛",
+    "古代月之镰神将",
+    "月之巨镰蜘蛛",
+    "月之镰神将"
+   ]
+  },
+  "FlamingWooma": {
+   "file": "Server/MirObjects/Monsters/FlamingWooma.cs",
+   "lines": 36,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    31
+   ],
+   "used_ais": [
+    31
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "古代火焰沃玛",
+    "火焰沃玛"
+   ]
+  },
+  "FloatingRock": {
+   "file": "Server/MirObjects/Monsters/FloatingRock.cs",
+   "lines": 117,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    404
+   ],
+   "used_ais": [
+    404
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "鬼浮石"
+   ]
+  },
+  "FlyingStatue": {
+   "file": "Server/MirObjects/Monsters/FlyingStatue.cs",
+   "lines": 184,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能",
+    "治疗/回复"
+   ],
+   "magics": [
+    "FlyingStatueIceTornado"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    259
+   ],
+   "used_ais": [
+    259
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "古代鸟人像",
+    "鸟人像"
+   ]
+  },
+  "Football": {
+   "file": "Server/MirObjects/Monsters/Football.cs",
+   "lines": 63,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    3
+   ],
+   "used_ais": [
+    3
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "足球"
+   ]
+  },
+  "FrostTiger": {
+   "file": "Server/MirObjects/Monsters/FrostTiger.cs",
+   "lines": 186,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Bleeding",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    222
+   ],
+   "used_ais": [
+    222
+   ],
+   "monster_count": 7,
+   "game_names": [
+    "幻影寒虎",
+    "幻影火虎",
+    "弦月寒虎",
+    "满月之幻影寒虎"
+   ]
+  },
+  "FrozenAxeman": {
+   "file": "Server/MirObjects/Monsters/FrozenAxeman.cs",
+   "lines": 219,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "直线/穿透攻击",
+    "血量分段行为",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed"
+   ],
+   "images": [],
+   "atk_segments": 8,
+   "atk_types": [],
+   "ais": [
+    443
+   ],
+   "used_ais": [
+    443
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "雪原斧兵"
+   ]
+  },
+  "FrozenKnight": {
+   "file": "Server/MirObjects/Monsters/FrozenKnight.cs",
+   "lines": 114,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [],
+   "ais": [
+    427
+   ],
+   "used_ais": [
+    427
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "冰原鬼尊",
+    "满月之冰原鬼尊",
+    "酷寒冰原鬼尊"
+   ]
+  },
+  "FrozenMagician": {
+   "file": "Server/MirObjects/Monsters/FrozenMagician.cs",
+   "lines": 131,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    444
+   ],
+   "used_ais": [
+    444
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "雪原祭司"
+   ]
+  },
+  "FrozenMiner": {
+   "file": "Server/MirObjects/Monsters/FrozenMiner.cs",
+   "lines": 58,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    442
+   ],
+   "used_ais": [
+    442
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "雪原奴役"
+   ]
+  },
+  "FurbolgArcher": {
+   "file": "Server/MirObjects/Monsters/FurbolgArcher.cs",
+   "lines": 122,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    470
+   ],
+   "used_ais": [
+    470
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地宫弩弓手"
+   ]
+  },
+  "FurbolgCommander": {
+   "file": "Server/MirObjects/Monsters/FurbolgCommander.cs",
+   "lines": 82,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    471
+   ],
+   "used_ais": [],
+   "monster_count": 0,
+   "game_names": []
+  },
+  "FurbolgGuard": {
+   "file": "Server/MirObjects/Monsters/FurbolgGuard.cs",
+   "lines": 98,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    473
+   ],
+   "used_ais": [
+    473
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "鱼叉杀手"
+   ]
+  },
+  "FurbolgWarrior": {
+   "file": "Server/MirObjects/Monsters/FurbolgWarrior.cs",
+   "lines": 142,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    469
+   ],
+   "used_ais": [
+    469
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地宫盗贼"
+   ]
+  },
+  "GasToad": {
+   "file": "Server/MirObjects/Monsters/GasToad.cs",
+   "lines": 99,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    355
+   ],
+   "used_ais": [
+    355
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "毒气蟾蜍"
+   ]
+  },
+  "Gate": {
+   "file": "Server/MirObjects/Monsters/Gate.cs",
+   "lines": 167,
+   "overrides": [],
+   "features": [
+    "自动复活"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    950
+   ],
+   "used_ais": [
+    950
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "夔龙城东城门",
+    "夔龙城南城门",
+    "夔龙城西城门",
+    "沙巴克城门"
+   ]
+  },
+  "GeneralMeowMeow": {
+   "file": "Server/MirObjects/Monsters/GeneralMeowMeow.cs",
+   "lines": 266,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "远程攻击",
+    "施法/技能",
+    "给目标上 BUFF",
+    "护盾"
+   ],
+   "magics": [
+    "GeneralMeowMeowThunder"
+   ],
+   "buffs": [
+    "GeneralMeowMeowShield"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    341
+   ],
+   "used_ais": [
+    341
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "陵庙将军"
+   ]
+  },
+  "GlacierBeast": {
+   "file": "Server/MirObjects/Monsters/GlacierBeast.cs",
+   "lines": 27,
+   "overrides": [],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    474
+   ],
+   "used_ais": [
+    474
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "冰兽"
+   ]
+  },
+  "GlacierSnail": {
+   "file": "Server/MirObjects/Monsters/GlacierSnail.cs",
+   "lines": 50,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    468
+   ],
+   "used_ais": [
+    468
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "冰蜗牛"
+   ]
+  },
+  "GlacierWarrior": {
+   "file": "Server/MirObjects/Monsters/GlacierWarrior.cs",
+   "lines": 96,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    475
+   ],
+   "used_ais": [
+    475
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地宫战士"
+   ]
+  },
+  "GreatFoxSpirit": {
+   "file": "Server/MirObjects/Monsters/GreatFoxSpirit.cs",
+   "lines": 201,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "瞬移",
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Paralysis",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    237
+   ],
+   "used_ais": [
+    237
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "悲月天珠"
+   ]
+  },
+  "Guard": {
+   "file": "Server/MirObjects/Monsters/Guard.cs",
+   "lines": 90,
+   "overrides": [
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    980,
+    981
+   ],
+   "used_ais": [
+    980,
+    981
+   ],
+   "monster_count": 8,
+   "game_names": [
+    "卫兵",
+    "卫士",
+    "巡城侍卫",
+    "带刀侍卫"
+   ]
+  },
+  "GuardianRock": {
+   "file": "Server/MirObjects/Monsters/GuardianRock.cs",
+   "lines": 96,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "拉拽/击退",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    234
+   ],
+   "used_ais": [
+    234
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "狐月天珠"
+   ]
+  },
+  "HardenRhino": {
+   "file": "Server/MirObjects/Monsters/HardenRhino.cs",
+   "lines": 118,
+   "overrides": [
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    328
+   ],
+   "used_ais": [
+    328
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "硬皮犀牛"
+   ]
+  },
+  "HarvestMonster": {
+   "file": "Server/MirObjects/Monsters/HarvestMonster.cs",
+   "lines": 107,
+   "overrides": [
+    {
+     "name": "Drop",
+     "cat": "死亡",
+     "desc": "重写掉落",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    14
+   ],
+   "used_ais": [
+    14
+   ],
+   "monster_count": 6,
+   "game_names": [
+    "土狼",
+    "狼",
+    "黑狼"
+   ]
+  },
+  "HedgeKekTal": {
+   "file": "Server/MirObjects/Monsters/HedgeKekTal.cs",
+   "lines": 52,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    238
+   ],
+   "used_ais": [
+    238
+   ],
+   "monster_count": 6,
+   "game_names": [
+    "毒蛾",
+    "狐月刺虫",
+    "狐月虎虫"
+   ]
+  },
+  "HellBomb": {
+   "file": "Server/MirObjects/Monsters/HellBomb.cs",
+   "lines": 89,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "自爆/引爆",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Bleeding",
+    "Dazed",
+    "Frozen"
+   ],
+   "images": [
+    "HellBomb1",
+    "HellBomb2",
+    "HellBomb3"
+   ],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    903
+   ],
+   "used_ais": [
+    903
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "冰弹",
+    "焰弹",
+    "雷弹"
+   ]
+  },
+  "HellCannibal": {
+   "file": "Server/MirObjects/Monsters/HellCannibal.cs",
+   "lines": 73,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Red"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    274
+   ],
+   "used_ais": [
+    274
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地狱食人者"
+   ]
+  },
+  "HellKeeper": {
+   "file": "Server/MirObjects/Monsters/HellKeeper.cs",
+   "lines": 204,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed",
+    "LRParalysis"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    275
+   ],
+   "used_ais": [
+    275
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地狱守门人"
+   ]
+  },
+  "HellKnight": {
+   "file": "Server/MirObjects/Monsters/HellKnight.cs",
+   "lines": 55,
+   "overrides": [
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    300
+   ],
+   "used_ais": [
+    300
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "光明守护将",
+    "暗黑守护将",
+    "玄冰守护将",
+    "魔焰守护将"
+   ]
+  },
+  "HellLord": {
+   "file": "Server/MirObjects/Monsters/HellLord.cs",
+   "lines": 262,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "自爆/引爆",
+    "施法/技能"
+   ],
+   "magics": [
+    "MapQuake1",
+    "MapQuake2"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    304
+   ],
+   "used_ais": [
+    304
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "阎魔太子"
+   ]
+  },
+  "HellPirate": {
+   "file": "Server/MirObjects/Monsters/HellPirate.cs",
+   "lines": 45,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    273
+   ],
+   "used_ais": [
+    273
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地狱噬魂者"
+   ]
+  },
+  "HellSlasher": {
+   "file": "Server/MirObjects/Monsters/HellSlasher.cs",
+   "lines": 67,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    272
+   ],
+   "used_ais": [
+    272
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "地狱守卫",
+    "地狱收割者",
+    "遗忘地狱守卫"
+   ]
+  },
+  "HolyDeva": {
+   "file": "Server/MirObjects/Monsters/HolyDeva.cs",
+   "lines": 128,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [
+    "HolyDeva"
+   ],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    172
+   ],
+   "used_ais": [
+    172
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "月灵"
+   ]
+  },
+  "HoodedSummoner": {
+   "file": "Server/MirObjects/Monsters/HoodedSummoner.cs",
+   "lines": 132,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed",
+    "Frozen",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "0",
+    "1",
+    "2"
+   ],
+   "ais": [
+    481
+   ],
+   "used_ais": [
+    481
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地宫修道者"
+   ]
+  },
+  "HoodedSummonerScrolls": {
+   "file": "Server/MirObjects/Monsters/HoodedSummonerScrolls.cs",
+   "lines": 226,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [],
+   "ais": [
+    477
+   ],
+   "used_ais": [
+    477
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "神秘画轴"
+   ]
+  },
+  "HornedArcher": {
+   "file": "Server/MirObjects/Monsters/HornedArcher.cs",
+   "lines": 118,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "给目标上 BUFF"
+   ],
+   "magics": [],
+   "buffs": [
+    "ColdArcherBuff",
+    "HornedArcherBuff"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    401
+   ],
+   "used_ais": [
+    401
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "咒魔火弓师",
+    "咒魔风弓师"
+   ]
+  },
+  "HornedCommander": {
+   "file": "Server/MirObjects/Monsters/HornedCommander.cs",
+   "lines": 632,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "瞬移",
+    "远程攻击",
+    "施法/技能",
+    "施毒",
+    "直线/穿透攻击",
+    "血量分段行为",
+    "护盾",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复"
+   ],
+   "magics": [
+    "HornedCommanderRockFall",
+    "HornedCommanderRockSpike",
+    "HornedCommanderShield"
+   ],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 9,
+   "atk_types": [
+    "0",
+    "1",
+    "2"
+   ],
+   "ais": [
+    409
+   ],
+   "used_ais": [
+    409
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "魔风石怪"
+   ]
+  },
+  "HornedMage": {
+   "file": "Server/MirObjects/Monsters/HornedMage.cs",
+   "lines": 135,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "瞬移",
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    400
+   ],
+   "used_ais": [
+    400
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "咒魔术士"
+   ]
+  },
+  "HornedSorceror": {
+   "file": "Server/MirObjects/Monsters/HornedSorceror.cs",
+   "lines": 282,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "直线/穿透攻击",
+    "血量分段行为",
+    "治疗/回复"
+   ],
+   "magics": [
+    "HornedSorcererDustTornado"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [],
+   "ais": [
+    406
+   ],
+   "used_ais": [
+    406
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "魔角大巫"
+   ]
+  },
+  "HornedWarrior": {
+   "file": "Server/MirObjects/Monsters/HornedWarrior.cs",
+   "lines": 137,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "给目标上 BUFF",
+    "直线/穿透攻击",
+    "护盾",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [
+    "HornedWarriorShield"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    403
+   ],
+   "used_ais": [
+    403
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "咒魔剑士"
+   ]
+  },
+  "Hugger": {
+   "file": "Server/MirObjects/Monsters/Hugger.cs",
+   "lines": 73,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    56
+   ],
+   "used_ais": [
+    56
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "抱脸虫"
+   ]
+  },
+  "HumanAssassin": {
+   "file": "Server/MirObjects/Monsters/HumanAssassin.cs",
+   "lines": 374,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "RefreshBase",
+     "cat": "属性",
+     "desc": "重写基础属性",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能"
+   ],
+   "magics": [],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    986
+   ],
+   "used_ais": [
+    986
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "AssassinClone"
+   ]
+  },
+  "HumanWizard": {
+   "file": "Server/MirObjects/Monsters/HumanWizard.cs",
+   "lines": 201,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "治疗/回复"
+   ],
+   "magics": [
+    "ThunderBolt"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    985
+   ],
+   "used_ais": [
+    985
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "Clone"
+   ]
+  },
+  "IceCrystalSoldier": {
+   "file": "Server/MirObjects/Monsters/IceCrystalSoldier.cs",
+   "lines": 66,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    446
+   ],
+   "used_ais": [
+    446
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "冰封雪人"
+   ]
+  },
+  "IceGuard": {
+   "file": "Server/MirObjects/Monsters/IceGuard.cs",
+   "lines": 116,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    306
+   ],
+   "used_ais": [
+    306
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "冰焰鬼法",
+    "遗忘冰焰鬼法"
+   ]
+  },
+  "IcePhantom": {
+   "file": "Server/MirObjects/Monsters/IcePhantom.cs",
+   "lines": 147,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen"
+   ],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [],
+   "ais": [
+    429
+   ],
+   "used_ais": [
+    429
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "恶鬼"
+   ]
+  },
+  "IcePillar": {
+   "file": "Server/MirObjects/Monsters/IcePillar.cs",
+   "lines": 199,
+   "overrides": [
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    288
+   ],
+   "used_ais": [
+    288
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "冰柱"
+   ]
+  },
+  "IntelligentCreatureObject": {
+   "file": "Server/MirObjects/IntelligentCreatureObject.cs",
+   "lines": 858,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [],
+   "ais": [
+    970
+   ],
+   "used_ais": [
+    970
+   ],
+   "monster_count": 17,
+   "game_names": [
+    "AngryBird",
+    "BabyDragon",
+    "BabyMonkey",
+    "BabyPig",
+    "BabySkeleton",
+    "BabySnowMan",
+    "Baekdon",
+    "BlackKitten",
+    "CatSuperman",
+    "Chick",
+    "DragonBaby",
+    "Foxey",
+    "Frog",
+    "Kitten",
+    "MedicalRat",
+    "OlympicFlame",
+    "Wimaen"
+   ]
+  },
+  "Jar1": {
+   "file": "Server/MirObjects/Monsters/Jar1.cs",
+   "lines": 67,
+   "overrides": [
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    337
+   ],
+   "used_ais": [
+    337
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "重耳壶"
+   ]
+  },
+  "Jar2": {
+   "file": "Server/MirObjects/Monsters/Jar2.cs",
+   "lines": 76,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    338
+   ],
+   "used_ais": [
+    338
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "重耳壶"
+   ]
+  },
+  "Khazard": {
+   "file": "Server/MirObjects/Monsters/Khazard.cs",
+   "lines": 106,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "拉拽/击退"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    220
+   ],
+   "used_ais": [
+    220
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "舌刃大虫"
+   ]
+  },
+  "KingGuard": {
+   "file": "Server/MirObjects/Monsters/KingGuard.cs",
+   "lines": 176,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "Paralysis",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    309
+   ],
+   "used_ais": [
+    309
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "国王守卫",
+    "遗忘国王守卫"
+   ]
+  },
+  "KingHydrax": {
+   "file": "Server/MirObjects/Monsters/KingHydrax.cs",
+   "lines": 139,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    398
+   ],
+   "used_ais": [
+    398
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "遗迹王蛇"
+   ]
+  },
+  "KingScorpion": {
+   "file": "Server/MirObjects/Monsters/KingScorpion.cs",
+   "lines": 81,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    180
+   ],
+   "used_ais": [
+    180
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "满月之黑蛇王",
+    "黑蛇王"
+   ]
+  },
+  "Kirin": {
+   "file": "Server/MirObjects/Monsters/Kirin.cs",
+   "lines": 219,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    438
+   ],
+   "used_ais": [
+    438
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "麒麟"
+   ]
+  },
+  "LeftGuard": {
+   "file": "Server/MirObjects/Monsters/LeftGuard.cs",
+   "lines": 52,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    206
+   ],
+   "used_ais": [
+    206
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "守护炎魔",
+    "左护法"
+   ]
+  },
+  "LightTurtle": {
+   "file": "Server/MirObjects/Monsters/LightTurtle.cs",
+   "lines": 58,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    246
+   ],
+   "used_ais": [
+    246
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "光明之龟"
+   ]
+  },
+  "ManTree": {
+   "file": "Server/MirObjects/Monsters/ManTree.cs",
+   "lines": 122,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Stun"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    411
+   ],
+   "used_ais": [
+    411
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "杉精魄"
+   ]
+  },
+  "Mandrill": {
+   "file": "Server/MirObjects/Monsters/Mandrill.cs",
+   "lines": 40,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    381
+   ],
+   "used_ais": [
+    381
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "长鼻猴"
+   ]
+  },
+  "ManectricBlest": {
+   "file": "Server/MirObjects/Monsters/ManectricBlest.cs",
+   "lines": 104,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    285
+   ],
+   "used_ais": [
+    285
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "寒冰守将",
+    "满月之寒冰守将"
+   ]
+  },
+  "ManectricClaw": {
+   "file": "Server/MirObjects/Monsters/ManectricClaw.cs",
+   "lines": 117,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    280
+   ],
+   "used_ais": [
+    280
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "寒冰战将"
+   ]
+  },
+  "ManectricKing": {
+   "file": "Server/MirObjects/Monsters/ManectricKing.cs",
+   "lines": 94,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    286
+   ],
+   "used_ais": [
+    286
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "寒冰守护鬼",
+    "寒冰魔王",
+    "满月之寒冰守护鬼"
+   ]
+  },
+  "Manticore": {
+   "file": "Server/MirObjects/Monsters/Manticore.cs",
+   "lines": 192,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    434
+   ],
+   "used_ais": [
+    434
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "穷奇"
+   ]
+  },
+  "Mantis": {
+   "file": "Server/MirObjects/Monsters/Mantis.cs",
+   "lines": 54,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    356
+   ],
+   "used_ais": [
+    356
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "螳螂"
+   ]
+  },
+  "MinotaurKing": {
+   "file": "Server/MirObjects/Monsters/MinotaurKing.cs",
+   "lines": 57,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    207
+   ],
+   "used_ais": [
+    207
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "满月之牛魔王",
+    "邪牛天王"
+   ]
+  },
+  "MirEmperor": {
+   "file": "Server/MirObjects/Monsters/MirEmperor.cs",
+   "lines": 120,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    534
+   ],
+   "used_ais": [
+    534
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "混沌教主"
+   ]
+  },
+  "Mon544S": {
+   "file": "Server/MirObjects/Monsters/Mon544S.cs",
+   "lines": 221,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "直线/穿透攻击",
+    "变身/换形态"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Bleeding"
+   ],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [],
+   "ais": [
+    544
+   ],
+   "used_ais": [
+    544
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "秦庙石狮",
+    "被诅咒的猫兽"
+   ]
+  },
+  "Mon550N": {
+   "file": "Server/MirObjects/Monsters/Mon550N.cs",
+   "lines": 110,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "直线/穿透攻击"
+   ],
+   "magics": [
+    "SwordFormation"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [],
+   "ais": [
+    550
+   ],
+   "used_ais": [
+    550
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "修士剑客",
+    "变异的修炼剑士"
+   ]
+  },
+  "Mon552N": {
+   "file": "Server/MirObjects/Monsters/Mon552N.cs",
+   "lines": 180,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击",
+    "治疗/回复",
+    "变身/换形态"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [
+    "Mon552N",
+    "Mon553N"
+   ],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    552
+   ],
+   "used_ais": [
+    552
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "古老遗骸"
+   ]
+  },
+  "Mon562N": {
+   "file": "Server/MirObjects/Monsters/Mon562N.cs",
+   "lines": 125,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "给目标上 BUFF",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [
+    "绝对封锁"
+   ],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [],
+   "ais": [
+    562
+   ],
+   "used_ais": [
+    562
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "尊者之王"
+   ]
+  },
+  "Mon563N": {
+   "file": "Server/MirObjects/Monsters/Mon563N.cs",
+   "lines": 113,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [],
+   "ais": [
+    563
+   ],
+   "used_ais": [
+    563
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "尊者之魔"
+   ]
+  },
+  "Mon564N": {
+   "file": "Server/MirObjects/Monsters/Mon564N.cs",
+   "lines": 216,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能",
+    "施毒",
+    "直线/穿透攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [
+    "Mon564NWhirlwind"
+   ],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 9,
+   "atk_types": [
+    "1",
+    "2"
+   ],
+   "ais": [
+    564
+   ],
+   "used_ais": [
+    564
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "尊者之魂"
+   ]
+  },
+  "Mon570N": {
+   "file": "Server/MirObjects/Monsters/Mon570N.cs",
+   "lines": 277,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "远程攻击",
+    "施法/技能",
+    "直线/穿透攻击",
+    "血量分段行为",
+    "治疗/回复"
+   ],
+   "magics": [
+    "Mon570NLightningCloud",
+    "Mon570NRupture"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    570
+   ],
+   "used_ais": [
+    570
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "江白"
+   ]
+  },
+  "Mon571N": {
+   "file": "Server/MirObjects/Monsters/Mon571N.cs",
+   "lines": 306,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "自爆/引爆",
+    "施法/技能",
+    "给目标上 BUFF",
+    "直线/穿透攻击"
+   ],
+   "magics": [
+    "Mon571NFireBomb"
+   ],
+   "buffs": [
+    "烈火焚烧"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [],
+   "ais": [
+    571
+   ],
+   "used_ais": [
+    571
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "天月"
+   ]
+  },
+  "Mon572N": {
+   "file": "Server/MirObjects/Monsters/Mon572N.cs",
+   "lines": 161,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能",
+    "施毒"
+   ],
+   "magics": [
+    "Mon572NDarkVortex",
+    "Mon572NFlame"
+   ],
+   "buffs": [],
+   "poisons": [
+    "Blindness"
+   ],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    572
+   ],
+   "used_ais": [
+    572
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "风震"
+   ]
+  },
+  "Mon573N": {
+   "file": "Server/MirObjects/Monsters/Mon573N.cs",
+   "lines": 285,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "远程攻击",
+    "施法/技能",
+    "给目标上 BUFF",
+    "施毒",
+    "血量分段行为",
+    "治疗/回复"
+   ],
+   "magics": [
+    "Mon573NBigCobweb"
+   ],
+   "buffs": [
+    "防御诅咒"
+   ],
+   "poisons": [
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 8,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    573
+   ],
+   "used_ais": [
+    573
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "摩鲁"
+   ]
+  },
+  "Mon575S": {
+   "file": "Server/MirObjects/Monsters/Mon575S.cs",
+   "lines": 204,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "变身/换形态"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "Red"
+   ],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [],
+   "ais": [
+    575
+   ],
+   "used_ais": [
+    575
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "飞燕魔蛛"
+   ]
+  },
+  "Mon577N": {
+   "file": "Server/MirObjects/Monsters/Mon577N.cs",
+   "lines": 154,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    577
+   ],
+   "used_ais": [
+    577
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "冰之内尔弓手"
+   ]
+  },
+  "Mon601N": {
+   "file": "Server/MirObjects/Monsters/Mon601N.cs",
+   "lines": 113,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    601
+   ],
+   "used_ais": [
+    601
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "变异的火炮怪"
+   ]
+  },
+  "Mon602N": {
+   "file": "Server/MirObjects/Monsters/Mon602N.cs",
+   "lines": 64,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    602
+   ],
+   "used_ais": [
+    602
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "破碎的火炮",
+    "紫月香花"
+   ]
+  },
+  "Mon609N": {
+   "file": "Server/MirObjects/Monsters/Mon609N.cs",
+   "lines": 194,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能",
+    "直线/穿透攻击"
+   ],
+   "magics": [
+    "Mon609NBomb"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 7,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    609
+   ],
+   "used_ais": [
+    609
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "变异石块长拉卡巴",
+    "变异石魔拉卡巴"
+   ]
+  },
+  "MudZombie": {
+   "file": "Server/MirObjects/Monsters/MudZombie.cs",
+   "lines": 103,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    320
+   ],
+   "used_ais": [
+    320
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "泥僵尸"
+   ]
+  },
+  "MutatedManworm": {
+   "file": "Server/MirObjects/Monsters/MutatedManworm.cs",
+   "lines": 82,
+   "overrides": [],
+   "features": [
+    "瞬移"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    137
+   ],
+   "used_ais": [
+    137
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "变异破坏者"
+   ]
+  },
+  "MysteriousMonk": {
+   "file": "Server/MirObjects/Monsters/MysteriousMonk.cs",
+   "lines": 118,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "直线/穿透攻击"
+   ],
+   "magics": [
+    "GroundFissure"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [],
+   "ais": [
+    498
+   ],
+   "used_ais": [
+    498
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "战士高手"
+   ]
+  },
+  "Nadz": {
+   "file": "Server/MirObjects/Monsters/Nadz.cs",
+   "lines": 90,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    387
+   ],
+   "used_ais": [
+    387
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "溺水的奴隶"
+   ]
+  },
+  "NobleArcher": {
+   "file": "Server/MirObjects/Monsters/NobleArcher.cs",
+   "lines": 131,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [
+    "0",
+    "1",
+    "2"
+   ],
+   "ais": [
+    503
+   ],
+   "used_ais": [
+    503
+   ],
+   "monster_count": 12,
+   "game_names": [
+    "无极",
+    "被诅咒的弓手魂魄",
+    "被诅咒的术士魂魄",
+    "远古弓手魂魄",
+    "远古术士魂魄",
+    "逸仙"
+   ]
+  },
+  "NobleWarrior": {
+   "file": "Server/MirObjects/Monsters/NobleWarrior.cs",
+   "lines": 152,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "给目标上 BUFF",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [
+    "寒冰护甲",
+    "至尊威严"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    502
+   ],
+   "used_ais": [
+    502
+   ],
+   "monster_count": 10,
+   "game_names": [
+    "天尊",
+    "被诅咒的刺客魂魄",
+    "被诅咒的武士魂魄",
+    "远古刺客魂魄",
+    "远古武士魂魄",
+    "马灵"
+   ]
+  },
+  "OmaBlest": {
+   "file": "Server/MirObjects/Monsters/OmaBlest.cs",
+   "lines": 73,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    370
+   ],
+   "used_ais": [
+    370
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "沃玛巨魔拳"
+   ]
+  },
+  "OmaCannibal": {
+   "file": "Server/MirObjects/Monsters/OmaCannibal.cs",
+   "lines": 97,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    369
+   ],
+   "used_ais": [
+    369
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "沃玛食人魔"
+   ]
+  },
+  "OmaKing": {
+   "file": "Server/MirObjects/Monsters/OmaKing.cs",
+   "lines": 142,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "直线/穿透攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    218
+   ],
+   "used_ais": [
+    218
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "凰天魔神",
+    "满月之魔神",
+    "破凰魔神"
+   ]
+  },
+  "OmaMage": {
+   "file": "Server/MirObjects/Monsters/OmaMage.cs",
+   "lines": 94,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    373
+   ],
+   "used_ais": [
+    373
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "沃玛魔兵"
+   ]
+  },
+  "OmaSlasher": {
+   "file": "Server/MirObjects/Monsters/OmaSlasher.cs",
+   "lines": 36,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    371
+   ],
+   "used_ais": [
+    371
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "沃玛巨镰"
+   ]
+  },
+  "OmaWitchDoctor": {
+   "file": "Server/MirObjects/Monsters/OmaWitchDoctor.cs",
+   "lines": 108,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    374
+   ],
+   "used_ais": [
+    374
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "沃玛大祭司"
+   ]
+  },
+  "PeacockSpider": {
+   "file": "Server/MirObjects/Monsters/PeacockSpider.cs",
+   "lines": 168,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed",
+    "Green",
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    366
+   ],
+   "used_ais": [
+    366
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "孔雀蜘蛛"
+   ]
+  },
+  "PlagueCrab": {
+   "file": "Server/MirObjects/Monsters/PlagueCrab.cs",
+   "lines": 49,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    382
+   ],
+   "used_ais": [
+    382
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "变异甲虫"
+   ]
+  },
+  "PoisonHugger": {
+   "file": "Server/MirObjects/Monsters/PoisonHugger.cs",
+   "lines": 100,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    55
+   ],
+   "used_ais": [
+    55
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "抱脸虫"
+   ]
+  },
+  "PowerBead": {
+   "file": "Server/MirObjects/Monsters/PowerBead.cs",
+   "lines": 187,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "远程攻击",
+    "给目标上 BUFF"
+   ],
+   "magics": [],
+   "buffs": [
+    "御体之力"
+   ],
+   "poisons": [
+    "DelayedExplosion"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    375
+   ],
+   "used_ais": [
+    375
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "治愈",
+    "能量",
+    "闪电"
+   ]
+  },
+  "PurpleFaeFlower": {
+   "file": "Server/MirObjects/Monsters/PurpleFaeFlower.cs",
+   "lines": 64,
+   "overrides": [
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    466
+   ],
+   "used_ais": [
+    466
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "魔芋精灵"
+   ]
+  },
+  "ReaperAssassin": {
+   "file": "Server/MirObjects/Monsters/ReaperAssassin.cs",
+   "lines": 187,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    489
+   ],
+   "used_ais": [
+    489
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "峡谷尼尔刺客"
+   ]
+  },
+  "ReaperPriest": {
+   "file": "Server/MirObjects/Monsters/ReaperPriest.cs",
+   "lines": 172,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "给目标上 BUFF"
+   ],
+   "magics": [],
+   "buffs": [
+    "ReaperPriestBuff",
+    "寒冰护甲"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "0",
+    "1",
+    "2"
+   ],
+   "ais": [
+    487
+   ],
+   "used_ais": [
+    487
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "峡谷尼尔术士"
+   ]
+  },
+  "RedFoxman": {
+   "file": "Server/MirObjects/Monsters/RedFoxman.cs",
+   "lines": 128,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "瞬移",
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    231
+   ],
+   "used_ais": [
+    231
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "赤狐"
+   ]
+  },
+  "RedMoonEvil": {
+   "file": "Server/MirObjects/Monsters/RedMoonEvil.cs",
+   "lines": 66,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    131
+   ],
+   "used_ais": [
+    131
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "触龙神",
+    "赤月恶魔"
+   ]
+  },
+  "RedThunderZuma": {
+   "file": "Server/MirObjects/Monsters/RedThunderZuma.cs",
+   "lines": 76,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    221
+   ],
+   "used_ais": [
+    221
+   ],
+   "monster_count": 7,
+   "game_names": [
+    "古代月之红将",
+    "咒魔击雷将",
+    "月之红将",
+    "满月之祖玛击雷掌"
+   ]
+  },
+  "RestlessJar": {
+   "file": "Server/MirObjects/Monsters/RestlessJar.cs",
+   "lines": 148,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Blindness"
+   ],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    340
+   ],
+   "used_ais": [
+    340
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "玄壶"
+   ]
+  },
+  "RevivingZombie": {
+   "file": "Server/MirObjects/Monsters/RevivingZombie.cs",
+   "lines": 43,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "自动复活"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    51
+   ],
+   "used_ais": [
+    51
+   ],
+   "monster_count": 6,
+   "game_names": [
+    "僵尸"
+   ]
+  },
+  "RhinoPriest": {
+   "file": "Server/MirObjects/Monsters/RhinoPriest.cs",
+   "lines": 101,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "给目标上 BUFF",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [
+    "惩戒真言"
+   ],
+   "poisons": [
+    "Frozen",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    360
+   ],
+   "used_ais": [
+    360
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "犀牛法师"
+   ]
+  },
+  "RightGuard": {
+   "file": "Server/MirObjects/Monsters/RightGuard.cs",
+   "lines": 82,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    205
+   ],
+   "used_ais": [
+    205
+   ],
+   "monster_count": 11,
+   "game_names": [
+    "变异宠物狐",
+    "变异项锁奥玛",
+    "右护法",
+    "地狱瘟疫者",
+    "尖啸幽灵",
+    "黑暗冤魂"
+   ]
+  },
+  "Riklebites": {
+   "file": "Server/MirObjects/Monsters/Riklebites.cs",
+   "lines": 327,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能",
+    "给目标上 BUFF",
+    "施毒",
+    "护盾",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复"
+   ],
+   "magics": [
+    "RiklebitesBlast",
+    "RiklebitesRollCall"
+   ],
+   "buffs": [
+    "RiklebitesShield"
+   ],
+   "poisons": [
+    "Dazed",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    518
+   ],
+   "used_ais": [
+    518
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "卡瓦尔"
+   ]
+  },
+  "RootSpider": {
+   "file": "Server/MirObjects/Monsters/RootSpider.cs",
+   "lines": 57,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    132
+   ],
+   "used_ais": [
+    132
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "古代月之幻影蜘蛛",
+    "幻影蜘蛛",
+    "月之幻影蜘蛛"
+   ]
+  },
+  "SackWarrior": {
+   "file": "Server/MirObjects/Monsters/SackWarrior.cs",
+   "lines": 64,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Bleeding"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    396
+   ],
+   "used_ais": [
+    396
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "杀厉鬼"
+   ]
+  },
+  "SandSnail": {
+   "file": "Server/MirObjects/Monsters/SandSnail.cs",
+   "lines": 92,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    352
+   ],
+   "used_ais": [
+    352
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "瘟疫蟾蜍"
+   ]
+  },
+  "SandWorm": {
+   "file": "Server/MirObjects/Monsters/SandWorm.cs",
+   "lines": 24,
+   "overrides": [],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    49
+   ],
+   "used_ais": [
+    49
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "暗之沙虫",
+    "沙虫"
+   ]
+  },
+  "ScalyBeast": {
+   "file": "Server/MirObjects/Monsters/ScalyBeast.cs",
+   "lines": 74,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    405
+   ],
+   "used_ais": [
+    405
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "魔石巨人"
+   ]
+  },
+  "Scorpion": {
+   "file": "Server/MirObjects/Monsters/Scorpion.cs",
+   "lines": 66,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    83
+   ],
+   "used_ais": [
+    83
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "蝎子"
+   ]
+  },
+  "SeedingsGeneral": {
+   "file": "Server/MirObjects/Monsters/SeedingsGeneral.cs",
+   "lines": 126,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    339
+   ],
+   "used_ais": [
+    339
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "猫将军"
+   ]
+  },
+  "SepArcher": {
+   "file": "Server/MirObjects/Monsters/SepArcher.cs",
+   "lines": 346,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程弹道",
+    "施法/技能"
+   ],
+   "magics": [
+    "BackStep",
+    "DoubleShot",
+    "StraightShot"
+   ],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    994
+   ],
+   "used_ais": [],
+   "monster_count": 0,
+   "game_names": []
+  },
+  "SepAssassin": {
+   "file": "Server/MirObjects/Monsters/SepAssassin.cs",
+   "lines": 283,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程弹道",
+    "施法/技能",
+    "直线/穿透攻击"
+   ],
+   "magics": [
+    "DoubleSlash",
+    "HeavenlySword"
+   ],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    993
+   ],
+   "used_ais": [
+    993
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "弦月坛刺客"
+   ]
+  },
+  "SepHighArcher": {
+   "file": "Server/MirObjects/Monsters/SepHighArcher.cs",
+   "lines": 397,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "给目标上 BUFF",
+    "施毒"
+   ],
+   "magics": [
+    "BackStep",
+    "CrippleShot",
+    "PoisonShot"
+   ],
+   "buffs": [
+    "毒魔闪",
+    "隐身术"
+   ],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    999
+   ],
+   "used_ais": [
+    999
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "焱门客"
+   ]
+  },
+  "SepHighAssassin": {
+   "file": "Server/MirObjects/Monsters/SepHighAssassin.cs",
+   "lines": 328,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "直线/穿透攻击"
+   ],
+   "magics": [
+    "CrescentSlash",
+    "DoubleSlash",
+    "HeavenlySword"
+   ],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    998
+   ],
+   "used_ais": [
+    998
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "焱门客"
+   ]
+  },
+  "SepHighTaoist": {
+   "file": "Server/MirObjects/Monsters/SepHighTaoist.cs",
+   "lines": 382,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "施法/技能",
+    "施毒",
+    "治疗/回复"
+   ],
+   "magics": [
+    "Curse",
+    "MassHealing",
+    "Poisoning",
+    "SoulFireBall",
+    "SummonShinsu"
+   ],
+   "buffs": [
+    "诅咒术",
+    "隐身术"
+   ],
+   "poisons": [
+    "Green",
+    "Red",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    997
+   ],
+   "used_ais": [
+    997
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "定缘道士"
+   ]
+  },
+  "SepHighWarrior": {
+   "file": "Server/MirObjects/Monsters/SepHighWarrior.cs",
+   "lines": 345,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程弹道",
+    "施法/技能",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [
+    "BladeAvalanche",
+    "CrossHalfMoon",
+    "TwinDrakeBlade"
+   ],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [
+    "Stun"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    995
+   ],
+   "used_ais": [
+    995
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "金胜战士"
+   ]
+  },
+  "SepHighWizard": {
+   "file": "Server/MirObjects/Monsters/SepHighWizard.cs",
+   "lines": 333,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程弹道",
+    "施法/技能",
+    "治疗/回复"
+   ],
+   "magics": [
+    "FireBang",
+    "FlameField",
+    "GreatFireBall",
+    "Repulsion",
+    "Vampirism"
+   ],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    996
+   ],
+   "used_ais": [
+    996
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "圣术士"
+   ]
+  },
+  "SepTaoist": {
+   "file": "Server/MirObjects/Monsters/SepTaoist.cs",
+   "lines": 354,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "施毒"
+   ],
+   "magics": [
+    "Curse",
+    "Poisoning",
+    "SoulFireBall"
+   ],
+   "buffs": [
+    "诅咒术",
+    "隐身术"
+   ],
+   "poisons": [
+    "Green",
+    "Red",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    992
+   ],
+   "used_ais": [
+    992
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "弦月坛术士",
+    "弦月坛道士"
+   ]
+  },
+  "SepWarrior": {
+   "file": "Server/MirObjects/Monsters/SepWarrior.cs",
+   "lines": 263,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程弹道",
+    "施法/技能",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [
+    "TwinDrakeBlade"
+   ],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [
+    "Stun"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    990
+   ],
+   "used_ais": [
+    990
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "弦月坛战士"
+   ]
+  },
+  "SepWizard": {
+   "file": "Server/MirObjects/Monsters/SepWizard.cs",
+   "lines": 320,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程弹道",
+    "施法/技能"
+   ],
+   "magics": [
+    "FireBang",
+    "GreatFireBall",
+    "Repulsion"
+   ],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    991
+   ],
+   "used_ais": [],
+   "monster_count": 0,
+   "game_names": []
+  },
+  "SerpentLord": {
+   "file": "Server/MirObjects/Monsters/SerpentLord.cs",
+   "lines": 140,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [],
+   "ais": [
+    533
+   ],
+   "used_ais": [
+    533
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "变异沃玛将军"
+   ]
+  },
+  "Serpentirian": {
+   "file": "Server/MirObjects/Monsters/Serpentirian.cs",
+   "lines": 129,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    515
+   ],
+   "used_ais": [
+    515
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "多头毒妖鬼"
+   ]
+  },
+  "ShamanZombie": {
+   "file": "Server/MirObjects/Monsters/ShamanZombie.cs",
+   "lines": 73,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    40
+   ],
+   "used_ais": [
+    40
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "僵尸",
+    "萨满僵尸"
+   ]
+  },
+  "ShardGuardian": {
+   "file": "Server/MirObjects/Monsters/ShardGuardian.cs",
+   "lines": 405,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "自爆/引爆",
+    "远程攻击",
+    "施法/技能",
+    "给目标上 BUFF",
+    "施毒",
+    "直线/穿透攻击",
+    "血量分段行为",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复",
+    "变身/换形态"
+   ],
+   "magics": [
+    "ShardGuardianIceBomb"
+   ],
+   "buffs": [
+    "寒冰护甲",
+    "至尊威严"
+   ],
+   "poisons": [
+    "Bleeding",
+    "Frozen"
+   ],
+   "images": [
+    "GlacierWarrior",
+    "ShardGuardian"
+   ],
+   "atk_segments": 10,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    476
+   ],
+   "used_ais": [
+    476
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地宫勇士"
+   ]
+  },
+  "ShardMaiden": {
+   "file": "Server/MirObjects/Monsters/ShardMaiden.cs",
+   "lines": 233,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "施毒",
+    "直线/穿透攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed",
+    "Frozen"
+   ],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [],
+   "ais": [
+    484
+   ],
+   "used_ais": [
+    484
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "冰灵卡伊"
+   ]
+  },
+  "Shinsu": {
+   "file": "Server/MirObjects/Monsters/Shinsu.cs",
+   "lines": 113,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击",
+    "变身/换形态"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [
+    "Shinsu",
+    "Shinsu1"
+   ],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    170
+   ],
+   "used_ais": [
+    170
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "神兽"
+   ]
+  },
+  "Siege": {
+   "file": "Server/MirObjects/Monsters/Siege.cs",
+   "lines": 123,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    961
+   ],
+   "used_ais": [
+    961
+   ],
+   "monster_count": 7,
+   "game_names": [
+    "南蛮城内城门",
+    "南蛮城外城门",
+    "弩车",
+    "投石车",
+    "攻城车",
+    "机关弩车"
+   ]
+  },
+  "SnakeTotem": {
+   "file": "Server/MirObjects/Monsters/SnakeTotem.cs",
+   "lines": 197,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [
+    "SnakeTotem"
+   ],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    422
+   ],
+   "used_ais": [
+    422
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "蛇柱"
+   ]
+  },
+  "SnowWolf": {
+   "file": "Server/MirObjects/Monsters/SnowWolf.cs",
+   "lines": 74,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    430
+   ],
+   "used_ais": [
+    430
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "雪狼"
+   ]
+  },
+  "SnowWolfKing": {
+   "file": "Server/MirObjects/Monsters/SnowWolfKing.cs",
+   "lines": 225,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "瞬移",
+    "血量分段行为",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [],
+   "ais": [
+    431
+   ],
+   "used_ais": [
+    431
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "雪太狼"
+   ]
+  },
+  "SnowYeti": {
+   "file": "Server/MirObjects/Monsters/SnowYeti.cs",
+   "lines": 143,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Frozen"
+   ],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    445
+   ],
+   "used_ais": [
+    445
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "变异石怪兽拉卡巴",
+    "雪原猿人"
+   ]
+  },
+  "SpittingSpider": {
+   "file": "Server/MirObjects/Monsters/SpittingSpider.cs",
+   "lines": 62,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    163
+   ],
+   "used_ais": [
+    163
+   ],
+   "monster_count": 12,
+   "game_names": [
+    "古代月之天狼蜘蛛",
+    "古代月之花吻蜘蛛",
+    "暗之花吻蜘蛛",
+    "月之天狼蜘蛛",
+    "月之花吻蜘蛛",
+    "毒蜘蛛"
+   ]
+  },
+  "SpittingToad": {
+   "file": "Server/MirObjects/Monsters/SpittingToad.cs",
+   "lines": 155,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "瞬移",
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [
+    "SpittingToad"
+   ],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    421
+   ],
+   "used_ais": [
+    421
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "火蟾"
+   ]
+  },
+  "StoneGolem": {
+   "file": "Server/MirObjects/Monsters/StoneGolem.cs",
+   "lines": 100,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能"
+   ],
+   "magics": [
+    "StoneGolemQuake"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    362
+   ],
+   "used_ais": [
+    362
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "石巨人"
+   ]
+  },
+  "StoneTrap": {
+   "file": "Server/MirObjects/Monsters/StoneTrap.cs",
+   "lines": 149,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [
+    "StoningSpider"
+   ],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    419
+   ],
+   "used_ais": [
+    419
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "蜘蛛柱"
+   ]
+  },
+  "StoningStatue": {
+   "file": "Server/MirObjects/Monsters/StoningStatue.cs",
+   "lines": 104,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "直线/穿透攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    258
+   ],
+   "used_ais": [
+    258
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "古代石魔兽",
+    "石魔兽"
+   ]
+  },
+  "StrayCat": {
+   "file": "Server/MirObjects/Monsters/StrayCat.cs",
+   "lines": 128,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [],
+   "ais": [
+    335
+   ],
+   "used_ais": [
+    335
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "陵庙刀卫"
+   ]
+  },
+  "Swain": {
+   "file": "Server/MirObjects/Monsters/Swain.cs",
+   "lines": 239,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "自爆/引爆",
+    "远程攻击",
+    "施法/技能",
+    "直线/穿透攻击",
+    "血量分段行为",
+    "治疗/回复",
+    "变身/换形态"
+   ],
+   "magics": [
+    "FlameExplosion",
+    "SkeletonBomb"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [
+    "Swain",
+    "Swain1"
+   ],
+   "atk_segments": 3,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    508
+   ],
+   "used_ais": [
+    508
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "雷帝"
+   ]
+  },
+  "Swain1": {
+   "file": "Server/MirObjects/Monsters/Swain1.cs",
+   "lines": 195,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能"
+   ],
+   "magics": [
+    "FlameExplosion"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    509
+   ],
+   "used_ais": [
+    509
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "Swain"
+   ]
+  },
+  "SwampWarrior": {
+   "file": "Server/MirObjects/Monsters/SwampWarrior.cs",
+   "lines": 102,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "Red"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    357
+   ],
+   "used_ais": [
+    357
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "沼泽战士"
+   ]
+  },
+  "ThunderElement": {
+   "file": "Server/MirObjects/Monsters/ThunderElement.cs",
+   "lines": 100,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    235
+   ],
+   "used_ais": [
+    235
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "气元素",
+    "电元素"
+   ]
+  },
+  "Tornado": {
+   "file": "Server/MirObjects/Monsters/Tornado.cs",
+   "lines": 58,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    437
+   ],
+   "used_ais": [
+    437
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "沙暴风"
+   ]
+  },
+  "TownArcher": {
+   "file": "Server/MirObjects/Monsters/TownArcher.cs",
+   "lines": 121,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    983
+   ],
+   "used_ais": [
+    983
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "弓箭守卫",
+    "弓箭护卫"
+   ]
+  },
+  "ToxicGhoul": {
+   "file": "Server/MirObjects/Monsters/ToxicGhoul.cs",
+   "lines": 77,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    191
+   ],
+   "used_ais": [
+    191
+   ],
+   "monster_count": 6,
+   "game_names": [
+    "变异的利奇",
+    "古代腐蚀鬼",
+    "腐蚀鬼"
+   ]
+  },
+  "Trainer": {
+   "file": "Server/MirObjects/Monsters/Trainer.cs",
+   "lines": 270,
+   "overrides": [
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    984
+   ],
+   "used_ais": [
+    984
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "练功师"
+   ]
+  },
+  "TrapRock": {
+   "file": "Server/MirObjects/Monsters/TrapRock.cs",
+   "lines": 225,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "瞬移",
+    "远程攻击",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复",
+    "变身/换形态"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    233
+   ],
+   "used_ais": [
+    233
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "狐月陷阱"
+   ]
+  },
+  "Tree": {
+   "file": "Server/MirObjects/Monsters/Tree.cs",
+   "lines": 144,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Struck",
+     "cat": "受击",
+     "desc": "重写受击反应",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    971
+   ],
+   "used_ais": [
+    971
+   ],
+   "monster_count": 42,
+   "game_names": [
+    "乌木树",
+    "围栏",
+    "圣诞树",
+    "大面团",
+    "宝藏盒",
+    "封印罐",
+    "巨型蘑菇",
+    "战旗",
+    "战锣",
+    "木盒",
+    "栗子树",
+    "樱桃树",
+    "樱花树",
+    "沙巴克城墙",
+    "灌木",
+    "隐藏的盒子",
+    "雪人",
+    "雪堆",
+    "风筝",
+    "飞燕魔蛛蛋",
+    "魔法飞燕蛛蛋",
+    "鹿箱",
+    "黄沙",
+    "黑沙"
+   ]
+  },
+  "TreeGuardian": {
+   "file": "Server/MirObjects/Monsters/TreeGuardian.cs",
+   "lines": 86,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "0",
+    "1"
+   ],
+   "ais": [
+    364
+   ],
+   "used_ais": [
+    364
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "象王法师"
+   ]
+  },
+  "TreeQueen": {
+   "file": "Server/MirObjects/Monsters/TreeQueen.cs",
+   "lines": 356,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施法/技能"
+   ],
+   "magics": [
+    "TreeQueenGroundRoots",
+    "TreeQueenMassRoots",
+    "TreeQueenRoot"
+   ],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 3,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    365
+   ],
+   "used_ais": [
+    365
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "如何树"
+   ]
+  },
+  "TrollBomber": {
+   "file": "Server/MirObjects/Monsters/TrollBomber.cs",
+   "lines": 31,
+   "overrides": [],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    292
+   ],
+   "used_ais": [
+    292
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "业火炸弹手"
+   ]
+  },
+  "TrollKing": {
+   "file": "Server/MirObjects/Monsters/TrollKing.cs",
+   "lines": 167,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    294
+   ],
+   "used_ais": [
+    294
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "业火巨锤魔王"
+   ]
+  },
+  "TucsonEgg": {
+   "file": "Server/MirObjects/Monsters/TucsonEgg.cs",
+   "lines": 216,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessSearch",
+     "cat": "AI主循环",
+     "desc": "接管索敌",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "施毒",
+    "冰冻/麻痹/眩晕",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green",
+    "LRParalysis"
+   ],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    350
+   ],
+   "used_ais": [
+    350
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "异秘蛋"
+   ]
+  },
+  "TucsonGeneral": {
+   "file": "Server/MirObjects/Monsters/TucsonGeneral.cs",
+   "lines": 174,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "远程弹道",
+    "施法/技能",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [
+    "TucsonGeneralRock"
+   ],
+   "buffs": [],
+   "poisons": [
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 5,
+   "atk_types": [
+    "0",
+    "1",
+    "2"
+   ],
+   "ais": [
+    354
+   ],
+   "used_ais": [
+    354
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "瘟疫统领"
+   ]
+  },
+  "TucsonMage": {
+   "file": "Server/MirObjects/Monsters/TucsonMage.cs",
+   "lines": 122,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    345
+   ],
+   "used_ais": [
+    345
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "异秘法师"
+   ]
+  },
+  "TucsonWarrior": {
+   "file": "Server/MirObjects/Monsters/TucsonWarrior.cs",
+   "lines": 75,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    346
+   ],
+   "used_ais": [
+    346
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "异秘武士"
+   ]
+  },
+  "TurtleGrass": {
+   "file": "Server/MirObjects/Monsters/TurtleGrass.cs",
+   "lines": 58,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    410
+   ],
+   "used_ais": [
+    410
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "草丛龟"
+   ]
+  },
+  "TurtleKing": {
+   "file": "Server/MirObjects/Monsters/TurtleKing.cs",
+   "lines": 197,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "瞬移",
+    "远程攻击",
+    "施毒",
+    "直线/穿透攻击",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed",
+    "Paralysis",
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 6,
+   "atk_types": [
+    "0",
+    "1",
+    "2"
+   ],
+   "ais": [
+    244
+   ],
+   "used_ais": [
+    244
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "龟王"
+   ]
+  },
+  "VampireSpider": {
+   "file": "Server/MirObjects/Monsters/VampireSpider.cs",
+   "lines": 216,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    },
+    {
+     "name": "Spawned",
+     "cat": "出生",
+     "desc": "出生钩子",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "瞬移"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [
+    "VampireSpider"
+   ],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    420
+   ],
+   "used_ais": [
+    420
+   ],
+   "monster_count": 1,
+   "game_names": [
+    "血蛛"
+   ]
+  },
+  "VenomSpider": {
+   "file": "Server/MirObjects/Monsters/VenomSpider.cs",
+   "lines": 62,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "直线/穿透攻击"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    119
+   ],
+   "used_ais": [
+    119
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "天狼蜘蛛",
+    "花吻蜘蛛"
+   ]
+  },
+  "Wall": {
+   "file": "Server/MirObjects/Monsters/Wall.cs",
+   "lines": 101,
+   "overrides": [
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "挡路(城墙/城门)",
+    "自动复活"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    951
+   ],
+   "used_ais": [
+    951
+   ],
+   "monster_count": 6,
+   "game_names": [
+    "沙巴克中城墙",
+    "沙巴克右城墙",
+    "沙巴克左城墙",
+    "狮北城东墙壁",
+    "狮北城南墙壁",
+    "狮北城西墙壁"
+   ]
+  },
+  "WaterDragon": {
+   "file": "Server/MirObjects/Monsters/WaterDragon.cs",
+   "lines": 102,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "拉拽/击退"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Green"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    432
+   ],
+   "used_ais": [
+    432
+   ],
+   "monster_count": 6,
+   "game_names": [
+    "水龙"
+   ]
+  },
+  "WereTiger": {
+   "file": "Server/MirObjects/Monsters/WereTiger.cs",
+   "lines": 70,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    397
+   ],
+   "used_ais": [
+    397
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "太古鼠"
+   ]
+  },
+  "WhiteFoxman": {
+   "file": "Server/MirObjects/Monsters/WhiteFoxman.cs",
+   "lines": 124,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Slow"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [
+    "1"
+   ],
+   "ais": [
+    232
+   ],
+   "used_ais": [
+    232
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "素狐"
+   ]
+  },
+  "WhiteMammoth": {
+   "file": "Server/MirObjects/Monsters/WhiteMammoth.cs",
+   "lines": 87,
+   "overrides": [
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed"
+   ],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    324
+   ],
+   "used_ais": [
+    324
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "白象"
+   ]
+  },
+  "WingedTigerLord": {
+   "file": "Server/MirObjects/Monsters/WingedTigerLord.cs",
+   "lines": 204,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "远程攻击",
+    "施毒",
+    "冰冻/麻痹/眩晕"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Dazed",
+    "Paralysis"
+   ],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [
+    "0"
+   ],
+   "ais": [
+    229
+   ],
+   "used_ais": [
+    229
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "万兽之王",
+    "满月之野兽王",
+    "翼虎王"
+   ]
+  },
+  "WitchDoctor": {
+   "file": "Server/MirObjects/Monsters/WitchDoctor.cs",
+   "lines": 140,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "瞬移",
+    "远程攻击",
+    "治疗/回复"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 2,
+   "atk_types": [],
+   "ais": [
+    277
+   ],
+   "used_ais": [
+    277
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "地狱女巫"
+   ]
+  },
+  "WoodBox": {
+   "file": "Server/MirObjects/Monsters/WoodBox.cs",
+   "lines": 46,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Die",
+     "cat": "死亡",
+     "desc": "重写死亡处理",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    392
+   ],
+   "used_ais": [
+    392
+   ],
+   "monster_count": 3,
+   "game_names": [
+    "被诅咒的银箱"
+   ]
+  },
+  "WoomaTaurus": {
+   "file": "Server/MirObjects/Monsters/WoomaTaurus.cs",
+   "lines": 83,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    34
+   ],
+   "used_ais": [
+    34
+   ],
+   "monster_count": 8,
+   "game_names": [
+    "古代沃玛教主",
+    "沃玛教主",
+    "牛魔鬼尊"
+   ]
+  },
+  "Yimoogi": {
+   "file": "Server/MirObjects/Monsters/Yimoogi.cs",
+   "lines": 237,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    },
+    {
+     "name": "Drop",
+     "cat": "死亡",
+     "desc": "重写掉落",
+     "kind": "override"
+    },
+    {
+     "name": "FindTarget",
+     "cat": "索敌",
+     "desc": "重写索敌",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从",
+    "瞬移",
+    "远程攻击",
+    "施毒"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [
+    "Red"
+   ],
+   "images": [],
+   "atk_segments": 4,
+   "atk_types": [],
+   "ais": [
+    224
+   ],
+   "used_ais": [
+    224
+   ],
+   "monster_count": 12,
+   "game_names": [
+    "浮龙金蛇",
+    "红色蛇王",
+    "蛇"
+   ]
+  },
+  "YinDevilNode": {
+   "file": "Server/MirObjects/Monsters/YinDevilNode.cs",
+   "lines": 59,
+   "overrides": [
+    {
+     "name": "ProcessTarget",
+     "cat": "AI主循环",
+     "desc": "接管目标选择/攻击决策",
+     "kind": "override"
+    },
+    {
+     "name": "ProcessRoam",
+     "cat": "AI主循环",
+     "desc": "接管游荡/巡逻",
+     "kind": "override"
+    }
+   ],
+   "features": [],
+   "magics": [],
+   "buffs": [
+    "无极真气",
+    "神圣战甲术"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    217
+   ],
+   "used_ais": [
+    217
+   ],
+   "monster_count": 2,
+   "game_names": [
+    "阳之石碑",
+    "阴之石碑"
+   ]
+  },
+  "ZumaMonster": {
+   "file": "Server/MirObjects/Monsters/ZumaMonster.cs",
+   "lines": 202,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "GetInfo",
+     "cat": "外观",
+     "desc": "重写下发数据(外观/变身)",
+     "kind": "override"
+    },
+    {
+     "name": "IsAttackTarget",
+     "cat": "索敌",
+     "desc": "重写可攻击判定",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "施法/技能",
+    "变身/换形态"
+   ],
+   "magics": [
+    "FireWall"
+   ],
+   "buffs": [
+    "隐身术"
+   ],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 0,
+   "atk_types": [],
+   "ais": [
+    61
+   ],
+   "used_ais": [
+    61
+   ],
+   "monster_count": 26,
+   "game_names": [
+    "古代月之祖玛卫士",
+    "古代月之祖玛雕像",
+    "古代祖玛卫士",
+    "古代祖玛雕像",
+    "月之祖玛卫士",
+    "月之祖玛雕像",
+    "祖玛卫士",
+    "祖玛雕像",
+    "黑龙卫士",
+    "黑龙雕像"
+   ]
+  },
+  "ZumaTaurus": {
+   "file": "Server/MirObjects/Monsters/ZumaTaurus.cs",
+   "lines": 99,
+   "overrides": [
+    {
+     "name": "ProcessAI",
+     "cat": "AI主循环",
+     "desc": "完全接管 AI 流程",
+     "kind": "override"
+    },
+    {
+     "name": "Attack",
+     "cat": "攻击",
+     "desc": "重写普通攻击",
+     "kind": "override"
+    }
+   ],
+   "features": [
+    "召唤随从",
+    "召唤随从"
+   ],
+   "magics": [],
+   "buffs": [],
+   "poisons": [],
+   "images": [],
+   "atk_segments": 1,
+   "atk_types": [],
+   "ais": [
+    63
+   ],
+   "used_ais": [
+    63
+   ],
+   "monster_count": 4,
+   "game_names": [
+    "咒魔石尊",
+    "祖玛教主"
+   ]
+  }
+ },
+ "ai2class": {
+  "3": "Football",
+  "10": "CannibalPlant",
+  "14": "HarvestMonster",
+  "21": "AxeSkeleton",
+  "24": "CaveMaggot",
+  "31": "FlamingWooma",
+  "34": "WoomaTaurus",
+  "36": "BoneFamiliar",
+  "40": "ShamanZombie",
+  "41": "BugBagMaggot",
+  "49": "SandWorm",
+  "50": "DigOutZombie",
+  "51": "RevivingZombie",
+  "54": "DarkDevourer",
+  "55": "PoisonHugger",
+  "56": "Hugger",
+  "57": "Behemoth",
+  "61": "ZumaMonster",
+  "63": "ZumaTaurus",
+  "67": "BombSpider",
+  "83": "Scorpion",
+  "119": "VenomSpider",
+  "131": "RedMoonEvil",
+  "132": "RootSpider",
+  "133": "BombSpider",
+  "137": "MutatedManworm",
+  "138": "CrazyManworm",
+  "139": "DarkDevourer",
+  "140": "EvilCentipede",
+  "161": "Deer",
+  "163": "SpittingSpider",
+  "170": "Shinsu",
+  "172": "HolyDeva",
+  "180": "KingScorpion",
+  "182": "DarkDevil",
+  "191": "ToxicGhoul",
+  "193": "BoneSpearman",
+  "196": "BoneLord",
+  "205": "RightGuard",
+  "206": "LeftGuard",
+  "207": "MinotaurKing",
+  "217": "YinDevilNode",
+  "218": "OmaKing",
+  "220": "Khazard",
+  "221": "RedThunderZuma",
+  "222": "FrostTiger",
+  "223": "CrystalSpider",
+  "224": "Yimoogi",
+  "229": "WingedTigerLord",
+  "230": "BlackFoxman",
+  "231": "RedFoxman",
+  "232": "WhiteFoxman",
+  "233": "TrapRock",
+  "234": "GuardianRock",
+  "235": "ThunderElement",
+  "237": "GreatFoxSpirit",
+  "238": "HedgeKekTal",
+  "243": "FinialTurtle",
+  "244": "TurtleKing",
+  "246": "LightTurtle",
+  "257": "FlamingMutant",
+  "258": "StoningStatue",
+  "259": "FlyingStatue",
+  "272": "HellSlasher",
+  "273": "HellPirate",
+  "274": "HellCannibal",
+  "275": "HellKeeper",
+  "277": "WitchDoctor",
+  "280": "ManectricClaw",
+  "285": "ManectricBlest",
+  "286": "ManectricKing",
+  "288": "IcePillar",
+  "292": "TrollBomber",
+  "294": "TrollKing",
+  "295": "FlameSpear",
+  "296": "FlameMage",
+  "297": "FlameScythe",
+  "298": "FlameAssassin",
+  "299": "FlameQueen",
+  "300": "HellKnight",
+  "304": "HellLord",
+  "306": "IceGuard",
+  "307": "ElementGuard",
+  "308": "DemonGuard",
+  "309": "KingGuard",
+  "318": "DeathCrawler",
+  "319": "BurningZombie",
+  "320": "MudZombie",
+  "328": "HardenRhino",
+  "323": "DemonWolf",
+  "324": "WhiteMammoth",
+  "325": "DarkBeast",
+  "329": "AncientBringer",
+  "334": "BlackHammerCat",
+  "335": "StrayCat",
+  "336": "CatShaman",
+  "337": "Jar1",
+  "338": "Jar2",
+  "339": "SeedingsGeneral",
+  "340": "RestlessJar",
+  "341": "GeneralMeowMeow",
+  "347": "Armadillo",
+  "348": "ArmadilloElder",
+  "345": "TucsonMage",
+  "346": "TucsonWarrior",
+  "350": "TucsonEgg",
+  "352": "SandSnail",
+  "353": "CannibalTentacles",
+  "354": "TucsonGeneral",
+  "355": "GasToad",
+  "356": "Mantis",
+  "357": "SwampWarrior",
+  "358": "AssassinBird",
+  "360": "RhinoPriest",
+  "361": "ElephantMan",
+  "362": "StoneGolem",
+  "363": "EarthGolem",
+  "364": "TreeGuardian",
+  "365": "TreeQueen",
+  "366": "PeacockSpider",
+  "369": "OmaCannibal",
+  "370": "OmaBlest",
+  "371": "OmaSlasher",
+  "373": "OmaMage",
+  "374": "OmaWitchDoctor",
+  "375": "PowerBead",
+  "378": "DarkOmaKing",
+  "380": "CaveStatue",
+  "381": "Mandrill",
+  "382": "PlagueCrab",
+  "383": "CreeperPlant",
+  "387": "Nadz",
+  "388": "AvengingSpirit",
+  "390": "AvengingWarrior",
+  "391": "AxePlant",
+  "392": "WoodBox",
+  "395": "DarkCaptain",
+  "396": "SackWarrior",
+  "397": "WereTiger",
+  "398": "KingHydrax",
+  "400": "HornedMage",
+  "401": "HornedArcher",
+  "403": "HornedWarrior",
+  "404": "FloatingRock",
+  "405": "ScalyBeast",
+  "406": "HornedSorceror",
+  "407": "BlueSoul",
+  "408": "BoulderSpirit",
+  "409": "HornedCommander",
+  "410": "TurtleGrass",
+  "411": "ManTree",
+  "414": "ChieftainSword",
+  "417": "ChieftainArcher",
+  "419": "StoneTrap",
+  "420": "VampireSpider",
+  "421": "SpittingToad",
+  "422": "SnakeTotem",
+  "423": "CharmedSnake",
+  "427": "FrozenKnight",
+  "429": "IcePhantom",
+  "430": "SnowWolf",
+  "431": "SnowWolfKing",
+  "432": "WaterDragon",
+  "433": "BlackTortoise",
+  "434": "Manticore",
+  "435": "DragonWarrior",
+  "436": "DragonArcher",
+  "437": "Tornado",
+  "438": "Kirin",
+  "442": "FrozenMiner",
+  "443": "FrozenAxeman",
+  "444": "FrozenMagician",
+  "445": "SnowYeti",
+  "446": "IceCrystalSoldier",
+  "447": "DarkWraith",
+  "449": "CrystalBeast",
+  "456": "AntCommander",
+  "461": "CargoBox",
+  "468": "GlacierSnail",
+  "469": "FurbolgWarrior",
+  "470": "FurbolgArcher",
+  "471": "FurbolgCommander",
+  "473": "FurbolgGuard",
+  "474": "GlacierBeast",
+  "475": "GlacierWarrior",
+  "476": "ShardGuardian",
+  "477": "HoodedSummonerScrolls",
+  "481": "HoodedSummoner",
+  "466": "PurpleFaeFlower",
+  "484": "ShardMaiden",
+  "487": "ReaperPriest",
+  "489": "ReaperAssassin",
+  "498": "MysteriousMonk",
+  "502": "NobleWarrior",
+  "503": "NobleArcher",
+  "508": "Swain",
+  "509": "Swain1",
+  "514": "AncientStoneGolem",
+  "515": "Serpentirian",
+  "516": "Butcher",
+  "518": "Riklebites",
+  "521": "FeralTundraFurbolg",
+  "522": "FeralFlameFurbolg",
+  "525": "ArcaneTotem",
+  "532": "BloodLord",
+  "533": "SerpentLord",
+  "534": "MirEmperor",
+  "544": "Mon544S",
+  "550": "Mon550N",
+  "552": "Mon552N",
+  "562": "Mon562N",
+  "563": "Mon563N",
+  "564": "Mon564N",
+  "570": "Mon570N",
+  "571": "Mon571N",
+  "572": "Mon572N",
+  "573": "Mon573N",
+  "575": "Mon575S",
+  "577": "Mon577N",
+  "601": "Mon601N",
+  "602": "Mon602N",
+  "609": "Mon609N",
+  "900": "EvilMir",
+  "901": "EvilMirBody",
+  "902": "DragonStatue",
+  "903": "HellBomb",
+  "950": "Gate",
+  "951": "Wall",
+  "960": "ConquestArcher",
+  "961": "Siege",
+  "970": "IntelligentCreatureObject",
+  "971": "Tree",
+  "972": "CityGate",
+  "980": "Guard",
+  "981": "Guard",
+  "982": "ArcherGuard",
+  "983": "TownArcher",
+  "984": "Trainer",
+  "985": "HumanWizard",
+  "986": "HumanAssassin",
+  "990": "SepWarrior",
+  "991": "SepWizard",
+  "992": "SepTaoist",
+  "993": "SepAssassin",
+  "994": "SepArcher",
+  "995": "SepHighWarrior",
+  "996": "SepHighWizard",
+  "997": "SepHighTaoist",
+  "998": "SepHighAssassin",
+  "999": "SepHighArcher"
+ }
+}

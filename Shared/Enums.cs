@@ -1593,6 +1593,37 @@ public enum BuffType : byte
     摩鲁的黄色药剂,
     古代宗师祝福,
     黄金宗师祝福,
+
+    //★★ 自定义 BUFF 槽位（2026-10-12 新增）
+    //   由服务端 Configs\BuffSystem.ini 定义「显示名 / 图标 / 堆叠方式 / 属性加成」，
+    //   GM 工具里的「自定义BUFF属性」编辑器就是写这张表。
+    //   槽位号 1~24 对应下面的 Custom1~Custom24，byte 上限 255，故留到 253。
+    //   ★显示名与图标由服务端随 AddBuff 封包下发（ClientBuff.Name / ClientBuff.Icon），
+    //     不走枚举名，所以这里不需要为每个自定义 BUFF 起中文名。
+    Custom1 = 230,
+    Custom2,
+    Custom3,
+    Custom4,
+    Custom5,
+    Custom6,
+    Custom7,
+    Custom8,
+    Custom9,
+    Custom10,
+    Custom11,
+    Custom12,
+    Custom13,
+    Custom14,
+    Custom15,
+    Custom16,
+    Custom17,
+    Custom18,
+    Custom19,
+    Custom20,
+    Custom21,
+    Custom22,
+    Custom23,
+    Custom24 = 253,
 }
 
 [Flags]

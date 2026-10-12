@@ -3058,6 +3058,131 @@ namespace Server.MirObjects
                         ReceiveChat("NPC脚本已重新加载", ChatType.Hint);
                         break;
 
+                    //★ 重载自定义 BUFF 配置（Configs\BuffSystem.ini），对应 GM 工具的「自定义BUFF属性」编辑器
+                    case "RELOADBUFF":
+                        if (!IsGM) return;
+
+                        Envir.ReloadBuffConfig();
+
+                        ReceiveChat(string.Format("BUFF 配置已重新加载，共 {0} 条", BuffConfig.Defs.Count), ChatType.Hint);
+
+                        if (!string.IsNullOrEmpty(BuffConfig.LastError))
+                            ReceiveChat("配置有错误：" + BuffConfig.LastError, ChatType.System);
+                        break;
+
+                    //★ 给自己或指定玩家加自定义 BUFF：@GIVEBUFF <名字|槽位> [秒数] [玩家名]
+                    //   例：@GIVEBUFF 羽化登仙 300
+                    //       @GIVEBUFF 1 600 某某玩家名
+                    case "GIVEBUFF":
+                        {
+                            if (!IsGM)
+                            {
+                                ReceiveChat("只有 GM 能使用 @GIVEBUFF", ChatType.System);
+                                return;
+                            }
+
+                            if (parts.Length < 2)
+                            {
+                                ReceiveChat("用法：@GIVEBUFF <名字或槽位> [秒数] [玩家名]", ChatType.System);
+                                return;
+                            }
+
+                            BuffType buffType = BuffType.None;
+
+                            int buffSlot;
+
+                            if (int.TryParse(parts[1], out buffSlot))
+                            {
+                                if (buffSlot < 1 || buffSlot > BuffConfig.CustomSlotCount)
+                                {
+                                    ReceiveChat(string.Format("槽位必须在 1~{0} 之间", BuffConfig.CustomSlotCount), ChatType.System);
+                                    return;
+                                }
+
+                                buffType = BuffConfig.SlotToType(buffSlot);
+                            }
+                            else
+                            {
+                                // 先按配置里的显示名找，再按枚举名找
+                                for (int i = 0; i < Envir.BuffInfoList.Count; i++)
+                                {
+                                    BuffInfo info = Envir.BuffInfoList[i];
+
+                                    if (!string.IsNullOrEmpty(info.Name) && info.Name == parts[1])
+                                    {
+                                        buffType = info.Type;
+                                        break;
+                                    }
+
+                                    if (info.Type.ToString() == parts[1])
+                                    {
+                                        buffType = info.Type;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (buffType == BuffType.None)
+                            {
+                                ReceiveChat(string.Format("找不到 BUFF「{0}」，可用 @CUSTOMBUFF 查看已配置的自定义 BUFF", parts[1]), ChatType.System);
+                                return;
+                            }
+
+                            int duration = 60;
+
+                            if (parts.Length > 2 && !int.TryParse(parts[2], out duration))
+                                duration = 60;
+
+                            if (duration <= 0) duration = 60;
+
+                            PlayerObject buffTarget = this;
+
+                            if (parts.Length > 3)
+                            {
+                                buffTarget = Envir.GetPlayer(parts[3]);
+
+                                if (buffTarget == null)
+                                {
+                                    ReceiveChat(string.Format("玩家 {0} 未在线", parts[3]), ChatType.System);
+                                    return;
+                                }
+                            }
+
+                            buffTarget.AddBuff(buffType, this, Settings.Second * duration, new Stats());
+
+                            ReceiveChat(string.Format("已为 {0} 添加 BUFF {1}，持续 {2} 秒", buffTarget.Name, buffType, duration), ChatType.Hint);
+                        }
+                        break;
+
+                    //★ 列出配置文件里已定义的自定义 BUFF
+                    case "CUSTOMBUFF":
+                        {
+                            if (!IsGM) return;
+
+                            int shown = 0;
+
+                            for (int i = 0; i < Envir.BuffInfoList.Count; i++)
+                            {
+                                BuffInfo info = Envir.BuffInfoList[i];
+
+                                int slot = BuffConfig.TypeToSlot(info.Type);
+
+                                if (slot == 0) continue;
+
+                                ReceiveChat(string.Format("槽位 {0} → {1}（图标 {2}{3}）",
+                                    slot,
+                                    string.IsNullOrEmpty(info.Name) ? info.Type.ToString() : info.Name,
+                                    info.Icon,
+                                    info.Visible ? "，可见" : ""), ChatType.Hint);
+
+                                shown++;
+                            }
+
+                            if (shown == 0)
+                                ReceiveChat("还没有配置任何自定义 BUFF，请用 GM 工具的「自定义BUFF属性」编辑", ChatType.System);
+                        }
+                        break;
+
                     case "CLEARIPBLOCKS":
                         if (!IsGM) return;
 

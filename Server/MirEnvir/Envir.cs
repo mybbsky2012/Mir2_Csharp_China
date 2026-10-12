@@ -3919,6 +3919,69 @@ namespace Server.MirEnvir
             MessageQueue.Enqueue("NPC脚本已重新加载");
         }
 
+        /// <summary>
+        /// 重新加载 Configs\BuffSystem.ini（GM 在线命令 @RELOADBUFF 用它）。
+        ///
+        /// 语义：配置里的「自定义槽位 BUFF」内容完全来自配置文件，配置一变就必须重挂，
+        /// 所以先把在线玩家身上的自定义 BUFF 清掉；已有 BUFF 只把 Info 指向新表
+        /// （属性的变化要等下次重新施放才生效 —— 因为没法从 buff.Stats 里区分
+        ///  「代码给的」和「配置给的」，硬改会把技能本身的加成一起抹掉）。
+        /// </summary>
+        public void ReloadBuffConfig()
+        {
+            BuffInfoList.Clear();
+
+            // BuffInfo.Load() 内部会先调 BuffConfig.Load()
+            foreach (var buff in BuffInfo.Load())
+            {
+                BuffInfoList.Add(buff);
+            }
+
+            for (int i = 0; i < Players.Count; i++)
+            {
+                PlayerObject player = Players[i];
+
+                if (player == null) continue;
+
+                try
+                {
+                    for (int j = player.Buffs.Count - 1; j >= 0; j--)
+                    {
+                        if (j >= player.Buffs.Count) continue;
+
+                        Buff buff = player.Buffs[j];
+
+                        BuffDef def = BuffConfig.Get(buff.Type);
+
+                        if (def != null && def.IsCustom)
+                        {
+                            player.RemoveBuff(buff.Type);
+                            continue;
+                        }
+
+                        try
+                        {
+                            BuffInfo info = GetBuffInfo(buff.Type);
+                            if (info != null) buff.Info = info;
+                        }
+                        catch
+                        {
+                            // 配置里删掉了某个枚举的注册时忽略，不影响其他 buff
+                        }
+                    }
+
+                    player.RefreshStats();
+                }
+                catch (Exception ex)
+                {
+                    MessageQueue.Enqueue(string.Format("重载 BUFF 配置时刷新玩家 {0} 失败：{1}", player.Name, ex.Message));
+                }
+            }
+
+            MessageQueue.Enqueue(string.Format("BUFF 配置已重新加载，共 {0} 条定义（自定义槽位 {1} 个）",
+                BuffConfig.Defs.Count, BuffConfig.CustomSlotCount));
+        }
+
         public void ReloadDrops()
         {
             for (var i = 0; i < MonsterInfoList.Count; i++)

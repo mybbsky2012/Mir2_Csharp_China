@@ -76,30 +76,58 @@ namespace Client.MirScenes.Dialogs
             };
         }
 
+        /// <summary>
+        /// 解析 BUFF 图标编码 → 图库与索引。
+        ///
+        /// 编码约定（服务端 Configs\BuffSystem.ini 的 Icon 字段直接填这个值）：
+        ///   0        用原有的枚举名硬编码映射（老 BUFF 全走这条，行为完全不变）
+        ///   10000+   Prguse 图库
+        ///   20000+   Prguse2 图库
+        ///   30000+   MagIcon 图库
+        ///   40000+   MagIcon2 图库（值为 40000 + 技能图标索引 * 2）
+        /// </summary>
+        private void ResolveBuffImage(ClientBuff buff, out int index, out MLibrary library)
+        {
+            int code = buff.Icon != 0 ? buff.Icon : BuffImage(buff.Type);
+
+            if (code >= 40000)
+            {
+                index = code - 40000;
+                library = Libraries.MagIcon2;
+                return;
+            }
+
+            if (code >= 30000)
+            {
+                index = code - 30000;
+                library = Libraries.MagIcon;
+                return;
+            }
+
+            if (code >= 20000)
+            {
+                index = code - 20000;
+                library = Libraries.Prguse2;
+                return;
+            }
+
+            if (code >= 10000)
+            {
+                index = code - 10000;
+                library = Libraries.Prguse;
+                return;
+            }
+
+            index = code;
+            library = Libraries.BuffIcon;
+        }
+
         public void CreateBuff(ClientBuff buff)
         {
-            var buffImage = BuffImage(buff.Type);
+            int buffImage;
+            MLibrary buffLibrary;
 
-            var buffLibrary = Libraries.BuffIcon;
-
-            //40000+ → 直接用技能图标库 MagIcon2（索引 = 技能 Info.Icon * 2）
-            if (buffImage >= 40000)
-            {
-                buffImage -= 40000;
-                buffLibrary = Libraries.MagIcon2;
-            }
-
-            if (buffImage >= 20000)
-            {
-                buffImage -= 20000;
-                buffLibrary = Libraries.MagIcon;
-            }
-
-            if (buffImage >= 10000)
-            {
-                buffImage -= 10000;
-                buffLibrary = Libraries.Prguse2;
-            }
+            ResolveBuffImage(buff, out buffImage, out buffLibrary);
 
             var image = new MirImageControl
             {
@@ -136,34 +164,10 @@ namespace Client.MirScenes.Dialogs
                 var image = _buffList[i];
                 var buff = Buffs[i];
 
-                var buffImage = BuffImage(buff.Type);
-                var buffLibrary = Libraries.BuffIcon;
+                int buffImage;
+                MLibrary buffLibrary;
 
-                //40000+ → 直接用技能图标库 MagIcon2（索引 = 技能 Info.Icon * 2）
-                if (buffImage >= 40000)
-                {
-                    buffImage -= 40000;
-                    buffLibrary = Libraries.MagIcon2;
-                }
-
-                //ArcherSpells - VampireShot,PoisonShot
-                if (buffImage >= 30000)
-                {
-                    buffImage -= 30000;
-                    buffLibrary = Libraries.MagIcon;
-                }
-
-                if (buffImage >= 20000)
-                {
-                    buffImage -= 20000;
-                    buffLibrary = Libraries.Prguse2;
-                }
-
-                if (buffImage >= 10000)
-                {
-                    buffImage -= 10000;
-                    buffLibrary = Libraries.Prguse;
-                }
+                ResolveBuffImage(buff, out buffImage, out buffLibrary);
 
                 var location = new Point(Size.Width - 10 - 23 - (i * 23) + ((10 * 23) * (i / 10)), 6 + ((i / 10) * 24));
 
@@ -293,7 +297,12 @@ namespace Client.MirScenes.Dialogs
 
         public string BuffString(ClientBuff buff)
         {
-            string text = RegexFunctions.SeperateCamelCase(buff.Type.ToString()) + "\n";
+            //★ 自定义 BUFF 用配置里下发的显示名；老 BUFF 的 Name 为空，仍取枚举名（行为不变）
+            string title = string.IsNullOrEmpty(buff.Name)
+                ? RegexFunctions.SeperateCamelCase(buff.Type.ToString())
+                : buff.Name;
+
+            string text = title + "\n";
             bool overridestats = false;
 
             switch (buff.Type)

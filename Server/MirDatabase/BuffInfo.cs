@@ -11,6 +11,12 @@ namespace Server.MirDatabase
         public int Icon { get; set; }
         public bool Visible { get; set; }
 
+        /// <summary>
+        /// 显示名（2026-10-12 新增）。只有 Configs\BuffSystem.ini 里配过的 BUFF 才有值，
+        /// 随 AddBuff 封包下发给客户端；为空时客户端回退到枚举名，原有 BUFF 行为不变。
+        /// </summary>
+        public string Name = string.Empty;
+
         public static List<BuffInfo> Load()
         {
             List<BuffInfo> info = new List<BuffInfo>
@@ -133,6 +139,44 @@ namespace Server.MirDatabase
                 new BuffInfo { Type = BuffType.黄金宗师祝福, Properties = BuffProperty.None, StackType = BuffStackType.None }
 
             };
+
+            //★ 合并自定义 BUFF 配置（Configs\BuffSystem.ini）
+            //  两个作用：
+            //   ① 注册自定义槽位 —— Envir.GetBuffInfo 找不到会抛 NotImplementedException，
+            //      所以 Custom1~Custom24 必须先在这里落地，否则一加就崩。
+            //   ② 覆盖已有 BUFF 的元信息 —— 只覆盖配置里「真写了」的字段，
+            //      免得只加一条属性却把 Visible/Stack 改回默认值。
+            BuffConfig.Load();
+
+            for (int i = 0; i < BuffConfig.Defs.Count; i++)
+            {
+                BuffDef def = BuffConfig.Defs[i];
+
+                BuffInfo target = null;
+
+                for (int j = 0; j < info.Count; j++)
+                {
+                    if (info[j].Type != def.Type) continue;
+
+                    target = info[j];
+                    break;
+                }
+
+                if (target == null)
+                {
+                    // 非自定义节却没匹配到已有 BUFF：说明节名写错了，加载日志里已经报过，这里跳过
+                    if (!def.IsCustom) continue;
+
+                    target = new BuffInfo { Type = def.Type, StackType = def.Stack, Properties = def.Property };
+                    info.Add(target);
+                }
+
+                if (def.HasName) target.Name = def.Name;
+                if (def.HasIcon) target.Icon = def.Icon;
+                if (def.HasVisible) target.Visible = def.Visible;
+                if (def.HasStack) target.StackType = def.Stack;
+                if (def.HasProperty) target.Properties = def.Property;
+            }
 
             return info;
         }
@@ -316,7 +360,10 @@ namespace Server.MirDatabase
                 Paused = Paused,
                 ExpireTime = ExpireTime,
                 Stats = new Stats(Stats),
-                Values = Values
+                Values = Values,
+                //★ 自定义 BUFF 的名字与图标随封包下发（Info 已经在 BuffInfo.Load 里被配置覆盖过）
+                Name = Info.Name ?? string.Empty,
+                Icon = Info.Icon
             };
         }
     }
