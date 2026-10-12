@@ -35,6 +35,12 @@ namespace Server.MirObjects.Monsters
             }
         }
 
+        //城门是攻城时的「堵门」，开着穿人也必须挡住（否则内挂能直接穿关着的城门进城）
+        public override bool BlockWalkThrough
+        {
+            get { return true; }
+        }
+
         protected internal CastleGate(MonsterInfo info)
             : base(info)
         {

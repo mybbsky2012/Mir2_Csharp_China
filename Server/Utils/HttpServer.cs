@@ -17,6 +17,11 @@ namespace Server.Library.Utils
 
         public void Start()
         {
+            // Stop() 会把 tokenSource 置空释放（关闭/重启都会走 Stop）。
+            // 这里必须补建新的，否则 Reboot()（Stop+Start）会拿已释放的 token 直接抛异常。
+            if (tokenSource == null)
+                tokenSource = new CancellationTokenSource();
+
             _thread = new Thread(Listen);
             _thread.Start(tokenSource.Token);
         }
@@ -24,11 +29,29 @@ namespace Server.Library.Utils
         public new void Stop()
         {
             base.Stop();
-            
-            tokenSource.Cancel();
-            Thread.Sleep(1000);
-            tokenSource.Dispose();
 
+            // ★Stop 可能被调用多次：先点「停止服务器」再点关闭按钮时，
+            // SMain_FormClosing 会再走一遍 Envir.Stop() → 这里。
+            // 原实现在第二次调用时对已 Dispose 的 tokenSource 调 Cancel()
+            // → ObjectDisposedException → 弹「未经处理的异常」对话框。
+            // 改成幂等 + 容错：释放后置空，重复调用直接跳过。
+            var ts = tokenSource;
+            if (ts == null) return;
+
+            tokenSource = null;
+            try
+            {
+                ts.Cancel();
+                Thread.Sleep(1000);
+            }
+            catch (Exception)
+            {
+                // 关停路径上的收尾操作，任何失败都不该阻断进程退出。
+            }
+            finally
+            {
+                ts.Dispose();
+            }
         }
 
 

@@ -11,6 +11,12 @@ namespace Server.MirObjects.Monsters
         protected override bool CanAttack { get { return false; } }
         protected override bool CanRegen { get { return false; } }
 
+        //城池城门是攻城时的「堵门」，归「穿城墙」那一档开关管（见 Settings.EnableWalkThroughWall）
+        public override bool BlockWalkThrough
+        {
+            get { return true; }
+        }
+
         protected List<BlockingObject> BlockingObjects = new List<BlockingObject>();
 
         public Point[] BlockArray;

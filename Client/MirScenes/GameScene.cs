@@ -47,6 +47,12 @@ namespace Client.MirScenes
         //服务器是否开放对应的辅助开关（由 S.PlayerOption 下发）
         public static bool NoLampAllowed, WalkThroughAllowed, NoRunUpAllowed, OverWeightAllowed, MountTaiAllowed;
 
+        //穿人拆成的 4 档（服务器下发，见 S.PlayerOption）：决定本地移动预测能穿过哪些东西。
+        //默认值与服务端 Settings 的默认值保持一致，免得进图那一瞬间预测不一致。
+        public static bool WalkThroughMonsterAllowed = true,  // 穿怪
+                           WalkThroughNPCAllowed = true,      // 穿NPC
+                           WalkThroughWallAllowed = false;    // 穿城墙/城门（默认关）
+
         private DateTime lastChangeTime = DateTime.MinValue;
         private readonly TimeSpan changeCooldown = TimeSpan.FromSeconds(1);
 
@@ -10617,6 +10623,16 @@ namespace Client.MirScenes
                     GameScene.MountTaiAllowed = p.Allowed;
                     Settings.MountTai = p.Value;
                     break;
+                //穿人的 4 档细分：只取 Allowed（服务器开放与否），不覆盖玩家自己的勾选意愿
+                case PlayerOptionType.WalkThroughMonster:
+                    GameScene.WalkThroughMonsterAllowed = p.Allowed;
+                    break;
+                case PlayerOptionType.WalkThroughNPC:
+                    GameScene.WalkThroughNPCAllowed = p.Allowed;
+                    break;
+                case PlayerOptionType.WalkThroughWall:
+                    GameScene.WalkThroughWallAllowed = p.Allowed;
+                    break;
             }
 
             Settings.Save();
@@ -10652,7 +10668,9 @@ namespace Client.MirScenes
             _playerOptionsRestored = true;
 
             if (Settings.PreferredNoLamp && NoLampAllowed) RequestPlayerOption(PlayerOptionType.NoLamp, true);
-            if (Settings.PreferredWalkThrough && WalkThroughAllowed) RequestPlayerOption(PlayerOptionType.WalkThrough, true);
+            //穿人是 4 档，任意一档开放就值得把玩家的勾选恢复回去（实际能穿什么由服务器按档位判定）
+            if (Settings.PreferredWalkThrough && (WalkThroughAllowed || WalkThroughMonsterAllowed || WalkThroughNPCAllowed || WalkThroughWallAllowed))
+                RequestPlayerOption(PlayerOptionType.WalkThrough, true);
             if (Settings.PreferredNoRunUp && NoRunUpAllowed) RequestPlayerOption(PlayerOptionType.NoRunUp, true);
             if (Settings.PreferredOverWeight && OverWeightAllowed) RequestPlayerOption(PlayerOptionType.OverWeight, true);
             if (Settings.PreferredMountTai && MountTaiAllowed) RequestPlayerOption(PlayerOptionType.MountTai, true);
@@ -15194,6 +15212,25 @@ namespace Client.MirScenes
             return Math.Sqrt(x * x + y * y);
         }
 
+        /// <summary>
+        /// 客户端侧的「穿人」细粒度判定 —— 必须与服务端 HumanObject.CanWalkThrough 逐条对齐：
+        /// 玩家/英雄看「穿人」、普通怪物看「穿怪」、NPC 看「穿NPC」、
+        /// 城门城墙（服务端标记 NoWalkThrough）看「穿城墙」。
+        /// </summary>
+        private static bool CanWalkThroughObject(MapObject ob)
+        {
+            // 这些开关定义在 GameScene 上（本方法位于 MapControl 类，所以必须带类名前缀）
+            if (ob is PlayerObject) return GameScene.WalkThroughAllowed;   // 英雄 HeroObject 是 PlayerObject 的子类
+
+            MonsterObject monster = ob as MonsterObject;
+            if (monster != null)
+                return monster.NoWalkThrough ? GameScene.WalkThroughWallAllowed : GameScene.WalkThroughMonsterAllowed;
+
+            if (ob is NPCObject) return GameScene.WalkThroughNPCAllowed;
+
+            return false;
+        }
+
         public bool EmptyCell(Point p)
         {
             if ((M2CellInfo[p.X, p.Y].BackImage & 0x20000000) != 0 || (M2CellInfo[p.X, p.Y].FrontImage & 0x8000) != 0) // + (M2CellInfo[P.X, P.Y].FrontImage & 0x7FFF) != 0)
@@ -15205,9 +15242,11 @@ namespace Client.MirScenes
 
                 if (ob.CurrentLocation == p && ob.Blocking)
                 {
-                    // 穿人（含穿怪、穿 NPC）：开启时客户端跳过玩家/英雄/怪物/NPC 的阻挡，
-                    // 否则客户端不会发起移动动作，服务端放行也无效
-                    if (Settings.WalkThrough && ob != User && (ob is PlayerObject || ob is MonsterObject || ob is NPCObject))
+                    // 穿人（含穿怪、穿 NPC、穿城墙）：开启时客户端跳过相应对象的阻挡，
+                    // 否则客户端不会发起移动动作，服务端放行也无效。
+                    // ★必须与服务端 HumanObject.CanWalkThrough 的判定完全一致（同样读 4 档开关），
+                    //   否则本地预测能过、服务端拉回，内挂就会卡在门前反复撞。
+                    if (Settings.WalkThrough && ob != User && CanWalkThroughObject(ob))
                         continue;
                     return false;
                 }

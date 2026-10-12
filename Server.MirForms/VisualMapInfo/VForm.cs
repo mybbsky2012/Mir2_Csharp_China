@@ -116,9 +116,15 @@ namespace Server.MirForms.VisualMapInfo
         private void InitializeRespawnInfo()
         {
             for (int i = 0; i < Envir.MonsterInfoList.Count; i++)
-                RespawnsFilter.Items.Add(Envir.MonsterInfoList[i]);
+                RespawnsFilter.Items.Add(new MonsterPick(Envir.MonsterInfoList[i]));
 
             RespawnsFilter.Items.Add("No Filter");
+
+            // 本服 1200+ 个怪物，只能滚列表太难找 → 改成可输入 + 边打边补全
+            RespawnsFilter.DropDownStyle = ComboBoxStyle.DropDown;
+            RespawnsFilter.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            RespawnsFilter.AutoCompleteSource = AutoCompleteSource.ListItems;
+
             RespawnsFilter.Text = "No Filter";
 
             for (int i = 0; i < VisualizerGlobal.MapInfo.Respawns.Count; i++)
@@ -716,11 +722,12 @@ namespace Server.MirForms.VisualMapInfo
 
         private void RespawnsFilter_SelectedIndexChanged(object sender, EventArgs e)
         {
-            MonsterInfo info = RespawnsFilter.SelectedItem as MonsterInfo;
+            MonsterPick pick = RespawnsFilter.SelectedItem as MonsterPick;
+            MonsterInfo info = pick == null ? null : pick.Info;
 
             VisualizerGlobal.ZoomLevel = 1;
 
-            if (RespawnsFilter.Text == "No Filter")
+            if (info == null || RespawnsFilter.Text == "No Filter")
                 for (int i = RespawnPanel.Controls.Count - 1; i > -1; i--)
                     try
                     {

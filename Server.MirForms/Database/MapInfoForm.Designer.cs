@@ -896,6 +896,7 @@ namespace Server
             RCopyButton.TabIndex = 21;
             RCopyButton.Text = "复制";
             RCopyButton.UseVisualStyleBackColor = true;
+            RCopyButton.Click += RCopyButton_Click;
             // 
             // RemoveRButton
             // 
@@ -1091,6 +1092,7 @@ namespace Server
             MonsterInfoComboBox.Size = new Size(151, 25);
             MonsterInfoComboBox.TabIndex = 13;
             MonsterInfoComboBox.SelectedIndexChanged += MonsterInfoComboBox_SelectedIndexChanged;
+            MonsterInfoComboBox.KeyDown += MonsterInfoComboBox_KeyDown;
             // 
             // label6
             // 

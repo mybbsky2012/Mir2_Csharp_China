@@ -51,8 +51,31 @@ namespace Server.MirDatabase
             }
         }
 
+        /// <summary>
+        /// 把一条刷怪点序列化成 11 段逗号分隔文本（与 <see cref="FromText"/> 严格对称）。
+        /// 顺序：MonsterIndex,X,Y,Count,Spread,Delay,Direction,RandomDelay,RespawnIndex,SaveRespawnTime,RespawnTicks
+        /// 「地图信息」窗体的「复制 / 粘贴」按钮用的就是这套文本。
+        /// </summary>
+        public string ToText()
+        {
+            return string.Join(",",
+                MonsterIndex,
+                Location.X,
+                Location.Y,
+                Count,
+                Spread,
+                Delay,
+                Direction,
+                RandomDelay,
+                RespawnIndex,
+                SaveRespawnTime,
+                RespawnTicks);
+        }
+
         public static RespawnInfo FromText(string text)
         {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+
             string[] data = text.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
 
             if (data.Length < 7) return null;
@@ -71,10 +94,17 @@ namespace Server.MirDatabase
             if (!ushort.TryParse(data[4], out info.Spread)) return null;
             if (!ushort.TryParse(data[5], out info.Delay)) return null;
             if (!byte.TryParse(data[6], out info.Direction)) return null;
-            if (!ushort.TryParse(data[7], out info.RandomDelay)) return null;
-            if (!int.TryParse(data[8], out info.RespawnIndex)) return null;
-            if (!bool.TryParse(data[9], out info.SaveRespawnTime)) return null;
-            if (!ushort.TryParse(data[10], out info.RespawnTicks)) return null;
+
+            // 后 4 段是可选字段：老格式（含脚本手写的刷怪文本）只写 7 段，
+            // 原实现无条件读 data[7]~data[10]，段数不足时会 IndexOutOfRangeException。
+            ushort tempUShort;
+            int tempInt;
+            bool tempBool;
+
+            if (data.Length > 7 && ushort.TryParse(data[7], out tempUShort)) info.RandomDelay = tempUShort;
+            if (data.Length > 8 && int.TryParse(data[8], out tempInt)) info.RespawnIndex = tempInt;
+            if (data.Length > 9 && bool.TryParse(data[9], out tempBool)) info.SaveRespawnTime = tempBool;
+            if (data.Length > 10 && ushort.TryParse(data[10], out tempUShort)) info.RespawnTicks = tempUShort;
 
             return info;
         }

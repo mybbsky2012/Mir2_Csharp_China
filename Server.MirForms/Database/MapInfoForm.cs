@@ -27,9 +27,17 @@ namespace Server
 
             LightsComboBox.Items.AddRange(Enum.GetValues(typeof(LightSetting)).Cast<object>().ToArray());
 
-            List<MonsterInfo> monsterInfoItems = new();
-            Envir.MonsterInfoList.ForEach(x => monsterInfoItems.Add(x));
-            MonsterInfoComboBox.DataSource = monsterInfoItems;
+            List<MonsterPick> monsterInfoItems = new();
+            Envir.MonsterInfoList.ForEach(x => monsterInfoItems.Add(new MonsterPick(x)));
+            MonsterInfoComboBox.Items.AddRange(monsterInfoItems.ToArray());
+
+            // ★本服有 1200+ 个怪物，原来是个只能滚动的下拉列表，找一只怪要翻很久。
+            //   这里改成「可输入 + 边打边补全」：直接敲怪名首字就能筛。
+            //   列表项用 MonsterPick 包一层，是为了让显示文本以「怪名」开头
+            //   （直接绑 MonsterInfo 时显示的是 "997: 雷帝2"，按名字搜索永远匹配不上）。
+            MonsterInfoComboBox.DropDownStyle = ComboBoxStyle.DropDown;
+            MonsterInfoComboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            MonsterInfoComboBox.AutoCompleteSource = AutoCompleteSource.ListItems;
 
             List<String> conquestItems = new() { { "None" } };
             Envir.ConquestInfoList.ForEach(x => conquestItems.Add(x.Name));
@@ -42,6 +50,68 @@ namespace Server
         private void MapInfoForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             Envir.SaveDB();
+        }
+
+        // 「怪物名称」下拉框的条目包装见 MonsterPick.cs（让显示文本以怪名开头，才能按名字搜索）
+        private MonsterInfo GetSelectedMonster()
+        {
+            MonsterPick pick = MonsterInfoComboBox.SelectedItem as MonsterPick;
+            return pick == null ? null : pick.Info;
+        }
+
+        private void SetSelectedMonster(int monsterIndex)
+        {
+            for (int i = 0; i < MonsterInfoComboBox.Items.Count; i++)
+            {
+                MonsterPick pick = MonsterInfoComboBox.Items[i] as MonsterPick;
+
+                if (pick != null && pick.Info.Index == monsterIndex)
+                {
+                    MonsterInfoComboBox.SelectedIndex = i;
+                    return;
+                }
+            }
+
+            MonsterInfoComboBox.SelectedIndex = -1;
+        }
+
+        // 直接在框里手打怪名、按回车也能生效（不必非从下拉列表里点）
+        private void MonsterInfoComboBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter) return;
+
+            e.SuppressKeyPress = true;
+
+            MonsterInfo info = GetSelectedMonster();
+
+            if (info == null)
+            {
+                string key = MonsterInfoComboBox.Text == null ? string.Empty : MonsterInfoComboBox.Text.Trim();
+
+                int cut = key.IndexOf(" (", StringComparison.Ordinal);   // 去掉 "雷帝2 (997)" 里的索引后缀
+                if (cut > 0) key = key.Substring(0, cut).Trim();
+
+                if (key.Length == 0) return;
+
+                for (int i = 0; i < MonsterInfoComboBox.Items.Count; i++)
+                {
+                    MonsterPick pick = MonsterInfoComboBox.Items[i] as MonsterPick;
+
+                    if (pick == null) continue;
+                    if (!string.Equals(pick.Info.Name, key, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    MonsterInfoComboBox.SelectedIndex = i;
+                    info = pick.Info;
+                    break;
+                }
+            }
+
+            if (info == null || _selectedRespawnInfos == null || _selectedRespawnInfos.Count == 0) return;
+
+            for (int i = 0; i < _selectedRespawnInfos.Count; i++)
+                _selectedRespawnInfos[i].MonsterIndex = info.Index;
+
+            RefreshRespawnList();
         }
 
 
@@ -321,7 +391,7 @@ namespace Server
             RespawnInfo info = _selectedRespawnInfos[0];
             RespawnInfoPanel.Enabled = true;
 
-            MonsterInfoComboBox.SelectedItem = Envir.MonsterInfoList.FirstOrDefault(x => x.Index == info.MonsterIndex);
+            SetSelectedMonster(info.MonsterIndex);
             RXTextBox.Text = info.Location.X.ToString();
             RYTextBox.Text = info.Location.Y.ToString();
             CountTextBox.Text = info.Count.ToString();
@@ -339,7 +409,8 @@ namespace Server
             {
                 info = _selectedRespawnInfos[i];
 
-                if (MonsterInfoComboBox.SelectedItem != Envir.MonsterInfoList.FirstOrDefault(x => x.Index == info.MonsterIndex)) MonsterInfoComboBox.SelectedItem = null;
+                MonsterInfo currentPick = GetSelectedMonster();
+                if (currentPick == null || currentPick.Index != info.MonsterIndex) MonsterInfoComboBox.SelectedItem = null;
                 if (RXTextBox.Text != info.Location.X.ToString()) RXTextBox.Text = string.Empty;
                 if (RYTextBox.Text != info.Location.Y.ToString()) RYTextBox.Text = string.Empty;
                 if (CountTextBox.Text != info.Count.ToString()) CountTextBox.Text = string.Empty;
@@ -791,7 +862,7 @@ namespace Server
         {
             if (ActiveControl != sender) return;
 
-            MonsterInfo info = MonsterInfoComboBox.SelectedItem as MonsterInfo;
+            MonsterInfo info = GetSelectedMonster();
 
             if (info == null) return;
 
@@ -940,7 +1011,12 @@ namespace Server
 
         private void RPasteButton_Click(object sender, EventArgs e)
         {
-            if (_info == null) return;
+            if (_info == null)
+            {
+                MessageBox.Show("请先在左侧选中一张地图，再粘贴刷怪点。", "粘贴刷怪点",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
             string data = Clipboard.GetText();
 
@@ -953,19 +1029,68 @@ namespace Server
 
             string[] respawns = data.Split(new[] { '\t' }, StringSplitOptions.RemoveEmptyEntries);
 
+            int added = 0, skipped = 0;
 
             for (int i = 1; i < respawns.Length; i++)
             {
                 RespawnInfo info = RespawnInfo.FromText(respawns[i]);
 
-                if (info == null) continue;
+                if (info == null) { skipped++; continue; }
+
+                // 怪物索引必须真实存在，否则这条刷怪点进游戏也不会刷怪
+                if (Envir.GetMonsterInfo(info.MonsterIndex) == null) { skipped++; continue; }
+
+                // ★重新分配全局唯一的刷怪点索引，避免与现有刷怪点（或另一张地图的）
+                //   撞号——这个索引是「重启保存刷怪时间」功能的 key。
+                info.RespawnIndex = ++Envir.RespawnIndex;
 
                 _info.Respawns.Add(info);
+                added++;
             }
 
             UpdateRespawnInterface();
+
+            string msg = string.Format("已粘贴 {0} 个刷怪点。", added);
+            if (skipped > 0)
+                msg += string.Format("\n跳过 {0} 个（格式不对，或怪物索引不存在）。", skipped);
+
+            MessageBox.Show(msg, "粘贴刷怪点", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
-        //RCopy
+
+        // 把选中的刷怪点序列化进剪贴板，格式与「粘贴」按钮约定一致：
+        //   Respawn\tMonsterIndex,X,Y,Count,Spread,Delay,Direction,RandomDelay,RespawnIndex,SaveRespawnTime,RespawnTicks\t...
+        // 复制出来是纯文本，可以直接贴到别的地图、Excel 或记事本里改。
+        private void RCopyButton_Click(object sender, EventArgs e)
+        {
+            if (_info == null || _selectedRespawnInfos == null || _selectedRespawnInfos.Count == 0)
+            {
+                MessageBox.Show("请先在下面的列表里选中要复制的刷怪点（按住 Ctrl 或 Shift 可多选，Ctrl+A 全选）。",
+                    "复制刷怪点", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder("Respawn");
+
+            for (int i = 0; i < _selectedRespawnInfos.Count; i++)
+            {
+                sb.Append('\t');
+                sb.Append(_selectedRespawnInfos[i].ToText());
+            }
+
+            try
+            {
+                Clipboard.SetText(sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("写入剪贴板失败：" + ex.Message, "复制刷怪点",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            MessageBox.Show(string.Format("已复制 {0} 个刷怪点。\n\n切到目标地图后点「粘贴」即可加入（会重新分配索引，不会覆盖原有刷怪点）。",
+                _selectedRespawnInfos.Count), "复制刷怪点", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
 
         private void AddMButton_Click(object sender, EventArgs e)
         {

@@ -93,6 +93,11 @@
             label22 = new Label();
             corpseTimeTextBox = new TextBox();
             label23 = new Label();
+            WalkThroughGroupLabel = new Label();
+            WalkThroughCheckBox = new CheckBox();
+            WalkThroughMonsterCheckBox = new CheckBox();
+            WalkThroughNPCCheckBox = new CheckBox();
+            WalkThroughWallCheckBox = new CheckBox();
             VPathDialog = new OpenFileDialog();
             configTabs.SuspendLayout();
             tabPage1.SuspendLayout();
@@ -676,6 +681,11 @@
             tabPage5.Controls.Add(label22);
             tabPage5.Controls.Add(corpseTimeTextBox);
             tabPage5.Controls.Add(label23);
+            tabPage5.Controls.Add(WalkThroughGroupLabel);
+            tabPage5.Controls.Add(WalkThroughCheckBox);
+            tabPage5.Controls.Add(WalkThroughMonsterCheckBox);
+            tabPage5.Controls.Add(WalkThroughNPCCheckBox);
+            tabPage5.Controls.Add(WalkThroughWallCheckBox);
             tabPage5.Location = new Point(4, 26);
             tabPage5.Margin = new Padding(5, 7, 5, 7);
             tabPage5.Name = "tabPage5";
@@ -684,6 +694,60 @@
             tabPage5.TabIndex = 4;
             tabPage5.Text = "其他选项";
             tabPage5.UseVisualStyleBackColor = true;
+            // 
+            // WalkThroughGroupLabel
+            // 
+            WalkThroughGroupLabel.AutoSize = true;
+            WalkThroughGroupLabel.Location = new Point(22, 244);
+            WalkThroughGroupLabel.Margin = new Padding(5, 0, 5, 0);
+            WalkThroughGroupLabel.Name = "WalkThroughGroupLabel";
+            WalkThroughGroupLabel.Size = new Size(140, 17);
+            WalkThroughGroupLabel.TabIndex = 22;
+            WalkThroughGroupLabel.Text = "穿行辅助（内挂用）";
+            // 
+            // WalkThroughCheckBox
+            // 
+            WalkThroughCheckBox.AutoSize = true;
+            WalkThroughCheckBox.Location = new Point(28, 270);
+            WalkThroughCheckBox.Margin = new Padding(5, 4, 5, 4);
+            WalkThroughCheckBox.Name = "WalkThroughCheckBox";
+            WalkThroughCheckBox.Size = new Size(200, 21);
+            WalkThroughCheckBox.TabIndex = 23;
+            WalkThroughCheckBox.Text = "穿人（穿过其他玩家 / 英雄）";
+            WalkThroughCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // WalkThroughMonsterCheckBox
+            // 
+            WalkThroughMonsterCheckBox.AutoSize = true;
+            WalkThroughMonsterCheckBox.Location = new Point(28, 298);
+            WalkThroughMonsterCheckBox.Margin = new Padding(5, 4, 5, 4);
+            WalkThroughMonsterCheckBox.Name = "WalkThroughMonsterCheckBox";
+            WalkThroughMonsterCheckBox.Size = new Size(200, 21);
+            WalkThroughMonsterCheckBox.TabIndex = 24;
+            WalkThroughMonsterCheckBox.Text = "穿怪（穿过普通怪物）";
+            WalkThroughMonsterCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // WalkThroughNPCCheckBox
+            // 
+            WalkThroughNPCCheckBox.AutoSize = true;
+            WalkThroughNPCCheckBox.Location = new Point(28, 326);
+            WalkThroughNPCCheckBox.Margin = new Padding(5, 4, 5, 4);
+            WalkThroughNPCCheckBox.Name = "WalkThroughNPCCheckBox";
+            WalkThroughNPCCheckBox.Size = new Size(200, 21);
+            WalkThroughNPCCheckBox.TabIndex = 25;
+            WalkThroughNPCCheckBox.Text = "穿NPC（穿过商人 / NPC）";
+            WalkThroughNPCCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // WalkThroughWallCheckBox
+            // 
+            WalkThroughWallCheckBox.AutoSize = true;
+            WalkThroughWallCheckBox.Location = new Point(28, 354);
+            WalkThroughWallCheckBox.Margin = new Padding(5, 4, 5, 4);
+            WalkThroughWallCheckBox.Name = "WalkThroughWallCheckBox";
+            WalkThroughWallCheckBox.Size = new Size(260, 21);
+            WalkThroughWallCheckBox.TabIndex = 26;
+            WalkThroughWallCheckBox.Text = "穿城墙 / 城门（攻城堵门，默认不勾）";
+            WalkThroughWallCheckBox.UseVisualStyleBackColor = true;
             // 
             // label16
             // 
@@ -944,5 +1008,10 @@
         private System.Windows.Forms.Label label22;
         private System.Windows.Forms.TextBox corpseTimeTextBox;
         private System.Windows.Forms.Label label23;
+        private System.Windows.Forms.Label WalkThroughGroupLabel;
+        private System.Windows.Forms.CheckBox WalkThroughCheckBox;
+        private System.Windows.Forms.CheckBox WalkThroughMonsterCheckBox;
+        private System.Windows.Forms.CheckBox WalkThroughNPCCheckBox;
+        private System.Windows.Forms.CheckBox WalkThroughWallCheckBox;
     }
 }

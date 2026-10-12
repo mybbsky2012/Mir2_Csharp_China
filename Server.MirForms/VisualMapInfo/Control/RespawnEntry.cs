@@ -192,9 +192,23 @@ namespace Server.MirForms.VisualMapInfo.Control
 
         private void RespawnEntry_Load(object sender, EventArgs e)
         {
-            for (int i = 0; i < Envir.MonsterInfoList.Count; i++) MonsterComboBox.Items.Add(Envir.MonsterInfoList[i]);
+            for (int i = 0; i < Envir.MonsterInfoList.Count; i++)
+                MonsterComboBox.Items.Add(new MonsterPick(Envir.MonsterInfoList[i]));
 
-            MonsterComboBox.SelectedItem = Envir.MonsterInfoList.FirstOrDefault(x => x.Index == MonsterIndex);
+            // 本服 1200+ 个怪物，原来只能滚列表找 → 改成可输入 + 边打边补全
+            MonsterComboBox.DropDownStyle = ComboBoxStyle.DropDown;
+            MonsterComboBox.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            MonsterComboBox.AutoCompleteSource = AutoCompleteSource.ListItems;
+
+            for (int i = 0; i < MonsterComboBox.Items.Count; i++)
+            {
+                MonsterPick pick = MonsterComboBox.Items[i] as MonsterPick;
+
+                if (pick == null || pick.Info.Index != MonsterIndex) continue;
+
+                MonsterComboBox.SelectedIndex = i;
+                break;
+            }
 
             Details.Text =
                 $"C               D            X: {X.ToString()} | Y: {Y.ToString()} | Range: {Range.ToString()}";
@@ -202,9 +216,9 @@ namespace Server.MirForms.VisualMapInfo.Control
 
         private void MonsterComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            MonsterInfo info = MonsterComboBox.SelectedItem as MonsterInfo;
-            if (info == null) return;
-            MonsterIndex = info.Index;
+            MonsterPick pick = MonsterComboBox.SelectedItem as MonsterPick;
+            if (pick == null) return;
+            MonsterIndex = pick.Info.Index;
         }
 
         private void Details_DoubleClick(object sender, EventArgs e)

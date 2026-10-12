@@ -14074,6 +14074,9 @@ namespace Server.MirObjects
                 case PlayerOptionType.NoRunUp: return "免助跑";
                 case PlayerOptionType.OverWeight: return "超负重";
                 case PlayerOptionType.MountTai: return "泰山";
+                case PlayerOptionType.WalkThroughMonster: return "穿怪";
+                case PlayerOptionType.WalkThroughNPC: return "穿NPC";
+                case PlayerOptionType.WalkThroughWall: return "穿城墙";
                 default: return option.ToString();
             }
         }
@@ -14082,10 +14085,14 @@ namespace Server.MirObjects
         public void SendPlayerOptions()
         {
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.NoLamp, Allowed = Settings.EnableNoLamp, Value = NoLamp });
-            Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThrough, Allowed = Settings.EnableWalkThrough, Value = WalkThrough });
+            Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThrough, Allowed = Settings.EnableWalkThrough || Settings.EnableWalkThroughMonster || Settings.EnableWalkThroughNPC || Settings.EnableWalkThroughWall, Value = WalkThrough });
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.NoRunUp, Allowed = true, Value = NoRunUp });
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.OverWeight, Allowed = Settings.EnableOverWeight, Value = OverWeight });
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.MountTai, Allowed = Settings.EnableMountTai, Value = MountTai });
+            // 穿人拆成的 4 档（客户端据此做本地移动预测，避免「预测能走、服务端拉回」的撞门抖动）
+            Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThroughMonster, Allowed = Settings.EnableWalkThroughMonster, Value = WalkThrough });
+            Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThroughNPC, Allowed = Settings.EnableWalkThroughNPC, Value = WalkThrough });
+            Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThroughWall, Allowed = Settings.EnableWalkThroughWall, Value = WalkThrough });
         }
 
         #endregion

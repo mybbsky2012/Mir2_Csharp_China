@@ -96,13 +96,116 @@ namespace Server.MirObjects
             return key;
         }
 
-        public void ParseCheck(string line)
+        /// <summary>服务端 Compare 支持的比较运算符（多一个少一个都会让条件失效）。</summary>
+        private static readonly string[] ValidCompareOps = { "<", ">", "<=", ">=", "==", "!=" };
+
+        /// <summary>
+        /// 校验「带比较运算符」的检查命令，运算符位置写错时只记一条日志，不抛异常。
+        /// 位置表与 Check() 里 Compare(param[x], ...) 的取参一一对应：
+        ///   LEVEL / CHECKGOLD / CHECKGUILDGOLD / CHECKCREDIT / CHECKPKPOINT / CHECKHUM / CHECKMON → 第 2 个词
+        ///   CHECKEXACTMON / CHECKCALC → 第 3 个词
+        /// 旧实现里这类写法会抛 ArgumentException，异常冒到 Envir.WorkLoop 的 catch →
+        /// 「踢掉所有在线玩家 + 停服」，所以必须在解析阶段就拦住并给出可读提示。
+        /// </summary>
+        private void WarnIfBadOperator(string[] parts, string source, string line)
+        {
+            int opIndex;
+
+            switch (parts[0].ToUpper())
+            {
+                case "LEVEL":
+                case "CHECKGOLD":
+                case "CHECKGUILDGOLD":
+                case "CHECKCREDIT":
+                case "CHECKPKPOINT":
+                case "CHECKHUM":
+                case "CHECKMON":
+                    opIndex = 1;
+                    break;
+
+                case "CHECKEXACTMON":
+                case "CHECKCALC":
+                    opIndex = 2;
+                    break;
+
+                default:
+                    return;
+            }
+
+            if (parts.Length <= opIndex) return;
+
+            string op = parts[opIndex];
+
+            for (int i = 0; i < ValidCompareOps.Length; i++)
+            {
+                if (ValidCompareOps[i] == op) return;
+            }
+
+            MessageQueue.Enqueue(string.Format(
+                "NPC脚本比较运算符写错：{0} 的 [{1}] 段「{2}」里的运算符 '{3}' 无效（只能是 < > <= >= == !=），该条件一律按「不成立」处理。",
+                string.IsNullOrEmpty(source) ? "未知文件" : source,
+                Page == null ? "?" : Page.Key,
+                line,
+                op));
+        }
+
+        /// <summary>
+        /// 判断脚本里写的怪名是不是一个真实存在的怪物。
+        /// 除了按内部名（MonsterInfo.Name）查，还要接受「显示名」（MonsterInfo.GameName）。
+        /// 见 MonsterNameMatches 的说明：本服 GameName 会把名字里的数字剥掉。
+        /// </summary>
+        private static bool IsKnownMonsterName(string name)
+        {
+            if (Envir.GetMonsterInfo(name) != null) return true;
+
+            string key = name.Replace(" ", "");
+
+            for (int i = 0; i < Envir.MonsterInfoList.Count; i++)
+            {
+                var mi = Envir.MonsterInfoList[i];
+                if (mi == null) continue;
+                if (string.Equals(mi.GameName?.Replace(" ", ""), key, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// CHECKEXACTMON 的怪名判定。
+        ///
+        /// ★本服踩过的坑：MonsterObject.Name 被覆写成了 Info.GameName，而
+        ///   MonsterInfo.GameName = Regex.Replace(Name, @"[\d-]", "") —— 名字里的数字会被全部剥掉
+        ///   （Name='雷帝2' → GameName='雷帝'，全服 1231 个怪里有 591 个属于这种情况）。
+        ///   原版实现一边用 Envir.GetMonsterInfo(param[0])（按内部名 Name 校验）把条件放行，
+        ///   一边用 d.Name（= GameName）去计数，两边永远不可能同时成立：
+        ///     写 '雷帝2' → 校验通过，但计数比的是 '雷帝' → 恒为 0 → 检测永远失败；
+        ///     写 '雷帝'  → 计数能比上，但校验 GetMonsterInfo('雷帝') 返回 null → 直接判失败。
+        ///   所以这里统一成：先按实例的 d.Name 比（兼容不含数字的名字 / 显示名写法），
+        ///   再回到 Info.Name 比一次（支持 '雷帝2' 这种带数字的内部名，且只统计该种怪）。
+        /// </summary>
+        private static bool MonsterNameMatches(MapObject d, string name)
+        {
+            string key = name.Replace(" ", "");
+
+            if (string.Equals(d.Name?.Replace(" ", ""), key, StringComparison.OrdinalIgnoreCase)) return true;
+
+            var mon = d as MonsterObject;
+            if (mon != null && mon.Info != null)
+                return string.Equals(mon.Info.Name?.Replace(" ", ""), key, StringComparison.OrdinalIgnoreCase);
+
+            return false;
+        }
+
+        public void ParseCheck(string line, string source = null)
         {
             var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
             parts = ParseArguments(parts);
 
             if (parts.Length == 0) return;
+
+            // ★解析阶段就校验运算符：写错只记日志，运行时按「条件不成立」处理，绝不崩服。
+            WarnIfBadOperator(parts, source, line);
 
             string tempString, tempString2;
 
@@ -1671,7 +1774,7 @@ namespace Server.MirObjects
                         break;
 
                     case CheckType.CheckExactMon:
-                        if (Envir.GetMonsterInfo(param[0]) == null)
+                        if (!IsKnownMonsterName(param[0]))
                         {
                             failed = true;
                             break;
@@ -1693,7 +1796,7 @@ namespace Server.MirObjects
                         failed = (!Compare(param[1], Envir.Objects.Count((
                             d => d.CurrentMap == map &&
                                 d.Race == ObjectType.Monster &&
-                                string.Equals(d.Name.Replace(" ", ""), param[0], StringComparison.OrdinalIgnoreCase) &&
+                                MonsterNameMatches(d, param[0]) &&
                                 !d.Dead)), tempInt));
 
                         break;
@@ -1874,7 +1977,7 @@ namespace Server.MirObjects
                         break;
 
                     case CheckType.CheckExactMon:
-                        if (Envir.GetMonsterInfo(param[0]) == null)
+                        if (!IsKnownMonsterName(param[0]))
                         {
                             failed = true;
                             break;
@@ -1896,7 +1999,7 @@ namespace Server.MirObjects
                         failed = (!Compare(param[1], Envir.Objects.Count((
                             d => d.CurrentMap == map &&
                                 d.Race == ObjectType.Monster &&
-                                string.Equals(d.Name.Replace(" ", ""), param[0], StringComparison.OrdinalIgnoreCase) &&
+                                MonsterNameMatches(d, param[0]) &&
                                 !d.Dead)), tempInt));
 
                         break;
@@ -2249,7 +2352,7 @@ namespace Server.MirObjects
                         break;
 
                     case CheckType.CheckExactMon:
-                        if (Envir.GetMonsterInfo(param[0]) == null)
+                        if (!IsKnownMonsterName(param[0]))
                         {
                             failed = true;
                             break;
@@ -2271,7 +2374,7 @@ namespace Server.MirObjects
                         failed = (!Compare(param[1], Envir.Objects.Count((
                             d => d.CurrentMap == map &&
                                 d.Race == ObjectType.Monster &&
-                                string.Equals(d.Name.Replace(" ", ""), param[0], StringComparison.OrdinalIgnoreCase) &&
+                                MonsterNameMatches(d, param[0]) &&
                                 !d.Dead)), tempInt));
 
                         break;
@@ -4599,7 +4702,12 @@ namespace Server.MirObjects
                 case ">=": return left.CompareTo(right) >= 0;
                 case "==": return left.Equals(right);
                 case "!=": return !left.Equals(right);
-                default: throw new ArgumentException("无效的-比较运算符: {0}", op);
+                default:
+                    // ★脚本里把比较运算符写错（最常见的是把 == 写成 =）绝不能让服务器停摆。
+                    //   旧实现直接 throw，异常会一路冒到 Envir.WorkLoop 的 catch：
+                    //   那里会踢掉全部在线玩家并 StopEnvir → 整个服务器停服。
+                    //   现在统一按「条件不成立」处理；真正的诊断信息在 ParseCheck 解析时给出。
+                    return false;
             }
         }
 

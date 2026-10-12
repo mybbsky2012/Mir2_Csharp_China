@@ -40,6 +40,12 @@ namespace Server
             gameMasterEffect_CheckBox.Checked = Settings.GameMasterEffect;
             lineMessageTimeTextBox.Text = Settings.LineMessageTimer.ToString();
 
+            // 穿行辅助（内挂「穿人」拆成的 4 档，各自独立勾选）
+            WalkThroughCheckBox.Checked = Settings.EnableWalkThrough;
+            WalkThroughMonsterCheckBox.Checked = Settings.EnableWalkThroughMonster;
+            WalkThroughNPCCheckBox.Checked = Settings.EnableWalkThroughNPC;
+            WalkThroughWallCheckBox.Checked = Settings.EnableWalkThroughWall;
+
             // 地面物品 / 尸体停留时间
             itemTimeOutTextBox.Text = Settings.ItemTimeOut.ToString();
             playerDiedItemTimeOutTextBox.Text = Settings.PlayerDiedItemTimeOut.ToString();
@@ -125,6 +131,12 @@ namespace Server
             Settings.GameMasterEffect = gameMasterEffect_CheckBox.Checked;
             if (int.TryParse(lineMessageTimeTextBox.Text, out tempint))
                 Settings.LineMessageTimer = tempint;
+
+            // 穿行辅助：4 档独立开关（保存后立即生效，移动判定每次都会读这几项）
+            Settings.EnableWalkThrough = WalkThroughCheckBox.Checked;
+            Settings.EnableWalkThroughMonster = WalkThroughMonsterCheckBox.Checked;
+            Settings.EnableWalkThroughNPC = WalkThroughNPCCheckBox.Checked;
+            Settings.EnableWalkThroughWall = WalkThroughWallCheckBox.Checked;
 
             // 地面物品 / 尸体停留时间（越界一律夹到合法区间，避免手滑写成 0 或天文数字）
             Settings.ItemTimeOut = Clamp(ParseInt(itemTimeOutTextBox.Text, Settings.ItemTimeOut), 1, 10080);

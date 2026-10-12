@@ -2703,6 +2703,7 @@ namespace Server.MirObjects
                 Hidden = Hidden,
                 ShockTime = (ShockTime > 0 ? ShockTime - Envir.Time : 0),
                 BindingShotCenter = BindingShotCenter,
+                NoWalkThrough = BlockWalkThrough,   //城门/城墙：告诉客户端「开穿人也不能穿」
                 Buffs = Buffs.Where(d => d.Info.Visible).Select(e => e.Type).ToList()
             };
         }
