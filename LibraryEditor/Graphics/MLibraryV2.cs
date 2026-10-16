@@ -16,22 +16,28 @@ namespace LibraryEditor
     /// Uses DXT5 Images
     /// Supports Frames (When at LibVersion 3)
     /// </summary>
-    public sealed class MLibraryV2
+    public sealed class MLibraryV2 : ILibrary
     {
         public const int LibVersion = 3;
 
         public static bool Load = true;
-        public string FileName;
+        public string FileName { get; set; }
 
-        public List<MImage> Images = new List<MImage>();
-        public FrameSet Frames = new FrameSet();
+        public List<MImage> Images { get; set; } = new List<MImage>();
+        public FrameSet Frames { get; set; } = new FrameSet();
 
         public List<int> IndexList = new List<int>();
-        public int Count;
+        public int Count { get; set; }
         private bool _initialized;
 
         private BinaryReader _reader;
         private FileStream _stream;
+        /// <summary>
+        /// 1MB 顺序缓冲。帧在库里是按索引顺序连续存放的，加上缓冲后
+        /// 逐帧读取不再落到真实的 read/seek 系统调用上——17 万帧的库
+        /// 原本要发 30 多万次系统调用，现在只剩每个缓冲块一次。
+        /// </summary>
+        private BufferedStream _buffered;
 
         public MLibraryV2(string filename)
         {
@@ -48,8 +54,9 @@ namespace LibraryEditor
             if (!File.Exists(FileName))
                 return;
 
-            _stream = new FileStream(FileName, FileMode.Open, FileAccess.ReadWrite);
-            _reader = new BinaryReader(_stream);
+            _stream = new FileStream(FileName, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+            _buffered = new BufferedStream(_stream, 1 << 20);
+            _reader = new BinaryReader(_buffered);
             CurrentVersion = _reader.ReadInt32();
 
             if (CurrentVersion < 2)
@@ -60,8 +67,9 @@ namespace LibraryEditor
 
             Count = _reader.ReadInt32();
 
-            Images = new List<MImage>();
-            IndexList = new List<int>();
+            // 预分配容量：上万帧的库靠 List 自动扩容会反复搬移大数组
+            Images = new List<MImage>(Count > 0 ? Count : 0);
+            IndexList = new List<int>(Count > 0 ? Count : 0);
 
             int frameSeek = 0;
             if (CurrentVersion >= 3)
@@ -76,11 +84,11 @@ namespace LibraryEditor
                 Images.Add(null);
 
             for (int i = 0; i < Count; i++)
-                CheckImage(i);
+                CheckImage(i, false);   // 只读帧头；位图改为按需解码（大库打开不再卡住）
 
             if (CurrentVersion >= 3)
             {
-                _stream.Seek(frameSeek, SeekOrigin.Begin);
+                _buffered.Position = frameSeek;
 
                 var frameCount = _reader.ReadInt32();
                 for (int i = 0; i < frameCount; i++)
@@ -92,8 +100,22 @@ namespace LibraryEditor
 
         public void Close()
         {
+            // BinaryReader.Dispose 会连带释放 BufferedStream 与底层 FileStream
+            if (_reader != null)
+            {
+                try { _reader.Dispose(); }
+                catch { }
+                _reader = null;
+            }
+
+            _buffered = null;
+
             if (_stream != null)
-                _stream.Dispose();
+            {
+                try { _stream.Dispose(); }
+                catch { }
+                _stream = null;
+            }
         }
 
         public void Save()
@@ -147,6 +169,15 @@ namespace LibraryEditor
 
         private void CheckImage(int index)
         {
+            CheckImage(index, true);
+        }
+
+        /// <summary>
+        /// ensureTexture=false 时只读帧头，不解码位图。
+        /// 打开大库（上万帧）时若一次性解码会耗尽 GDI 句柄与内存，故改为按需解码。
+        /// </summary>
+        private void CheckImage(int index, bool ensureTexture)
+        {
             if (!_initialized)
                 Initialize();
 
@@ -155,18 +186,67 @@ namespace LibraryEditor
 
             if (Images[index] == null)
             {
-                _stream.Position = IndexList[index];
+                // 帧头尚未读入。注意：MLibraryV2 构造函数末尾会 Close() 关流，
+                // 此时只能靠已缓存的数据，不能再从文件读。
+                if (_reader == null) return;
+
+                try
+                {
+                    // 顺序推进：帧在文件中按索引顺序连续存放，只有位置对不上时才真的 seek
+                    if (_buffered.Position != IndexList[index])
+                        _buffered.Position = IndexList[index];
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+
                 Images[index] = new MImage(_reader);
             }
 
+            if (!ensureTexture) return;
             if (!Load) return;
 
             MImage mi = Images[index];
-            if (!mi.TextureValid)
+
+            if (mi.TextureValid || mi.Image != null) return;
+            if (mi.FBytes == null || mi.FBytes.Length == 0) return;
+
+            // 负载（FBytes）在读取帧头时已进内存，解码不再需要访问文件流
+            mi.CreateTexture(_reader);
+            mi.TextureValid = true;
+        }
+
+        /// <summary>最近一次按需解码失败的原因（诊断用）。</summary>
+        public string LastEnsureError { get; private set; }
+
+        /// <summary>按需解码指定帧的位图（浏览/选中时才解码，用完即驻留缓存）。</summary>
+        public void EnsureTexture(int index)
+        {
+            if (Images == null || index < 0 || index >= Images.Count) return;
+
+            MImage mi = Images[index];
+            if (mi != null && (mi.TextureValid || mi.Image != null)) return;
+
+            try
             {
-                _stream.Seek(IndexList[index] + 12, SeekOrigin.Begin);
-                mi.CreateTexture(_reader);
+                CheckImage(index, true);
             }
+            catch (Exception ex)
+            {
+                // 单帧损坏不应影响其它帧浏览
+                LastEnsureError = ex.GetType().Name + ": " + ex.Message + " (帧 " + index + ")";
+                if (Images[index] != null)
+                {
+                    Images[index].Image = null;
+                    Images[index].Preview = null;
+                }
+            }
+
+            if (Images[index] != null && Images[index].Image == null && LastEnsureError == null)
+                LastEnsureError = "解码后仍未生成位图 (帧 " + index + ", FBytes=" +
+                                  (Images[index].FBytes == null ? -1 : Images[index].FBytes.Length) +
+                                  ", Load=" + Load + ")";
         }
 
         public Point GetOffSet(int index)
@@ -179,8 +259,8 @@ namespace LibraryEditor
 
             if (Images[index] == null)
             {
-                _stream.Seek(IndexList[index], SeekOrigin.Begin);
-                Images[index] = new MImage(_reader);
+                CheckImage(index, false);
+                if (Images[index] == null) return Point.Empty;
             }
 
             return new Point(Images[index].X, Images[index].Y);
@@ -195,8 +275,8 @@ namespace LibraryEditor
 
             if (Images[index] == null)
             {
-                _stream.Seek(IndexList[index], SeekOrigin.Begin);
-                Images[index] = new MImage(_reader);
+                CheckImage(index, false);
+                if (Images[index] == null) return Size.Empty;
             }
 
             return new Size(Images[index].Width, Images[index].Height);
@@ -204,16 +284,19 @@ namespace LibraryEditor
 
         public MImage GetMImage(int index)
         {
-            if (index < 0 || index >= Images.Count)
+            if (Images == null || index < 0 || index >= Images.Count)
                 return null;
 
+            EnsureTexture(index);
             return Images[index];
         }
 
         public Bitmap GetPreview(int index)
         {
-            if (index < 0 || index >= Images.Count)
+            if (Images == null || index < 0 || index >= Images.Count)
                 return new Bitmap(1, 1);
+
+            EnsureTexture(index);
 
             MImage image = Images[index];
 
@@ -312,7 +395,18 @@ namespace LibraryEditor
             public Bitmap MaskImage;
             public Boolean HasMask;
 
-            public MImage(BinaryReader reader)
+            /// <summary>解码时跳过的字节数：ALib 的解压负载带 10 字节常量前缀，Elite/.Lib 为 0。</summary>
+            public int PayloadSkip;
+
+            /// <summary>编码时前置到像素数据前的常量前缀（ALib 用 ALibContainer.PayloadPrefix，其它为 null）。</summary>
+            public byte[] PayloadPrefix;
+
+            public MImage(BinaryReader reader) : this(reader, true) { }
+
+            /// <summary>
+            /// allowMask = false 时忽略 Shadow 的 bit7（Elite 系格式该字节是普通保留数据，不是 mask 标记）。
+            /// </summary>
+            public MImage(BinaryReader reader, bool allowMask)
             {
                 //read layer 1
                 Width = reader.ReadInt16();
@@ -325,7 +419,7 @@ namespace LibraryEditor
                 Length = reader.ReadInt32();
                 FBytes = reader.ReadBytes(Length);
                 //check if there's a second layer and read it
-                HasMask = ((Shadow >> 7) == 1) ? true : false;
+                HasMask = allowMask && ((Shadow >> 7) == 1) ? true : false;
                 if (HasMask)
                 {
                     MaskWidth = reader.ReadInt16();
@@ -344,8 +438,11 @@ namespace LibraryEditor
                 this.Height = Height;
             }
 
-            public MImage(Bitmap image, bool removeBlack = true)
+            public MImage(Bitmap image, bool removeBlack = true, int payloadSkip = 0, byte[] payloadPrefix = null)
             {
+                PayloadSkip = payloadSkip;
+                PayloadPrefix = payloadPrefix;
+
                 if (image == null)
                 {
                     FBytes = new byte[0];
@@ -359,8 +456,11 @@ namespace LibraryEditor
                 FBytes = ConvertBitmapToArray(Image, removeBlack);
             }
 
-            public MImage(Bitmap image, Bitmap Maskimage, bool removeBlack = true)
+            public MImage(Bitmap image, Bitmap Maskimage, bool removeBlack = true, int payloadSkip = 0, byte[] payloadPrefix = null)
             {
+                PayloadSkip = payloadSkip;
+                PayloadPrefix = payloadPrefix;
+
                 if (image == null)
                 {
                     FBytes = new byte[0];
@@ -425,6 +525,15 @@ namespace LibraryEditor
                     }
                 }
 
+                //ALib 等格式需要在像素数据前前置常量前缀（Elite/.Lib 为 null，行为与改前完全一致）
+                if (PayloadPrefix != null && PayloadPrefix.Length > 0)
+                {
+                    byte[] prefixed = new byte[PayloadPrefix.Length + pixels.Length];
+                    Buffer.BlockCopy(PayloadPrefix, 0, prefixed, 0, PayloadPrefix.Length);
+                    Buffer.BlockCopy(pixels, 0, prefixed, PayloadPrefix.Length, pixels.Length);
+                    return Compress(prefixed);
+                }
+
                 byte[] compressedBytes;
                 compressedBytes = Compress(pixels);
 
@@ -445,7 +554,11 @@ namespace LibraryEditor
 
                 byte[] dest = Decompress(FBytes);
 
-                Marshal.Copy(dest, 0, data.Scan0, dest.Length);
+                //跳过格式前缀（ALib=10，Elite/.Lib=0），并防止 dest 短于位图缓冲时越界
+                int copyLength = dest.Length - PayloadSkip;
+                if (copyLength > w * h * 4) copyLength = w * h * 4;
+                if (copyLength > 0)
+                    Marshal.Copy(dest, PayloadSkip, data.Scan0, copyLength);
 
                 Image.UnlockBits(data);
 

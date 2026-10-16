@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>怪物爆率补齐报告 — 20260915Mir2Server</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f5f7fa;color:#1f2733;font:14px/1.7 "Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 24px 64px}
+h1{font-size:26px;margin:0 0 6px}
+.sub{color:#6b7a8d;margin-bottom:26px}
+h2{font-size:18px;margin:34px 0 12px;padding-left:10px;border-left:4px solid #2f6fdf}
+.cards{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+.card{flex:1;min-width:150px;background:#fff;border:1px solid #e3e9f0;border-radius:10px;padding:16px 18px}
+.card .n{font-size:26px;font-weight:700;color:#2f6fdf}
+.card .l{color:#6b7a8d;font-size:13px;margin-top:2px}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e3e9f0;border-radius:10px;overflow:hidden;font-size:13px}
+th{background:#eef3fa;text-align:left;padding:10px 12px;font-weight:600;color:#3b4a5c;white-space:nowrap}
+td{padding:8px 12px;border-top:1px solid #eef2f7;vertical-align:top}
+tr:nth-child(even) td{background:#fafcff}
+.mono{font-family:Consolas,"Courier New",monospace;white-space:nowrap}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.maps{color:#5a6b7f;font-size:12px;max-width:260px}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;white-space:nowrap}
+.t-normal{background:#eef3fa;color:#3b6bb5}
+.t-boss{background:#fdeee2;color:#b5670f}
+.t-topboss{background:#fbe2e2;color:#b53030}
+.t-resource{background:#e6f5ea;color:#2c7a45}
+.t-container{background:#f1e9fb;color:#6b3fb0}
+.note{background:#fff;border:1px solid #e3e9f0;border-left:4px solid #2f6fdf;border-radius:8px;padding:14px 18px;margin:12px 0}
+.note.warn{border-left-color:#e08b2f;background:#fffaf3}
+.note ul{margin:6px 0 0;padding-left:20px}
+.samp{display:inline-block;vertical-align:top;background:#fff;border:1px solid #e3e9f0;border-radius:10px;margin:8px 10px 8px 0;width:calc(50% - 14px);overflow:hidden}
+.samp-h{background:#eef3fa;padding:8px 14px;font-weight:600;color:#3b4a5c;border-bottom:1px solid #e3e9f0}
+.samp pre{margin:0;padding:12px 14px;font-family:Consolas,"Courier New",monospace;font-size:12px;line-height:1.6;color:#33404f;max-height:330px;overflow:auto;white-space:pre-wrap}
+code{background:#eef3fa;padding:1px 5px;border-radius:4px;font-family:Consolas,monospace;font-size:12.5px}
+</style></head><body><div class="wrap">
+
+<h1>怪物爆率补齐报告</h1>
+<div class="sub">目标服务端：<code>E:\BaiduNetdiskDownload\韩Mir2\20260915更新\20260915Mir2Server</code>　｜　
+数据来源：<code>Server.MirDB</code>（版本 110）　｜　生成时间：2026-10-03 15:19</div>
+
+<h2>一、做了什么</h2>
+<div class="note">
+扫描 <code>Server.MirDB</code> 里全部 <b>626 张地图 / 8621 个刷怪点</b>，得到地图上真实会刷出的怪物
+<b>442 种</b>；再逐个比对 <code>Envir\Drops</code> 下的爆率文件，找出
+<b>爆率表为空的怪物 263 种</b>（其中 252 种文件里一条物品都没有，11 种只有金币没有物品），
+按数据库中的怪物属性与现有爆率体系，为其中 <b>242 种</b>生成了完整爆率文件。
+</div>
+<div class="cards">
+  <div class="card"><div class="n">442</div><div class="l">地图上实际会刷出的怪物种类</div></div>
+  <div class="card"><div class="n">263</div><div class="l">修复前无任何物品爆率</div></div>
+  <div class="card"><div class="n">242</div><div class="l">本次补齐爆率的怪物</div></div>
+  <div class="card"><div class="n">13863</div><div class="l">新写入的掉落条目</div></div>
+  <div class="card"><div class="n">421 / 442</div><div class="l">修复后有物品爆率的怪物（95.2%）</div></div>
+</div>
+
+<h2>二、判定依据（全部来自数据库与既有配置）</h2>
+<div class="note">
+<ul>
+<li><b>谁在地图上刷</b>：直接解析 <code>Server.MirDB</code> 的 <code>MapInfo.Respawns</code>，不依赖任何导出文本。</li>
+<li><b>怪物强弱</b>：数据库里的等级 / 生命 / 经验 / AI，用于定位「同档参照怪」。</li>
+<li><b>物品是否合法</b>：所有写出的物品名都取自数据库物品表（4238 件），并已逐一校验 100% 命中——
+不会出现服务端启动时报「未能加载 XXX 所需物品」的情况。</li>
+<li><b>掉率强度</b>：以服务端<b>已有真实爆率表的 139 只怪</b>为标尺。对每只待补怪物，
+按「生命 + 经验 + 等级 + 是否 BOSS + 是否同地图」加权找到最近邻的 4 只参照怪，
+取其物品池与掉率的加权中位数作为基准，再按档位微调。</li>
+</ul>
+</div>
+
+<h2>三、分档与差异化规则</h2>
+<div class="note">
+<ul>
+<li><b>顶级BOSS档</b>：32 只 —— 生命 ≥ 30000 或经验 ≥ 20000。承接顶级参照怪（丹墨、凰天魔神、浮龙金蛇、
+邪牛天王、祖玛教主、骸骨盘王）的稀有掉落，并额外追加一批顶级稀有物品，掉率在参照基础上再放宽 2~3 倍，金币加成。</li>
+<li><b>精英/BOSS档</b>：75 只 —— 生命 ≥ 7000 或经验 ≥ 8000。药水掉率在参照基础上收紧约 1.5 倍。</li>
+<li><b>普通怪档</b>：121 只 —— 其余战斗怪。药水掉率收紧 3 倍，并剔除分母 &gt; 20000 的「传说级」条目，避免小怪爆神器。</li>
+<li><b>资源实体</b>：10 只 —— 树、草、蘑菇、食人花等资源实体，只掉对应采集物（木材／果实／花叶等）。</li>
+<li><b>宝箱/容器</b>：4 只 —— 木盒／银箱／异秘蛋等容器，掉消耗品、宝玉与少量技能书。</li>
+<li><b>刷怪密度修正</b>：刷点越多、总量越大的怪，单只掉率按
+<code>√(该怪总量 ÷ 参照怪中位总量)</code> 额外收紧（上限 2.5 倍），金币数额同步下调，
+避免高密度怪变成刷钱刷装备的漏洞。</li>
+<li><b>金币</b>：沿用参照怪的金币加权中位数；原文件里已经写好的金币行<b>原样保留</b>，不做改动。</li>
+</ul>
+</div>
+
+<h2>四、刻意未配置的 21 种（场景／守卫实体）</h2>
+<div class="note warn">
+这些实体虽然出现在刷怪表里，但属于城门、传送门、陷阱、护栏、雕像、城管守卫与练功木桩，
+给它们配掉落会形成「刷墙／刷守卫」的漏洞，因此保持原样不动。如果你确实希望其中某些也能掉落，
+告诉我名字，我再单独补。
+</div>
+<table><thead><tr><th>怪物</th><th>等级</th><th>生命</th><th>经验</th><th>刷怪地图</th><th style="text-align:right">刷点数</th></tr></thead>
+<tbody><tr><td class="mono">弓箭守卫</td><td>0</td><td>9999</td><td>0</td><td class="maps">飞天县、毒蛇山谷、连接通道、梦村县、地牢一层东、夔龙城</td><td class="num">149</td></tr><tr><td class="mono">卫士</td><td>99</td><td>999</td><td>0</td><td class="maps">飞天县、沃玛森林、石槽矿山、毒蛇山谷、梦村县、夔龙城</td><td class="num">72</td></tr><tr><td class="mono">卫士0</td><td>99</td><td>999</td><td>0</td><td class="maps">飞天县</td><td class="num">45</td></tr><tr><td class="mono">带刀侍卫</td><td>99</td><td>999</td><td>0</td><td class="maps">道馆、夔龙城</td><td class="num">38</td></tr><tr><td class="mono">巡城侍卫</td><td>255</td><td>999</td><td>0</td><td class="maps">飞天县、梦村县、道馆、夔龙城、雪白县、潘夜岛</td><td class="num">36</td></tr><tr><td class="mono">通道门1</td><td>0</td><td>100</td><td>0</td><td class="maps">地下通道</td><td class="num">10</td></tr><tr><td class="mono">带刀侍卫0</td><td>99</td><td>999</td><td>0</td><td class="maps">道馆</td><td class="num">8</td></tr><tr><td class="mono">练功师</td><td>1</td><td>100</td><td>0</td><td class="maps">飞天练武场、飞天城</td><td class="num">8</td></tr><tr><td class="mono">狐月陷阱</td><td>100</td><td>500</td><td>100</td><td class="maps">悲月山洞、悲月山</td><td class="num">6</td></tr><tr><td class="mono">WarpGate</td><td>100</td><td>72000</td><td>78,000</td><td class="maps">混沌寺</td><td class="num">6</td></tr><tr><td class="mono">通道门2</td><td>0</td><td>100</td><td>0</td><td class="maps">地下通道</td><td class="num">6</td></tr><tr><td class="mono">破龙神像</td><td>255</td><td>20000</td><td>1,000</td><td class="maps">魔龙殿阁</td><td class="num">2</td></tr><tr><td class="mono">天龙神像</td><td>255</td><td>20000</td><td>1,000</td><td class="maps">魔龙殿阁</td><td class="num">2</td></tr><tr><td class="mono">魔龙神像</td><td>255</td><td>20000</td><td>1,000</td><td class="maps">魔龙殿阁</td><td class="num">2</td></tr><tr><td class="mono">归龙神像</td><td>255</td><td>20000</td><td>1,000</td><td class="maps">魔龙殿阁</td><td class="num">2</td></tr><tr><td class="mono">火龙神像</td><td>255</td><td>20000</td><td>1,000</td><td class="maps">魔龙殿阁</td><td class="num">2</td></tr><tr><td class="mono">四龙神像</td><td>255</td><td>20000</td><td>1,000</td><td class="maps">魔龙殿阁</td><td class="num">2</td></tr><tr><td class="mono">寒冰之门</td><td>0</td><td>100</td><td>0</td><td class="maps">寒冰地狱</td><td class="num">2</td></tr><tr><td class="mono">燃烧昆仑城门</td><td>999</td><td>300</td><td>0</td><td class="maps">燃烧的昆仑</td><td class="num">2</td></tr><tr><td class="mono">围栏</td><td>100</td><td>100</td><td>200</td><td class="maps">毒妖村副本</td><td class="num">1</td></tr><tr><td class="mono">战锣</td><td>100</td><td>100</td><td>200</td><td class="maps">毒妖村副本</td><td class="num">1</td></tr></tbody></table>
+
+<h2>五、补齐清单（242 种）</h2>
+<table><thead><tr><th>怪物</th><th>等级</th><th>生命</th><th>经验</th><th>档位</th><th>刷怪地图</th>
+<th style="text-align:right">刷点</th><th style="text-align:right">总量</th><th style="text-align:right">条目</th><th style="text-align:right">金币</th></tr></thead>
+<tbody><tr><td class="mono">远古法师魂魄</td><td>100</td><td>165000</td><td>243,360</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">10</td><td class="num">88</td><td class="num">37,500</td></tr><tr><td class="mono">雷帝1</td><td>100</td><td>96000</td><td>67,320</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">长老堂</td>
+<td class="num">2</td><td class="num">2</td><td class="num">89</td><td class="num">37,500</td></tr><tr><td class="mono">卡瓦尔</td><td>255</td><td>96000</td><td>562,320</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">毒妖村副本</td>
+<td class="num">2</td><td class="num">2</td><td class="num">87</td><td class="num">52,000</td></tr><tr><td class="mono">BlueArcaneTotem</td><td>100</td><td>72000</td><td>78,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">混沌寺</td>
+<td class="num">2</td><td class="num">2</td><td class="num">86</td><td class="num">37,500</td></tr><tr><td class="mono">GreenArcaneTotem</td><td>100</td><td>72000</td><td>78,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">混沌寺</td>
+<td class="num">2</td><td class="num">2</td><td class="num">91</td><td class="num">37,500</td></tr><tr><td class="mono">RedArcaneTotem</td><td>100</td><td>72000</td><td>78,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">混沌寺</td>
+<td class="num">2</td><td class="num">2</td><td class="num">82</td><td class="num">37,500</td></tr><tr><td class="mono">YellowArcaneTotem</td><td>100</td><td>72000</td><td>78,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">混沌寺</td>
+<td class="num">2</td><td class="num">2</td><td class="num">85</td><td class="num">37,500</td></tr><tr><td class="mono">巨型沃玛</td><td>255</td><td>56000</td><td>511,200</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">毒妖村副本</td>
+<td class="num">2</td><td class="num">6</td><td class="num">83</td><td class="num">52,000</td></tr><tr><td class="mono">阎魔太子</td><td>100</td><td>32767</td><td>30,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">业火大殿</td>
+<td class="num">2</td><td class="num">2</td><td class="num">80</td><td class="num">37,500</td></tr><tr><td class="mono">悲月天珠</td><td>39</td><td>32000</td><td>640,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">悲月神殿</td>
+<td class="num">2</td><td class="num">2</td><td class="num">93</td><td class="num">37,500</td></tr><tr><td class="mono">青神石魔</td><td>255</td><td>32000</td><td>48,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">雪人洞窟</td>
+<td class="num">2</td><td class="num">2</td><td class="num">85</td><td class="num">52,000</td></tr><tr><td class="mono">远古武士魂魄</td><td>120</td><td>32000</td><td>167,150</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">10</td><td class="num">89</td><td class="num">37,500</td></tr><tr><td class="mono">远古术士魂魄</td><td>120</td><td>32000</td><td>167,150</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">10</td><td class="num">88</td><td class="num">37,500</td></tr><tr><td class="mono">远古刺客魂魄</td><td>120</td><td>32000</td><td>167,150</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">10</td><td class="num">80</td><td class="num">37,500</td></tr><tr><td class="mono">度量宫法师</td><td>100</td><td>32000</td><td>71,250</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">40</td><td class="num">90</td><td class="num">37,500</td></tr><tr><td class="mono">阿卡沙</td><td>999</td><td>32000</td><td>454,272</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">冰龙巢穴四层</td>
+<td class="num">1</td><td class="num">1</td><td class="num">84</td><td class="num">52,000</td></tr><tr><td class="mono">纳哈什</td><td>999</td><td>32000</td><td>454,272</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">冰龙巢穴五层</td>
+<td class="num">1</td><td class="num">1</td><td class="num">81</td><td class="num">52,000</td></tr><tr><td class="mono">变异的火炮怪</td><td>999</td><td>32000</td><td>454,272</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">竞技场二层</td>
+<td class="num">1</td><td class="num">1</td><td class="num">93</td><td class="num">52,000</td></tr><tr><td class="mono">月之镰神将</td><td>100</td><td>21000</td><td>30,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">月之谷1层、月之谷2层</td>
+<td class="num">4</td><td class="num">4</td><td class="num">88</td><td class="num">31,000</td></tr><tr><td class="mono">地狱守门人</td><td>54</td><td>20000</td><td>20,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">地狱道3层</td>
+<td class="num">2</td><td class="num">2</td><td class="num">82</td><td class="num">37,500</td></tr><tr><td class="mono">寒冰魔王</td><td>60</td><td>20000</td><td>20,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">寒冰大殿</td>
+<td class="num">2</td><td class="num">2</td><td class="num">92</td><td class="num">37,500</td></tr><tr><td class="mono">秦庙石狮</td><td>255</td><td>18000</td><td>22,100</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">60</td><td class="num">81</td><td class="num">2,000</td></tr><tr><td class="mono">修士剑客</td><td>75</td><td>18000</td><td>22,800</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">60</td><td class="num">85</td><td class="num">2,000</td></tr><tr><td class="mono">修士刺客</td><td>75</td><td>18000</td><td>22,800</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">60</td><td class="num">85</td><td class="num">35,000</td></tr><tr><td class="mono">度量宫武士</td><td>75</td><td>18000</td><td>24,375</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">40</td><td class="num">95</td><td class="num">37,500</td></tr><tr><td class="mono">度量宫术士</td><td>75</td><td>18000</td><td>24,375</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">40</td><td class="num">91</td><td class="num">37,500</td></tr><tr><td class="mono">冰原鬼尊</td><td>100</td><td>16800</td><td>27,075</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">雪白县</td>
+<td class="num">2</td><td class="num">40</td><td class="num">89</td><td class="num">31,000</td></tr><tr><td class="mono">黑暗船长</td><td>100</td><td>12000</td><td>24,000</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">货船船长室、帆船船长室</td>
+<td class="num">4</td><td class="num">4</td><td class="num">88</td><td class="num">31,000</td></tr><tr><td class="mono">变异毒妖族战士</td><td>255</td><td>9600</td><td>47,510</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">毒妖林、毒妖村副本</td>
+<td class="num">4</td><td class="num">90</td><td class="num">81</td><td class="num">25,000</td></tr><tr><td class="mono">变异毒妖族弓手</td><td>255</td><td>9600</td><td>47,333</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">毒妖林、毒妖村副本</td>
+<td class="num">4</td><td class="num">90</td><td class="num">80</td><td class="num">25,000</td></tr><tr><td class="mono">昆仑石碑兽</td><td>255</td><td>9600</td><td>408,960</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">毒妖林、毒妖村副本</td>
+<td class="num">4</td><td class="num">26</td><td class="num">92</td><td class="num">31,000</td></tr><tr><td class="mono">多头毒妖鬼</td><td>255</td><td>9600</td><td>460,080</td>
+<td><span class="tag t-topboss">顶级BOSS档</span></td><td class="maps">毒妖村副本</td>
+<td class="num">2</td><td class="num">6</td><td class="num">90</td><td class="num">31,000</td></tr><tr><td class="mono">业火女王</td><td>50</td><td>20000</td><td>15,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱3层</td>
+<td class="num">2</td><td class="num">2</td><td class="num">76</td><td class="num">23,500</td></tr><tr><td class="mono">守护炎魔</td><td>255</td><td>18000</td><td>19,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">60</td><td class="num">73</td><td class="num">2,000</td></tr><tr><td class="mono">机关车</td><td>75</td><td>18000</td><td>15,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">20</td><td class="num">63</td><td class="num">19,500</td></tr><tr><td class="mono">古代骸骨盘王</td><td>60</td><td>10000</td><td>10,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">古代般若石窟3层</td>
+<td class="num">2</td><td class="num">2</td><td class="num">70</td><td class="num">19,500</td></tr><tr><td class="mono">古代骸骨盘王0</td><td>60</td><td>10000</td><td>10,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">古代般若石窟3层</td>
+<td class="num">2</td><td class="num">2</td><td class="num">62</td><td class="num">19,500</td></tr><tr><td class="mono">毒气蟾蜍</td><td>50</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">异秘洞4层、如何神殿1层</td>
+<td class="num">4</td><td class="num">60</td><td class="num">69</td><td class="num">18,500</td></tr><tr><td class="mono">毒气蟾蜍0</td><td>50</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">如何神殿1层</td>
+<td class="num">2</td><td class="num">20</td><td class="num">65</td><td class="num">19,500</td></tr><tr><td class="mono">螳螂</td><td>50</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">如何神殿1层、如何神殿2层</td>
+<td class="num">4</td><td class="num">60</td><td class="num">76</td><td class="num">18,500</td></tr><tr><td class="mono">螳螂0</td><td>50</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">如何神殿1层</td>
+<td class="num">2</td><td class="num">20</td><td class="num">65</td><td class="num">19,500</td></tr><tr><td class="mono">沃玛食人魔</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">灰色神殿2层</td>
+<td class="num">2</td><td class="num">70</td><td class="num">71</td><td class="num">17,000</td></tr><tr><td class="mono">沃玛巨镰</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">灰色神殿2层</td>
+<td class="num">2</td><td class="num">70</td><td class="num">67</td><td class="num">17,000</td></tr><tr><td class="mono">沃玛黑刺兵</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">灰色神殿2层</td>
+<td class="num">2</td><td class="num">70</td><td class="num">69</td><td class="num">17,000</td></tr><tr><td class="mono">沃玛魔兵</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">灰色神殿2层</td>
+<td class="num">2</td><td class="num">70</td><td class="num">71</td><td class="num">17,000</td></tr><tr><td class="mono">沃玛大祭司</td><td>80</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">灰色神殿2层</td>
+<td class="num">2</td><td class="num">40</td><td class="num">67</td><td class="num">19,500</td></tr><tr><td class="mono">黑暗之王</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">灰色神殿3层</td>
+<td class="num">2</td><td class="num">2</td><td class="num">70</td><td class="num">19,500</td></tr><tr><td class="mono">长鼻猴</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">片木岛</td>
+<td class="num">2</td><td class="num">60</td><td class="num">70</td><td class="num">18,500</td></tr><tr><td class="mono">长鼻猴0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">片木岛</td>
+<td class="num">2</td><td class="num">30</td><td class="num">64</td><td class="num">19,500</td></tr><tr><td class="mono">变异甲虫</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">片木岛</td>
+<td class="num">2</td><td class="num">60</td><td class="num">71</td><td class="num">18,500</td></tr><tr><td class="mono">变异甲虫0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">片木岛</td>
+<td class="num">2</td><td class="num">30</td><td class="num">66</td><td class="num">19,500</td></tr><tr><td class="mono">幽灵弓箭手</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">片木岛、货船入口、货船仓库、货船居住仓、货船船艄、帆船入口</td>
+<td class="num">18</td><td class="num">420</td><td class="num">70</td><td class="num">8,400</td></tr><tr><td class="mono">幽灵弓箭手0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">片木岛、货船入口、货船仓库、货船居住仓、货船船艄、帆船入口</td>
+<td class="num">18</td><td class="num">210</td><td class="num">75</td><td class="num">11,000</td></tr><tr><td class="mono">熏黑的厨师</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船居住仓、货船船艄、帆船居住仓、帆船船艄</td>
+<td class="num">8</td><td class="num">200</td><td class="num">72</td><td class="num">11,500</td></tr><tr><td class="mono">熏黑的厨师0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船居住仓、货船船艄、帆船居住仓、帆船船艄</td>
+<td class="num">8</td><td class="num">120</td><td class="num">68</td><td class="num">14,000</td></tr><tr><td class="mono">幽灵船员</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船入口、货船仓库、帆船入口、帆船仓库</td>
+<td class="num">8</td><td class="num">260</td><td class="num">71</td><td class="num">10,000</td></tr><tr><td class="mono">幽灵船员0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船入口、货船仓库、帆船入口、帆船仓库</td>
+<td class="num">8</td><td class="num">100</td><td class="num">74</td><td class="num">15,000</td></tr><tr><td class="mono">溺水的奴隶</td><td>70</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">片木岛、货船入口、货船仓库、货船居住仓、货船船艄、帆船入口</td>
+<td class="num">18</td><td class="num">440</td><td class="num">66</td><td class="num">8,200</td></tr><tr><td class="mono">溺水的奴隶0</td><td>70</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">片木岛、货船入口、货船仓库、货船居住仓、货船船艄、帆船入口</td>
+<td class="num">18</td><td class="num">210</td><td class="num">71</td><td class="num">11,000</td></tr><tr><td class="mono">沉船恶灵</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船入口、货船仓库、货船居住仓、货船船艄、帆船入口、帆船仓库</td>
+<td class="num">16</td><td class="num">380</td><td class="num">73</td><td class="num">8,700</td></tr><tr><td class="mono">沉船恶灵0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船入口、货船仓库、货船居住仓、货船船艄、帆船入口、帆船仓库</td>
+<td class="num">16</td><td class="num">180</td><td class="num">74</td><td class="num">12,000</td></tr><tr><td class="mono">幽灵重锤将</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船居住仓、货船船艄、帆船居住仓、帆船船艄</td>
+<td class="num">8</td><td class="num">220</td><td class="num">66</td><td class="num">11,000</td></tr><tr><td class="mono">幽灵重锤将0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船居住仓、货船船艄、帆船居住仓、帆船船艄</td>
+<td class="num">8</td><td class="num">100</td><td class="num">73</td><td class="num">15,000</td></tr><tr><td class="mono">变异的监工</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船入口、货船仓库、帆船入口、帆船仓库</td>
+<td class="num">8</td><td class="num">180</td><td class="num">73</td><td class="num">12,000</td></tr><tr><td class="mono">变异的监工0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船入口、货船仓库、帆船入口、帆船仓库</td>
+<td class="num">8</td><td class="num">80</td><td class="num">75</td><td class="num">16,500</td></tr><tr><td class="mono">遗迹王蛇</td><td>60</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">沙遗迹</td>
+<td class="num">2</td><td class="num">10</td><td class="num">69</td><td class="num">19,500</td></tr><tr><td class="mono">魔风石怪</td><td>999</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">沙遗迹遗址、沙遗迹村庄</td>
+<td class="num">4</td><td class="num">4</td><td class="num">70</td><td class="num">19,500</td></tr><tr><td class="mono">魔风石怪0</td><td>999</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">沙遗迹祠堂</td>
+<td class="num">2</td><td class="num">2</td><td class="num">68</td><td class="num">19,500</td></tr><tr><td class="mono">草丛龟</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">110</td><td class="num">66</td><td class="num">14,500</td></tr><tr><td class="mono">草丛龟0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">80</td><td class="num">65</td><td class="num">16,500</td></tr><tr><td class="mono">金钱豹</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">110</td><td class="num">66</td><td class="num">14,500</td></tr><tr><td class="mono">金钱豹0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">80</td><td class="num">74</td><td class="num">16,500</td></tr><tr><td class="mono">阳龙王</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">至尊王庭</td>
+<td class="num">2</td><td class="num">2</td><td class="num">66</td><td class="num">19,500</td></tr><tr><td class="mono">流觞弓匠</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">100</td><td class="num">66</td><td class="num">15,000</td></tr><tr><td class="mono">流觞弓匠0</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">30</td><td class="num">70</td><td class="num">19,500</td></tr><tr><td class="mono">黑暗亡灵</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">雪人洞窟2层</td>
+<td class="num">2</td><td class="num">70</td><td class="num">62</td><td class="num">17,000</td></tr><tr><td class="mono">黑暗精灵</td><td>100</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">雪人洞窟2层</td>
+<td class="num">2</td><td class="num">70</td><td class="num">68</td><td class="num">17,000</td></tr><tr><td class="mono">变异宠物狐</td><td>100</td><td>9600</td><td>17,955</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">昆仑城</td>
+<td class="num">6</td><td class="num">448</td><td class="num">74</td><td class="num">8,200</td></tr><tr><td class="mono">象王法师</td><td>100</td><td>8400</td><td>9,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">如何神殿3层</td>
+<td class="num">2</td><td class="num">20</td><td class="num">70</td><td class="num">19,500</td></tr><tr><td class="mono">沃玛巨魔拳</td><td>65</td><td>8400</td><td>9,600</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">灰色神殿2层</td>
+<td class="num">2</td><td class="num">70</td><td class="num">68</td><td class="num">17,000</td></tr><tr><td class="mono">魔石巨人</td><td>60</td><td>8400</td><td>11,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">沙遗迹</td>
+<td class="num">2</td><td class="num">40</td><td class="num">67</td><td class="num">19,500</td></tr><tr><td class="mono">雪原祭司</td><td>80</td><td>8000</td><td>9,600</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">雪人洞窟1层、雪人洞窟2层</td>
+<td class="num">4</td><td class="num">140</td><td class="num">72</td><td class="num">13,000</td></tr><tr><td class="mono">幽灵勇士</td><td>100</td><td>7200</td><td>9,600</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船入口、货船仓库、货船船艄、帆船入口、帆船仓库、帆船船艄</td>
+<td class="num">12</td><td class="num">220</td><td class="num">66</td><td class="num">11,000</td></tr><tr><td class="mono">幽灵勇士0</td><td>100</td><td>7200</td><td>9,600</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">货船入口、货船仓库、货船船艄、帆船入口、帆船仓库、帆船船艄</td>
+<td class="num">12</td><td class="num">160</td><td class="num">74</td><td class="num">12,500</td></tr><tr><td class="mono">冰封雪人</td><td>80</td><td>7200</td><td>9,600</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">雪人洞窟1层、雪人洞窟2层</td>
+<td class="num">4</td><td class="num">140</td><td class="num">69</td><td class="num">13,000</td></tr><tr><td class="mono">雪原猿人</td><td>80</td><td>6800</td><td>9,600</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">雪人洞窟1层、雪人洞窟2层</td>
+<td class="num">4</td><td class="num">140</td><td class="num">62</td><td class="num">13,000</td></tr><tr><td class="mono">雪原斧兵</td><td>80</td><td>6400</td><td>8,500</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">雪人洞窟1层、雪人洞窟2层</td>
+<td class="num">4</td><td class="num">140</td><td class="num">71</td><td class="num">13,000</td></tr><tr><td class="mono">月之红将</td><td>54</td><td>6300</td><td>9,100</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">月之圣殿左室</td>
+<td class="num">2</td><td class="num">20</td><td class="num">63</td><td class="num">19,500</td></tr><tr><td class="mono">月之红将0</td><td>54</td><td>6300</td><td>9,100</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">月之圣殿左室</td>
+<td class="num">2</td><td class="num">4</td><td class="num">62</td><td class="num">19,500</td></tr><tr><td class="mono">月之幻影蜘蛛</td><td>60</td><td>5400</td><td>9,100</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">月之圣殿左室</td>
+<td class="num">2</td><td class="num">10</td><td class="num">73</td><td class="num">19,500</td></tr><tr><td class="mono">业火巨锤魔王</td><td>50</td><td>5000</td><td>10,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱1层</td>
+<td class="num">2</td><td class="num">2</td><td class="num">72</td><td class="num">19,500</td></tr><tr><td class="mono">强化变异熊</td><td>65</td><td>3000</td><td>17,955</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">昆仑城</td>
+<td class="num">6</td><td class="num">448</td><td class="num">66</td><td class="num">8,200</td></tr><tr><td class="mono">寒冰守将</td><td>50</td><td>1800</td><td>9,300</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">寒冰大殿</td>
+<td class="num">4</td><td class="num">64</td><td class="num">62</td><td class="num">15,000</td></tr><tr><td class="mono">业火长枪手</td><td>50</td><td>1600</td><td>8,850</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱2层、业火地狱3层</td>
+<td class="num">4</td><td class="num">128</td><td class="num">66</td><td class="num">2,200</td></tr><tr><td class="mono">业火法师</td><td>50</td><td>1600</td><td>8,850</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱2层、业火地狱3层</td>
+<td class="num">4</td><td class="num">128</td><td class="num">68</td><td class="num">2,200</td></tr><tr><td class="mono">业火镰刀</td><td>50</td><td>1600</td><td>9,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱3层</td>
+<td class="num">2</td><td class="num">64</td><td class="num">64</td><td class="num">3,000</td></tr><tr><td class="mono">业火双刀</td><td>50</td><td>1600</td><td>9,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱3层</td>
+<td class="num">2</td><td class="num">64</td><td class="num">63</td><td class="num">3,000</td></tr><tr><td class="mono">业火奴隶</td><td>50</td><td>1500</td><td>8,500</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱1层</td>
+<td class="num">2</td><td class="num">96</td><td class="num">60</td><td class="num">1,000</td></tr><tr><td class="mono">业火巨锤</td><td>50</td><td>1500</td><td>8,500</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱1层</td>
+<td class="num">2</td><td class="num">128</td><td class="num">66</td><td class="num">2,200</td></tr><tr><td class="mono">月之黑锷蜘蛛</td><td>50</td><td>1420</td><td>8,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">月之谷1层、月之谷2层</td>
+<td class="num">4</td><td class="num">60</td><td class="num">57</td><td class="num">3,000</td></tr><tr><td class="mono">月之黑锷蜘蛛0</td><td>50</td><td>1420</td><td>8,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">月之谷1层、月之谷2层</td>
+<td class="num">4</td><td class="num">20</td><td class="num">57</td><td class="num">3,200</td></tr><tr><td class="mono">月之花吻蜘蛛</td><td>50</td><td>1420</td><td>8,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">月之谷1层、月之谷2层、月之圣殿左室</td>
+<td class="num">6</td><td class="num">120</td><td class="num">58</td><td class="num">2,300</td></tr><tr><td class="mono">月之花吻蜘蛛0</td><td>50</td><td>1420</td><td>8,000</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">月之谷1层、月之谷2层、月之圣殿左室</td>
+<td class="num">6</td><td class="num">30</td><td class="num">60</td><td class="num">3,200</td></tr><tr><td class="mono">寒冰战将</td><td>50</td><td>1100</td><td>8,500</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">寒冰大殿</td>
+<td class="num">2</td><td class="num">32</td><td class="num">20</td><td class="num">5,800</td></tr><tr><td class="mono">寒冰侍卫</td><td>50</td><td>1100</td><td>8,100</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">寒冰大殿</td>
+<td class="num">2</td><td class="num">32</td><td class="num">18</td><td class="num">5,800</td></tr><tr><td class="mono">业火炸弹手</td><td>50</td><td>1100</td><td>8,700</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱1层、业火地狱2层</td>
+<td class="num">4</td><td class="num">128</td><td class="num">22</td><td class="num">4,000</td></tr><tr><td class="mono">业火投石手</td><td>50</td><td>1100</td><td>8,700</td>
+<td><span class="tag t-boss">精英/BOSS档</span></td><td class="maps">业火地狱1层、业火地狱2层</td>
+<td class="num">4</td><td class="num">128</td><td class="num">20</td><td class="num">4,000</td></tr><tr><td class="mono">石巨人</td><td>100</td><td>6400</td><td>7,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">如何神殿3层</td>
+<td class="num">2</td><td class="num">40</td><td class="num">65</td><td class="num">16,000</td></tr><tr><td class="mono">土巨人</td><td>60</td><td>5800</td><td>7,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">如何神殿3层</td>
+<td class="num">2</td><td class="num">40</td><td class="num">68</td><td class="num">16,000</td></tr><tr><td class="mono">犀牛武士</td><td>100</td><td>5600</td><td>7,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">如何神殿1层、如何神殿2层、如何神殿3层</td>
+<td class="num">6</td><td class="num">110</td><td class="num">67</td><td class="num">12,000</td></tr><tr><td class="mono">犀牛法师</td><td>100</td><td>5600</td><td>7,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">如何神殿2层、如何神殿3层</td>
+<td class="num">4</td><td class="num">60</td><td class="num">65</td><td class="num">15,000</td></tr><tr><td class="mono">巨象锤兵</td><td>100</td><td>5600</td><td>7,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">如何神殿2层、如何神殿3层</td>
+<td class="num">4</td><td class="num">60</td><td class="num">64</td><td class="num">15,000</td></tr><tr><td class="mono">大蟒</td><td>70</td><td>5600</td><td>6,400</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">沙遗迹</td>
+<td class="num">2</td><td class="num">160</td><td class="num">64</td><td class="num">10,500</td></tr><tr><td class="mono">沼泽战士</td><td>100</td><td>4600</td><td>6,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">如何神殿1层、如何神殿2层</td>
+<td class="num">4</td><td class="num">70</td><td class="num">68</td><td class="num">14,500</td></tr><tr><td class="mono">鸟人刺客</td><td>100</td><td>4600</td><td>6,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">如何神殿1层、如何神殿2层、如何神殿3层</td>
+<td class="num">6</td><td class="num">110</td><td class="num">63</td><td class="num">12,000</td></tr><tr><td class="mono">太古鼠</td><td>69</td><td>4600</td><td>5,800</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">沙遗迹</td>
+<td class="num">2</td><td class="num">160</td><td class="num">65</td><td class="num">10,500</td></tr><tr><td class="mono">月之金杖蜘蛛</td><td>54</td><td>4400</td><td>7,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之圣殿左室</td>
+<td class="num">2</td><td class="num">50</td><td class="num">70</td><td class="num">16,000</td></tr><tr><td class="mono">月之金杖蜘蛛0</td><td>54</td><td>4400</td><td>7,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之圣殿左室</td>
+<td class="num">2</td><td class="num">10</td><td class="num">66</td><td class="num">16,000</td></tr><tr><td class="mono">双头黑虎</td><td>60</td><td>3800</td><td>4,800</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">灰色神殿2层</td>
+<td class="num">2</td><td class="num">70</td><td class="num">64</td><td class="num">14,500</td></tr><tr><td class="mono">弦月寒虎</td><td>54</td><td>3600</td><td>3,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">60</td><td class="num">60</td><td class="num">10,500</td></tr><tr><td class="mono">月之巨镰蜘蛛</td><td>54</td><td>3600</td><td>6,800</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层、月之圣殿左室</td>
+<td class="num">6</td><td class="num">90</td><td class="num">61</td><td class="num">13,500</td></tr><tr><td class="mono">月之巨镰蜘蛛0</td><td>54</td><td>3600</td><td>6,800</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层、月之圣殿左室</td>
+<td class="num">6</td><td class="num">30</td><td class="num">66</td><td class="num">17,000</td></tr><tr><td class="mono">魂火</td><td>100</td><td>3600</td><td>5,400</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">货船入口、货船仓库、货船居住仓、货船船艄、帆船入口、帆船仓库</td>
+<td class="num">16</td><td class="num">200</td><td class="num">63</td><td class="num">9,400</td></tr><tr><td class="mono">魂火0</td><td>100</td><td>3600</td><td>5,400</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">货船入口、货船仓库、货船居住仓、货船船艄、帆船入口、帆船仓库</td>
+<td class="num">16</td><td class="num">140</td><td class="num">65</td><td class="num">11,000</td></tr><tr><td class="mono">杀厉鬼</td><td>68</td><td>3600</td><td>5,400</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">沙遗迹</td>
+<td class="num">2</td><td class="num">160</td><td class="num">65</td><td class="num">10,500</td></tr><tr><td class="mono">鬼浮石</td><td>68</td><td>3600</td><td>4,200</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">沙遗迹</td>
+<td class="num">2</td><td class="num">6</td><td class="num">64</td><td class="num">16,000</td></tr><tr><td class="mono">战士高手</td><td>100</td><td>3600</td><td>4,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">昆仑城</td>
+<td class="num">6</td><td class="num">448</td><td class="num">65</td><td class="num">6,800</td></tr><tr><td class="mono">噬人龙</td><td>50</td><td>3200</td><td>6,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">异秘洞3层</td>
+<td class="num">2</td><td class="num">160</td><td class="num">69</td><td class="num">10,500</td></tr><tr><td class="mono">雪原奴役</td><td>80</td><td>3200</td><td>4,200</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">雪人洞窟1层、雪人洞窟2层</td>
+<td class="num">4</td><td class="num">140</td><td class="num">66</td><td class="num">11,000</td></tr><tr><td class="mono">焱门客</td><td>60</td><td>3000</td><td>6,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">18</td><td class="num">71</td><td class="num">16,000</td></tr><tr><td class="mono">圣术士0</td><td>30</td><td>2850</td><td>340</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">50</td><td class="num">49</td><td class="num">4,600</td></tr><tr><td class="mono">刺客高手</td><td>255</td><td>2800</td><td>4,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">昆仑城</td>
+<td class="num">6</td><td class="num">448</td><td class="num">63</td><td class="num">13,500</td></tr><tr><td class="mono">魔法高手</td><td>100</td><td>2600</td><td>4,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">昆仑城</td>
+<td class="num">6</td><td class="num">448</td><td class="num">56</td><td class="num">4,600</td></tr><tr><td class="mono">道士高手</td><td>255</td><td>2300</td><td>4,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">昆仑城</td>
+<td class="num">6</td><td class="num">448</td><td class="num">62</td><td class="num">13,500</td></tr><tr><td class="mono">圣术士</td><td>30</td><td>2070</td><td>340</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">50</td><td class="num">53</td><td class="num">4,600</td></tr><tr><td class="mono">噬夢者</td><td>68</td><td>2000</td><td>7,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱深渊</td>
+<td class="num">2</td><td class="num">40</td><td class="num">63</td><td class="num">16,000</td></tr><tr><td class="mono">舌刃大虫</td><td>50</td><td>2000</td><td>3,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">虫洞4层</td>
+<td class="num">2</td><td class="num">4</td><td class="num">59</td><td class="num">35,000</td></tr><tr><td class="mono">水晶蜘蛛0</td><td>54</td><td>2000</td><td>5,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">龙蛇川</td>
+<td class="num">2</td><td class="num">60</td><td class="num">55</td><td class="num">5,500</td></tr><tr><td class="mono">南蛮白虎</td><td>60</td><td>1700</td><td>5,800</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿山</td>
+<td class="num">12</td><td class="num">380</td><td class="num">60</td><td class="num">580</td></tr><tr><td class="mono">愤怒的狒狒</td><td>60</td><td>1550</td><td>5,200</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿山</td>
+<td class="num">14</td><td class="num">202</td><td class="num">58</td><td class="num">750</td></tr><tr><td class="mono">疯狂破坏者</td><td>65</td><td>1500</td><td>5,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱深渊、黑暗深渊1</td>
+<td class="num">20</td><td class="num">380</td><td class="num">57</td><td class="num">580</td></tr><tr><td class="mono">疯狂破坏者0</td><td>65</td><td>1500</td><td>5,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱深渊</td>
+<td class="num">10</td><td class="num">200</td><td class="num">57</td><td class="num">750</td></tr><tr><td class="mono">南蛮黑虎</td><td>60</td><td>1500</td><td>5,600</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">远古废墟</td>
+<td class="num">2</td><td class="num">2</td><td class="num">63</td><td class="num">1,300</td></tr><tr><td class="mono">月之蓝背蜘蛛</td><td>50</td><td>1400</td><td>7,600</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层</td>
+<td class="num">4</td><td class="num">70</td><td class="num">58</td><td class="num">2,900</td></tr><tr><td class="mono">月之蓝背蜘蛛0</td><td>50</td><td>1400</td><td>7,600</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层</td>
+<td class="num">4</td><td class="num">20</td><td class="num">57</td><td class="num">3,200</td></tr><tr><td class="mono">长枪猫卫</td><td>56</td><td>1400</td><td>5,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿区二层、石槽矿区三层、石槽矿区四层</td>
+<td class="num">6</td><td class="num">288</td><td class="num">60</td><td class="num">650</td></tr><tr><td class="mono">地狱食人者</td><td>54</td><td>1350</td><td>6,100</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱道3层</td>
+<td class="num">2</td><td class="num">18</td><td class="num">52</td><td class="num">5,800</td></tr><tr><td class="mono">地狱食人者0</td><td>54</td><td>1350</td><td>6,100</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱道3层</td>
+<td class="num">2</td><td class="num">10</td><td class="num">49</td><td class="num">5,800</td></tr><tr><td class="mono">地狱瘟疫者</td><td>54</td><td>1350</td><td>6,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱道3层</td>
+<td class="num">2</td><td class="num">18</td><td class="num">55</td><td class="num">5,800</td></tr><tr><td class="mono">地狱瘟疫者0</td><td>54</td><td>1350</td><td>6,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱道3层</td>
+<td class="num">2</td><td class="num">12</td><td class="num">55</td><td class="num">5,800</td></tr><tr><td class="mono">黑锤猫卫</td><td>56</td><td>1350</td><td>6,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿区一层、石槽矿区二层、石槽矿区三层、石槽矿区四层、壶中天</td>
+<td class="num">20</td><td class="num">320</td><td class="num">50</td><td class="num">620</td></tr><tr><td class="mono">黑锤猫卫0</td><td>56</td><td>1350</td><td>6,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">壶中天</td>
+<td class="num">12</td><td class="num">36</td><td class="num">51</td><td class="num">1,300</td></tr><tr><td class="mono">月之水晶蜘蛛</td><td>50</td><td>1320</td><td>7,900</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层</td>
+<td class="num">4</td><td class="num">40</td><td class="num">35</td><td class="num">5,800</td></tr><tr><td class="mono">月之水晶蜘蛛0</td><td>50</td><td>1320</td><td>7,900</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层</td>
+<td class="num">4</td><td class="num">20</td><td class="num">37</td><td class="num">5,800</td></tr><tr><td class="mono">可怕的利奇</td><td>61</td><td>1300</td><td>5,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱深渊、黑暗深渊1、黑暗深渊2、黑暗深渊3、黑暗深渊4、黑暗深渊5</td>
+<td class="num">92</td><td class="num">1300</td><td class="num">57</td><td class="num">400</td></tr><tr><td class="mono">可怕的利奇0</td><td>61</td><td>1300</td><td>5,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱深渊、黑暗深渊1、黑暗深渊2、黑暗深渊3、黑暗深渊4、黑暗深渊5</td>
+<td class="num">84</td><td class="num">1200</td><td class="num">55</td><td class="num">400</td></tr><tr><td class="mono">灵猫武士</td><td>54</td><td>1300</td><td>5,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿区一层、石槽矿区二层、石槽矿区三层、石槽矿区四层</td>
+<td class="num">10</td><td class="num">512</td><td class="num">33</td><td class="num">2,300</td></tr><tr><td class="mono">铁锤猫卫</td><td>56</td><td>1300</td><td>5,700</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿区一层、石槽矿区二层、石槽矿区三层、石槽矿区四层、壶中天</td>
+<td class="num">20</td><td class="num">404</td><td class="num">55</td><td class="num">2,600</td></tr><tr><td class="mono">铁锤猫卫0</td><td>56</td><td>1300</td><td>5,700</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">壶中天</td>
+<td class="num">12</td><td class="num">36</td><td class="num">57</td><td class="num">5,800</td></tr><tr><td class="mono">月之月魔蜘蛛</td><td>50</td><td>1270</td><td>7,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层、月之圣殿左室</td>
+<td class="num">6</td><td class="num">120</td><td class="num">38</td><td class="num">4,100</td></tr><tr><td class="mono">月之月魔蜘蛛0</td><td>50</td><td>1270</td><td>7,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层、月之圣殿左室</td>
+<td class="num">6</td><td class="num">40</td><td class="num">39</td><td class="num">5,800</td></tr><tr><td class="mono">灵猫斗士</td><td>54</td><td>1250</td><td>5,200</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿区一层、石槽矿区二层、石槽矿区三层、石槽矿区四层</td>
+<td class="num">10</td><td class="num">512</td><td class="num">36</td><td class="num">2,300</td></tr><tr><td class="mono">幻影寒虎</td><td>54</td><td>1200</td><td>2,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">潘夜岛</td>
+<td class="num">2</td><td class="num">2</td><td class="num">50</td><td class="num">650</td></tr><tr><td class="mono">变异破坏者</td><td>64</td><td>1150</td><td>5,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱深渊</td>
+<td class="num">26</td><td class="num">470</td><td class="num">52</td><td class="num">2,400</td></tr><tr><td class="mono">变异破坏者0</td><td>64</td><td>1150</td><td>5,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱深渊</td>
+<td class="num">16</td><td class="num">290</td><td class="num">49</td><td class="num">2,900</td></tr><tr><td class="mono">陵庙刀卫</td><td>56</td><td>1150</td><td>6,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿山、壶中天</td>
+<td class="num">14</td><td class="num">86</td><td class="num">21</td><td class="num">4,700</td></tr><tr><td class="mono">陵庙刀卫0</td><td>56</td><td>1150</td><td>6,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">壶中天</td>
+<td class="num">12</td><td class="num">36</td><td class="num">17</td><td class="num">5,800</td></tr><tr><td class="mono">暗之魔龙铁蛾0</td><td>58</td><td>1100</td><td>4,700</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">灰色神殿2层</td>
+<td class="num">2</td><td class="num">60</td><td class="num">53</td><td class="num">850</td></tr><tr><td class="mono">月之天狼蜘蛛</td><td>50</td><td>1100</td><td>7,700</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层</td>
+<td class="num">4</td><td class="num">70</td><td class="num">21</td><td class="num">5,100</td></tr><tr><td class="mono">月之天狼蜘蛛0</td><td>50</td><td>1100</td><td>7,700</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之谷1层、月之谷2层</td>
+<td class="num">4</td><td class="num">30</td><td class="num">18</td><td class="num">5,800</td></tr><tr><td class="mono">月之祖玛雕像</td><td>54</td><td>1100</td><td>4,400</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之圣殿左室</td>
+<td class="num">2</td><td class="num">50</td><td class="num">42</td><td class="num">650</td></tr><tr><td class="mono">月之祖玛雕像0</td><td>54</td><td>1100</td><td>4,400</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之圣殿左室</td>
+<td class="num">2</td><td class="num">10</td><td class="num">43</td><td class="num">650</td></tr><tr><td class="mono">月之祖玛卫士</td><td>54</td><td>1100</td><td>4,400</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之圣殿左室</td>
+<td class="num">2</td><td class="num">50</td><td class="num">45</td><td class="num">650</td></tr><tr><td class="mono">月之祖玛卫士0</td><td>54</td><td>1100</td><td>4,400</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">月之圣殿左室</td>
+<td class="num">2</td><td class="num">10</td><td class="num">43</td><td class="num">650</td></tr><tr><td class="mono">陵庙巫师</td><td>100</td><td>1100</td><td>6,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿区三层、石槽矿区四层</td>
+<td class="num">4</td><td class="num">96</td><td class="num">44</td><td class="num">4,500</td></tr><tr><td class="mono">重耳壶1</td><td>52</td><td>1000</td><td>4,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">石槽矿区四层、壶中天</td>
+<td class="num">14</td><td class="num">62</td><td class="num">43</td><td class="num">840</td></tr><tr><td class="mono">重耳壶2</td><td>52</td><td>1000</td><td>4,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">壶中天</td>
+<td class="num">12</td><td class="num">60</td><td class="num">43</td><td class="num">850</td></tr><tr><td class="mono">熊</td><td>65</td><td>1000</td><td>2,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">110</td><td class="num">57</td><td class="num">3,800</td></tr><tr><td class="mono">熊0</td><td>65</td><td>1000</td><td>2,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">80</td><td class="num">54</td><td class="num">4,300</td></tr><tr><td class="mono">地狱噬魂者</td><td>54</td><td>930</td><td>6,100</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱道3层</td>
+<td class="num">2</td><td class="num">18</td><td class="num">31</td><td class="num">5,800</td></tr><tr><td class="mono">地狱噬魂者0</td><td>54</td><td>930</td><td>6,100</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱道3层</td>
+<td class="num">2</td><td class="num">12</td><td class="num">37</td><td class="num">5,800</td></tr><tr><td class="mono">变异的利奇</td><td>63</td><td>900</td><td>5,100</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱深渊</td>
+<td class="num">8</td><td class="num">160</td><td class="num">57</td><td class="num">1,600</td></tr><tr><td class="mono">变异的利奇0</td><td>63</td><td>900</td><td>5,100</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱深渊</td>
+<td class="num">8</td><td class="num">140</td><td class="num">54</td><td class="num">1,700</td></tr><tr><td class="mono">尖啸幽灵</td><td>50</td><td>900</td><td>7,800</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">尖啸地狱</td>
+<td class="num">2</td><td class="num">50</td><td class="num">31</td><td class="num">5,800</td></tr><tr><td class="mono">尖啸幽灵1</td><td>50</td><td>900</td><td>7,800</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">尖啸地狱</td>
+<td class="num">2</td><td class="num">50</td><td class="num">33</td><td class="num">5,800</td></tr><tr><td class="mono">尖啸幽灵2</td><td>50</td><td>900</td><td>7,800</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">尖啸地狱</td>
+<td class="num">2</td><td class="num">50</td><td class="num">34</td><td class="num">5,800</td></tr><tr><td class="mono">狐月刺虫</td><td>38</td><td>800</td><td>2,400</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">悲月山</td>
+<td class="num">2</td><td class="num">80</td><td class="num">39</td><td class="num">2,700</td></tr><tr><td class="mono">地狱女巫</td><td>60</td><td>750</td><td>6,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱道3层</td>
+<td class="num">2</td><td class="num">18</td><td class="num">49</td><td class="num">2,600</td></tr><tr><td class="mono">地狱女巫0</td><td>60</td><td>750</td><td>6,300</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">地狱道3层</td>
+<td class="num">2</td><td class="num">12</td><td class="num">54</td><td class="num">2,600</td></tr><tr><td class="mono">骷髅武将</td><td>49</td><td>620</td><td>1,350</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">般若石窟4层、般若石窟5层</td>
+<td class="num">20</td><td class="num">296</td><td class="num">47</td><td class="num">1,400</td></tr><tr><td class="mono">骷髅武将0</td><td>49</td><td>620</td><td>1,350</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">般若石窟4层、般若石窟5层</td>
+<td class="num">4</td><td class="num">4</td><td class="num">46</td><td class="num">2,900</td></tr><tr><td class="mono">古代骷髅武将</td><td>49</td><td>620</td><td>1,350</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟3层</td>
+<td class="num">4</td><td class="num">64</td><td class="num">42</td><td class="num">2,600</td></tr><tr><td class="mono">古代骷髅武将0</td><td>49</td><td>620</td><td>1,350</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟3层</td>
+<td class="num">2</td><td class="num">38</td><td class="num">42</td><td class="num">2,900</td></tr><tr><td class="mono">焱门客0</td><td>60</td><td>600</td><td>1,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">4</td><td class="num">71</td><td class="num">5,800</td></tr><tr><td class="mono">骷髅武士</td><td>45</td><td>540</td><td>1,280</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">般若石窟1层、般若石窟2层东、般若石窟2层西、般若石窟3层、般若石窟4层、般若石窟5层</td>
+<td class="num">40</td><td class="num">636</td><td class="num">51</td><td class="num">1,000</td></tr><tr><td class="mono">骷髅武士0</td><td>45</td><td>540</td><td>1,280</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">般若石窟1层、般若石窟2层东、般若石窟2层西、般若石窟3层、般若石窟4层、般若石窟5层</td>
+<td class="num">14</td><td class="num">14</td><td class="num">49</td><td class="num">2,900</td></tr><tr><td class="mono">古代骷髅武士</td><td>45</td><td>540</td><td>1,280</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟1层、古代般若石窟2层、古代般若石窟3层</td>
+<td class="num">16</td><td class="num">284</td><td class="num">45</td><td class="num">50</td></tr><tr><td class="mono">古代骷髅武士0</td><td>45</td><td>540</td><td>1,280</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟1层、古代般若石窟2层、古代般若石窟3层</td>
+<td class="num">10</td><td class="num">96</td><td class="num">48</td><td class="num">2,200</td></tr><tr><td class="mono">骷髅士兵</td><td>42</td><td>520</td><td>1,150</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">般若石窟1层、般若石窟2层东、般若石窟2层西、般若石窟3层、般若石窟4层、般若石窟5层</td>
+<td class="num">48</td><td class="num">778</td><td class="num">49</td><td class="num">960</td></tr><tr><td class="mono">骷髅士兵0</td><td>42</td><td>520</td><td>1,150</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">般若石窟1层、般若石窟2层东、般若石窟2层西、般若石窟3层、般若石窟4层、般若石窟5层</td>
+<td class="num">12</td><td class="num">12</td><td class="num">44</td><td class="num">2,900</td></tr><tr><td class="mono">古代骷髅士兵</td><td>42</td><td>520</td><td>1,150</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟1层、古代般若石窟2层、古代般若石窟3层</td>
+<td class="num">16</td><td class="num">256</td><td class="num">48</td><td class="num">1,500</td></tr><tr><td class="mono">古代骷髅士兵0</td><td>42</td><td>520</td><td>1,150</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟1层、古代般若石窟2层、古代般若石窟3层</td>
+<td class="num">12</td><td class="num">60</td><td class="num">45</td><td class="num">2,700</td></tr><tr><td class="mono">古代骷髅弓箭手</td><td>38</td><td>450</td><td>1,020</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟1层、古代般若石窟2层、古代般若石窟3层</td>
+<td class="num">10</td><td class="num">178</td><td class="num">44</td><td class="num">50</td></tr><tr><td class="mono">古代骷髅弓箭手0</td><td>38</td><td>450</td><td>1,020</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟1层、古代般若石窟2层、古代般若石窟3层</td>
+<td class="num">8</td><td class="num">62</td><td class="num">54</td><td class="num">6,000</td></tr><tr><td class="mono">浪人鬼</td><td>35</td><td>430</td><td>1,020</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">潘夜岛、般若石窟1层、般若石窟2层东、般若石窟2层西、般若石窟3层、般若石窟4层</td>
+<td class="num">60</td><td class="num">938</td><td class="num">49</td><td class="num">200</td></tr><tr><td class="mono">浪人鬼0</td><td>35</td><td>430</td><td>1,020</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">潘夜岛、般若石窟1层、般若石窟4层</td>
+<td class="num">18</td><td class="num">18</td><td class="num">48</td><td class="num">650</td></tr><tr><td class="mono">古代浪人鬼</td><td>35</td><td>430</td><td>1,020</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟1层、古代般若石窟2层、古代般若石窟3层</td>
+<td class="num">14</td><td class="num">266</td><td class="num">45</td><td class="num">3,400</td></tr><tr><td class="mono">古代浪人鬼0</td><td>35</td><td>430</td><td>1,020</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟3层</td>
+<td class="num">2</td><td class="num">38</td><td class="num">44</td><td class="num">6,500</td></tr><tr><td class="mono">腐蚀鬼</td><td>33</td><td>350</td><td>940</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">潘夜岛、般若石窟1层、般若石窟2层东、般若石窟2层西、般若石窟3层、般若石窟4层</td>
+<td class="num">60</td><td class="num">920</td><td class="num">54</td><td class="num">120</td></tr><tr><td class="mono">腐蚀鬼0</td><td>33</td><td>350</td><td>940</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">潘夜岛、般若石窟2层东、般若石窟2层西、般若石窟3层、般若石窟4层</td>
+<td class="num">22</td><td class="num">22</td><td class="num">53</td><td class="num">390</td></tr><tr><td class="mono">古代腐蚀鬼</td><td>33</td><td>350</td><td>940</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟1层、古代般若石窟2层、古代般若石窟3层</td>
+<td class="num">16</td><td class="num">292</td><td class="num">46</td><td class="num">320</td></tr><tr><td class="mono">古代腐蚀鬼0</td><td>33</td><td>350</td><td>940</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">古代般若石窟1层、古代般若石窟2层、古代般若石窟3层</td>
+<td class="num">10</td><td class="num">106</td><td class="num">47</td><td class="num">480</td></tr><tr><td class="mono">定缘道士</td><td>30</td><td>285</td><td>310</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">50</td><td class="num">43</td><td class="num">520</td></tr><tr><td class="mono">定缘道士0</td><td>30</td><td>285</td><td>310</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">50</td><td class="num">40</td><td class="num">520</td></tr><tr><td class="mono">金胜战士</td><td>31</td><td>240</td><td>350</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">50</td><td class="num">54</td><td class="num">580</td></tr><tr><td class="mono">金胜战士0</td><td>31</td><td>240</td><td>350</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林2层、玄月林3层</td>
+<td class="num">4</td><td class="num">50</td><td class="num">51</td><td class="num">580</td></tr><tr><td class="mono">暗黑战士</td><td>26</td><td>165</td><td>240</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">沃玛寺庙二层、沃玛寺庙三层</td>
+<td class="num">20</td><td class="num">182</td><td class="num">41</td><td class="num">310</td></tr><tr><td class="mono">暗黑战士0</td><td>26</td><td>165</td><td>240</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">沃玛寺庙二层、沃玛寺庙三层</td>
+<td class="num">4</td><td class="num">4</td><td class="num">44</td><td class="num">520</td></tr><tr><td class="mono">弦月坛战士1</td><td>20</td><td>110</td><td>160</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">70</td><td class="num">32</td><td class="num">230</td></tr><tr><td class="mono">弦月坛刺客1</td><td>19</td><td>105</td><td>150</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">70</td><td class="num">35</td><td class="num">230</td></tr><tr><td class="mono">弦月坛道士1</td><td>18</td><td>100</td><td>140</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">70</td><td class="num">33</td><td class="num">2,300</td></tr><tr><td class="mono">弦月坛术士1</td><td>18</td><td>90</td><td>140</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">6</td><td class="num">70</td><td class="num">37</td><td class="num">100</td></tr><tr><td class="mono">沙虫</td><td>17</td><td>54</td><td>77</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">梦村县</td>
+<td class="num">4</td><td class="num">60</td><td class="num">29</td><td class="num">250</td></tr><tr><td class="mono">半兽人</td><td>15</td><td>30</td><td>30</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">飞天县、沃玛森林、毒蛇山谷、道馆、夔龙城、潘夜岛</td>
+<td class="num">50</td><td class="num">1460</td><td class="num">41</td><td class="num">300</td></tr><tr><td class="mono">半兽人0</td><td>15</td><td>30</td><td>30</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">沃玛森林、毒蛇山谷、潘夜岛</td>
+<td class="num">6</td><td class="num">6</td><td class="num">40</td><td class="num">2,000</td></tr><tr><td class="mono">兔子</td><td>14</td><td>25</td><td>28</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">飞天县、道馆、夔龙城</td>
+<td class="num">10</td><td class="num">250</td><td class="num">34</td><td class="num">50</td></tr><tr><td class="mono">瘟疫鱼人</td><td>50</td><td>1</td><td>5,000</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">异秘洞3层</td>
+<td class="num">2</td><td class="num">160</td><td class="num">77</td><td class="num">1,600</td></tr><tr><td class="mono">瘟疫蟾蜍</td><td>50</td><td>1</td><td>6,500</td>
+<td><span class="tag t-normal">普通怪档</span></td><td class="maps">异秘洞3层</td>
+<td class="num">2</td><td class="num">100</td><td class="num">68</td><td class="num">2,000</td></tr><tr><td class="mono">被诅咒的银箱</td><td>100</td><td>50</td><td>200</td>
+<td><span class="tag t-container">宝箱/容器</span></td><td class="maps">片木岛、货船居住仓、货船船艄、帆船居住仓、帆船船艄</td>
+<td class="num">10</td><td class="num">140</td><td class="num">10</td><td class="num">0</td></tr><tr><td class="mono">木盒</td><td>75</td><td>50</td><td>2,125</td>
+<td><span class="tag t-container">宝箱/容器</span></td><td class="maps">三清英雄陵寝</td>
+<td class="num">2</td><td class="num">20</td><td class="num">10</td><td class="num">0</td></tr><tr><td class="mono">异秘蛋</td><td>50</td><td>10</td><td>20</td>
+<td><span class="tag t-container">宝箱/容器</span></td><td class="maps">异秘洞4层</td>
+<td class="num">2</td><td class="num">16</td><td class="num">5</td><td class="num">0</td></tr><tr><td class="mono">异秘蛋1</td><td>50</td><td>10</td><td>20</td>
+<td><span class="tag t-container">宝箱/容器</span></td><td class="maps">异秘洞4层</td>
+<td class="num">2</td><td class="num">2</td><td class="num">5</td><td class="num">0</td></tr><tr><td class="mono">如何树</td><td>100</td><td>23000</td><td>46,000</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">如何神殿4层</td>
+<td class="num">2</td><td class="num">2</td><td class="num">5</td><td class="num">0</td></tr><tr><td class="mono">杉精魄</td><td>65</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">玄月林1层、玄月林2层、玄月林3层</td>
+<td class="num">8</td><td class="num">150</td><td class="num">5</td><td class="num">0</td></tr><tr><td class="mono">杉精魄0</td><td>65</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">玄月林1层、玄月林2层</td>
+<td class="num">4</td><td class="num">40</td><td class="num">5</td><td class="num">0</td></tr><tr><td class="mono">变异棘蔓草</td><td>255</td><td>9600</td><td>16,445</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">昆仑城</td>
+<td class="num">6</td><td class="num">448</td><td class="num">5</td><td class="num">0</td></tr><tr><td class="mono">变异食虫草</td><td>100</td><td>9600</td><td>16,445</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">昆仑城</td>
+<td class="num">6</td><td class="num">448</td><td class="num">3</td><td class="num">0</td></tr><tr><td class="mono">毒妖花1</td><td>255</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">毒妖林</td>
+<td class="num">2</td><td class="num">40</td><td class="num">3</td><td class="num">0</td></tr><tr><td class="mono">毒妖花2</td><td>255</td><td>9600</td><td>12,000</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">毒妖林</td>
+<td class="num">2</td><td class="num">40</td><td class="num">3</td><td class="num">0</td></tr><tr><td class="mono">大食人花</td><td>100</td><td>3200</td><td>4,800</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">片木岛</td>
+<td class="num">2</td><td class="num">60</td><td class="num">4</td><td class="num">0</td></tr><tr><td class="mono">大食人花0</td><td>100</td><td>3200</td><td>4,800</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">片木岛</td>
+<td class="num">2</td><td class="num">30</td><td class="num">4</td><td class="num">0</td></tr><tr><td class="mono">灌木</td><td>16</td><td>25</td><td>36</td>
+<td><span class="tag t-resource">资源实体</span></td><td class="maps">飞天县</td>
+<td class="num">27</td><td class="num">54</td><td class="num">5</td><td class="num">0</td></tr></tbody></table>
+
+<h2>六、生成样例</h2>
+<div class="samp"><div class="samp-h">阎魔太子</div><pre>;阎魔太子  等级100  生命32767  经验30000
+;刷怪地图：业火大殿（共2处刷点/2只）
+;档位：顶级BOSS档 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+1/10 Gold 37500
+
+;武器
+1/9 火血匕
+1/55 月轮刀
+1/65 月轮剑
+1/70 无极棍
+1/75 骨玉权杖
+1/80 暗黑刀
+1/7000 修罗刀
+1/19500 暗真魔刀
+
+;盔甲
+1/15 火龙魔衣(女)
+1/20 修罗血衣(女)
+1/20 火龙魔衣(男)
+1/20 玄天宝衣(女)
+1/20 玄天宝衣(男)
+1/21000 天衣无缝(女)
+
+;头盔
+1/9 道士头盔
+1/10 修罗头盔
+1/10 骷髅头盔
+1/12000 天龙除魂帽
+
+;项链
+1/4 蓝翡翠项链
+1/10 灯笼项链
+1/15 白色虎齿项链
+1/30 天珠项链
+1/25 幽灵项链
+1/30 生命项链
+1/40 破角
+
+;手镯
+1/4 金手镯
+1/8 幽灵手套
+1/15 死神手套
+1/15 黑铁手镯
+1/35 三眼手镯
+1/25 思贝尔手镯
+1/45 阎罗手套
+1/60 曜火虹轮
+
+;戒指
+1/8 降妖除魔戒指
+1/9 骷髅戒指
+1/10 珊瑚戒指
+1/10 道德戒指
+1/10 魅力戒指
+1/35 铂金戒指
+1/40 龙之戒指
+1/110500 护身戒指
+1/158500 隐身戒指
+
+;腰带
+1/9 钢铁腰带
+1/40 金刚腰带
+1/45 黄金腰带
+1/90 青铜腰带
+
+;靴子
+1/35 紫绸靴
+1/45 赤鳞靴
+1/50 白虎避难靴
+1/70 避魂靴
+1/75 黄金花纹靴
+
+;守护石
+1/940 晴岚石(大)
+1/750 赤燐石(大)
+
+;药水
+1/2 太阳水
+1/2 体力恢复药(大)
+1/2 体力恢复药(特)
+1/2 强效太阳水
+1/2 魔力恢复药(大)
+1/2 魔力恢复药(特)
+1/6 苹果
+1/20 疾风药水
+1/25 破坏药水
+1/25 魔法药水
+1/50 体力药水
+
+;工艺材料
+1/4 大骨头
+1/7 坚固的绳子
+1/80 邪眼骷髅
+
+;技能书
+1/140 吸气
+1/140 精魂召唤术
+1/180 分身术
+1/2000 天霜冰环
+1/5500 毒雾
+
+;宝玉神珠
+1/40 中毒宝玉
+1/45 回避宝玉
+1/45 酷寒宝玉
+1/55 制魔宝玉
+1/1900 酷寒神珠
+1/2100 勇猛神珠
+
+;杂物
+1/2 古代皮革
+1/55 金条
+</pre></div><div class="samp"><div class="samp-h">幽灵船员</div><pre>;幽灵船员  等级100  生命9600  经验12000
+;刷怪地图：货船入口、货船仓库、帆船入口、帆船仓库（共8处刷点/260只）
+;档位：精英/BOSS档 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+1/10 Gold 10000
+
+;武器
+1/75 井中月
+1/100 凝霜
+1/75 双极刀
+1/90 血饮
+1/90 魔杖
+1/320 祖玛无极棍
+
+;盔甲
+1/60 残影魔衣(女)
+1/65 残影魔衣(男)
+1/70 灵魂战衣(女)
+1/70 灵魂战衣(男)
+1/55 重盔甲(女)
+1/70 重盔甲(男)
+1/50 魔法长袍(女)
+1/60 魔法长袍(男)
+
+;头盔
+1/8 道士头盔
+1/7 骷髅头盔
+1/15 金铜头盔
+1/25 钢铁头盔
+1/80 勇士头盔
+
+;项链
+1/8 灯笼项链
+1/20 竹笛
+1/65 天珠项链
+1/55 幽灵项链
+1/55 生命项链
+
+;手镯
+1/7 金手镯
+1/30 幽灵手套
+1/30 死神手套
+1/85 三眼手镯
+1/60 思贝尔手镯
+1/100 阎罗手套
+1/110 心灵手镯
+
+;戒指
+1/8 珊瑚戒指
+1/8 降妖除魔戒指
+1/25 道德戒指
+1/30 魅力戒指
+1/75 红宝石戒指
+1/60 铂金戒指
+
+;腰带
+1/30 钢铁腰带
+1/25 铁腰带
+1/40 青铜腰带
+1/180 黄金腰带
+1/240 金刚腰带
+
+;靴子
+1/30 避魂靴
+1/100 紫绸靴
+1/220 白虎避难靴
+1/280 赤鳞靴
+1/10500 天龙神形步
+
+;守护石
+1/1400 晴岚石(大)
+1/1900 木青石(大)
+1/2000 绿魔石(大)
+1/1600 赤燐石(大)
+
+;药水
+1/3 体力恢复药(大)
+1/3 体力恢复药(特)
+1/3 魔力恢复药(大)
+1/3 魔力恢复药(特)
+1/5 太阳水
+1/5 强效太阳水
+1/90 破坏药水
+1/160 体力药水
+
+;技能书
+1/60 捕缚术
+1/55 猛毒剑气
+1/120 无极真气
+1/150 灭天火
+
+;宝玉神珠
+1/100 中毒宝玉
+1/70 强化宝玉
+1/120 回避宝玉
+1/80 酷寒宝玉
+1/150 制魔宝玉
+1/110 守护宝玉
+
+;杂物
+1/20 祖玛头像
+1/20 金条
+</pre></div><div class="samp"><div class="samp-h">雪原斧兵</div><pre>;雪原斧兵  等级80  生命6400  经验8500
+;刷怪地图：雪人洞窟1层、雪人洞窟2层（共4处刷点/140只）
+;档位：精英/BOSS档 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+1/10 Gold 13000
+
+;武器
+1/80 井中月
+1/65 凝霜
+1/55 双极刀
+1/65 炼狱
+1/70 银蛇
+1/60 魔杖
+1/270 祖玛无极棍
+
+;盔甲
+1/55 残影魔衣(女)
+1/35 残影魔衣(男)
+1/35 灵魂战衣(男)
+1/40 重盔甲(女)
+1/35 重盔甲(男)
+1/50 魔法长袍(女)
+1/50 魔法长袍(男)
+
+;头盔
+1/5 道士头盔
+1/15 钢铁头盔
+1/140 勇士头盔
+
+;项链
+1/7 灯笼项链
+1/6 白色虎齿项链
+1/100 天珠项链
+1/100 幽灵项链
+1/110 放大镜
+1/120 竹笛
+1/120 蓝翡翠项链
+
+;手镯
+1/20 幽灵手套
+1/20 死神手套
+1/50 黑铁手镯
+1/80 三眼手镯
+1/55 思贝尔手镯
+1/55 阎罗手套
+1/260 心灵手镯
+
+;戒指
+1/15 珊瑚戒指
+1/25 道德戒指
+1/15 魅力戒指
+1/20 狂风戒指
+1/55 红宝石戒指
+1/50 铂金戒指
+1/45 龙之戒指
+
+;腰带
+1/25 铁腰带
+1/120 黄金腰带
+1/250 金刚腰带
+
+;靴子
+1/20 避魂靴
+1/60 紫绸靴
+1/190 白虎避难靴
+1/150 赤鳞靴
+
+;守护石
+1/630 晴岚石(大)
+1/620 绿魔石(大)
+1/760 赤燐石(大)
+1/1100 晴岚石(特)
+
+;药水
+1/3 体力恢复药(大)
+1/3 体力恢复药(特)
+1/3 太阳水
+1/4 魔力恢复药(大)
+1/3 魔力恢复药(特)
+1/55 体力药水
+1/65 疾风药水
+1/55 破坏药水
+1/70 道力药水
+1/55 魔力药水
+1/55 魔法药水
+
+;技能书
+1/50 捕缚术
+1/45 猛毒剑气
+1/90 无极真气
+1/85 灭天火
+
+;宝玉神珠
+1/50 中毒宝玉
+1/75 强化宝玉
+1/75 回避宝玉
+1/90 酷寒宝玉
+1/90 制魔宝玉
+1/100 守护宝玉
+
+;杂物
+1/10 祖玛头像
+</pre></div><div class="samp"><div class="samp-h">大食人花</div><pre>;大食人花  等级100  生命3200  经验4800
+;刷怪地图：片木岛（共2处刷点/60只）
+;档位：资源实体 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+
+;工艺材料
+1/2 食人花树叶
+1/4 食人花叶子
+1/3 食人花果实
+1/4 食人花茎
+</pre></div><div class="samp"><div class="samp-h">灌木</div><pre>;灌木  等级16  生命25  经验36
+;刷怪地图：飞天县（共27处刷点/54只）
+;档位：资源实体 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+
+;工艺材料
+1/10 木材
+1/20 木材
+1/30 蘑菇
+1/4 乌木果实
+1/60 坚固的绳子
+</pre></div><div class="samp"><div class="samp-h">被诅咒的银箱</div><pre>;被诅咒的银箱  等级100  生命50  经验200
+;刷怪地图：片木岛、货船居住仓、货船船艄、帆船居住仓、帆船船艄（共10处刷点/140只）
+;档位：宝箱/容器 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+
+;药水
+1/3 体力恢复药(特)
+1/3 魔力恢复药(特)
+1/5 强效太阳水
+
+;技能书
+1/300 护身气幕
+1/400 天霜冰环
+
+;宝玉神珠
+1/40 强化宝玉
+1/50 仙界宝玉
+1/50 魔性宝玉
+
+;杂物
+1/200 红色宝箱
+1/300 未知宝箱
+</pre></div><div class="samp"><div class="samp-h">半兽人</div><pre>;半兽人  等级15  生命30  经验30
+;刷怪地图：飞天县、沃玛森林、毒蛇山谷、道馆、夔龙城（共50处刷点/1460只）
+;档位：普通怪档 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+1/10 Gold 300
+
+;武器
+1/20 暴虎刀
+1/20 青铜剑
+1/25 铁剑
+1/30 木剑
+1/25 短剑
+1/40 钢铁斧
+1/35 青铜斧
+1/35 八荒
+
+;盔甲
+1/55 轻型盔甲(女)
+1/50 轻型盔甲(男)
+1/120 布衣(女)
+1/150 布衣(男)
+
+;头盔
+1/30 青铜头盔
+1/50 魔法头盔
+
+;项链
+1/25 黄色水晶项链
+1/20 黑檀项链
+1/20 黑色水晶项链
+1/50 凤凰明珠
+1/35 魔鬼项链
+1/50 灯笼项链
+1/130 金项链
+
+;手镯
+1/25 小手镯
+1/35 大手镯
+1/40 钢手镯
+1/40 银手镯
+1/110 魔法手镯
+1/140 坚固手套
+
+;戒指
+1/15 古铜戒指
+1/20 六角戒指
+1/25 牛角戒指
+1/20 玻璃戒指
+1/55 蓝色水晶戒指
+1/80 蛇眼戒指
+
+;守护石
+1/240 木青石(小)
+1/220 赤燐石(小)
+1/360 木青石(中)
+1/370 赤燐石(中)
+
+;药水
+1/160 体力恢复药
+1/130 魔力恢复药
+1/120 魔力恢复药(中)
+1/280 太阳水
+</pre></div><div class="samp"><div class="samp-h">魔风石怪</div><pre>;魔风石怪  等级999  生命9600  经验12000
+;刷怪地图：沙遗迹遗址、沙遗迹村庄（共4处刷点/4只）
+;档位：精英/BOSS档 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+1/10 Gold 19500
+
+;武器
+1/20 双极刀
+1/25 炼狱
+1/25 魔杖
+1/35 凝霜
+1/45 井中月
+1/95 祖玛无极棍
+
+;盔甲
+1/30 残影魔衣(女)
+1/25 灵魂战衣(男)
+1/20 重盔甲(女)
+1/25 魔法长袍(女)
+
+;头盔
+1/6 道士头盔
+1/8 金铜头盔
+1/8 骷髅头盔
+1/8 钢铁头盔
+1/35 黑铁头盔
+
+;项链
+1/4 灯笼项链
+1/3 白色虎齿项链
+1/4 蓝翡翠项链
+1/10 竹笛
+1/45 狂风项链
+1/35 祈祷项链
+1/50 天珠项链
+
+;手镯
+1/3 金手镯
+1/10 幽灵手套
+1/20 黑铁手镯
+1/20 三眼手镯
+1/35 思贝尔手镯
+1/45 阎罗手套
+1/220 八极轮
+
+;戒指
+1/15 珊瑚戒指
+1/9 道德戒指
+1/15 降妖除魔戒指
+1/10 魅力戒指
+1/10 狂风戒指
+1/30 红宝石戒指
+1/30 铂金戒指
+
+;腰带
+1/7 铁腰带
+1/10 钢铁腰带
+1/20 青铜腰带
+1/80 黄金腰带
+1/120 金刚腰带
+
+;靴子
+1/45 紫绸靴
+1/90 白虎避难靴
+1/120 赤鳞靴
+1/120 避魂靴
+1/4300 天龙神形步
+
+;药水
+1/3 体力恢复药(大)
+1/3 强效太阳水
+1/3 魔力恢复药(大)
+1/3 体力恢复药(特)
+1/3 太阳水
+1/3 魔力恢复药(特)
+1/30 体力药水
+1/35 疾风药水
+1/30 破坏药水
+1/35 魔力药水
+1/35 魔法药水
+
+;技能书
+1/25 捕缚术
+1/30 猛毒剑气
+1/50 无极真气
+1/45 灭天火
+
+;宝玉神珠
+1/45 中毒宝玉
+1/40 回避宝玉
+1/45 酷寒宝玉
+1/60 制魔宝玉
+1/40 守护宝玉
+
+;杂物
+1/6 祖玛头像
+1/9 金条
+1/75 金砖
+1/670 金盒
+</pre></div><div class="samp"><div class="samp-h">异秘蛋</div><pre>;异秘蛋  等级50  生命10  经验20
+;刷怪地图：异秘洞4层（共2处刷点/16只）
+;档位：宝箱/容器 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+
+;工艺材料
+1/10 虫壳
+1/20 蛛牙
+
+;灵物
+1/20 娱美蛋
+1/60 龙蛋
+1/120 火娃
+</pre></div><div class="samp"><div class="samp-h">毒妖花1</div><pre>;毒妖花1  等级255  生命9600  经验12000
+;刷怪地图：毒妖林（共2处刷点/40只）
+;档位：资源实体 ｜ 依据 Server.MirDB 怪物属性与现有同级爆率体系生成
+
+;金币
+
+;工艺材料
+1/6 食人花叶子
+1/20 蘑菇
+1/25 蜘蛛网
+</pre></div>
+
+<h2>七、部署与回滚</h2>
+<div class="note">
+<ul>
+<li>全部 242 个文件已写入 <code>Envir\Drops\&lt;怪物名&gt;.txt</code>（UTF-8 无 BOM + CRLF，与目录内 1439 个既有文件一致）。</li>
+<li>原文件已备份至服务端目录：<code>Back Up\auto-20261003-151854-爆率补齐前\</code>，直接覆盖回去即可完全回滚。</li>
+<li><b>爆率文件是服务端启动时加载的</b>，服务端当前正在运行（进程已加载旧表），
+需要重启服务端（或用 GM 重载掉落指令）后新爆率才会生效。</li>
+</ul>
+</div>
+
+</div></body></html>

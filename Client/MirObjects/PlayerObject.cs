@@ -133,6 +133,15 @@ namespace Client.MirObjects
         private const int ShadowComboDrawAlpha = 190;
 
         /// <summary>
+        /// 月华乱舞-秘籍：顶点色调制的 alpha（0-255），越小整段越暗、越透。★「亮度」的唯一调节入口。
+        /// 素材（Magic_32bit 761-920）平均 alpha 已达 ~50%、RGB 均值 ~160，本身就很亮；
+        /// 四个方向的特效还会互相叠加，原先用默认 Color.White（alpha=255）+ 加色混合（Blend=true）
+        /// 会直接过曝成白团、看不出剑气的形状。这里压到 ~50% 让素材轮廓重新可见。
+        /// 觉得还是偏亮/偏暗，只改这一个数即可。
+        /// </summary>
+        private const int CrescentRareDrawAlpha = 128;
+
+        /// <summary>
         /// 拔刀术-秘籍：原地连砍的刀数（第一刀是本次施法动作，其余排队补足）。
         /// 与服务端 HumanObject.FlashDashRareHits 保持一致。
         /// </summary>
@@ -2002,7 +2011,13 @@ namespace Client.MirObjects
                                     for (int k = 0; k < 4; k++)
                                     {
                                         MirDirection slashDir = (MirDirection)(((int)Direction + k - 1 + 8) % 8);
-                                        Effects.Add(new Effect(Libraries.Magic_32bit, 761 + (int)slashDir * 20, 18, 900, this) { Blend = true });
+                                        //★素材本身就很亮（平均 alpha ~50%、RGB ~160），4 个方向叠加后必然过曝成白团；
+                                        //  用顶点色 alpha 整体压暗，让剑气形状重新可见（改 CrescentRareDrawAlpha 调亮度）。
+                                        Effects.Add(new Effect(Libraries.Magic_32bit, 761 + (int)slashDir * 20, 18, 900, this)
+                                        {
+                                            Blend = true,
+                                            DrawColour = Color.FromArgb(CrescentRareDrawAlpha, 255, 255, 255)
+                                        });
                                     }
 
                                     SoundManager.PlaySound(20000 + (ushort)Spell.CrescentSlash * 10 + (Gender == MirGender.男性 ? 0 : 1));
@@ -2018,7 +2033,7 @@ namespace Client.MirObjects
                                     Light = 2,
                                     LightColour = Color.FromArgb(255, 255, 150, 60)
                                 });
-                                //需求：释放音效改成灵魂火符的（与 Spell.SoulFireBall 发射音效完全一致）
+                                //需求：施法音效与「灵魂火符」完全一致（对齐下方 SoulFireBall 施法分支的 20000 + Spell*10 + 1）
                                 SoundManager.PlaySound(20000 + (ushort)Spell.SoulFireBall * 10 + 1);
                                 break;
                             case Spell.GreatTalismanRare:    //万效符-秘籍（Magic_32bit 1730-1769，有效帧 1731-1756，释放音效同灵魂火符）
@@ -2029,7 +2044,7 @@ namespace Client.MirObjects
                                     Light = 3,
                                     LightColour = Color.FromArgb(255, 255, 160, 70)
                                 });
-                                //需求：释放音效改成灵魂火符的（与 Spell.SoulFireBall 发射音效完全一致）
+                                //需求：施法音效与「灵魂火符」完全一致（对齐下方 SoulFireBall 施法分支的 20000 + Spell*10 + 1）
                                 SoundManager.PlaySound(20000 + (ushort)Spell.SoulFireBall * 10 + 1);
                                 break;
                             case Spell.SoulFireBallPlus:     //灵魂火符(万效)（音效 M113-0）

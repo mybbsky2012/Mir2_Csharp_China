@@ -13,6 +13,15 @@ namespace Server
             VersionCheckBox.Checked = Settings.CheckVersion;
             RelogDelayTextBox.Text = Settings.RelogDelay.ToString();
 
+            // 版本功能设置
+            MultiThreadCheckBox.Checked = Settings.Multithreaded;
+            TestServerCheckBox.Checked = Settings.TestServer;
+            GoldDirectCheckBox.Checked = !Settings.DropGold;    //勾选=金币直接入包（DropGold=false 时怪物金币不落地）
+            ExpRateTextBox.Text = Settings.ExpRate.ToString();
+            DropRateTextBox.Text = Settings.DropRate.ToString();
+            HighLevelRateTextBox.Text = Settings.HighLevelExpRate.ToString();
+            DeathExpTextBox.Text = Settings.DeathExpLossRate.ToString();
+
             IPAddressTextBox.Text = Settings.IPAddress;
             PortTextBox.Text = Settings.Port.ToString();
             TimeOutTextBox.Text = Settings.TimeOut.ToString();
@@ -73,6 +82,23 @@ namespace Server
         {
             Settings.VersionPath = VPathTextBox.Text;
             Settings.CheckVersion = VersionCheckBox.Checked;
+
+            // 版本功能设置（非法输入保留原值）
+            Settings.Multithreaded = MultiThreadCheckBox.Checked;
+            Settings.TestServer = TestServerCheckBox.Checked;
+            Settings.DropGold = !GoldDirectCheckBox.Checked;    //勾选=直接入包 → DropGold=false
+
+            float tempFloat;
+            if (float.TryParse(ExpRateTextBox.Text, out tempFloat) && tempFloat >= 0)
+                Settings.ExpRate = tempFloat;
+            if (float.TryParse(DropRateTextBox.Text, out tempFloat) && tempFloat >= 0)
+                Settings.DropRate = tempFloat;
+            if (float.TryParse(HighLevelRateTextBox.Text, out tempFloat) && tempFloat >= 0)
+                Settings.HighLevelExpRate = tempFloat;
+
+            int tempInt2;
+            if (int.TryParse(DeathExpTextBox.Text, out tempInt2))
+                Settings.DeathExpLossRate = Math.Max(0, Math.Min(100, tempInt2));
 
             IPAddress tempIP;
             if (IPAddress.TryParse(IPAddressTextBox.Text, out tempIP))

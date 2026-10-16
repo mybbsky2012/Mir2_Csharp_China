@@ -110,70 +110,13 @@ Stat.HP=100+50
 
 ---
 
-## 四、游戏里怎么把 BUFF 发给玩家（三种方式）
-
-### 方式 1：GM 命令（自己测试最快）
+## 四、GM 命令
 
 | 命令 | 说明 |
 |---|---|
-| `@GIVEBUFF <名字\|槽位> [秒数] [玩家名]` | 加 BUFF。例：`@GIVEBUFF 羽化登仙 300`、`@GIVEBUFF 1 600 某某玩家` |
-| `@RELOADBUFF` | 改完 ini 后重新读取配置（不用重启） |
+| `@RELOADBUFF` | 重新读取 `Configs\BuffSystem.ini` |
+| `@GIVEBUFF <名字\|槽位> [秒数] [玩家名]` | 加 BUFF。例：`@GIVEBUFF 羽化登仙 300` |
 | `@CUSTOMBUFF` | 列出已配置的自定义 BUFF |
-
-名字可以写：**显示名**（羽化登仙）、**槽位号**（1）、或**枚举名**（Custom1）。
-
-### 方式 2：NPC 脚本（正式玩法用这个）
-
-脚本系统本来就有 BUFF 动作，直接可用：
-
-```
-[@MAIN]
-#IF
-CHECKBUFF 羽化登仙
-#SAY
-你身上已经有这个增益了。
-#ELSESAY
-要领取「羽化登仙」吗？\\
-<领取/@GET>
-[~]
-[@GET]
-#ACT
-GIVEBUFF 羽化登仙 1800 TRUE FALSE FALSE
-SYSMSG "已获得羽化登仙"
-```
-
-动作/检查格式：
-
-| 脚本命令 | 格式 |
-|---|---|
-| 加 BUFF | `GIVEBUFF <名字> <持续秒数> <是否永久> <是否可见> <是否可叠加>` |
-| 检查 | `CHECKBUFF <名字>` |
-| 移除 | `REMOVEBUFF <枚举名>` |
-
-- 参数示例：`GIVEBUFF 龙之特效 3600 TRUE FALSE FALSE`（3600 秒、非永久、不可见、不可叠加）
-- ★ 名字写 **显示名 / 槽位号 / 枚举名** 都行（这次专门做了兼容）。
-- ★ **属性写在 `BuffSystem.ini` 里，不要写进脚本**。脚本如果要额外带属性（`... MaxDC=12` 这种），
-  原版实现要求该 BUFF 在 `Envir\SetBuffs.txt` 里有登记行，否则会被静默丢弃 —— 这是个老坑，
-  用新系统就不必碰它了。
-- 改完脚本在游戏里打一次 `@RELOADNPCS` 即可，不用重启。
-
-### 方式 3：脚本里按条件自动发
-
-比如进地图、升级、每日触发时给：
-
-```
-[@_MAPENTER(InDun_01BossRoom)]
-#IF
-CHECKBUFF 羽化登仙
-#ACT
-BREAK
-#ELSESAY
-...
-#ACT
-GIVEBUFF 羽化登仙 3600 TRUE FALSE FALSE
-```
-
-（`[@_LOGIN] [@_LEVELUP] [@_MAPENTER(图)] [@_DAILY]` 等都是现成的触发钩子。）
 
 ---
 

@@ -8,6 +8,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using LibraryEditor.Formats;
 using Shared.Extensions;
 
 namespace LibraryEditor
@@ -15,7 +16,10 @@ namespace LibraryEditor
     public partial class LMain : Form
     {
         private readonly Dictionary<int, int> _indexList = new Dictionary<int, int>();
-        private MLibraryV2 _library, _referenceLibrary, _shadowLibrary;
+        private ILibrary _library, _referenceLibrary, _shadowLibrary;
+        private bool _opening;
+        /// <summary>程序化同步 X/Y 输入框时抑制回写，避免把界面值当成用户编辑写进帧数据。</summary>
+        private bool _syncingOffsetBoxes;
         private MLibraryV2.MImage _selectedImage, _exportImage;
         private Image _originalImage;
         public Bitmap _referenceImage;
@@ -55,9 +59,12 @@ namespace LibraryEditor
         {
             string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
 
-            if (Path.GetExtension(files[0]).ToUpper() == ".WIL" ||
-                Path.GetExtension(files[0]).ToUpper() == ".WZL" ||
-                Path.GetExtension(files[0]).ToUpper() == ".MIZ")
+            string dropExt = Path.GetExtension(files[0]).ToUpperInvariant();
+            // Mir3 的 .MIZ/.MIX 不能被当成 Mir2 盛大格式转换，必须按魔数嗅探后直接打开
+            bool mir3Drop = (dropExt == ".MIZ" || dropExt == ".MIX")
+                            && File.Exists(files[0]) && IsMir3File(files[0]);
+
+            if (!mir3Drop && (dropExt == ".WIL" || dropExt == ".WZL" || dropExt == ".MIZ"))
             {
                 toolStripProgressBar.Maximum = files.Length;
                 toolStripProgressBar.Value = 0;
@@ -103,20 +110,17 @@ namespace LibraryEditor
                             (files.Length > 1) ? "libraries" : "library"));
                 }).BeginInvoke(null, null);
             }
-            else if (Path.GetExtension(files[0]).ToUpper() == ".LIB")
+            else if (dropExt == ".LIB" ||
+                     dropExt == ".ELITE" ||
+                     dropExt == ".ALIB" ||
+                     dropExt == ".WIL" ||
+                     dropExt == ".WZL" ||
+                     dropExt == ".MIZ" ||
+                     dropExt == ".MIX" ||
+                     dropExt == ".WTL")
             {
-                ClearInterface();
-                ImageList.Images.Clear();
-                PreviewListView.Items.Clear();
-                _indexList.Clear();
-
-                if (_library != null) _library.Close();
-                _library = new MLibraryV2(files[0]);
-                PreviewListView.VirtualListSize = _library.Images.Count;
-                PreviewListView.RedrawItems(0, PreviewListView.Items.Count - 1, true);
-
-                // Show .Lib path in application title.
-                this.Text = files[0].ToString();
+                // 统一走后台载入，避免大文件把界面卡住
+                OpenLibrary(files[0]);
             }
             else
             {
@@ -137,8 +141,7 @@ namespace LibraryEditor
 
             WidthLabel.Text = "<空>";
             HeightLabel.Text = "<空>";
-            numericUpDownX.Value = 0;
-            numericUpDownY.Value = 0;
+            SyncOffsetBoxes(0, 0);
         }
 
         public static Bitmap AddPaddingToBitmap(Bitmap originalBitmap, int padding)
@@ -161,6 +164,44 @@ namespace LibraryEditor
             return paddedBitmap;
         }
 
+        /// <summary>
+        /// 把帧的 X/Y 同步到界面输入框。帧偏移是 short，理论上始终落在输入框范围内；
+        /// 这里仍做一次夹取，并抑制回写事件——否则界面值会被当作用户编辑写回帧数据，
+        /// 且会递归触发 SelectedIndexChanged（旧崩溃点：X=9703 超出 Maximum 抛 ArgumentOutOfRangeException）。
+        /// </summary>
+        private void SyncOffsetBoxes(int x, int y)
+        {
+            if (_syncingOffsetBoxes) return;
+
+            _syncingOffsetBoxes = true;
+            try
+            {
+                decimal vx = ClampToBox(numericUpDownX, x);
+                decimal vy = ClampToBox(numericUpDownY, y);
+
+                if (numericUpDownX.Value != vx) numericUpDownX.Value = vx;
+                if (numericUpDownY.Value != vy) numericUpDownY.Value = vy;
+            }
+            finally
+            {
+                _syncingOffsetBoxes = false;
+            }
+        }
+
+        private static decimal ClampToBox(NumericUpDown box, decimal value)
+        {
+            if (value < box.Minimum) return box.Minimum;
+            if (value > box.Maximum) return box.Maximum;
+            return value;
+        }
+
+        /// <summary>供“跳转到指定帧”等入口安全赋值，避免帧数超过输入框上限时抛异常。</summary>
+        private static void SafeSetValue(NumericUpDown box, decimal value)
+        {
+            decimal v = ClampToBox(box, value);
+            if (box.Value != v) box.Value = v;
+        }
+
         private void PreviewListView_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (PreviewListView.SelectedIndices.Count == 0)
@@ -180,8 +221,7 @@ namespace LibraryEditor
             WidthLabel.Text = _selectedImage.Width.ToString();
             HeightLabel.Text = _selectedImage.Height.ToString();
 
-            numericUpDownX.Value = _selectedImage.X;
-            numericUpDownY.Value = _selectedImage.Y;
+            SyncOffsetBoxes(_selectedImage.X, _selectedImage.Y);
 
             Bitmap referenceImage = null;
             MLibraryV2.MImage referenceMImage = null;
@@ -277,7 +317,7 @@ namespace LibraryEditor
                 (PreviewListView.Items.Count - 1).ToString());
             }
 
-            nudJump.Value = PreviewListView.SelectedIndices[0];
+            SafeSetValue(nudJump, PreviewListView.SelectedIndices[0]);
         }
 
         private void PreviewListView_RetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
@@ -352,7 +392,7 @@ namespace LibraryEditor
             if (SaveLibraryDialog.ShowDialog() != DialogResult.OK) return;
 
             if (_library != null) _library.Close();
-            _library = new MLibraryV2(SaveLibraryDialog.FileName);
+            _library = CreateLibrary(SaveLibraryDialog.FileName);
             PreviewListView.VirtualListSize = 0;
             _library.Save();
 
@@ -365,35 +405,435 @@ namespace LibraryEditor
 
             _referenceLibrary = null;
             _referenceImage = null;
-            OpenLibrary(OpenLibraryDialog.FileName);
+
+            // 对话框里选了「WeMade/Shanda 格式（打开时自动转换为 Lib）」这一项 → 走转换；
+            // 选其它项（资源库 / WTL 库 / WeMade 库 …）→ 按原格式就地编辑，不产出 .Lib。
+            bool forceConvert = (OpenLibraryDialog.FilterIndex == ConvertFolderFilterIndex);
+            OpenLibrary(OpenLibraryDialog.FileName, false, forceConvert);
+        }
+
+        /// <summary>「打开」对话框中「打开时自动转换为 Lib」那一项在过滤列表里的序号（从 1 开始）。</summary>
+        private const int ConvertFolderFilterIndex = 8;
+
+        /// <summary>
+        /// 「直接打开」：不生成 .Lib，按原格式在原文件里就地查看/编辑，保存（含另存）写回源文件
+        /// 及其配套的索引/数据文件（.WIL+.wix、.WZL+.wzx、.MIZ+.mix、.WTL）。
+        /// </summary>
+        private void openDirectToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (OpenDirectDialog.ShowDialog() != DialogResult.OK) return;
+
+            _referenceLibrary = null;
+            _referenceImage = null;
+            OpenLibrary(OpenDirectDialog.FileName, true);
+        }
+
+        /// <summary>
+        /// 资源库工厂：按扩展名 / 魔数选择具体实现。
+        ///   .Elite → EliteLibrary（Elite Origins 客户端）
+        ///   .ALib  → ALibLibrary （domino 客户端）
+        ///   其它   → MLibraryV2 （Mir2 Library V2/V3，即 .Lib）
+        /// 文件不存在时（“新建空库”）同样按扩展名选择；完全无法识别则回退 MLibraryV2。
+        /// </summary>
+        public static ILibrary CreateLibrary(string filename)
+        {
+            if (string.IsNullOrEmpty(filename)) return null;
+
+            string ext = Path.GetExtension(filename);
+            if (ext != null && ext.Equals(".Elite", StringComparison.OrdinalIgnoreCase))
+                return new EliteLibrary(filename);
+            if (ext != null && ext.Equals(".ALib", StringComparison.OrdinalIgnoreCase))
+                return new ALibLibrary(filename);
+
+            // Mir3（传奇3）用 .MIX/.MIZ，扩展名与 Mir2 盛大 .MIZ 冲突 —— 必须按魔数嗅探
+            if (IsMir3IndexedName(ext) && File.Exists(filename) && IsMir3File(filename))
+                return new Mir3Library(filename);
+
+            // 扩展名不可信时按魔数嗅探：偏移 4 处的 "FEIH"（Elite 独有；ALib 无魔数只能靠扩展名）
+            if (File.Exists(filename))
+            {
+                try
+                {
+                    byte[] head = new byte[8];
+                    using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+                    {
+                        if (fs.Read(head, 0, 8) == 8 &&
+                            head[4] == 0x46 && head[5] == 0x45 && head[6] == 0x49 && head[7] == 0x48)
+                        {
+                            return new EliteLibrary(filename);
+                        }
+                    }
+                }
+                catch
+                {
+                    // 嗅探失败（权限/占用等），回退到默认实现
+                }
+            }
+
+            // WeMade / WTL 原格式直连（不转换）：只在对应扩展名下尝试，避免把其它格式误判进来
+            if (File.Exists(filename))
+            {
+                string directExt = Path.GetExtension(filename).ToUpperInvariant();
+
+                if (directExt == ".WIL" || directExt == ".WZL" || directExt == ".MIZ")
+                {
+                    if (WeMadeDirectLibrary.CanOpen(filename)) return new WeMadeDirectLibrary(filename);
+                }
+                else if (directExt == ".WTL")
+                {
+                    if (WtlDirectLibrary.CanOpen(filename)) return new WtlDirectLibrary(filename);
+                }
+            }
+
+            // 回退 Mir2 Library V2/V3（.Lib）
+            try
+            {
+                return new MLibraryV2(filename);
+            }
+            catch (Exception ex)
+            {
+                string headHex = "?";
+                try
+                {
+                    byte[] h = new byte[8];
+                    using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+                    {
+                        int n = fs.Read(h, 0, 8);
+                        headHex = BitConverter.ToString(h, 0, n).Replace("-", " ");
+                    }
+                }
+                catch
+                {
+                    // 文件不可读时头信息留空
+                }
+
+                throw new InvalidDataException(
+                    "无法识别的资源库格式：" + filename + Environment.NewLine +
+                    "文件头 8 字节：" + headHex + Environment.NewLine + Environment.NewLine +
+                    "本编辑器支持：.Lib（Mir2 Library V2/V3）、.Elite、.ALib、Mir3 .MIX/.MIZ。" + Environment.NewLine +
+                    "WeMade / Shanda 的 .WIL / .WZL / .MIZ / .WTL 默认按原格式就地查看/编辑（保存写回原文件）；" + Environment.NewLine +
+                    "需要 .Lib 副本时，在「打开」对话框里选「WeMade/Shanda 格式（打开时自动转换为 Lib）」，或用「功能 → 转换为LIB」。",
+                    ex);
+            }
         }
 
         private void OpenLibrary(string filename)
         {
-            ClearInterface();
-            ImageList.Images.Clear();
-            PreviewListView.Items.Clear();
-            _indexList.Clear();
+            OpenLibrary(filename, false, false);
+        }
 
-            if (_library != null) _library.Close();
-            _library = new MLibraryV2(filename);
-            PreviewListView.VirtualListSize = _library.Images.Count;
+        /// <summary>
+        /// forceDirect = true 时不转换、不生成 .Lib，直接按原容器格式打开（保存写回原文件）。
+        /// </summary>
+        private void OpenLibrary(string filename, bool forceDirect)
+        {
+            OpenLibrary(filename, forceDirect, false);
+        }
 
-            // Show .Lib path in application title.
-            this.Text = filename;
+        /// <summary>
+        /// forceConvert = true 时对 .WIL/.WZL/.MIZ/.WTL 强制走「转换为 Lib」的老路径
+        /// （对应「打开」对话框里显式选择的那一项）。
+        /// </summary>
+        private void OpenLibrary(string filename, bool forceDirect, bool forceConvert)
+        {
+            if (_opening) return;
+            _opening = true;
 
-            PreviewListView.SelectedIndices.Clear();
+            try
+            {
+                OpenLibraryAsync(filename, forceDirect, forceConvert);
+            }
+            catch (Exception ex)
+            {
+                _opening = false;
+                ShowOpenError(filename, ex);
+            }
+        }
 
-            if (PreviewListView.Items.Count > 0)
-                PreviewListView.Items[0].Selected = true;
+        /// <summary>
+        /// 载入/转换全部放到后台线程，避免大文件（几十 MB 的 WIL/Elite/ALib）在解码时把界面卡成"无响应"。
+        /// 转换、解析、位图解码都在 Task.Run 里完成，只有刷新控件回到 UI 线程。
+        /// </summary>
+        private async void OpenLibraryAsync(string filename, bool forceDirect, bool forceConvert)
+        {
+            try
+            {
+                string ext = Path.GetExtension(filename);
+                ext = ext == null ? string.Empty : ext.ToUpperInvariant();
 
-            UpdateFrameGridView();
+                // Mir3 的 .MIZ 与 Mir2 盛大 .MIZ 扩展名相同：先按魔数排除 Mir3，再判断是否需走转换
+                bool isMir3 = (ext == ".MIZ" || ext == ".MIX")
+                              && File.Exists(filename) && IsMir3File(filename);
+
+                bool isWemade = !forceDirect && !isMir3 &&
+                                (ext == ".WIL" || ext == ".WZL" || ext == ".MIZ" || ext == ".WTL");
+
+                // 直接打开：不转换，只做存在性检查
+                if (forceDirect && !File.Exists(filename))
+                {
+                    MessageBox.Show("文件不存在：" + filename, "直接打开失败",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                if (isWemade)
+                {
+                    if (!File.Exists(filename))
+                    {
+                        MessageBox.Show("文件不存在：" + filename, "打开失败",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    if (ext != ".WTL" && !HasWemadeIndex(filename, ext))
+                    {
+                        MessageBox.Show(
+                            "缺少配套索引文件 " + Path.GetFileName(Path.ChangeExtension(filename, null) + WemadeIndexExt(ext)) +
+                            "，无法转换。" + Environment.NewLine +
+                            "WeMade 格式的 .WIL/.WZL/.MIZ 必须与同名索引文件放在一起。",
+                            "打开失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+                }
+
+                ShowBusy(true);
+
+                KeyValuePair<string, ILibrary> loaded;
+                try
+                {
+                    loaded = await Task.Run(() =>
+                    {
+                        string target = filename;
+
+                        if (forceDirect)
+                        {
+                            // 不转换：直接按原容器格式打开，保存时写回源文件
+                            ILibrary direct = CreateLibrary(filename);
+                            if (!IsOriginalFormatLibrary(direct))
+                            {
+                                if (direct != null) direct.Close();
+                                throw new InvalidDataException(
+                                    "「" + Path.GetFileName(filename) + "」不支持直接打开（不转换）。" + Environment.NewLine +
+                                    "可直接打开的原格式：WeMade .WIL / .WZL / .MIZ（需配套 .wix / .wzx / .mix），以及 .WTL。" + Environment.NewLine +
+                                    "其它格式请用「文件 → 打开」并转换为 .Lib。");
+                            }
+                            return new KeyValuePair<string, ILibrary>(target, direct);
+                        }
+
+                        if (isWemade)
+                        {
+                            if (!forceConvert)
+                            {
+                                // 默认：WIL/WZL/MIZ/WTL 都按原格式就地打开编辑，不产出 .Lib。
+                                // 只有直连不支持（缺索引、子类型不支持、内容损坏）时才退回「转换为 Lib」。
+                                ILibrary direct = null;
+                                try { direct = CreateLibrary(filename); }
+                                catch { direct = null; }
+
+                                if (direct != null && IsOriginalFormatLibrary(direct))
+                                    return new KeyValuePair<string, ILibrary>(filename, direct);
+
+                                if (direct != null) direct.Close();
+                            }
+
+                            ConvertWemadeToLib(filename, ext, ReportConvertProgress);
+
+                            target = Path.ChangeExtension(filename, ".Lib");
+                            if (!File.Exists(target))
+                                throw new InvalidDataException("转换已执行，但未生成 " + target + "。");
+                        }
+
+                        return new KeyValuePair<string, ILibrary>(target, CreateLibrary(target));
+                    });
+                }
+                catch (Exception ex)
+                {
+                    ShowOpenError(filename, ex);
+                    return;
+                }
+                finally
+                {
+                    ShowBusy(false);
+                }
+
+                ClearInterface();
+                ImageList.Images.Clear();
+                PreviewListView.Items.Clear();
+                _indexList.Clear();
+
+                if (_library != null) _library.Close();
+                _library = loaded.Value;
+
+                PreviewListView.VirtualListSize = _library.Images.Count;
+
+                if (PreviewListView.Items.Count > 0)
+                    PreviewListView.RedrawItems(0, PreviewListView.Items.Count - 1, true);
+
+                // Show .Lib path in application title.
+                this.Text = loaded.Key;
+
+                PreviewListView.SelectedIndices.Clear();
+
+                if (PreviewListView.Items.Count > 0)
+                    PreviewListView.Items[0].Selected = true;
+
+                UpdateFrameGridView();
+            }
+            finally
+            {
+                _opening = false;
+            }
+        }
+
+        /// <summary>
+        /// 把当前选中帧显示到 ImageBox。
+        /// 走 GetMImage 以便按需解码位图（直接读 Images[i].Image 会拿到未解码的 null）。
+        /// </summary>
+        private void ShowSelectedImageInBox()
+        {
+            if (_library == null || PreviewListView.SelectedIndices.Count == 0) return;
+
+            MLibraryV2.MImage mi = _library.GetMImage(PreviewListView.SelectedIndices[0]);
+            if (mi == null) return;
+
+            ImageBox.Image = (ViewMode == "Image") ? mi.Image : mi.MaskImage;
+        }
+
+        private void ShowBusy(bool busy)
+        {
+            UseWaitCursor = busy;
+            toolStripProgressBar.Style = busy ? ProgressBarStyle.Marquee : ProgressBarStyle.Blocks;
+            toolStripProgressBar.Value = 0;
+        }
+
+        /// <summary>后台转换的进度回调（从工作线程调用，内部切回 UI 线程）。</summary>
+        private void ReportConvertProgress(int done, int total)
+        {
+            if (IsDisposed || !IsHandleCreated) return;
+
+            try
+            {
+                BeginInvoke(new Action(() =>
+                {
+                    if (toolStripProgressBar.Style != ProgressBarStyle.Continuous)
+                        toolStripProgressBar.Style = ProgressBarStyle.Continuous;
+
+                    if (toolStripProgressBar.Maximum != total)
+                        toolStripProgressBar.Maximum = Math.Max(total, 1);
+
+                    toolStripProgressBar.Value = Math.Max(0, Math.Min(done, toolStripProgressBar.Maximum));
+                }));
+            }
+            catch
+            {
+                // 窗口已关闭等情况直接忽略
+            }
+        }
+
+        /// <summary>扩展名是否属于 Mir3 可能的索引/数据名（.MIX / .MIZ）。</summary>
+        private static bool IsMir3IndexedName(string ext)
+        {
+            return ext != null &&
+                   (ext.Equals(".MIX", StringComparison.OrdinalIgnoreCase) ||
+                    ext.Equals(".MIZ", StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>按魔数判断文件是否为 Mir3 资源库（前 16 字节或前 5 字节签名）。</summary>
+        private static bool IsMir3File(string filename)
+        {
+            try
+            {
+                using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    byte[] head = new byte[16];
+                    int n = fs.Read(head, 0, head.Length);
+                    if (n < 5) return false;
+                    byte[] h = new byte[n];
+                    Array.Copy(head, h, n);
+                    return Mir3Container.IsMir3(h);
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 是否为「按原容器格式就地保存」的库：保存/另存会写回源文件（或同名配套文件），不产出 .Lib。
+        /// </summary>
+        private static bool IsOriginalFormatLibrary(ILibrary library)
+        {
+            return library != null &&
+                   (library is Mir3Library || library is WeMadeDirectLibrary || library is WtlDirectLibrary);
+        }
+
+        /// <summary>
+        /// 原格式库另存时必须沿用的扩展名；返回 null 表示是普通 Lib 系列（可自由改扩展名）。
+        /// </summary>
+        private static string OriginalFormatSaveExt(ILibrary library)
+        {
+            if (library is Mir3Library) return ".MIZ";
+            if (library is WtlDirectLibrary) return ".WTL";
+            if (library is WeMadeDirectLibrary)
+            {
+                string e = Path.GetExtension(library.FileName ?? string.Empty);
+                return string.IsNullOrEmpty(e) ? ".WIL" : e.ToUpperInvariant();
+            }
+            return null;
+        }
+
+        /// <summary>WeMade/Shanda 系列的配套索引扩展名。</summary>
+        private static string WemadeIndexExt(string upperExt)        {
+            if (upperExt == ".WIL") return ".wix";
+            if (upperExt == ".WZL") return ".wzx";
+            if (upperExt == ".MIZ") return ".mix";
+            return string.Empty;
+        }
+
+        private static bool HasWemadeIndex(string filename, string upperExt)
+        {
+            string stem = Path.ChangeExtension(filename, null);
+            string idx = WemadeIndexExt(upperExt);
+            return File.Exists(stem + idx) || File.Exists(stem + idx.ToUpperInvariant());
+        }
+
+        /// <summary>把 .WIL/.WZL/.MIZ/.WTL 转换成同名 .Lib（耗时操作，只在后台线程调用）。</summary>
+        private static void ConvertWemadeToLib(string filename, string upperExt, Action<int, int> onProgress)
+        {
+            if (upperExt == ".WTL")
+            {
+                WTLLibrary wtl = new WTLLibrary(filename);
+                wtl.ToMLibrary(onProgress);
+            }
+            else
+            {
+                WeMadeLibrary wil = new WeMadeLibrary(filename);
+                wil.ToMLibrary(onProgress);
+            }
+        }
+
+        private static void ShowOpenError(string filename, Exception ex)
+        {
+            MessageBox.Show(
+                "无法打开：" + filename + Environment.NewLine + Environment.NewLine +
+                ex.GetType().Name + ": " + ex.Message,
+                "打开失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         private void OpenReferenceLibrary(string filename)
         {
             if (_referenceLibrary != null) _referenceLibrary.Close();
-            _referenceLibrary = new MLibraryV2(filename);
+
+            try
+            {
+                _referenceLibrary = CreateLibrary(filename);
+            }
+            catch (Exception ex)
+            {
+                _referenceLibrary = null;
+                ShowOpenError(filename, ex);
+            }
         }
 
         private void OpenShadowLibraryAndImport(string filename)
@@ -401,7 +841,17 @@ namespace LibraryEditor
             if (_library == null) return;
 
             if (_shadowLibrary != null) _shadowLibrary.Close();
-            _shadowLibrary = new MLibraryV2(filename);
+
+            try
+            {
+                _shadowLibrary = CreateLibrary(filename);
+            }
+            catch (Exception ex)
+            {
+                _shadowLibrary = null;
+                ShowOpenError(filename, ex);
+                return;
+            }
 
             ImageList.Images.Clear();
             _indexList.Clear();
@@ -436,14 +886,7 @@ namespace LibraryEditor
             {
                 PreviewListView.RedrawItems(0, PreviewListView.Items.Count - 1, true);
 
-                if (ViewMode == "Image")
-                {
-                    ImageBox.Image = _library.Images[PreviewListView.SelectedIndices[0]].Image;
-                }
-                else
-                {
-                    ImageBox.Image = _library.Images[PreviewListView.SelectedIndices[0]].MaskImage;
-                }
+                ShowSelectedImageInBox();
             }
             catch (Exception)
             {
@@ -463,12 +906,40 @@ namespace LibraryEditor
         private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             if (_library == null) return;
-            if (SaveLibraryDialog.ShowDialog() != DialogResult.OK) return;
 
-            UpdateFrameGridData();
+            // 原格式库（Mir3 / WeMade 直连 / WTL 直连）写回的是成对或同格式文件，
+            // 另存必须沿用该格式的扩展名，否则会凭空生成一对扩展名不对的容器文件。
+            string forcedExt = OriginalFormatSaveExt(_library);
+            string oldFilter = SaveLibraryDialog.Filter;
+            string oldTitle = SaveLibraryDialog.Title;
 
-            _library.FileName = SaveLibraryDialog.FileName;
-            _library.Save();
+            try
+            {
+                if (forcedExt != null)
+                {
+                    SaveLibraryDialog.Filter = "原格式 (*" + forcedExt + ")|*" + forcedExt + "|所有文件 (*.*)|*.*";
+                    SaveLibraryDialog.Title = "另存为（保持原格式）";
+                }
+
+                if (SaveLibraryDialog.ShowDialog() != DialogResult.OK) return;
+
+                UpdateFrameGridData();
+
+                string target = SaveLibraryDialog.FileName;
+                if (forcedExt != null &&
+                    !string.Equals(Path.GetExtension(target), forcedExt, StringComparison.OrdinalIgnoreCase))
+                {
+                    target = Path.ChangeExtension(target, forcedExt);
+                }
+
+                _library.FileName = target;
+                _library.Save();
+            }
+            finally
+            {
+                SaveLibraryDialog.Filter = oldFilter;
+                SaveLibraryDialog.Title = oldTitle;
+            }
         }
 
         private void closeToolStripMenuItem_Click(object sender, EventArgs e)
@@ -553,7 +1024,7 @@ namespace LibraryEditor
             if (PreviewListView.SelectedIndices.Count == 0) return;
             if (SaveLibraryDialog.ShowDialog() != DialogResult.OK) return;
 
-            MLibraryV2 tempLibrary = new MLibraryV2(SaveLibraryDialog.FileName);
+            ILibrary tempLibrary = CreateLibrary(SaveLibraryDialog.FileName);
 
             List<int> copyList = new List<int>();
 
@@ -601,15 +1072,22 @@ namespace LibraryEditor
 
             for (int i = 0; i < OpenLibraryDialog.FileNames.Length; i++)
             {
-                MLibraryV2 library = new MLibraryV2(OpenLibraryDialog.FileNames[i]);
-
-                for (int x = 0; x < library.Count; x++)
+                try
                 {
-                    if (library.Images[x].Length <= 8)
-                        count++;
-                }
+                    ILibrary library = CreateLibrary(OpenLibraryDialog.FileNames[i]);
 
-                library.Close();
+                    for (int x = 0; x < library.Count; x++)
+                    {
+                        if (library.Images[x].Length <= 8)
+                            count++;
+                    }
+
+                    library.Close();
+                }
+                catch
+                {
+                    // 单个文件损坏不应中断整批统计
+                }
             }
 
             MLibraryV2.Load = true;
@@ -909,14 +1387,7 @@ namespace LibraryEditor
             {
                 PreviewListView.RedrawItems(0, PreviewListView.Items.Count - 1, true);
 
-                if (ViewMode == "Image")
-                {
-                    ImageBox.Image = _library.Images[PreviewListView.SelectedIndices[0]].Image;
-                }
-                else
-                {
-                    ImageBox.Image = _library.Images[PreviewListView.SelectedIndices[0]].MaskImage;
-                }
+                ShowSelectedImageInBox();
             }
             catch (Exception)
             {
@@ -1427,20 +1898,26 @@ namespace LibraryEditor
 
         private void numericUpDownX_ValueChanged(object sender, EventArgs e)
         {
+            if (_syncingOffsetBoxes) return;
+
             for (int i = 0; i < PreviewListView.SelectedIndices.Count; i++)
             {
                 MLibraryV2.MImage image = _library.GetMImage(PreviewListView.SelectedIndices[i]);
-                image.X = (short)numericUpDownX.Value;
+                if (image == null) continue;
+                image.X = (short)ClampToBox(numericUpDownX, numericUpDownX.Value);
             }
             PreviewListView.Invoke(new EventHandler(PreviewListView_SelectedIndexChanged), EventArgs.Empty);
         }
 
         private void numericUpDownY_ValueChanged(object sender, EventArgs e)
         {
+            if (_syncingOffsetBoxes) return;
+
             for (int i = 0; i < PreviewListView.SelectedIndices.Count; i++)
             {
                 MLibraryV2.MImage image = _library.GetMImage(PreviewListView.SelectedIndices[i]);
-                image.Y = (short)numericUpDownY.Value;
+                if (image == null) continue;
+                image.Y = (short)ClampToBox(numericUpDownY, numericUpDownY.Value);
             }
             PreviewListView.Invoke(new EventHandler(PreviewListView_SelectedIndexChanged), EventArgs.Empty);
         }

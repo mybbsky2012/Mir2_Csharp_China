@@ -14779,9 +14779,15 @@ namespace Client.MirScenes
                 {
                     MirDirection dir = Functions.DirectionFromPoint(User.CurrentLocation, CurrentPath.First().Location);
 
-                    if ((GameScene.CanRun || Settings.NoRunUp) && CanRun(dir) && CMain.Time > GameScene.NextRunTime && User.HP >= 10 && CurrentPath.Count > (User.RidingMount ? 2 : 1))
+                    // 轻身步（SwiftFeet）生效时服务端 HumanObject.Run() 是「一步跑 3 格」，
+                    // 这里原来只认坐骑（RidingMount ? 3 : 2），漏了 Sprint，
+                    // 于是客户端预测走 2 格、服务端实际走 3 格 → 画面回拉 + 位置被服务端纠偏，表现为卡顿/瞬移。
+                    // 与本文件其它所有跑动分支（14562/14720/14729/14834/14129/12404）保持同一判定。
+                    bool longRun = User.RidingMount || (User.Sprint && !User.Sneaking);
+
+                    if ((GameScene.CanRun || Settings.NoRunUp) && CanRun(dir) && CMain.Time > GameScene.NextRunTime && User.HP >= 10 && CurrentPath.Count > (longRun ? 2 : 1))
                     {
-                        User.QueuedAction = new QueuedAction { Action = MirAction.跑步动作, Direction = dir, Location = Functions.PointMove(User.CurrentLocation, dir, User.RidingMount ? 3 : 2) };
+                        User.QueuedAction = new QueuedAction { Action = MirAction.跑步动作, Direction = dir, Location = Functions.PointMove(User.CurrentLocation, dir, longRun ? 3 : 2) };
                         return;
                     }
                     if (CanWalk(dir))

@@ -67,8 +67,39 @@ namespace LibraryEditor
             _bReader = new BinaryReader(_fStream);
             LoadImageInfo();
 
-            for (int i = 0; i < Images.Length; i++)
-                CheckImage(i);
+            // 不再一次性解码全部帧（.wil 动辄上万帧，会耗尽 GDI 句柄与内存并卡死界面）。
+            // 位图改为按需解码：EnsureImage(index)。
+        }
+
+        /// <summary>
+        /// 按需解码指定帧的位图。必须在单线程下调用（内部共用 _fStream / _bReader）。
+        /// </summary>
+        public void EnsureImage(int index)
+        {
+            if (Images == null || index < 0 || index >= Images.Length) return;
+
+            if (Images[index] == null)
+            {
+                if (_fStream == null) return;
+                _fStream.Position = _indexList[index];
+                Images[index] = new WeMadeImage(_bReader, _nType);
+            }
+
+            if (Images[index].Image == null)
+            {
+                _fStream.Seek(_indexList[index] + (_nType > 0 ? ImageStructureSize[_nType] : _version == 0 ? 8 : 12), SeekOrigin.Begin);
+                Images[index].CreateTexture(_bReader, _palette);
+            }
+        }
+
+        /// <summary>释放第 index 帧已解码的位图，控制峰值内存。</summary>
+        private void ReleaseImage(int index)
+        {
+            WeMadeImage img = Images[index];
+            if (img == null) return;
+
+            if (img.Image != null) { img.Image.Dispose(); img.Image = null; }
+            if (img.MaskImage != null) { img.MaskImage.Dispose(); img.MaskImage = null; }
         }
 
         private void LoadImageInfo()
@@ -173,37 +204,72 @@ namespace LibraryEditor
 
         public void ToMLibrary()
         {
+            ToMLibrary(null);
+        }
+
+        /// <summary>
+        /// 转换为同名 .Lib。
+        /// 逐帧 解码 -> 重编码 -> 立即释放源位图：峰值内存只与"输出字节"同量级，
+        /// 不会出现上万张 Bitmap 同时常驻（旧实现用 Parallel.For 一口气全部解码，会卡死）。
+        /// </summary>
+        public void ToMLibrary(Action<int, int> onProgress)
+        {
             string fileName = Path.ChangeExtension(_fileName, ".Lib");
 
             if (File.Exists(fileName))
                 File.Delete(fileName);
 
             MLibraryV2 library = new MLibraryV2(fileName) { Images = new List<MLibraryV2.MImage>(), IndexList = new List<int>(), Count = Images.Length };
-            //library.Save();
 
             for (int i = 0; i < library.Count; i++)
                 library.Images.Add(null);
 
-            ParallelOptions options = new ParallelOptions { MaxDegreeOfParallelism = 8 };
+            int total = Images.Length;
 
             try
             {
-                Parallel.For(0, Images.Length, options, i =>
+                for (int i = 0; i < total; i++)
+                {
+                    EnsureImage(i);
+
+                    WeMadeImage image = Images[i];
+
+                    if (image != null && image.Image != null)
                     {
-                        WeMadeImage image = Images[i];
-                        if (image.HasMask)
+                        if (image.HasMask && image.MaskImage != null)
                             library.Images[i] = new MLibraryV2.MImage(image.Image, image.MaskImage) { X = image.X, Y = image.Y, ShadowX = image.ShadowX, ShadowY = image.ShadowY, Shadow = image.boHasShadow ? (byte)1 : (byte)0, MaskX = image.X, MaskY = image.Y };
                         else
                             library.Images[i] = new MLibraryV2.MImage(image.Image) { X = image.X, Y = image.Y, ShadowX = image.ShadowX, ShadowY = image.ShadowY, Shadow = image.boHasShadow ? (byte)1 : (byte)0 };
-                    });
-            }
-            catch (System.Exception)
-            {
-                throw;
+                    }
+                    else
+                    {
+                        // 空帧也要占位，否则 Save() 时会因 null 项抛 NullReferenceException
+                        MLibraryV2.MImage blank = new MLibraryV2.MImage((Bitmap)null);
+                        if (image != null)
+                        {
+                            blank.X = image.X;
+                            blank.Y = image.Y;
+                            blank.ShadowX = image.ShadowX;
+                            blank.ShadowY = image.ShadowY;
+                            blank.Shadow = image.boHasShadow ? (byte)1 : (byte)0;
+                        }
+                        library.Images[i] = blank;
+                    }
+
+                    ReleaseImage(i);
+
+                    if (onProgress != null && (i % 200 == 0 || i == total - 1))
+                        onProgress(i + 1, total);
+                }
             }
             finally
             {
+                // 兜底：任何未被赋值的帧都补成空帧，避免 Save() 抛 NullReferenceException
+                for (int i = 0; i < library.Count; i++)
+                    if (library.Images[i] == null) library.Images[i] = new MLibraryV2.MImage((Bitmap)null);
+
                 library.Save();
+                if (_fStream != null) { _fStream.Dispose(); _fStream = null; }
             }
         }
 
@@ -366,7 +432,7 @@ namespace LibraryEditor
             {
                 if (Width == 0 || Height == 0) return;
                 Image = new Bitmap(Width, Height);
-                MaskImage = new Bitmap(1, 1);
+                MaskImage = null;   // 只有 mir3 掩码帧才真正需要，避免每帧白建一张 GDI+ 位图
 
                 BitmapData data = Image.LockBits(new Rectangle(0, 0, Width, Height), ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
                 byte[] bytes = new byte[0];
@@ -402,19 +468,22 @@ namespace LibraryEditor
                             bytes = reader.ReadBytes(nSize - 6);
                             break;
                         }
+
+                        // 解压缓冲按帧尺寸预估（16bit 帧为 W*H*2，避免 MemoryStream 反复倍增扩容）
+                        int guess = Width * Height * ((nType == 2 || bo16bit) ? 2 : 4);
+                        if (guess < 1024) guess = 1024;
+
                         MemoryStream input = new MemoryStream(reader.ReadBytes(nSize - 6));
-                        output = new MemoryStream();
-                        byte[] buffer = new byte[10];
-                        System.IO.Compression.DeflateStream decompress = new System.IO.Compression.DeflateStream(input, System.IO.Compression.CompressionMode.Decompress);
-                        int len;
-                        while ((len = decompress.Read(buffer, 0, buffer.Length)) > 0)
+                        output = new MemoryStream(guess);
+                        // 原先每次只读 10 字节，几十万次调用导致极慢；改为 80KB 批量拷贝
+                        using (System.IO.Compression.DeflateStream decompress =
+                               new System.IO.Compression.DeflateStream(input, System.IO.Compression.CompressionMode.Decompress))
                         {
-                            output.Write(buffer, 0, len);
+                            decompress.CopyTo(output, 81920);
                         }
                         bytes = output.ToArray();
-                        decompress.Close();
-                        output.Close();
                         input.Close();
+                        output.Close();
                         break;
 
                     case 3:
@@ -444,7 +513,7 @@ namespace LibraryEditor
                     Image.UnlockBits(data);
                     Image.Dispose();
                     Image = null;
-                    MaskImage.Dispose();
+                    if (MaskImage != null) { MaskImage.Dispose(); MaskImage = null; }
                     return;
                 }
 

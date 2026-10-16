@@ -36,10 +36,7 @@ namespace LibraryEditor
             _bReader = new BinaryReader(_fStream);
             LoadImageInfo();
 
-            for (int i = 0; i < _count; i++)
-            {
-                CheckMImage(i);
-            }
+            // 不再一次性解码全部帧（上万帧会耗尽 GDI 句柄与内存并卡死界面），改为按需解码 CheckMImage(i)。
         }
 
         private void LoadImageInfo()
@@ -94,36 +91,63 @@ namespace LibraryEditor
 
         public void ToMLibrary()
         {
+            ToMLibrary(null);
+        }
+
+        /// <summary>
+        /// 转换为同名 .Lib。逐帧 解码 -> 重编码 -> 立即释放源位图，避免上万张 Bitmap 同时常驻。
+        /// </summary>
+        public void ToMLibrary(Action<int, int> onProgress)
+        {
             string fileName = Path.ChangeExtension(_fileName, ".Lib");
 
             if (File.Exists(fileName))
                 File.Delete(fileName);
 
             MLibraryV2 library = new MLibraryV2(fileName) { Images = new List<MLibraryV2.MImage>(), IndexList = new List<int>(), Count = Images.Length };
-            //library.Save();
 
             for (int i = 0; i < library.Count; i++)
                 library.Images.Add(null);
 
-            ParallelOptions options = new ParallelOptions { MaxDegreeOfParallelism = 8 };
+            int total = Images.Length;
+
             try
             {
-                Parallel.For(0, Images.Length, options, i =>
+                for (int i = 0; i < total; i++)
                 {
+                    CheckMImage(i);
+
                     WTLImage image = Images[i];
-                    if (image.HasMask)
-                        library.Images[i] = new MLibraryV2.MImage(image.Image, image.MaskImage) { X = image.X, Y = image.Y, ShadowX = image.ShadowX, ShadowY = image.ShadowY, Shadow = image.Shadow, MaskX = image.MaskX, MaskY = image.MaskY };
+
+                    if (image != null && image.Image != null)
+                    {
+                        if (image.HasMask && image.MaskImage != null)
+                            library.Images[i] = new MLibraryV2.MImage(image.Image, image.MaskImage) { X = image.X, Y = image.Y, ShadowX = image.ShadowX, ShadowY = image.ShadowY, Shadow = image.Shadow, MaskX = image.MaskX, MaskY = image.MaskY };
+                        else
+                            library.Images[i] = new MLibraryV2.MImage(image.Image) { X = image.X, Y = image.Y, ShadowX = image.ShadowX, ShadowY = image.ShadowY, Shadow = image.Shadow };
+                    }
                     else
-                        library.Images[i] = new MLibraryV2.MImage(image.Image) { X = image.X, Y = image.Y, ShadowX = image.ShadowX, ShadowY = image.ShadowY, Shadow = image.Shadow };
-                });
-            }
-            catch (System.Exception)
-            {
-                throw;
+                    {
+                        library.Images[i] = new MLibraryV2.MImage((Bitmap)null);
+                    }
+
+                    if (image != null)
+                    {
+                        if (image.Image != null) { image.Image.Dispose(); image.Image = null; }
+                        if (image.MaskImage != null) { image.MaskImage.Dispose(); image.MaskImage = null; }
+                    }
+
+                    if (onProgress != null && (i % 200 == 0 || i == total - 1))
+                        onProgress(i + 1, total);
+                }
             }
             finally
             {
+                for (int i = 0; i < library.Count; i++)
+                    if (library.Images[i] == null) library.Images[i] = new MLibraryV2.MImage((Bitmap)null);
+
                 library.Save();
+                Close();
             }
 
             // Operation finished.

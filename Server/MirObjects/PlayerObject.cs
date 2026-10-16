@@ -662,6 +662,20 @@ namespace Server.MirObjects
             else if (!InSafeZone)
                 DeathDrop(LastHitter);
 
+            // 死亡掉经验%（0=关闭）：扣当前等级升级所需经验的 X%，GM 免除；
+            // 只扣「当前等级已攒的经验」，不会掉级；满级（MaxExperience<=0）不扣。
+            if (Settings.DeathExpLossRate > 0 && !IsGM && MaxExperience > 0 && Experience > 0)
+            {
+                long loss = MaxExperience * Settings.DeathExpLossRate / 100L;
+                if (loss > Experience) loss = Experience;
+                if (loss > 0)
+                {
+                    Experience -= loss;
+                    Enqueue(new S.LevelChanged { Level = Level, Experience = Experience, MaxExperience = MaxExperience });
+                    ReceiveChat(string.Format("死亡损失经验 {0}", loss), ChatType.System);
+                }
+            }
+
             HP = 0;
             Dead = true;
 
@@ -822,7 +836,11 @@ namespace Server.MirObjects
             uint originalAmount = amount;
 
             expPoint = ReduceExp(amount, targetLevel);
-            expPoint = (int)(expPoint * Settings.ExpRate);            
+            expPoint = (int)(expPoint * Settings.ExpRate);
+
+            // 60 级以上经验倍率（全局 ExpRate 之上再乘，1 = 无加成）
+            if (Settings.HighLevelExpRate != 1F && Level >= Settings.HighLevelExpRateMinLevel)
+                expPoint = (int)(expPoint * Settings.HighLevelExpRate);
 
             //party
             float[] partyExpRate = { 1.0F, 1.3F, 1.4F, 1.5F, 1.6F, 1.7F, 1.8F, 1.9F, 2F, 2.1F, 2.2F };
@@ -861,6 +879,8 @@ namespace Server.MirObjects
             {
                 expPoint = Hero.ReduceExp(amount, targetLevel);
                 expPoint = (int)(expPoint * Settings.ExpRate);
+                if (Settings.HighLevelExpRate != 1F && Hero.Level >= Settings.HighLevelExpRateMinLevel)
+                    expPoint = (int)(expPoint * Settings.HighLevelExpRate);
                 Hero.GainExp((uint)expPoint);
             }
         }

@@ -27,8 +27,19 @@ m = re.search(r"public static MonsterObject GetMonster\(MonsterInfo info\)(.*?)\
 body = m.group(1) if m else src
 body = re.sub(r"//.*", "", body)  # 去掉行注释，避免注释里的 case 被误读
 ai2class = OrderedDict()
-for cm in re.finditer(r"case\s+(\d+)\s*:\s*\n\s*return new (\w+)\(info\);", body):
-    ai2class[int(cm.group(1))] = cm.group(2)
+pending = []          # 连续 case 标签共享一个 return（case 160: case 161: return Deer）
+for line in body.splitlines():
+    cm = re.match(r"\s*case\s+(\d+)\s*:", line)
+    if cm:
+        pending.append(int(cm.group(1)))
+        continue
+    rm = re.match(r"\s*return new (\w+)\(info\);", line)
+    if rm and pending:
+        cls = rm.group(1)
+        for a in pending:
+            ai2class[a] = cls
+        pending = []
+ai2class.setdefault(0, "MonsterObject")   # default 分支
 
 print("工厂 switch 解析到 AI 数:", len(ai2class))
 multi = defaultdict(list)
@@ -46,6 +57,16 @@ mons = []
 with open(os.path.join(TOOLS, "monsters.csv"), encoding="utf-8-sig") as f:
     for row in csv.DictReader(f):
         mons.append(row)
+
+case_ais = sorted(ai2class.keys())   # 工厂里真正写了 case 的编号（含 0=default 语义上的 MonsterObject）
+# 数据库在用但工厂没有专案 case 的编号 → 走 default: new MonsterObject(info)
+for a in list(ai_use.keys()):
+    ai2class.setdefault(a, "MonsterObject")
+
+# 重建 multi（上面可能补了 default 映射）
+multi = defaultdict(list)
+for ai, c in ai2class.items():
+    multi[c].append(ai)
 
 # 每个实现类实际服务的怪物（去重 GameName）
 cls_mons = defaultdict(list)
@@ -169,7 +190,7 @@ def analyze_class(cls):
         "atk_types": atk_types,
     }
 
-report = {"classes": {}, "ai2class": {str(k): v for k, v in ai2class.items()}}
+report = {"classes": {}, "ai2class": {str(k): v for k, v in ai2class.items()}, "case_ais": case_ais}
 for cls in sorted(multi.keys()):
     ai_list = sorted(multi[cls])
     used = [a for a in ai_list if a in ai_use]

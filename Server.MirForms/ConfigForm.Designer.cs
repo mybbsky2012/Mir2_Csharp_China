@@ -32,6 +32,18 @@
             configTabs = new TabControl();
             tabPage1 = new TabPage();
             groupBox1 = new GroupBox();
+            versionFuncGroupBox = new GroupBox();
+            MultiThreadCheckBox = new CheckBox();
+            TestServerCheckBox = new CheckBox();
+            GoldDirectCheckBox = new CheckBox();
+            ExpRateLabel = new Label();
+            ExpRateTextBox = new TextBox();
+            DropRateLabel = new Label();
+            DropRateTextBox = new TextBox();
+            HighLevelRateLabel = new Label();
+            HighLevelRateTextBox = new TextBox();
+            DeathExpLabel = new Label();
+            DeathExpTextBox = new TextBox();
             label11 = new Label();
             DBVersionLabel = new Label();
             ServerVersionLabel = new Label();
@@ -137,6 +149,18 @@
             // tabPage1
             // 
             tabPage1.Controls.Add(groupBox1);
+            tabPage1.Controls.Add(versionFuncGroupBox);
+            tabPage1.Controls.Add(MultiThreadCheckBox);
+            tabPage1.Controls.Add(TestServerCheckBox);
+            tabPage1.Controls.Add(GoldDirectCheckBox);
+            tabPage1.Controls.Add(ExpRateLabel);
+            tabPage1.Controls.Add(ExpRateTextBox);
+            tabPage1.Controls.Add(DropRateLabel);
+            tabPage1.Controls.Add(DropRateTextBox);
+            tabPage1.Controls.Add(HighLevelRateLabel);
+            tabPage1.Controls.Add(HighLevelRateTextBox);
+            tabPage1.Controls.Add(DeathExpLabel);
+            tabPage1.Controls.Add(DeathExpTextBox);
             tabPage1.Controls.Add(RelogDelayTextBox);
             tabPage1.Controls.Add(label7);
             tabPage1.Controls.Add(VersionCheckBox);
@@ -267,8 +291,125 @@
             label1.Size = new Size(68, 17);
             label1.TabIndex = 0;
             label1.Text = "登录器路径";
-            // 
-            // tabPage2
+            //
+            // versionFuncGroupBox（版本功能设置）
+            //
+            versionFuncGroupBox.Controls.Add(MultiThreadCheckBox);
+            versionFuncGroupBox.Controls.Add(TestServerCheckBox);
+            versionFuncGroupBox.Controls.Add(GoldDirectCheckBox);
+            versionFuncGroupBox.Controls.Add(ExpRateLabel);
+            versionFuncGroupBox.Controls.Add(ExpRateTextBox);
+            versionFuncGroupBox.Controls.Add(DropRateLabel);
+            versionFuncGroupBox.Controls.Add(DropRateTextBox);
+            versionFuncGroupBox.Controls.Add(HighLevelRateLabel);
+            versionFuncGroupBox.Controls.Add(HighLevelRateTextBox);
+            versionFuncGroupBox.Controls.Add(DeathExpLabel);
+            versionFuncGroupBox.Controls.Add(DeathExpTextBox);
+            versionFuncGroupBox.Location = new Point(7, 125);
+            versionFuncGroupBox.Name = "versionFuncGroupBox";
+            versionFuncGroupBox.Size = new Size(461, 168);
+            versionFuncGroupBox.TabIndex = 26;
+            versionFuncGroupBox.TabStop = false;
+            versionFuncGroupBox.Text = "版本功能设置";
+            //
+            // MultiThreadCheckBox
+            //
+            MultiThreadCheckBox.AutoSize = true;
+            MultiThreadCheckBox.Location = new Point(20, 36);
+            MultiThreadCheckBox.Name = "MultiThreadCheckBox";
+            MultiThreadCheckBox.Size = new Size(99, 21);
+            MultiThreadCheckBox.TabIndex = 0;
+            MultiThreadCheckBox.Text = "启用多线程";
+            MultiThreadCheckBox.UseVisualStyleBackColor = true;
+            //
+            // TestServerCheckBox
+            //
+            TestServerCheckBox.AutoSize = true;
+            TestServerCheckBox.Location = new Point(20, 72);
+            TestServerCheckBox.Name = "TestServerCheckBox";
+            TestServerCheckBox.Size = new Size(168, 21);
+            TestServerCheckBox.TabIndex = 1;
+            TestServerCheckBox.Text = "开启测试(开放GM指令)";
+            TestServerCheckBox.UseVisualStyleBackColor = true;
+            //
+            // GoldDirectCheckBox
+            //
+            GoldDirectCheckBox.AutoSize = true;
+            GoldDirectCheckBox.Location = new Point(20, 108);
+            GoldDirectCheckBox.Name = "GoldDirectCheckBox";
+            GoldDirectCheckBox.Size = new Size(123, 21);
+            GoldDirectCheckBox.TabIndex = 2;
+            GoldDirectCheckBox.Text = "金币直接入包";
+            GoldDirectCheckBox.UseVisualStyleBackColor = true;
+            //
+            // ExpRateLabel
+            //
+            ExpRateLabel.AutoSize = true;
+            ExpRateLabel.Location = new Point(225, 39);
+            ExpRateLabel.Name = "ExpRateLabel";
+            ExpRateLabel.Size = new Size(67, 17);
+            ExpRateLabel.TabIndex = 3;
+            ExpRateLabel.Text = "经验倍率";
+            //
+            // ExpRateTextBox
+            //
+            ExpRateTextBox.Location = new Point(320, 35);
+            ExpRateTextBox.MaxLength = 6;
+            ExpRateTextBox.Name = "ExpRateTextBox";
+            ExpRateTextBox.Size = new Size(108, 23);
+            ExpRateTextBox.TabIndex = 4;
+            //
+            // DropRateLabel
+            //
+            DropRateLabel.AutoSize = true;
+            DropRateLabel.Location = new Point(225, 74);
+            DropRateLabel.Name = "DropRateLabel";
+            DropRateLabel.Size = new Size(67, 17);
+            DropRateLabel.TabIndex = 5;
+            DropRateLabel.Text = "掉率倍率";
+            //
+            // DropRateTextBox
+            //
+            DropRateTextBox.Location = new Point(320, 70);
+            DropRateTextBox.MaxLength = 6;
+            DropRateTextBox.Name = "DropRateTextBox";
+            DropRateTextBox.Size = new Size(108, 23);
+            DropRateTextBox.TabIndex = 6;
+            //
+            // HighLevelRateLabel
+            //
+            HighLevelRateLabel.AutoSize = true;
+            HighLevelRateLabel.Location = new Point(225, 109);
+            HighLevelRateLabel.Name = "HighLevelRateLabel";
+            HighLevelRateLabel.Size = new Size(90, 17);
+            HighLevelRateLabel.TabIndex = 7;
+            HighLevelRateLabel.Text = "60级以上倍率";
+            //
+            // HighLevelRateTextBox
+            //
+            HighLevelRateTextBox.Location = new Point(320, 105);
+            HighLevelRateTextBox.MaxLength = 6;
+            HighLevelRateTextBox.Name = "HighLevelRateTextBox";
+            HighLevelRateTextBox.Size = new Size(108, 23);
+            HighLevelRateTextBox.TabIndex = 8;
+            //
+            // DeathExpLabel
+            //
+            DeathExpLabel.AutoSize = true;
+            DeathExpLabel.Location = new Point(225, 144);
+            DeathExpLabel.Name = "DeathExpLabel";
+            DeathExpLabel.Size = new Size(90, 17);
+            DeathExpLabel.TabIndex = 9;
+            DeathExpLabel.Text = "死亡掉经验%";
+            //
+            // DeathExpTextBox
+            //
+            DeathExpTextBox.Location = new Point(320, 140);
+            DeathExpTextBox.MaxLength = 3;
+            DeathExpTextBox.Name = "DeathExpTextBox";
+            DeathExpTextBox.Size = new Size(108, 23);
+            DeathExpTextBox.TabIndex = 10;
+            //
             // 
             tabPage2.Controls.Add(StartHTTPCheckBox);
             tabPage2.Controls.Add(EnableResourceCheckBox);
@@ -984,6 +1125,18 @@
         private System.Windows.Forms.Label label11;
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.GroupBox groupBox1;
+        private System.Windows.Forms.GroupBox versionFuncGroupBox;
+        private System.Windows.Forms.CheckBox MultiThreadCheckBox;
+        private System.Windows.Forms.CheckBox TestServerCheckBox;
+        private System.Windows.Forms.CheckBox GoldDirectCheckBox;
+        private System.Windows.Forms.Label ExpRateLabel;
+        private System.Windows.Forms.TextBox ExpRateTextBox;
+        private System.Windows.Forms.Label DropRateLabel;
+        private System.Windows.Forms.TextBox DropRateTextBox;
+        private System.Windows.Forms.Label HighLevelRateLabel;
+        private System.Windows.Forms.TextBox HighLevelRateTextBox;
+        private System.Windows.Forms.Label DeathExpLabel;
+        private System.Windows.Forms.TextBox DeathExpTextBox;
         private System.Windows.Forms.Label label12;
         private System.Windows.Forms.CheckBox gameMasterEffect_CheckBox;
         private System.Windows.Forms.TextBox HTTPIPAddressTextBox;

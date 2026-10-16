@@ -36,6 +36,7 @@ namespace LibraryEditor
             fileToolStripMenuItem = new ToolStripMenuItem();
             newToolStripMenuItem = new ToolStripMenuItem();
             openToolStripMenuItem = new ToolStripMenuItem();
+            openDirectToolStripMenuItem = new ToolStripMenuItem();
             toolStripMenuItem1 = new ToolStripSeparator();
             openReferenceFileToolStripMenuItem = new ToolStripMenuItem();
             openReferenceImageToolStripMenuItem = new ToolStripMenuItem();
@@ -105,6 +106,7 @@ namespace LibraryEditor
             FrameReverse = new DataGridViewCheckBoxColumn();
             FrameBlend = new DataGridViewCheckBoxColumn();
             OpenLibraryDialog = new OpenFileDialog();
+            OpenDirectDialog = new OpenFileDialog();
             SaveLibraryDialog = new SaveFileDialog();
             ImportImageDialog = new OpenFileDialog();
             OpenWeMadeDialog = new OpenFileDialog();
@@ -151,7 +153,7 @@ namespace LibraryEditor
             // 
             // fileToolStripMenuItem
             // 
-            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { newToolStripMenuItem, openToolStripMenuItem, toolStripMenuItem1, openReferenceFileToolStripMenuItem, openReferenceImageToolStripMenuItem, toolStripSeparator1, saveToolStripMenuItem, saveAsToolStripMenuItem, toolStripMenuItem2, closeToolStripMenuItem });
+            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { newToolStripMenuItem, openToolStripMenuItem, openDirectToolStripMenuItem, toolStripMenuItem1, openReferenceFileToolStripMenuItem, openReferenceImageToolStripMenuItem, toolStripSeparator1, saveToolStripMenuItem, saveAsToolStripMenuItem, toolStripMenuItem2, closeToolStripMenuItem });
             fileToolStripMenuItem.Image = (Image)resources.GetObject("fileToolStripMenuItem.Image");
             fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             fileToolStripMenuItem.Size = new Size(60, 21);
@@ -174,6 +176,14 @@ namespace LibraryEditor
             openToolStripMenuItem.Text = "打开";
             openToolStripMenuItem.ToolTipText = "打开一个LIB文件";
             openToolStripMenuItem.Click += openToolStripMenuItem_Click;
+            // 
+            // openDirectToolStripMenuItem
+            // 
+            openDirectToolStripMenuItem.Name = "openDirectToolStripMenuItem";
+            openDirectToolStripMenuItem.Size = new Size(148, 22);
+            openDirectToolStripMenuItem.Text = "直接打开";
+            openDirectToolStripMenuItem.ToolTipText = "不转换，直接按原格式打开 WIL / WTL / WZL / MIZ，保存时写回原文件";
+            openDirectToolStripMenuItem.Click += openDirectToolStripMenuItem_Click;
             // 
             // toolStripMenuItem1
             // 
@@ -413,8 +423,10 @@ namespace LibraryEditor
             // numericUpDownY
             // 
             numericUpDownY.Location = new Point(145, 89);
-            numericUpDownY.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            numericUpDownY.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
+            // 帧偏移是 short 类型，必须覆盖完整的 16 位有符号范围，
+            // 否则载入 X/Y 超出 ±1000 的帧（如 9703）会抛 ArgumentOutOfRangeException
+            numericUpDownY.Maximum = new decimal(new int[] { 32767, 0, 0, 0 });
+            numericUpDownY.Minimum = new decimal(new int[] { 32768, 0, 0, int.MinValue });
             numericUpDownY.Name = "numericUpDownY";
             numericUpDownY.Size = new Size(82, 23);
             numericUpDownY.TabIndex = 27;
@@ -423,8 +435,9 @@ namespace LibraryEditor
             // numericUpDownX
             // 
             numericUpDownX.Location = new Point(145, 62);
-            numericUpDownX.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
-            numericUpDownX.Minimum = new decimal(new int[] { 1000, 0, 0, int.MinValue });
+            // 同上：覆盖 short 全范围
+            numericUpDownX.Maximum = new decimal(new int[] { 32767, 0, 0, 0 });
+            numericUpDownX.Minimum = new decimal(new int[] { 32768, 0, 0, int.MinValue });
             numericUpDownX.Name = "numericUpDownX";
             numericUpDownX.Size = new Size(82, 23);
             numericUpDownX.TabIndex = 26;
@@ -507,7 +520,7 @@ namespace LibraryEditor
             // 
             nudJump.Location = new Point(90, 287);
             nudJump.Margin = new Padding(4, 3, 4, 3);
-            nudJump.Maximum = new decimal(new int[] { 650000, 0, 0, 0 });
+            nudJump.Maximum = new decimal(new int[] { 20000000, 0, 0, 0 });
             nudJump.Name = "nudJump";
             nudJump.Size = new Size(90, 23);
             nudJump.TabIndex = 21;
@@ -897,11 +910,18 @@ namespace LibraryEditor
             // 
             // OpenLibraryDialog
             // 
-            OpenLibraryDialog.Filter = "Library|*.Lib";
+            OpenLibraryDialog.Filter = "资源库 (*.Lib;*.Elite;*.ALib;*.MIX;*.MIZ;*.WTL)|*.Lib;*.Elite;*.ALib;*.MIX;*.MIZ;*.WTL|Lib 库 (*.Lib)|*.Lib|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|WTL 库 (*.WTL)|*.WTL|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WeMade/Shanda 格式（打开时自动转换为 Lib） (*.WIL;*.WZL;*.MIZ;*.WTL)|*.WIL;*.WZL;*.MIZ;*.WTL|所有文件 (*.*)|*.*";
+            OpenLibraryDialog.Title = "打开资源库";
+            // 
+            // OpenDirectDialog
+            // 
+            OpenDirectDialog.Filter = "可直接编辑的原格式 (*.WIL;*.WZL;*.MIZ;*.WTL)|*.WIL;*.WZL;*.MIZ;*.WTL|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WTL 库 (*.WTL)|*.WTL|所有文件 (*.*)|*.*";
+            OpenDirectDialog.Title = "直接打开（不转换）";
             // 
             // SaveLibraryDialog
             // 
-            SaveLibraryDialog.Filter = "Library|*.Lib";
+            SaveLibraryDialog.Filter = "资源库 (*.Lib;*.Elite;*.ALib;*.MIX;*.MIZ)|*.Lib;*.Elite;*.ALib;*.MIX;*.MIZ|Lib 库 (*.Lib)|*.Lib|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|所有文件 (*.*)|*.*";
+            SaveLibraryDialog.Title = "保存资源库";
             // 
             // ImportImageDialog
             // 
@@ -1000,6 +1020,7 @@ namespace LibraryEditor
         private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem newToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem openToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem openDirectToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem saveToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem saveAsToolStripMenuItem;
@@ -1015,6 +1036,7 @@ namespace LibraryEditor
         private System.Windows.Forms.Label WidthLabel;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.OpenFileDialog OpenLibraryDialog;
+        private System.Windows.Forms.OpenFileDialog OpenDirectDialog;
         private System.Windows.Forms.SaveFileDialog SaveLibraryDialog;
         private System.Windows.Forms.OpenFileDialog ImportImageDialog;
         private System.Windows.Forms.Button DeleteButton;

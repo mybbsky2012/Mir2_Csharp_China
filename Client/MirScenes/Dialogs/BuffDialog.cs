@@ -542,11 +542,23 @@ namespace Client.MirScenes.Dialogs
                 case BuffType.先天气功:
                     return 30114;
 
-                //新增：万效符 / 万效符-秘籍 的「灵魂火符升格」BUFF —— 直接复用万效版灵魂火符的技能图标（MagIcon2）
+                //新增技能的 BUFF 图标：统一用 MagIcon（30000+，24x22 小图标，与 BUFF 栏其它图标同尺寸）。
+                //★不要用 MagIcon2（40000+，36x34）—— 那是技能栏用的大图标，放进 BUFF 栏会明显偏大。
+                //  MagIcon 与 MagIcon2 索引一一对应（都是 技能Info.Icon * 2），换库即可。
+                case BuffType.万效符:
+                    return 30240;   // 万效符 Icon=120 → 120*2
+                case BuffType.万效符秘笈:
+                    return 30250;   // 万效符-秘籍 Icon=125 → 125*2
+                case BuffType.影化连击:
+                    return 30246;   // 影华连击-秘笈 Icon=123 → 123*2
+                case BuffType.灭杀窗口:
+                    return 30254;   // 灭杀 Icon=127 → 127*2
+                case BuffType.月华乱舞减准:
+                    return 30226;   // 月华乱舞-秘籍 Icon=113 → 113*2
                 case BuffType.万效灵魂火符:
-                    return 40256;   // 40256 = 40000 + 128 * 2 → 灵魂火符(万效)
+                    return 30256;   // 灵魂火符(万效) Icon=128 → 128*2
                 case BuffType.万效秘灵魂火符:
-                    return 40258;   // 40258 = 40000 + 129 * 2 → 灵魂火符(万效-秘)
+                    return 30258;   // 灵魂火符(万效-秘) Icon=129 → 129*2
 
                 case BuffType.轻身步:
                     return 30134;
@@ -771,20 +783,23 @@ namespace Client.MirScenes.Dialogs
 
             var buffLibrary = Libraries.BuffIcon;
 
-            //40000+ → 直接用技能图标库 MagIcon2（索引 = 技能 Info.Icon * 2）
+            //40000+ → MagIcon2（技能大图标），30000+ → MagIcon（技能小图标），20000+ → Prguse2，10000+ → Prguse
             if (buffImage >= 40000)
             {
                 buffImage -= 40000;
                 buffLibrary = Libraries.MagIcon2;
             }
-
-            if (buffImage >= 20000)
+            else if (buffImage >= 30000)
+            {
+                buffImage -= 30000;
+                buffLibrary = Libraries.MagIcon;
+            }
+            else if (buffImage >= 20000)
             {
                 buffImage -= 20000;
                 buffLibrary = Libraries.MagIcon;
             }
-
-            if (buffImage >= 10000)
+            else if (buffImage >= 10000)
             {
                 buffImage -= 10000;
                 buffLibrary = Libraries.Prguse2;
@@ -919,14 +934,23 @@ namespace Client.MirScenes.Dialogs
                 var buffImage = BuffImage(buff.Type);
                 var buffLibrary = Libraries.BuffIcon;
 
-                //ArcherSpells - VampireShot,PoisonShot
-                if (buffImage >= 20000)
+                //40000+ → MagIcon2（技能大图标），30000+ → MagIcon（技能小图标），20000+ → Prguse2，10000+ → Prguse
+                if (buffImage >= 40000)
+                {
+                    buffImage -= 40000;
+                    buffLibrary = Libraries.MagIcon2;
+                }
+                else if (buffImage >= 30000)
+                {
+                    buffImage -= 30000;
+                    buffLibrary = Libraries.MagIcon;
+                }
+                else if (buffImage >= 20000)
                 {
                     buffImage -= 20000;
                     buffLibrary = Libraries.MagIcon;
                 }
-
-                if (buffImage >= 10000)
+                else if (buffImage >= 10000)
                 {
                     buffImage -= 10000;
                     buffLibrary = Libraries.Prguse2;

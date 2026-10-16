@@ -148,6 +148,14 @@ namespace Server
         public static List<long> OrbsDmgList = new List<long>();
 
         public static float DropRate = 1F, ExpRate = 1F;
+
+        // 60 级以上玩家经验额外倍率（在全局 ExpRate 基础上再乘）；1 = 无加成
+        public static float HighLevelExpRate = 1F;
+        // 触发上述倍率的最低等级
+        public static int HighLevelExpRateMinLevel = 60;
+        // 死亡掉经验%（0=关闭）：玩家死亡时扣除当前等级升级所需经验的 X%，GM 免除
+        public static int DeathExpLossRate = 0;
+
         public static int TeleportToNPCCost = 3000;
 
         public static int ItemTimeOut = 30,
@@ -484,6 +492,11 @@ namespace Server
             //Game
             DropRate = Reader.ReadSingle("Game", "DropRate", DropRate);
             ExpRate = Reader.ReadSingle("Game", "ExpRate", ExpRate);
+            HighLevelExpRate = Reader.ReadSingle("Game", "HighLevelExpRate", HighLevelExpRate);
+            HighLevelExpRateMinLevel = Reader.ReadInt32("Game", "HighLevelExpRateMinLevel", HighLevelExpRateMinLevel);
+            DeathExpLossRate = Reader.ReadInt32("Game", "DeathExpLossRate", DeathExpLossRate);
+            if (DeathExpLossRate < 0) DeathExpLossRate = 0;
+            if (DeathExpLossRate > 100) DeathExpLossRate = 100;
             ItemTimeOut = Reader.ReadInt32("Game", "ItemTimeOut", ItemTimeOut);
             PlayerDiedItemTimeOut = Reader.ReadInt32("Game", "PlayerDiedItemTimeOut", PlayerDiedItemTimeOut);
             CorpseTime = Reader.ReadInt32("Game", "CorpseTime", CorpseTime);
@@ -800,6 +813,9 @@ namespace Server
             //Game
             Reader.Write("Game", "DropRate", DropRate);
             Reader.Write("Game", "ExpRate", ExpRate);
+            Reader.Write("Game", "HighLevelExpRate", HighLevelExpRate);
+            Reader.Write("Game", "HighLevelExpRateMinLevel", HighLevelExpRateMinLevel);
+            Reader.Write("Game", "DeathExpLossRate", DeathExpLossRate);
             Reader.Write("Game", "ItemTimeOut", ItemTimeOut);
             Reader.Write("Game", "PlayerDiedItemTimeOut", PlayerDiedItemTimeOut);
             Reader.Write("Game", "CorpseTime", CorpseTime);

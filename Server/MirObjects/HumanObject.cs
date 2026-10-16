@@ -8880,6 +8880,14 @@ namespace Server.MirObjects
                 case BuffType.金刚术:
                     CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.ElementalBarrierUp }, CurrentLocation);
                     break;
+                case BuffType.轻身步:
+                    // 轻身步的「跑 3 格」标志位必须跟着 buff 走。
+                    // 原来只在 SwiftFeet() 里置 true、只在 RemoveBuff 里置 false，
+                    // 而登录/换图时 PlayerObject.StartGameSuccess() 会重放持久化 buff（走本方法），
+                    // 却不经过 SwiftFeet() —— 于是客户端 Sprint=true（跑 3 格）、服务端还是 false（跑 2 格），
+                    // 每跑一步都被 S.UserLocation 纠偏，表现为回拉卡顿/错位，重放一次技能才自愈。
+                    ActiveSwiftFeet = true;
+                    break;
             }
 
             var packet = new S.AddBuff { Buff = b.ToClientBuff() };
