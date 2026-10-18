@@ -1,4 +1,6 @@
 ﻿using System.Buffers.Binary;
+using Client.MirNetwork;
+using Client.MirScenes;
 using Client.Utils;
 
 namespace Client.MirObjects
@@ -148,13 +150,21 @@ namespace Client.MirObjects
 
         private void Initiate()
         {
-            // 微端：进入地图属于"缺了就没法继续"的场景，这里值得短暂等待下载完成。
-            // 每张地图只下载一次，之后本地就有缓存；等待超时则仍然退回下面的空地图兜底。
+            // 微端：地图文件缺了就进不去，只能等。但「干等」会带来两个后果：
+            //   1) 主线程停摆 → 心跳发不出去 → 服务端 TimeOut（默认 10 秒）判定掉线，
+            //      这正是「NPC 传送到没下载的地图时掉线」的原因；
+            //   2) 画面完全静止，玩家以为客户端卡死了。
+            // 所以改成：一边等，一边泵心跳 + 刷新载入画面，把「卡死」变成「看得见的载入」。
             if (!File.Exists(FileName))
-                ResourceDownloader.EnsureLocalFileBlocking(FileName, 30000);
+                WaitForMapFile();
 
             if (!File.Exists(FileName))
             {
+                // 真的下不下来（服务端没有这张图 / 网络断了 / IP 未放行）。
+                // 这里仍然退回空地图兜底：至少不会因为读不到文件直接崩在选图循环里，
+                // 但一定要在日志里留下明确原因，否则玩家只会看到「进图一片黑」。
+                ResourceDownloader.Log("地图文件缺失，已退回空地图兜底：" + FileName);
+
                 Width = 1000;
                 Height = 1000;
                 MapCells = new CellInfo[Width, Height];
@@ -227,6 +237,55 @@ namespace Client.MirObjects
 
             //if it's none of the above load the default old school format
             LoadMapType0();
+        }
+
+        /// <summary>
+        /// 等 .map 下载就绪。会阻塞主线程，但期间每 100ms 泵一次心跳、刷新一次载入画面。
+        /// </summary>
+        private void WaitForMapFile()
+        {
+            // 进游戏那一下本来就有载入画面在跑（Armed=true），不能因为这里 Hide 把它关掉，
+            // 否则地图下完之后会留一段黑屏。原样恢复：本来就是亮的就继续亮着，交给 GameScene 收尾。
+            bool wasArmed = LoadingScreen.Armed;
+
+            LoadingScreen.Show();
+            LoadingScreen.SetStatus("正在下载地图 " + Path.GetFileNameWithoutExtension(FileName) + "，请稍候...");
+
+            try
+            {
+                ResourceDownloader.EnsureLocalFileBlocking(FileName, Settings.MicroMapTimeout, PumpWhileWaiting);
+            }
+            finally
+            {
+                if (!wasArmed) LoadingScreen.Hide();
+            }
+        }
+
+        /// <summary>
+        /// 阻塞等待期间的回调（每 100ms 一次）：推进时间基准 → 泵心跳 → 刷新进度文字和画面。
+        /// </summary>
+        private void PumpWhileWaiting()
+        {
+            // 主循环停了，CMain.Time 不会自己往前走；心跳判定完全依赖它，必须手动推进。
+            CMain.Time = CMain.Timer.ElapsedMilliseconds;
+
+            // ★只发不收。接收由异步线程完成，socket 不会积压；
+            //   这里若走 Network.Process()，会把新地图的对象包派发给正卡在 MapChanged 中间的客户端，
+            //   而新地图的格子数据还没建好 —— 内存越界、对象错位的经典来源。
+            Network.PumpKeepAlive();
+
+            string relative = ResourceDownloader.ToRelativePath(FileName);
+            long bytes = relative != null &&
+                         string.Equals(ResourceDownloader.ActiveFile, relative, StringComparison.OrdinalIgnoreCase)
+                ? ResourceDownloader.ActiveBytes
+                : 0;
+
+            string name = Path.GetFileNameWithoutExtension(FileName);
+            LoadingScreen.SetStatus(bytes > 0
+                ? string.Format("正在下载地图 {0}（已收到 {1:0.0} MB），请稍候...", name, bytes / 1048576.0)
+                : string.Format("正在下载地图 {0}，请稍候...", name));
+
+            CMain.RenderLoadingFrame();
         }
 
         private void LoadMapType0()

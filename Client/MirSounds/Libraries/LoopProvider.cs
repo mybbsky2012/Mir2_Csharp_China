@@ -82,6 +82,9 @@ namespace Client.MirSounds.Libraries
         {
             if (outputDevice?.PlaybackState == PlaybackState.Playing)
             {
+                // ★正在播放也不能忽略音量：原来直接 return，音量停留在创建时的旧值
+                //   （音效条拖到 0 后循环音效仍按旧音量响）。改为同步最新音量。
+                SetVolume(volume);
                 return;
             }
 

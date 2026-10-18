@@ -16,6 +16,11 @@ namespace Client
         [STAThread]
         private static void Main(string[] args)
         {
+            // ★显式声明 DPI 感知：笔记本高缩放（125%/150%）下，否则屏幕坐标被系统虚拟化缩小，
+            //   1280x720 窗口在虚拟屏里「放不下」导致全屏切回窗口后一直无边框，且画面被位图拉伸发虚。
+            //   必须在创建任何窗口前调用；100% 缩放的机器行为完全不变。
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
+
             if (args.Length > 0)
             {
                 foreach (var arg in args)
@@ -36,6 +41,10 @@ namespace Client
 
                 Packet.IsServer = false;
                 Settings.Load();
+
+                // 皮肤包：读 UI\skin.ini 决定用哪套外部 UI 素材。
+                // 必须在图库（Libraries）被首次访问之前调用，否则第一帧会用原图。
+                Client.MirGraphics.UISkin.Load();
 
                 // 微端：后台先把资源清单（几十 KB 的目录索引）拉下来。
                 // 清单只用于推算图库数组长度，先预热可以让启动阶段完全不阻塞在网络上；

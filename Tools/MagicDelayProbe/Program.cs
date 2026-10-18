@@ -53,37 +53,33 @@ internal static class Program
             MagicInfo m = envir.MagicInfoList[i];
             if (m == null) continue;
 
-            // 运行时算法（Server/MirDatabase/MagicInfo.cs:219 UserMagic.GetDelay）
-            //     return Info.DelayBase - (Level * Info.DelayReduction);
-            // 两个字段都是 uint、且 Level 是 byte ⇒ 整个减法在 uint 域里做，
-            // 一旦 Level*DelayReduction > DelayBase 就会回绕成 ~2^32 的巨大正数。
+            // 直接调用运行时算法 UserMagic.GetDelay()（Server/MirDatabase/MagicInfo.cs），
+            // 避免探针自己另算一套、和实际行为脱节。
             var delays = new long[4];
             var secs = new long[4];
             var flags = new List<string>();
+            var um = new UserMagic(m.Spell);
 
             for (int lv = 0; lv < 4; lv++)
             {
-                delays[lv] = UintDelay(m.DelayBase, m.DelayReduction, (byte)lv);
-                secs[lv] = (delays[lv] - 1) / 1000 + 1;      // 客户端提示的「剩余 X 秒」在刚施法时的取值
+                um.Level = (byte)lv;
+                delays[lv] = um.GetDelay();
+                secs[lv] = (delays[lv] + 999) / 1000;        // 刚施法时客户端提示的「剩余 X 秒」
 
-                if (delays[lv] < 0)
+                long raw = (long)m.DelayBase - (long)lv * (long)m.DelayReduction;
+
+                if (raw < 0)
                 {
-                    flags.Add($"Lv{lv}负数({delays[lv]})");
-                }
-                else if (delays[lv] >= 0x80000000L)
-                {
-                    flags.Add($"Lv{lv}回绕({delays[lv]})");
+                    flags.Add($"Lv{lv}配置为负({raw})→运行时夹到0");
                 }
                 else if (delays[lv] >= WarnMs)
                 {
                     flags.Add($"Lv{lv}偏大");
                 }
 
-                // 正常的 long 算法（没回绕时应当等于上面）
-                long sane = (long)m.DelayBase - (long)((byte)lv) * (long)m.DelayReduction;
-                if (sane != delays[lv])
+                if (delays[lv] != Math.Max(0, raw))
                 {
-                    flags.Add($"Lv{lv}应当={sane}");
+                    flags.Add($"Lv{lv}与运行时不一致({delays[lv]})");
                 }
             }
 
@@ -100,12 +96,5 @@ internal static class Program
         Console.WriteLine($"已写出 {Path.GetFullPath(path)}");
         Console.WriteLine($"其中 {bad} 条有异常标记");
         return 0;
-    }
-
-    /// <summary>复刻 UserMagic.GetDelay() 的真实（uint 回绕）语义。</summary>
-    private static long UintDelay(uint delayBase, uint delayReduction, byte level)
-    {
-        uint delta = (uint)(level * delayReduction);   // byte * uint ⇒ uint
-        return unchecked((uint)(delayBase - delta));   // uint - uint ⇒ 可能回绕
     }
 }

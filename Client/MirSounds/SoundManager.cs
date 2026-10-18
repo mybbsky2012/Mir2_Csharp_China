@@ -134,10 +134,16 @@ namespace Client.MirSounds
             }
             else
             {
-                var sound = LoopProvider.TryCreate(index, _indexList[index], MusicVol, loop);
+                // ★循环音效的音量必须跟「音效音量 Vol」走。
+                //   原来创建时传的是 MusicVol（背景音乐音量）：构造函数里 Play(MusicVol) 已经以
+                //   音乐音量出声，紧接着下面的 Play(Vol) 因 LoopProvider「正在播放就 return」
+                //   被跳过 —— 于是音效条拖到 0 静音后，循环音效依然以音乐音量响个不停。
+                var sound = LoopProvider.TryCreate(index, _indexList[index], Vol, loop);
                 if (sound != null)
                 {
-                    _loopingSounds.Add(index, sound);
+                    if (_loopingSounds.ContainsKey(index))
+                        _loopingSounds[index].Stop();
+                    _loopingSounds[index] = sound;
                     _loopingSounds[index].Play(Vol);
                 }
             }

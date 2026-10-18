@@ -791,9 +791,15 @@ namespace Client.MirControls
             MouseControl = this;
         }
 
+        /// <summary>
+        /// 鼠标命中矩形。默认就是控件显示矩形；
+        /// 图片类控件会覆写成「实际可见像素区」，避免透明边把命中区拉偏。
+        /// </summary>
+        protected virtual Rectangle HitRectangle { get { return DisplayRectangle; } }
+
         public virtual bool IsMouseOver(Point p)
         {
-            return Visible && (DisplayRectangle.Contains(p) || Moving || Modal) && !NotControl;
+            return Visible && (HitRectangle.Contains(p) || Moving || Modal) && !NotControl;
         }
         protected virtual void OnMouseEnter()
         {

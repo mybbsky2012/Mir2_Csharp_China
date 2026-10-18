@@ -35,6 +35,7 @@ namespace Client
         private static int _fps;
         private static long _cleanTime;
         private static long _drawTime;
+        private static long _lastLoadingFrame;   // RenderLoadingFrame 的节流时间（主线程阻塞期间刷载入画面）
         public static int FPS;
         public static int DPS;
         public static int DPSCounter;
@@ -166,10 +167,38 @@ namespace Client
                 SaveError(ex.ToString());
             }
         }
+        private static Rectangle _cursorClipRect = Rectangle.Empty;
+
+        /// <summary>
+        /// 同步鼠标裁剪区。
+        /// 全屏（或配置里勾了 MouseClip）时把光标限制在客户区内；其余情况必须主动解除，
+        /// 否则 Cursor.Clip 会一直停留在上一次设置的矩形上 —— 表现为
+        /// 「从全屏切回窗口化后，鼠标还锁在全屏尺寸的范围里，移不出来」。
+        /// </summary>
+        public static void UpdateCursorClip()
+        {
+            try
+            {
+                if (Program.Form == null) return;
+
+                Rectangle rect = (Settings.FullScreen || Settings.MouseClip)
+                    ? Program.Form.RectangleToScreen(Program.Form.ClientRectangle)
+                    : Rectangle.Empty;
+
+                if (rect == _cursorClipRect) return;
+
+                Cursor.Clip = rect;
+                _cursorClipRect = rect;
+            }
+            catch (Exception ex)
+            {
+                SaveError(ex.ToString());
+            }
+        }
+
         public static void CMain_MouseMove(object sender, MouseEventArgs e)
         {
-            if (Settings.FullScreen || Settings.MouseClip)
-                Cursor.Clip = Program.Form.RectangleToScreen(Program.Form.ClientRectangle);
+            UpdateCursorClip();
 
             MPoint = Program.Form.PointToClient(Cursor.Position);
 
@@ -421,6 +450,49 @@ namespace Client
             }
         }
 
+        /// <summary>
+        /// 只画「载入画面」这一层（不画场景），供主线程被阻塞时刷新进度。
+        ///
+        /// 为什么不能直接调 RenderEnvironment()：调用点往往是「地图刚切了一半」——
+        /// MapControl 的格子数据已被 ResetMap 清掉、玩家坐标却还是旧图的，
+        /// 整帧绘制很容易按旧坐标去索引新地图而越界。这里只清屏 + 画载入画面，
+        /// 既安全又能让玩家看到 Loading 动画和下载进度，而不是一动不动像卡死。
+        ///
+        /// 20fps 节流：主线程本来就慢，没必要为了一个静态画面抢 CPU。
+        /// </summary>
+        internal static void RenderLoadingFrame()
+        {
+            if (Time - _lastLoadingFrame < 50) return;
+            _lastLoadingFrame = Time;
+
+            // ★设备丢失的恢复平时由主循环的 RenderEnvironment 每帧做一次；
+            //   这里主循环被阻塞，如果不自己恢复，画面就会一直冻在黑屏（切图那 10 秒的观感）。
+            if (DXManager.DeviceLost)
+            {
+                DXManager.AttemptReset();
+                if (DXManager.DeviceLost) return;
+            }
+
+            try
+            {
+                DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
+                DXManager.Device.BeginScene();
+                DXManager.Sprite.Begin(SpriteFlags.AlphaBlend);
+                DXManager.ResetDrawState();
+                DXManager.SetSurface(DXManager.MainSurface);
+
+                LoadingScreen.DrawOverlay();
+
+                DXManager.Sprite.End();
+                DXManager.Device.EndScene();
+                DXManager.Device.Present();
+            }
+            catch (Exception ex)
+            {
+                SaveError(ex.ToString());
+            }
+        }
+
         private static void CreateDebugLabel()
         {
             string text;
@@ -572,10 +644,20 @@ namespace Client
 
         private static void ToggleFullScreen()
         {
+            BorderLog("toggle-start");
+
+            // ★进入全屏前记住真实桌面尺寸：独占全屏期间系统分辨率会被 D3D 改成游戏分辨率，
+            //   退全屏时若按当时（被改小的）屏幕判边框，永远判出「放不下」→ 无边框。
+            if (!Settings.FullScreen)
+            {
+                Screen cur = Screen.FromControl(Program.Form);
+                if (cur != null) _lastWindowedScreen = cur.Bounds.Size;
+            }
+
             Settings.FullScreen = !Settings.FullScreen;
 
-
-            Program.Form.FormBorderStyle = Settings.FullScreen ? FormBorderStyle.None : FormBorderStyle.FixedDialog;
+            // 全屏用无边框；窗口模式下放不下的分辨率（如 1920x1080 档）也自动无边框，见 UpdateBorderStyle 注释。
+            UpdateBorderStyle();
 
             DXManager.Parameters.Windowed = !Settings.FullScreen;
 
@@ -590,6 +672,52 @@ namespace Client
             }
 
             Program.Form.CenterToScreen();
+
+            // 窗口/边框/位置都变完了，重新算一次裁剪区：切回窗口化时这里会把 Cursor.Clip 解除。
+            UpdateCursorClip();
+
+            // 解除裁剪后如果光标还停在新窗口外面，玩家会以为鼠标“能动但点不到游戏”，把它送回窗口中央。
+            if (!Settings.FullScreen && !Settings.MouseClip)
+            {
+                Rectangle client = Program.Form.RectangleToScreen(Program.Form.ClientRectangle);
+                if (!client.Contains(Cursor.Position))
+                    Cursor.Position = new Point(client.Left + (client.Width / 2), client.Top + (client.Height / 2));
+            }
+
+            BorderLog("toggle-end");
+
+            // 观察窗口：切换结束后 5 秒内每 0.5 秒记一次边框状态，
+            // 用于定位「边框设好了又被别的东西改回去」的情况（定位后可移除）。
+            var watch = new System.Windows.Forms.Timer { Interval = 500 };
+            int tick = 0;
+            watch.Tick += (s, e) =>
+            {
+                BorderLog("watch-" + tick);
+                if (++tick >= 10) watch.Stop();
+            };
+            watch.Start();
+        }
+
+        /// <summary>边框问题诊断日志：写 exe 目录 border.log（临时，定位后移除）。</summary>
+        private static void BorderLog(string tag)
+        {
+            try
+            {
+                Form f = Program.Form;
+                Screen scr = f != null ? Screen.FromControl(f) : null;
+                string line = string.Format("[{0:HH:mm:ss.fff}] {1} | FullScreen={2} Style={3} State={4} Bounds={5} Client={6} Screen={7} Work={8}",
+                    DateTime.Now, tag, Settings.FullScreen,
+                    f != null ? f.FormBorderStyle.ToString() : "?",
+                    f != null ? f.WindowState.ToString() : "?",
+                    f != null ? f.Bounds.ToString() : "?",
+                    f != null ? f.ClientSize.ToString() : "?",
+                    scr != null ? scr.Bounds.ToString() : "?",
+                    scr != null ? scr.WorkingArea.ToString() : "?");
+                File.AppendAllText(Path.Combine(Application.StartupPath, "border.log"), line + Environment.NewLine);
+            }
+            catch
+            {
+            }
         }
 
         public void CreateScreenShot()
@@ -646,12 +774,69 @@ namespace Client
             }
         }
 
+        /// <summary>
+        /// 按当前分辨率/全屏状态决定边框样式。
+        /// ★窗口模式下，外框放不下工作区（如 1920x1080 档在 1080 显示器上）才退无边框，
+        ///   让客户区精确等于设定分辨率。
+        /// ★判定用「先设成带边框、再量窗口真实外框」的方式，而不是拿设定分辨率加硬编码的
+        ///   标题栏高度去比：系统开了 DPI 缩放时 Screen.WorkingArea 返回的是缩放后的虚拟坐标
+        ///   （如 1080p@150% 只有 693 高），硬编码比较会误判放不下，
+        ///   导致全屏切回窗口化后一直是无边框。窗口外框与工作区同一坐标系，比较口径一致。
+        /// </summary>
+        private static Size _lastWindowedScreen = Size.Empty;
+
+        private static void UpdateBorderStyle()
+        {
+            BorderLog("ubs-enter");
+
+            if (Settings.FullScreen)
+            {
+                Program.Form.FormBorderStyle = FormBorderStyle.None;
+                BorderLog("ubs-fullscreen-none");
+                return;
+            }
+
+            Form form = Program.Form;
+
+            // 先按带边框量：BorderStyle 变化会保持外框尺寸（客户区跟着跳），所以量完再钉一次客户区
+            form.FormBorderStyle = FormBorderStyle.FixedDialog;
+            form.ClientSize = new Size(Settings.ScreenWidth, Settings.ScreenHeight);
+
+            // ★用「记住的窗口化桌面尺寸」与当前屏幕中较大的那个来判：
+            //   刚退独占全屏时系统分辨率还没恢复（Screen 仍是 1280x720），
+            //   按它判必然误判放不下。窗口外框与屏幕同一坐标系，比较口径一致。
+            Screen scr = Screen.FromControl(form);
+            var bounds = scr != null ? scr.Bounds : Rectangle.Empty;
+            int screenW = Math.Max(bounds.Width, _lastWindowedScreen.Width);
+            int screenH = Math.Max(bounds.Height, _lastWindowedScreen.Height);
+            bool needBorderless = screenW > 0 && screenH > 0 &&
+                                  (form.Width > screenW || form.Height > screenH);
+
+            // 处于窗口化时顺手记录真实桌面尺寸
+            if (bounds.Width > 0 && bounds.Height > 0 &&
+                bounds.Width >= form.Width && bounds.Height >= form.Height)
+                _lastWindowedScreen = bounds.Size;
+
+            if (needBorderless)
+            {
+                form.FormBorderStyle = FormBorderStyle.None;
+                form.ClientSize = new Size(Settings.ScreenWidth, Settings.ScreenHeight);
+            }
+
+            BorderLog("ubs-exit needBorderless=" + needBorderless + " screenUsed=" + screenW + "x" + screenH);
+        }
+
         public static void SetResolution(int width, int height)
         {
             if (Settings.ScreenWidth == width && Settings.ScreenHeight == height) return;
 
             Settings.ScreenWidth = width;
             Settings.ScreenHeight = height;
+
+            //★先定边框再定客户区：BorderStyle 变化会保持窗口外框尺寸（客户区跟着跳），
+            //  随后的 ClientSize 赋值把客户区精确钉到目标值。
+            UpdateBorderStyle();
+
             Program.Form.ClientSize = new Size(width, height);
 
             DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
@@ -660,6 +845,8 @@ namespace Client
 
             if (!Settings.FullScreen)
                 Program.Form.CenterToScreen();
+
+            UpdateCursorClip();
         }
 
         #region ScreenCapture

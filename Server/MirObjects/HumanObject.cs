@@ -3549,6 +3549,7 @@ namespace Server.MirObjects
             }
 
             UserMagic magic = GetMagic(spell);
+            int castRange = magic != null ? magic.Info.Range : 0;
 
             //需求：万效符 / 万效符-秘籍 施放后另外挂一个「万效灵魂火符」/「万效秘灵魂火符」BUFF（5 / 10 分钟），
             //这段时间内「灵魂火符」升格为「万效灵魂火符」/「万效秘灵魂火符」；BUFF 到时自动消失即还原成普通灵魂火符。
@@ -3573,7 +3574,15 @@ namespace Server.MirObjects
                 //升格期间统一用「灵魂火符」的魔法数据；顺带兜住「老角色没学过万效版」的情况，
                 //避免客户端升格后发包、服务端却报「尚未学习该技能」
                 if (talismanUpgraded)
+                {
                     magic = GetMagic(Spell.SoulFireBall) ?? magic;
+
+                    //射程按「升格后的技能」放行：结算数据继续用普通版，但锁定距离两者取大，
+                    //否则把 灵魂火符(万效) 的 Range 调大也不会生效（这里曾被换回普通版而失效）
+                    UserMagic upgradedMagic = GetMagic(spell);
+                    if (upgradedMagic != null && upgradedMagic.Info.Range > castRange)
+                        castRange = upgradedMagic.Info.Range;
+                }
             }
 
             if (magic == null)
@@ -3584,7 +3593,7 @@ namespace Server.MirObjects
                 return;
             }
 
-            if ((location.X != 0) && (location.Y != 0) && magic.Info.Range != 0 && Functions.InRange(CurrentLocation, location, magic.Info.Range) == false)
+            if ((location.X != 0) && (location.Y != 0) && castRange != 0 && Functions.InRange(CurrentLocation, location, castRange) == false)
             {
                 ReceiveChat("目标距离太远，无法施展", ChatType.Hint);
                 return;
@@ -3640,7 +3649,9 @@ namespace Server.MirObjects
             }
             else if (targetID > 0)
             {
-                target = FindObject(targetID, 10);
+                //搜索半径必须覆盖技能射程：原写死 10 格，射程调到 13 后，
+                //11~13 格的目标会解析成 null，表现出来就是「明明点到了怪却打不出去」。
+                target = FindObject(targetID, Math.Max(10, castRange));
             }
 
             if (target != null && target.Race != ObjectType.Monster && target.Race != ObjectType.Player && target.Race != ObjectType.Hero)
@@ -4443,11 +4454,10 @@ namespace Server.MirObjects
         //强击-秘籍（法师）：自动对 5x5 范围内的敌人各施放一次雷电术
         private bool ThunderBoltRare(MapObject target, UserMagic magic)
         {
+            //需求：不再刷「请先选择一个可攻击的目标」——没有目标/目标已死时静默失败，
+            //      与普通单体法术（灵魂火符等）保持一致。玩家连放或目标刚被抢时会一直刷屏。
             if (target == null || !target.IsAttackTarget(this))
-            {
-                ReceiveChat("请先选择一个可攻击的目标", ChatType.Hint);
                 return false;
-            }
 
             int damage = magic.GetDamage(GetAttackPower(Stats[Stat.MinMC], Stats[Stat.MaxMC]));
 
@@ -4587,6 +4597,10 @@ namespace Server.MirObjects
         //灵魂火符(万效)（道士）：向范围内的敌人连续施放 N 张灵魂火符（秘籍版 4 张）
         private List<uint> _secondaryTargetIDs;   //灵魂火符(万效)等多目标技能的副目标，随 S.Magic/S.ObjectMagic 下发
 
+        //灵魂火符(万效) / (万效-秘) 的副目标搜索范围：13×13 格（半径 6 格）。
+        //原来是 5×5（半径 2 格），以主目标为圆心，怪稍微散开就补不到副目标，表现为只飞一张符。
+        private const int SoulFireBallPlusSpreadSize = 13;
+
         //灵魂火符(万效)：一次飞出 count 张符，同时攻击 count 个目标（秘籍 6 张，普通 3 张）
         private bool SoulFireballPlus(MapObject target, UserMagic magic, int count)
         {
@@ -4597,17 +4611,27 @@ namespace Server.MirObjects
                 return false;
             }
 
+            //没有可攻击目标时静默失败：和普通「灵魂火符」保持一致，
+            //不再刷「请先选择一个可攻击的目标」（玩家连放时这句会一直刷屏）
             if (target == null || !target.IsAttackTarget(this))
-            {
-                ReceiveChat("请先选择一个可攻击的目标", ChatType.Hint);
                 return false;
-            }
 
             int damage = magic.GetDamage(GetAttackPower(Stats[Stat.MinSC], Stats[Stat.MaxSC]));
 
-            //主目标优先，其余从目标 5×5 范围内补充，最多 count 个目标、一符一目标
+            //主目标优先，其余从「施法者为圆心」的范围内补充，最多 count 个目标、一符一目标。
+            //原先是以主目标为圆心取 5×5（半径只有 2 格）：怪一旦不是挤在目标身边，
+            //就一个副目标都补不进来，表现出来就是「明明周围有几只怪却只飞出一张符」。
+            //改为施法者为圆心、半径 6 格（13×13，比原半径 2 格多 4 格），并按离自身远近排序。
             var targets = new List<MapObject> { target };
-            foreach (var ob in GetHostileInSquare(target.CurrentLocation, 5))
+            var candidates = GetHostileInSquare(CurrentLocation, SoulFireBallPlusSpreadSize);
+            candidates.Sort((a, b) =>
+            {
+                int da = Functions.MaxDistance(CurrentLocation, a.CurrentLocation);
+                int db = Functions.MaxDistance(CurrentLocation, b.CurrentLocation);
+                return da != db ? da.CompareTo(db) : a.ObjectID.CompareTo(b.ObjectID);
+            });
+
+            foreach (var ob in candidates)
             {
                 if (targets.Count >= count) break;
                 if (ob == target || !ob.IsAttackTarget(this)) continue;
@@ -4840,11 +4864,9 @@ namespace Server.MirObjects
         {
             //★类型必须先判：ItemObject 的 IsAttackTarget 是直接 throw 的，
             //  FindObject(targetID) 有可能返回玩家脚边的掉落物，不能无脑调用。
+            //★需求：不再刷「请先选择一个可攻击的目标」，没有合法目标时静默失败。
             if (target == null || (!(target is HumanObject) && !(target is MonsterObject)) || !target.IsAttackTarget(this))
-            {
-                ReceiveChat("请先选择一个可攻击的目标", ChatType.Hint);
                 return false;
-            }
             if (Functions.MaxDistance(CurrentLocation, target.CurrentLocation) > 1)
             {
                 ReceiveChat("影华连击必须贴身（1 格内）才能施展", ChatType.Hint);

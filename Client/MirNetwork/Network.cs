@@ -252,5 +252,47 @@ namespace Client.MirNetwork
             if (_sendList != null && p != null)
                 _sendList.Enqueue(p);
         }
+
+        /// <summary>
+        /// 只把发送队列里积压的包（必要时补一个心跳）发出去，**完全不处理接收包**。
+        ///
+        /// 用于主线程被阻塞、走不到正常 Process() 的场景（典型：微端切图时同步下载 .map）。
+        /// 接收本身由异步回调线程完成，socket 不会积压；但心跳是靠 Process() 里的超时判断补发的，
+        /// 主线程一停就永远发不出去 —— 服务端 TimeOut（默认 10 秒）收不到任何包就断开，
+        /// 这就是「NPC 传送到没下载的地图时掉线」的真正原因。
+        ///
+        /// 这里刻意不调 Process()：它会把新地图的对象包派发进来，而调用点正卡在 MapChanged
+        /// 中间（新地图 CellInfo 还没建好），派发必然错乱。这些包留在队列里，等主循环恢复后
+        /// 按原顺序正常处理即可。
+        /// </summary>
+        internal static void PumpKeepAlive()
+        {
+            try
+            {
+                if (_client == null || !_client.Connected || !Connected) return;
+                if (_sendList == null) return;
+
+                if (CMain.Time > TimeOutTime && _sendList.IsEmpty)
+                    _sendList.Enqueue(new C.KeepAlive());
+
+                if (_sendList.IsEmpty) return;
+
+                TimeOutTime = CMain.Time + Settings.TimeOut;
+
+                List<byte> data = new List<byte>();
+                while (!_sendList.IsEmpty)
+                {
+                    if (!_sendList.TryDequeue(out Packet p)) continue;
+                    data.AddRange(p.GetPacketBytes());
+                }
+
+                CMain.BytesSent += data.Count;
+
+                BeginSend(data);
+            }
+            catch
+            {
+            }
+        }
     }
 }

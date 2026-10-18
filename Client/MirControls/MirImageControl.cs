@@ -192,9 +192,32 @@ namespace Client.MirControls
             }
         }
 
+        /// <summary>
+        /// ★命中区必须跟「实际画出来的像素」对齐。
+        /// AutoSize 时 Size 取的是 GetTrueSize（裁掉透明边后的可见尺寸），
+        /// 而 DrawControl 是从 DisplayLocation 起画整张图的 —— 可见内容其实在 DisplayLocation + (l,t)。
+        /// 原来拿 (DisplayLocation, Size) 当命中框，图只要带透明边，命中区就整体偏左上，
+        /// 表现就是「鼠标要往右下挪一点才点得到按钮」。
+        /// </summary>
+        protected override Rectangle HitRectangle
+        {
+            get
+            {
+                if (!AutoSize || Library == null || Index < 0)
+                    return DisplayRectangle;
+
+                Rectangle visible = Library.GetVisibleBounds(Index);
+                if (visible.Width <= 0 || visible.Height <= 0)
+                    return DisplayRectangle;      // 没有像素数据（1x1 热区之类）→ 保持原行为
+
+                Point loc = DisplayLocation;
+                return new Rectangle(loc.X + visible.X, loc.Y + visible.Y, visible.Width, visible.Height);
+            }
+        }
+
         public override bool IsMouseOver(Point p)
         {
-            return base.IsMouseOver(p) && (!_pixelDetect || Library.VisiblePixel(Index, p.Subtract(DisplayLocation),true) || Moving);
+            return base.IsMouseOver(p) && (!_pixelDetect || Library == null || Library.VisiblePixel(Index, p.Subtract(DisplayLocation), true) || Moving);
         }
 
         #region Disposable

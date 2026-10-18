@@ -265,6 +265,10 @@ namespace Client
         public static int MicroConcurrency = 2;      //后台下载线程数
         public static int MicroRateLimit = 0;        //每个线程的下载限速(KB/s)，0=不限速
 
+        //切图时等 .map 下载的上限(毫秒)。等待期间会一直发心跳，所以可以给得比较宽：
+        //最大的地图 10MB 出头，2M/s 的宽带 6 秒，窄带上给到 2 分钟也够。
+        public static int MicroMapTimeout = 120000;
+
         //是否在聊天框显示微端资源下载提示（"微端已启用…" / "资源补齐完成…"）。
         //默认 False：微端本来就是后台悄悄补资源，不该打扰玩家；
         //需要确认"到底有没有在下"时，把 Mir2Config.ini 里 [MicroClient] Hint 改成 True 即可。
@@ -433,6 +437,7 @@ namespace Client
             MicroLog = Reader.ReadBoolean("MicroClient", "Log", MicroLog);
             MicroConcurrency = Reader.ReadInt32("MicroClient", "Concurrency", MicroConcurrency);
             MicroRateLimit = Reader.ReadInt32("MicroClient", "RateLimit", MicroRateLimit);
+            MicroMapTimeout = Reader.ReadInt32("MicroClient", "MapTimeout", MicroMapTimeout);
             MicroHint = Reader.ReadBoolean("MicroClient", "Hint", MicroHint);   //默认 False，不显示下载提示
 
             if (string.IsNullOrWhiteSpace(MicroHost)) MicroHost = "http://127.0.0.1:5679/";
@@ -441,6 +446,7 @@ namespace Client
             if (MicroConcurrency < 1) MicroConcurrency = 2;
             if (MicroConcurrency > 8) MicroConcurrency = 8;
             if (MicroRateLimit < 0) MicroRateLimit = 0;
+            if (MicroMapTimeout < 10000) MicroMapTimeout = 120000;
 
             // 客户端根目录下存在 microclient.flag 时自动启用微端。
             // 分发「微端客户端包」时只要附带这个空标记文件，玩家就不需要自己改配置；
@@ -570,6 +576,7 @@ namespace Client
             Reader.Write("MicroClient", "Log", MicroLog);
             Reader.Write("MicroClient", "Concurrency", MicroConcurrency);
             Reader.Write("MicroClient", "RateLimit", MicroRateLimit);
+            Reader.Write("MicroClient", "MapTimeout", MicroMapTimeout);
             Reader.Write("MicroClient", "Hint", MicroHint);
             Reader.Write("Launcher", "ConcurrentDownloads", P_Concurrency);
         }

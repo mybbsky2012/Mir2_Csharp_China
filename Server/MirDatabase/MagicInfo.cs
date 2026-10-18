@@ -218,7 +218,11 @@ namespace Server.MirDatabase
 
         public long GetDelay()
         {
-            return Info.DelayBase - (Level * Info.DelayReduction);
+            // DelayBase / DelayReduction 都是 uint，原写法整个减法在 uint 域里做：
+            // 一旦 Level * DelayReduction > DelayBase 就会下溢回绕成 ~42.9 亿毫秒（约 49.7 天），
+            // 客户端就会显示几百万秒的冷却。这里改用 long 运算并夹到 0 以上。
+            long delay = (long)Info.DelayBase - (long)Level * Info.DelayReduction;
+            return delay > 0 ? delay : 0;
         }
     }
 }

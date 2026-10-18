@@ -82,6 +82,9 @@ namespace Client.Utils
         // 等满原来的超时（15~30 秒）也几乎不会有结果，只会把启动卡住。
         private const int IndexUnavailableWaitMs = 1500;
 
+        /// <summary>阻塞等待时回调 onTick 的间隔（毫秒）。100ms 足够让心跳和进度都不掉帧。</summary>
+        private const int WaitTickMs = 100;
+
         /// <summary>
         /// 服务端明确拒绝了本机 IP（返回 "notrusted:&lt;ip&gt;"）。
         /// 这种情况下所有资源请求都会拿到同样的 200 + 错误文本 ——
@@ -129,6 +132,22 @@ namespace Client.Utils
         internal static string LastDownloadedFile
         {
             get { return _lastFile; }
+        }
+
+        // 当前正在下载的单个文件及其进度：供「主线程阻塞等待」时把进度显示到载入画面上。
+        private static volatile string _activeFile = string.Empty;
+        private static long _activeBytes;
+
+        /// <summary>当前正在下载的文件（相对路径）；没有下载在进行时为空串。</summary>
+        internal static string ActiveFile
+        {
+            get { return _activeFile; }
+        }
+
+        /// <summary>当前文件已收到的字节数。</summary>
+        internal static long ActiveBytes
+        {
+            get { return Interlocked.Read(ref _activeBytes); }
         }
 
         #endregion
@@ -225,6 +244,20 @@ namespace Client.Utils
         /// </summary>
         internal static bool EnsureLocalFileBlocking(string localPath, int timeoutMs)
         {
+            return EnsureLocalFileBlocking(localPath, timeoutMs, null);
+        }
+
+        /// <summary>
+        /// 同上，并在等待期间每隔 <see cref="WaitTickMs"/> 回调一次 onTick。
+        ///
+        /// 回调的意义：等待是在主线程上发生的，主循环此时完全停摆 ——
+        /// 只有靠回调才能「一边等一边泵心跳 + 刷新画面」。
+        /// 见 MapReader.WaitForMapFile（微端切图时服务端 10 秒收不到心跳就会踢人）。
+        ///
+        /// onTick 里抛异常会被吞掉：进度显示失败绝不能把地图加载搞挂。
+        /// </summary>
+        internal static bool EnsureLocalFileBlocking(string localPath, int timeoutMs, Action onTick)
+        {
             try
             {
                 if (File.Exists(localPath)) return true;
@@ -258,10 +291,31 @@ namespace Client.Utils
                 // 清单还没拿到时没法判断服务端有没有这个文件，等满整个超时几乎不会有结果，
                 // 只会把调用线程（往往是启动阶段）卡住 —— 收缩到短等待，拿不到就按缺文件继续，
                 // 后台下载线程拿到清单后仍会继续把它补上。
-                if (!IsIndexAvailable && timeoutMs > IndexUnavailableWaitMs)
+                // 例外：调用方带了 onTick（说明它愿意把等待显示成「载入画面」），
+                // 这时不能砍时长 —— 清单没到时 ExistsOnServer 会乐观放行，文件照样能下，
+                // 砍成 1.5 秒等于让学生刚坐下就收卷（首次登录时地图必然判缺失）。
+                if (!IsIndexAvailable && timeoutMs > IndexUnavailableWaitMs && onTick == null)
                     timeoutMs = IndexUnavailableWaitMs;
 
-                handle.Wait(timeoutMs);
+                // 分段等待：每 WaitTickMs 醒一次跑一次 onTick（泵心跳 / 刷进度）。
+                // 没有回调时行为与原来的一次性 Wait 完全一致。
+                if (onTick == null)
+                {
+                    handle.Wait(timeoutMs);
+                }
+                else
+                {
+                    int waited = 0;
+                    while (!handle.Wait(WaitTickMs))
+                    {
+                        waited += WaitTickMs;
+
+                        try { onTick(); }
+                        catch { }
+
+                        if (waited >= timeoutMs) break;
+                    }
+                }
 
                 lock (_sync)
                 {
@@ -437,6 +491,10 @@ namespace Client.Utils
             int headerTimeoutMs = Settings.MicroTimeout;
             if (headerTimeoutMs < 30000) headerTimeoutMs = 30000;
 
+            // 进度：让阻塞等待方（切图载入画面）能显示「已收到多少」
+            _activeFile = relative;
+            Interlocked.Exchange(ref _activeBytes, 0);
+
             try
             {
                 // 复用共享实例：连接走连接池，不再每个文件都新建一条 TCP 连接
@@ -526,6 +584,7 @@ namespace Client.Utils
 
                                 target.Write(buffer, 0, read);
                                 total += read;
+                                Interlocked.Exchange(ref _activeBytes, total);
                                 Throttle(watch, total, limit);
                             }
 
@@ -568,6 +627,12 @@ namespace Client.Utils
             {
                 Log("下载失败 " + relative + " : " + ex.Message);
                 return false;
+            }
+            finally
+            {
+                // 无论成功失败都清掉进度，避免载入画面一直显示一个早就结束的下载
+                _activeFile = string.Empty;
+                Interlocked.Exchange(ref _activeBytes, 0);
             }
         }
 

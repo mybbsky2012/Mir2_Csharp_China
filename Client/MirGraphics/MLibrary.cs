@@ -622,6 +622,9 @@ namespace Client.MirGraphics
         public const int LibVersion = 3;
 
         private readonly string _fileName;
+        // 皮肤包靠「库名」找覆盖目录（.\UI\Skin\<皮肤>\<库名>\<索引>.png），
+        // 这里先把库名切出来存着，省得每次绘制都从路径里算一遍。
+        private readonly string _libName;
 
         private MImage[] _images;
         private FrameSet _frames;
@@ -660,6 +663,7 @@ namespace Client.MirGraphics
         public MLibrary(string filename)
         {
             _fileName = Path.ChangeExtension(filename, Extention);
+            _libName = Path.GetFileNameWithoutExtension(_fileName);
         }
 
         public void Initialize()
@@ -758,7 +762,13 @@ namespace Client.MirGraphics
                     return false;
                 _fStream.Seek(_indexList[index] + 17, SeekOrigin.Begin);
                 mi.CreateTexture(_reader);
+                mi.SkinApplied = false;   // 纹理是新建的，皮肤得重新套一次
             }
+
+            // 皮肤包：命中就换成外部 PNG（尺寸已对齐原图，坐标/点击区域完全不受影响）。
+            // 所有 Draw / DrawBlend / DrawTinted / DrawUp 重载都经过这里，
+            // 所以只改这一处，登录界面到游戏内所有界面一起生效。
+            if (!mi.SkinApplied) UISkin.TryApply(_libName, index, mi);
 
             return true;
         }
@@ -819,6 +829,43 @@ namespace Client.MirGraphics
                 return mi.GetTrueSize();
             }
             return mi.TrueSize;
+        }
+
+        /// <summary>
+        /// 可见像素包围盒（纹理坐标）。控件命中判定用它来跟「实际画出来的内容」对齐：
+        /// Size 只给出可见区大小，透明边造成的起点偏移 (X,Y) 得靠这个矩形补。
+        /// </summary>
+        public Rectangle GetVisibleBounds(int index)
+        {
+            if (!_initialized)
+                Initialize();
+
+            if (_images == null || index < 0 || index >= _images.Length)
+                return Rectangle.Empty;
+
+            if (_images[index] == null)
+            {
+                _fStream.Position = _indexList[index];
+                _images[index] = new MImage(_reader);
+            }
+
+            MImage mi = _images[index];
+
+            if (mi.TrueSize.IsEmpty)
+            {
+                if (!mi.TextureValid)
+                {
+                    if ((mi.Width == 0) || (mi.Height == 0))
+                        return Rectangle.Empty;
+
+                    _fStream.Seek(_indexList[index] + 17, SeekOrigin.Begin);
+                    mi.CreateTexture(_reader);
+                }
+
+                mi.GetTrueSize();
+            }
+
+            return mi.VisibleBounds;
         }
 
         public void Draw(int index, int x, int y)
@@ -1049,6 +1096,11 @@ namespace Client.MirGraphics
 
         public bool TextureValid;
         public Texture Image;
+
+        // 皮肤包专用：这张图是否已经尝试过套外部 PNG。
+        // 每次 Draw 都会走 CheckImage，靠这个标记避免每帧都去查磁盘。
+        public bool SkinApplied;
+
         //layer 2:
         public short MaskWidth, MaskHeight, MaskX, MaskY;
         public int MaskLength;
@@ -1059,7 +1111,17 @@ namespace Client.MirGraphics
         public long CleanTime;
         public Size TrueSize;
 
-        public unsafe byte* Data;
+        // 可见像素包围盒（纹理坐标）。GetTrueSize 只回答「可见区多大」，
+        // 而命中判定还需要知道「可见区从哪开始」—— 图带透明边时，这个起点不是 (0,0)。
+        public Rectangle VisibleBounds;
+
+        // 可见性掩码：1 bit / 像素，bit=1 表示「该像素不透明」。
+        // ★原实现用 `byte* Data` 保存 LockRectangle 期间的临时指针，Unlock 之后它就成了野指针，
+        //   而 VisiblePixel 长期读它 —— 玩一段时间 GC 回收/显存重整后必然 AccessViolationException
+        //   （事件日志里崩溃栈全落在 MImage.VisiblePixel）。改用托管位图，指针彻底不落地。
+        //   判定条件与原版保持一致：像素蓝通道 != 0 即可见（A8R8G8B8 内存里首字节是 B）。
+        public byte[] VisibleMask;
+        public int VisibleMaskStride;
 
         public MImage(BinaryReader reader)
         {
@@ -1088,37 +1150,99 @@ namespace Client.MirGraphics
 
         public unsafe void CreateTexture(BinaryReader reader)
         {
-            int w = Width;// + (4 - Width % 4) % 4;
-            int h = Height;// + (4 - Height % 4) % 4;
+            int w = Width;
+            int h = Height;
+
+            // 先解压到托管数组：既用来上传纹理，也顺手生成可见性掩码。
+            // 原来是把 GZip 流直接灌进 LockRectangle 拿到的指针，解压完就必须扔掉，
+            // 不能留到后面用（那就是 VisiblePixel 崩溃的来源）。
+            byte[] raw = DecompressImage(reader.ReadBytes(Length));
 
             Image = new Texture(DXManager.Device, w, h, 1, Usage.None, Format.A8R8G8B8, Pool.Managed);
-            DataRectangle stream = Image.LockRectangle(0, LockFlags.Discard);
-            Data = (byte*)stream.Data.DataPointer;
-
-            DecompressImage(reader.ReadBytes(Length), stream.Data);
-
-            stream.Data.Dispose();
-            Image.UnlockRectangle(0);
+            UploadRaw(raw, Image, w, h);
+            BuildVisibleMask(raw, w, h);
 
             if (HasMask)
             {
                 reader.ReadBytes(12);
-                w = Width;// + (4 - Width % 4) % 4;
-                h = Height;// + (4 - Height % 4) % 4;
+
+                byte[] maskRaw = DecompressImage(reader.ReadBytes(Length));
 
                 MaskImage = new Texture(DXManager.Device, w, h, 1, Usage.None, Format.A8R8G8B8, Pool.Managed);
-                stream = MaskImage.LockRectangle(0, LockFlags.Discard);
-
-                DecompressImage(reader.ReadBytes(Length), stream.Data);
-
-                stream.Data.Dispose();
-                MaskImage.UnlockRectangle(0);
+                UploadRaw(maskRaw, MaskImage, w, h);
             }
 
             DXManager.TextureList.Add(this);
             TextureValid = true;
 
             CleanTime = CMain.Time + Settings.CleanDelay;
+        }
+
+        /// <summary>
+        /// 把紧凑的 BGRA 数据按 D3D 返回的真实行距上传到纹理。
+        /// ★必须用 locked.Pitch，不能硬算 width*4（D3D 会为对齐补齐行距，硬算会写越界）。
+        /// ★只 UnlockRectangle，不要 Dispose(locked.Data)（那是重复释放）。
+        /// </summary>
+        private static unsafe void UploadRaw(byte[] raw, Texture texture, int w, int h)
+        {
+            if (texture == null || raw == null || raw.Length == 0 || w <= 0 || h <= 0) return;
+
+            int srcRowBytes = w * 4;
+            int rows = raw.Length / srcRowBytes;      // 数据比预期短时只传有的部分，绝不越界读
+            if (rows > h) rows = h;
+
+            DataRectangle locked = texture.LockRectangle(0, LockFlags.Discard);
+            try
+            {
+                int pitch = locked.Pitch;
+                if (pitch <= 0) pitch = srcRowBytes;
+
+                int rowBytes = srcRowBytes < pitch ? srcRowBytes : pitch;
+
+                byte* dst = (byte*)locked.Data.DataPointer;
+                for (int y = 0; y < rows; y++)
+                {
+                    fixed (byte* src = &raw[y * srcRowBytes])
+                    {
+                        Buffer.MemoryCopy(src, dst + (long)y * pitch, pitch, rowBytes);
+                    }
+                }
+            }
+            finally
+            {
+                texture.UnlockRectangle(0);
+            }
+        }
+
+        /// <summary>把解压后的像素转成 1 bit/像素的可见性掩码（约 1/32 内存占用）。</summary>
+        private void BuildVisibleMask(byte[] raw, int w, int h)
+        {
+            if (raw == null || w <= 0 || h <= 0)
+            {
+                VisibleMask = null;
+                VisibleMaskStride = 0;
+                return;
+            }
+
+            int stride = (w + 7) >> 3;
+            byte[] mask = new byte[stride * h];
+            int srcRowBytes = w * 4;
+
+            for (int y = 0; y < h; y++)
+            {
+                int src = y * srcRowBytes;
+                if (src + srcRowBytes > raw.Length) break;
+
+                int dst = y * stride;
+                for (int x = 0; x < w; x++)
+                {
+                    if (raw[src + (x << 2)] != 0)     // B 通道非 0 = 不透明（保持原判定）
+                        mask[dst + (x >> 3)] |= (byte)(1 << (x & 7));
+                }
+            }
+
+            VisibleMask = mask;
+            VisibleMaskStride = stride;
         }
 
         public unsafe void DisposeTexture()
@@ -1138,30 +1262,23 @@ namespace Client.MirGraphics
             TextureValid = false;
             Image = null;
             MaskImage = null;
-            Data = null;
+            VisibleMask = null;
+            VisibleMaskStride = 0;
+            SkinApplied = false;
         }
 
-        public unsafe bool VisiblePixel(Point p)
+        public bool VisiblePixel(Point p)
         {
             if (p.X < 0 || p.Y < 0 || p.X >= Width || p.Y >= Height)
                 return false;
 
-            int w = Width;
+            byte[] mask = VisibleMask;
+            if (mask == null) return false;
 
-            bool result = false;
-            if (Data != null)
-            {
-                int x = p.X;
-                int y = p.Y;
-                
-                int index = (y * (w << 2)) + (x << 2);
-                
-                byte col = Data[index];
+            int index = p.Y * VisibleMaskStride + (p.X >> 3);
+            if (index < 0 || index >= mask.Length) return false;
 
-                if (col == 0) return false;
-                else return true;
-            }
-            return result;
+            return (mask[index] & (1 << (p.X & 7))) != 0;
         }
 
         public Size GetTrueSize()
@@ -1239,6 +1356,7 @@ namespace Client.MirGraphics
             }
 
             TrueSize = Rectangle.FromLTRB(l, t, r, b).Size;
+            VisibleBounds = Rectangle.FromLTRB(l, t, r, b);
 
             return TrueSize;
         }
