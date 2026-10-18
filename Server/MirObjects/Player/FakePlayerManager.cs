@@ -1277,6 +1277,55 @@ namespace Server.MirObjects
 
             if (mpPot != null && mpPot != hpPot && mpCount < mpPot.StackSize * potionGroups)
                 AddToBag(bot, mpPot, mpPot.StackSize * potionGroups - mpCount);
+
+            RefillAmulets(bot);
+        }
+
+        /// <summary>
+        /// 把身上的「护身符类」消耗品补满（符纸 / 毒粉）。
+        ///
+        /// 为什么不看名字：护士符(Shape=0)与灰色毒粉(Shape=1)/黄色毒粉(Shape=2)是同一个
+        /// ItemType.护身符，而且共用 EquipmentSlot.护身符 这一个槽 —— 槽里装的是什么就补什么，
+        /// 数量直接补到堆叠上限（护身符(特)是 600 张）。
+        ///
+        /// 道士的符槽空着（装备方案里没写「护身符=…」）时自动配一叠最好的符：
+        /// 没有符，灵魂火符 / 召唤骷髅 / 幽灵盾这些技能全放不出来，
+        /// 假人道士就只会贴脸挨打，在玩家眼里一眼假。
+        /// </summary>
+        private static void RefillAmulets(FakePlayerObject bot)
+        {
+            for (int i = 0; i < bot.Info.Equipment.Length; i++)
+            {
+                UserItem item = bot.Info.Equipment[i];
+                if (item == null || item.Info == null || item.Info.Type != ItemType.护身符) continue;
+
+                // Shape 0=符纸 1=灰毒 2=黄毒；3 以上是苏生符籍 / 气功石 / 绝技盒，
+                // 那些不是「打怪要一直消耗」的材料，别一起补满。
+                if (item.Info.Shape > 2) continue;
+
+                if (item.Info.StackSize <= 0 || item.Count >= item.Info.StackSize) continue;
+
+                item.Count = item.Info.StackSize;
+            }
+
+            if (bot.Class != MirClass.道士) return;
+            if (bot.Info.Equipment[(int)EquipmentSlot.护身符] != null) return;
+
+            ItemInfo best = null;
+
+            for (int i = 0; i < Envir.ItemInfoList.Count; i++)
+            {
+                ItemInfo info = Envir.ItemInfoList[i];
+                if (info == null || info.Type != ItemType.护身符 || info.Shape != 0) continue;
+
+                if (best == null || info.StackSize > best.StackSize) best = info;
+            }
+
+            if (best == null) return;
+
+            UserItem amulet = Envir.CreateFreshItem(best);
+            amulet.Count = best.StackSize;
+            bot.Info.Equipment[(int)EquipmentSlot.护身符] = amulet;
         }
 
         private static int CountItem(FakePlayerObject bot, ItemInfo info)
@@ -1528,6 +1577,11 @@ namespace Server.MirObjects
                 if (item.Info.Durability > 0 && item.CurrentDura == 0) return;
                 if (!bot.CanEquipItem(item, (int)slot)) return;
 
+                // 护身符 / 毒粉是消耗品：CreateFreshItem 只给 1 个（UserItem.Count 默认 1），
+                // 而灵魂火符每打一只怪就要消耗 1 张 —— 只给 1 张等于「配了也没有」。
+                if (info.Type == ItemType.护身符 && info.StackSize > 0)
+                    item.Count = info.StackSize;
+
                 bot.Info.Equipment[(int)slot] = item;
             }
             catch
@@ -1553,6 +1607,14 @@ namespace Server.MirObjects
 #   - 盔甲分男女：写 (男) 就行，遇到女性假人系统会自动换成 (女)。
 #   - 假人身上会校验职业 / 性别 / 等级需求，穿不上的自动换兜底装备。
 #   - 行首 # 或 ; 是注释。改完重启服务端生效。
+#
+#  ---- 道士的「护身符 / 毒粉」 ----
+#   · 写法：护身符=物品名，例如  护身符=护身符(特)
+#   · 符纸(Shape=0)：护身符 / 护身符(中/大/特)；毒粉(Shape=1/2)：灰色毒粉 / 黄色毒粉 及 (小/中/大/特)
+#   · 符纸与毒粉共用「护身符」一个槽，只能带一种；配了会自动补满一叠，回城补给时再补满。
+#   · 道士方案不写「护身符=」的，上线也会自动配一叠最好的符。
+#   · 假人 AI 只放灵魂火符(要符)和自愈，不放施毒术，毒粉只是装备栏好看；
+#     想带毒又不占符槽，可写  右手镯=灰色毒粉(特)  （代价：右手镯属性没了）。
 # ==================================================================================
 
 [战士重装]
@@ -1606,6 +1668,7 @@ namespace Server.MirObjects
 腰带=金刚腰带
 靴子=赤鳞靴
 守护石=木青石(特)
+护身符=护身符(特)
 
 [刺客夜行]
 职业=刺客
