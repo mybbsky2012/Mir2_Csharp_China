@@ -124,25 +124,39 @@ namespace Client.MirNetwork
             if (dataRead == 0)
             {
                 Disconnect();
+                return;
             }
 
             byte[] rawBytes = result.AsyncState as byte[];
 
-            byte[] temp = _rawData;
-            _rawData = new byte[dataRead + temp.Length];
-            Buffer.BlockCopy(temp, 0, _rawData, 0, temp.Length);
-            Buffer.BlockCopy(rawBytes, 0, _rawData, temp.Length, dataRead);
-
-            Packet p;
-            List<byte> data = new List<byte>();
-
-            while ((p = Packet.ReceivePacket(_rawData, out _rawData)) != null)
+            // ★收包解码必须兜底：Packet.ReceivePacket 碰到坏数据会抛 InvalidDataException，
+            // 这里跑在 IOCP 回调线程上，没人接住 = 整个客户端进程被杀
+            //（事件日志实锤：10-20 21:39 两次「玩着玩着客户端直接退出」）。
+            // 改为记日志 + 断线，客户端回到掉线处理流程，不再闪退。
+            try
             {
-                data.AddRange(p.GetPacketBytes());
-                _receiveList.Enqueue(p);
-            }
+                byte[] temp = _rawData;
+                _rawData = new byte[dataRead + temp.Length];
+                Buffer.BlockCopy(temp, 0, _rawData, 0, temp.Length);
+                Buffer.BlockCopy(rawBytes, 0, _rawData, temp.Length, dataRead);
 
-            CMain.BytesReceived += data.Count;
+                Packet p;
+                List<byte> data = new List<byte>();
+
+                while ((p = Packet.ReceivePacket(_rawData, out _rawData)) != null)
+                {
+                    data.AddRange(p.GetPacketBytes());
+                    _receiveList.Enqueue(p);
+                }
+
+                CMain.BytesReceived += data.Count;
+            }
+            catch (Exception ex)
+            {
+                if (Settings.LogErrors) CMain.SaveError(ex.ToString());
+                Disconnect();
+                return;
+            }
 
             BeginReceive();
         }

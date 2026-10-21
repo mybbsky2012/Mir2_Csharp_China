@@ -1258,6 +1258,31 @@ namespace Server.MirObjects
 
                     acts.Add(new NPCActions(ActionType.GiveGuildExp, parts[1]));
                     break;
+
+                // 一键回收：RECYCLE <套装枚举名>，把背包里该套装的装备按原价折成金币
+                case "RECYCLE":
+                    if (parts.Length < 2) return;
+
+                    acts.Add(new NPCActions(ActionType.Recycle, parts[1]));
+                    break;
+
+                // 一键回收（散件）：RECYCLEKEY <关键词>，把背包里名字含关键词的装备按原价折成金币
+                // 多个关键词用 | 分隔，命中任意一个即回收，例如 RECYCLEKEY 沃玛|祖玛
+                case "RECYCLEKEY":
+                    if (parts.Length < 2) return;
+
+                    acts.Add(new NPCActions(ActionType.RecycleKey, parts[1]));
+                    break;
+
+                // 直接修复身上某个部位的装备（不用脱下来）：REPAIR <部位> [special]
+                // 部位：EquipmentSlot 的名字（武器/盔甲/头盔/照明物/项链/左手镯/右手镯/左戒指/右戒指/护身符/腰带/靴子/守护石/坐骑）或 0~13 的数字
+                // 不带 special = 普通修理（会损失耐久上限，规则同 NPC 修理面板）；带 special = 特修（不损上限，直接修满）
+                // 收费由脚本自己写 TAKEGOLD，本命令只负责修
+                case "REPAIR":
+                    if (parts.Length < 2) return;
+
+                    acts.Add(new NPCActions(ActionType.Repair, parts[1], parts.Length > 2 ? parts[2] : string.Empty));
+                    break;
             }
         }
 
@@ -4465,6 +4490,57 @@ namespace Server.MirObjects
                             uint tempUint;
                             if (!uint.TryParse(param[0], out tempUint)) return;
                             player.MyGuild.GainExp(tempUint);
+                        }
+                        break;
+
+                    case ActionType.Recycle:
+                        {
+                            if (param == null || param.Count == 0) return;
+
+                            RecycleManager.Recycle(player, param[0]);
+                        }
+                        break;
+
+                    case ActionType.RecycleKey:
+                        {
+                            if (param == null || param.Count == 0) return;
+
+                            RecycleManager.RecycleByKeyword(player, param[0]);
+                        }
+                        break;
+
+                    // REPAIR <部位> [special]：修满身上该部位装备（不走背包、不用脱装备）
+                    // 注意：这里失败一律用 break 而不是 return —— act 列表是逐条执行的，
+                    // return 会中断后面所有命令，导致「修全身」脚本在第一件已满/空位时就停住。
+                    case ActionType.Repair:
+                        {
+                            if (param == null || param.Count == 0 || string.IsNullOrWhiteSpace(param[0])) break;
+
+                            int slotIndex;
+                            if (!int.TryParse(param[0], out slotIndex))
+                            {
+                                EquipmentSlot parsedSlot;
+                                if (!Enum.TryParse(param[0], true, out parsedSlot)) break;
+                                slotIndex = (int)parsedSlot;
+                            }
+                            if (slotIndex < 0 || slotIndex >= player.Info.Equipment.Length) break;
+
+                            // 第二个参数：special / 特修 / 1 → 特修（不损上限）；其余（含不写）→ 普通修理
+                            bool special = param.Count > 1 && (param[1].Equals("special", StringComparison.OrdinalIgnoreCase)
+                                                               || param[1].Equals("true", StringComparison.OrdinalIgnoreCase)
+                                                               || param[1] == "1" || param[1] == "特修");
+
+                            UserItem item = player.Info.Equipment[slotIndex];
+                            if (item == null || item.CurrentDura >= item.MaxDura) break; // 空位 / 已经满持久：跳过，继续下一条
+                            if (item.Info.Bind.HasFlag(BindMode.DontRepair)) break;
+                            if (special && item.Info.Bind.HasFlag(BindMode.NoSRepair)) break;
+
+                            // 普通修理会永久损耗耐久上限（缺口 1/30），特修不损上限，与原版 NPC 修理规则一致
+                            if (!special) item.MaxDura = (ushort)Math.Max(0, item.MaxDura - (item.MaxDura - item.CurrentDura) / 30);
+
+                            item.CurrentDura = item.MaxDura;
+                            item.DuraChanged = false;
+                            player.Enqueue(new S.ItemRepaired { UniqueID = item.UniqueID, MaxDura = item.MaxDura, CurrentDura = item.CurrentDura });
                         }
                         break;
 

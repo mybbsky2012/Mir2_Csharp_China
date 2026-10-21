@@ -2562,4 +2562,17 @@ namespace ClientPackets
             writer.Write(Value);
         }
     }
+
+    /// <summary>客户端请求整理背包（服务端权威排序，腰带 0~5 格不动，只整理 6 起的背包区）</summary>
+    public sealed class SortBag : Packet
+    {
+        public override short Index { get { return (short)ClientPacketIds.SortBag; } }
+
+        protected override void ReadPacket(BinaryReader reader)
+        {
+        }
+        protected override void WritePacket(BinaryWriter writer)
+        {
+        }
+    }
 }

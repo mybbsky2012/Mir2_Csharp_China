@@ -62,6 +62,8 @@ namespace Server.Database
             var types = Enum.GetValues(typeof(ItemType));
             foreach (ItemType type in types)
             {
+                // 魔血石与气血石是同一类石头（效果只看属性页填的 HP/MP），下拉里只保留「气血石」
+                if (type == global::ItemType.魔血石) continue;
                 filterItems.Add(((byte)type).ToString(), type.ToString());
             }
 
@@ -102,7 +104,8 @@ namespace Server.Database
 
             //Basic
             ItemType.ValueType = typeof(ItemType);
-            ItemType.DataSource = Enum2DataTable<ItemType>();
+            // 魔血石与气血石同类，编辑时只提供「气血石」一个类型（填 HP 回体力、填 MP 回魔力、都填就都回）
+            ItemType.DataSource = Enum2DataTableExcluding<ItemType>(global::ItemType.魔血石);
             ItemType.ValueMember = "Value";
             ItemType.DisplayMember = "Display";
 
@@ -142,6 +145,36 @@ namespace Server.Database
             foreach (T E in Enum.GetValues(typeof(T)))
             {
                 EnumRow = enumTable.NewRow();
+                EnumRow["Value"] = E;
+                EnumRow["Display"] = E.ToString();
+                enumTable.Rows.Add(EnumRow);
+            }
+
+            return enumTable;
+        }
+
+        /// <summary>
+        /// 同 Enum2DataTable，但可排除若干枚举值（用于隐藏兼容保留的旧类型，例如魔血石）。
+        /// </summary>
+        public static DataTable Enum2DataTableExcluding<T>(params object[] exclude)
+        {
+            DataTable enumTable = new DataTable();
+            enumTable.Columns.Add(new DataColumn("Value", Enum.GetUnderlyingType(typeof(T))));
+            enumTable.Columns.Add(new DataColumn("Display", typeof(string)));
+
+            foreach (T E in Enum.GetValues(typeof(T)))
+            {
+                bool skip = false;
+                if (exclude != null)
+                {
+                    foreach (object ex in exclude)
+                    {
+                        if (ex != null && ex.Equals(E)) { skip = true; break; }
+                    }
+                }
+                if (skip) continue;
+
+                DataRow EnumRow = enumTable.NewRow();
                 EnumRow["Value"] = E;
                 EnumRow["Display"] = E.ToString();
                 enumTable.Rows.Add(EnumRow);
@@ -226,7 +259,8 @@ namespace Server.Database
                 row["ItemIndex"] = item.Index;
                 row["ItemName"] = item.Name;
 
-                row["ItemType"] = item.Type;
+                // 魔血石归一到「气血石」显示：两者是同一类石头，效果只看属性页的 HP / MP
+                row["ItemType"] = item.Type == global::ItemType.魔血石 ? global::ItemType.气血石 : item.Type;
                 row["ItemGrade"] = item.Grade;
                 row["ItemRequiredType"] = item.RequiredType;
                 row["ItemRequiredGender"] = item.RequiredGender;

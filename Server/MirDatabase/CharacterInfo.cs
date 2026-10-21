@@ -72,7 +72,10 @@ namespace Server.MirDatabase
         public byte MentalState;
         public byte MentalStateLvl;
 
-        public UserItem[] Inventory = new UserItem[46], Equipment = new UserItem[14], Trade = new UserItem[10], QuestInventory = new UserItem[40], Refine = new UserItem[16];
+        // 大背包：默认 86 格 = 腰带 6 格(索引 0~5) + 背包 80 格(索引 6~85)。
+        // 客户端背包面板固定 8 列 x 10 行 = 80 个格子，ItemSlot 直接就是从 6 到 85 的数组索引，
+        // 所以 86 是客户端能完整显示的物理上限，超过 86 会出现「放了东西但看不见」的黑格。
+        public UserItem[] Inventory = new UserItem[86], Equipment = new UserItem[14], Trade = new UserItem[10], QuestInventory = new UserItem[40], Refine = new UserItem[16];
         public List<ItemRentalInformation> RentedItems = new List<ItemRentalInformation>();
         public List<ItemRentalInformation> RentedItemsToRemove = new List<ItemRentalInformation>();
         public bool HasRentedItem;
@@ -190,6 +193,11 @@ namespace Server.MirDatabase
             int count = reader.ReadInt32();
 
             Array.Resize(ref Inventory, count);
+
+            // 大背包：旧存档（46 / 54 / ... / 82 格）登录时在尾部补齐到 86 格。
+            // 只做尾部扩容，已有物品的索引位置完全不变，不会丢失或错位。
+            if (Inventory.Length < 86)
+                Array.Resize(ref Inventory, 86);
 
             for (int i = 0; i < count; i++)
             {

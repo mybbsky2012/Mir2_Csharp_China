@@ -24,14 +24,15 @@ namespace Server
         {
             InitializeComponent();
 
-            ITypeComboBox.Items.AddRange(Enum.GetValues(typeof (ItemType)).Cast<object>().ToArray());
+            // 魔血石与气血石是同一类石头（效果只看属性页填的 HP/MP），下拉里只保留「气血石」
+            ITypeComboBox.Items.AddRange(Enum.GetValues(typeof (ItemType)).Cast<object>().Where(x => (ItemType)x != ItemType.魔血石).ToArray());
             IGradeComboBox.Items.AddRange(Enum.GetValues(typeof(ItemGrade)).Cast<object>().ToArray());
             RTypeComboBox.Items.AddRange(Enum.GetValues(typeof (RequiredType)).Cast<object>().ToArray());
             RClassComboBox.Items.AddRange(Enum.GetValues(typeof (RequiredClass)).Cast<object>().ToArray());
             RGenderComboBox.Items.AddRange(Enum.GetValues(typeof (RequiredGender)).Cast<object>().ToArray());
             ISetComboBox.Items.AddRange(Enum.GetValues(typeof(ItemSet)).Cast<object>().ToArray());
 
-            ITypeFilterComboBox.Items.AddRange(Enum.GetValues(typeof(ItemType)).Cast<object>().ToArray());
+            ITypeFilterComboBox.Items.AddRange(Enum.GetValues(typeof(ItemType)).Cast<object>().Where(x => (ItemType)x != ItemType.魔血石).ToArray());
             ITypeFilterComboBox.Items.Add(new ComboBoxItem { Text = "All" });
             ITypeFilterComboBox.SelectedIndex = ITypeFilterComboBox.Items.Count - 1;
 
@@ -218,7 +219,8 @@ namespace Server
             WeightTextBox.Text = info.Weight.ToString();
             ImageTextBox.Text = info.Image.ToString();
             DuraTextBox.Text = info.Durability.ToString();
-            ITypeComboBox.SelectedItem = info.Type;
+            // 魔血石归一到「气血石」显示：两者是同一类石头
+            ITypeComboBox.SelectedItem = info.Type == ItemType.魔血石 ? ItemType.气血石 : info.Type;
             IGradeComboBox.SelectedItem = info.Grade;
             ISetComboBox.SelectedItem = info.Set;
             ShapeTextBox.Text = info.Shape.ToString();
@@ -337,7 +339,7 @@ namespace Server
                 if (WeightTextBox.Text != info.Weight.ToString()) WeightTextBox.Text = string.Empty;
                 if (ImageTextBox.Text != info.Image.ToString()) ImageTextBox.Text = string.Empty;
                 if (DuraTextBox.Text != info.Durability.ToString()) DuraTextBox.Text = string.Empty;
-                if (ITypeComboBox.SelectedItem == null || (ItemType)ITypeComboBox.SelectedItem != info.Type) ITypeComboBox.SelectedItem = null;
+                if (ITypeComboBox.SelectedItem == null || (ItemType)ITypeComboBox.SelectedItem != (info.Type == ItemType.魔血石 ? ItemType.气血石 : info.Type)) ITypeComboBox.SelectedItem = null;
                 if (IGradeComboBox.SelectedItem == null || (ItemGrade)IGradeComboBox.SelectedItem != info.Grade) IGradeComboBox.SelectedItem = null;
                 if (ISetComboBox.SelectedItem == null || (ItemSet)ISetComboBox.SelectedItem != info.Set) ISetComboBox.SelectedItem = null;
                 if (ShapeTextBox.Text != info.Shape.ToString()) ShapeTextBox.Text = string.Empty;

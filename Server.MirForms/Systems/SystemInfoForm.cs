@@ -108,6 +108,38 @@ namespace Server
         private void UpdateGem()
         {
             GemStatCheckBox.Checked = Settings.GemStatIndependent;
+
+            StoneHPTriggerUpDown.Value = Clamp(StoneHPTriggerUpDown, Settings.StoneHPTriggerPercent);
+            StoneHPDelayUpDown.Value = Clamp(StoneHPDelayUpDown, Settings.StoneHPDelay);
+            StoneHPGainUpDown.Value = Clamp(StoneHPGainUpDown, Settings.StoneHPGainPercent);
+            StoneHPDuraUpDown.Value = Clamp(StoneHPDuraUpDown, Settings.StoneHPDuraCost);
+            StoneMPTriggerUpDown.Value = Clamp(StoneMPTriggerUpDown, Settings.StoneMPTriggerPercent);
+            StoneMPDelayUpDown.Value = Clamp(StoneMPDelayUpDown, Settings.StoneMPDelay);
+            StoneMPGainUpDown.Value = Clamp(StoneMPGainUpDown, Settings.StoneMPGainPercent);
+            StoneMPDuraUpDown.Value = Clamp(StoneMPDuraUpDown, Settings.StoneMPDuraCost);
+            chkStoneBagUse.Checked = Settings.StoneAllowBagUse;
+        }
+
+        private static decimal Clamp(NumericUpDown control, int value)
+        {
+            if (value < control.Minimum) return control.Minimum;
+            if (value > control.Maximum) return control.Maximum;
+            return value;
+        }
+
+        private void StoneSetting_ValueChanged(object sender, EventArgs e)
+        {
+            if (ActiveControl != sender) return;
+
+            Settings.StoneHPTriggerPercent = (int)StoneHPTriggerUpDown.Value;
+            Settings.StoneHPDelay = (int)StoneHPDelayUpDown.Value;
+            Settings.StoneHPGainPercent = (int)StoneHPGainUpDown.Value;
+            Settings.StoneHPDuraCost = (int)StoneHPDuraUpDown.Value;
+            Settings.StoneMPTriggerPercent = (int)StoneMPTriggerUpDown.Value;
+            Settings.StoneMPDelay = (int)StoneMPDelayUpDown.Value;
+            Settings.StoneMPGainPercent = (int)StoneMPGainUpDown.Value;
+            Settings.StoneMPDuraCost = (int)StoneMPDuraUpDown.Value;
+            GemChanged = true;
         }
 
         private void UpdateSpawnTick()
@@ -721,6 +753,14 @@ namespace Server
             if (ActiveControl != sender) return;
 
             Settings.GemStatIndependent = GemStatCheckBox.Checked;
+            GemChanged = true;
+        }
+
+        private void StoneBagUse_CheckedChanged(object sender, EventArgs e)
+        {
+            if (ActiveControl != sender) return;
+
+            Settings.StoneAllowBagUse = chkStoneBagUse.Checked;
             GemChanged = true;
         }
         #endregion

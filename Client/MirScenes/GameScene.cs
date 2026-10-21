@@ -1065,6 +1065,8 @@ namespace Client.MirScenes
 
                     actor.NextMagic = magic;
                     actor.NextMagicLocation = MapControl.MapLocation;
+                    // 魔法锁定不改这里：仍取鼠标指向，锁定只在 UseMagic 里「鼠标没指着有效目标」时回退到锁定对象，
+                    // 这样普攻/近战技能完全不受锁定影响（与盛大魔法锁定一致）
                     actor.NextMagicObject = MapObject.MouseObject;
                     actor.NextMagicDirection = MapControl.MouseDirection();
 
@@ -5341,13 +5343,19 @@ namespace Client.MirScenes
         private void ObjectHealth(S.ObjectHealth p)
         {
             if (p.ObjectID == Hero?.ObjectID)
+            {
                 Hero.PercentHealth = p.Percent;
+                Hero.CurrentHP = p.CurrentHP;
+                Hero.MaxHP = p.MaxHP;
+            }
 
             for (int i = MapControl.Objects.Count - 1; i >= 0; i--)
             {
                 MapObject ob = MapControl.Objects[i];
                 if (ob.ObjectID != p.ObjectID) continue;
                 ob.PercentHealth = p.Percent;
+                ob.CurrentHP = p.CurrentHP;
+                ob.MaxHP = p.MaxHP;
                 ob.HealthTime = CMain.Time + p.Expire * 1000;
                 return;
             }
@@ -7325,6 +7333,11 @@ namespace Client.MirScenes
                     break;
                 case ItemType.守护石:
                     baseText = GameLanguage.ItemTypeStone;
+                    break;
+                case ItemType.气血石:
+                case ItemType.魔血石:
+                    // 气血石 / 魔血石 是同一类生命魔法石，靠属性页的 HP/MP 决定回体力还是回魔力
+                    baseText = "生命魔法石";
                     break;
                 case ItemType.照明物:
                     baseText = GameLanguage.ItemTypeTorch;
@@ -11006,6 +11019,9 @@ namespace Client.MirScenes
 
             ProcessAutoPlay();
 
+            // 未开内挂总开关时的自动捡物：人走到掉落物所在格子才自动捡，不主动跑过去
+            if (!Settings.AutoPlay && Settings.AutoPickup) ProcessAutoPickupOnTile();
+
             // 毒符互换（手动）：玩家自己按技能时因为要先换符/换毒而被推迟的那次施法，材料到位后自动补放
             AutoPlayRetryManualSpell();
 
@@ -11042,6 +11058,7 @@ namespace Client.MirScenes
                                 //continue;
                             }
                             MapObject.MouseObjectID = ob.ObjectID;
+                            if (Settings.MagicLock) TrySwitchMagicLock(ob);
                             Redraw();
                         }
                         if (bestmouseobject != null && MapObject.MouseObject == null)
@@ -11060,6 +11077,9 @@ namespace Client.MirScenes
                 MapObject.MouseObjectID = 0;
                 Redraw();
             }
+
+            // 魔法锁定：放在帧末统一执行，覆盖本帧内挂索敌、鼠标点击对目标的改动（锁定期间目标只认锁定对象）
+            ProcessMagicLock();
         }
 
         public static MapObject GetObject(uint targetID)
@@ -11135,8 +11155,12 @@ namespace Client.MirScenes
                     ItemObject ob = Objects[i] as ItemObject;
                     if (ob == null) continue;
 
-                    if (!ob.MouseOver(MouseLocation))
-                        ob.DrawName();
+                    if (ob.MouseOver(MouseLocation)) continue;
+                    // 内挂「物品过滤」：只绘制 Data\ItemFilter.txt 列表里匹配到的物品名字。
+                    // 鼠标指着的物品不在这里画（下面另有循环负责堆叠显示），所以过滤不影响查看单个物品。
+                    if (!ItemFilter.ShouldShow(ob)) continue;
+
+                    ob.DrawName();
                 }
             }
 
@@ -11545,6 +11569,11 @@ namespace Client.MirScenes
 
                 if (MapObject.TargetObject != null)
                     MapObject.TargetObject.DrawBlend();
+
+                // 魔法锁定：锁定对象单独提亮（只是视觉标记，不挂 TargetObject，普攻/近战不会追着它打）
+                if (Settings.MagicLock && MapObject.LockObject != null && !MapObject.LockObject.Dead && MapObject.LockObject.Blend &&
+                    MapObject.LockObject != MapObject.TargetObject && MapObject.LockObject != MapObject.MouseObject)
+                    MapObject.LockObject.DrawBlend();
             }
 
             for (int i = 0; i < Objects.Count; i++)
@@ -11949,20 +11978,15 @@ namespace Client.MirScenes
                 }
                 if (cell.Item.Count == 1)
                 {
-                    MirMessageBox messageBox = new MirMessageBox(string.Format(GameLanguage.DropTip, cell.Item.FriendlyName), MirMessageBoxButtons.YesNo);
-
-                    messageBox.YesButton.Click += (o, a) =>
+                    // 单个物品直接丢弃，不再弹「是否要丢弃」确认框（数量 > 1 仍走下面的数量框）
+                    Network.Enqueue(new C.DropItem
                     {
-                        Network.Enqueue(new C.DropItem
-                        {
-                            UniqueID = cell.Item.UniqueID,
-                            Count = 1,
-                            HeroInventory = cell.GridType == MirGridType.HeroInventory
-                        });
-                        
-                        cell.Locked = true;
-                    };
-                    messageBox.Show();
+                        UniqueID = cell.Item.UniqueID,
+                        Count = 1,
+                        HeroInventory = cell.GridType == MirGridType.HeroInventory
+                    });
+
+                    cell.Locked = true;
                 }
                 else
                 {
@@ -14329,6 +14353,71 @@ namespace Client.MirScenes
             return cached ?? new string[0];
         }
 
+        /// <summary>魔法锁定：鼠标悬停到可锁定对象（玩家/英雄/怪物/NPC）上时切换锁定目标；地面物品、尸体不锁</summary>
+        private void TrySwitchMagicLock(MapObject ob)
+        {
+            if (ob == null || ob.Dead || ob == MapObject.User) return;
+
+            switch (ob.Race)
+            {
+                case ObjectType.Player:
+                case ObjectType.Hero:
+                case ObjectType.Monster:
+                case ObjectType.Merchant:
+                    MapObject.LockObjectID = ob.ObjectID;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 魔法锁定：每帧把锁定对象挂回「法术目标」MagicObject，覆盖鼠标点击、内挂索敌对法术目标的改动。
+        /// ★只碰 MagicObject，不碰 TargetObject —— 普攻与近战技能仍按点击/鼠标指向的目标走，
+        /// 只有走 UseMagic 的远程技能（火球/雷电/灵魂火符/弓箭技能等）在鼠标没指着有效目标时回退到锁定对象。
+        /// 锁定对象死亡或离开视野（Remove 时已清 LockObjectID）即自动解除锁定。
+        /// </summary>
+        private void ProcessMagicLock()
+        {
+            if (!Settings.MagicLock) return;
+
+            MapObject lockObject = MapObject.LockObject;
+
+            if (lockObject == null || lockObject.Dead || User == null || User.Dead || GameScene.Observing)
+            {
+                if (MapObject.LockObjectID != 0) MapObject.LockObjectID = 0;
+                return;
+            }
+
+            if (MapObject.MagicObjectID != lockObject.ObjectID)
+                MapObject.MagicObjectID = lockObject.ObjectID;
+        }
+
+        // 脚下捡物退避：连续捡不动（别人的掉落/背包满）时指数拉长重试间隔，绝不无限每 200ms 空发
+        private Point _autoPickLastLoc;
+        private int _autoPickRetries;
+
+        /// <summary>未开内挂总开关时的自动捡物：只捡脚下这一格的物品，不主动走向物品</summary>
+        private void ProcessAutoPickupOnTile()
+        {
+            if (User == null || User.Dead || GameScene.Observing) return;
+            if (User.QueuedAction != null) return;              // 移动中不捡，等站定再捡
+            if (CMain.Time <= GameScene.PickUpTime) return;
+
+            for (int i = 0; i < Objects.Count; i++)
+            {
+                if (!(Objects[i] is ItemObject)) continue;
+                if (Objects[i].CurrentLocation != User.CurrentLocation) continue;
+
+                if (User.CurrentLocation == _autoPickLastLoc) _autoPickRetries++;
+                else { _autoPickLastLoc = User.CurrentLocation; _autoPickRetries = 1; }
+
+                // 前两次保持原节奏 200ms；之后 400/800/1600/3200ms 指数退避，封顶 5 秒
+                int delay = _autoPickRetries <= 2 ? 200 : Math.Min(200 << (_autoPickRetries - 2), 5000);
+                GameScene.PickUpTime = CMain.Time + delay;
+                Network.Enqueue(new C.PickUp());
+                return;                                         // 一次只捡一件，下一拍继续
+            }
+        }
+
         /// <summary>自动捡物：脚下的直接拾取，远处的（开启自动走位时）走过去；有可捡物品返回 true</summary>
         private bool AutoPlayPickUpItem()
         {
@@ -14340,6 +14429,8 @@ namespace Client.MirScenes
                 MapObject ob = Objects[i];
 
                 if (!(ob is ItemObject)) continue;
+                // 开总开关的自动捡物只捡「物品过滤」列表里的物品（列表为空则保持原来的全捡）
+                if (!ItemFilter.IsWanted(ob as ItemObject)) continue;
                 if (!Functions.InRange(ob.CurrentLocation, User.CurrentLocation, Settings.AutoSearchRange)) continue;
 
                 int distance = Functions.MaxDistance(ob.CurrentLocation, User.CurrentLocation);

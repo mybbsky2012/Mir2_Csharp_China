@@ -3789,18 +3789,24 @@ namespace ServerPackets
         public override short Index { get { return (short)ServerPacketIds.ObjectHealth; } }
         public uint ObjectID;
         public byte Percent, Expire;
+        //绝对值血量（数字显血用）；追加在末尾，旧字段顺序不变
+        public int CurrentHP, MaxHP;
 
         protected override void ReadPacket(BinaryReader reader)
         {
             ObjectID = reader.ReadUInt32();
             Percent = reader.ReadByte();
             Expire = reader.ReadByte();
+            CurrentHP = reader.ReadInt32();
+            MaxHP = reader.ReadInt32();
         }
         protected override void WritePacket(BinaryWriter writer)
         {
             writer.Write(ObjectID);
             writer.Write(Percent);
             writer.Write(Expire);
+            writer.Write(CurrentHP);
+            writer.Write(MaxHP);
         }
     }
 

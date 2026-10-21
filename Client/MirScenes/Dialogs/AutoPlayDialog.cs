@@ -15,28 +15,29 @@ namespace Client.MirScenes.Dialogs
         public MirLabel TitleLabel;
         public MirButton CloseButton;
 
-        public MirCheckBox AllBox, AttackBox, MoveBox, PickUpBox, PotHPBox, PotMPBox,
+        public MirCheckBox AllBox, AttackBox, MoveBox, PickUpBox, MagicLockBox, PotHPBox, PotMPBox,
                            AutoMoveRunBox, AutoSkillBox, AutoDodgeBox, PoisonSwapBox, ThrustingGapBox,
-                           NoLampBox, WalkThroughBox, NoRunUpBox, OverWeightBox, MountTaiBox;
+                           NoLampBox, WalkThroughBox, NoRunUpBox, OverWeightBox, MountTaiBox,
+                           ItemFilterBox, HealthNumberBox;
         public MirLabel HintLabel;
 
         public AutoPlayDialog()
         {
-            // 背景图：Title.Lib 索引 199（第200张，264x272 通用黑底金边面板，右上自带关闭叉）
+            // 背景图：Prguse.Lib 索引 256（308x483 大面板，上标题栏 + 大片黑色内容区 + 底部装饰）
             // 注意：代码里的 Index 是 0 基索引，比素材查看器里的「第N张」小 1
-            Index = 199;
-            Library = Libraries.Title;
+            Index = 256;
+            Library = Libraries.Prguse;
             AutoSize = false;
-            Size = new Size(264, 272);
+            Size = new Size(308, 483);
             Movable = true;
             Sort = true;
             Location = new Point((Settings.ScreenWidth - Size.Width) / 2, (Settings.ScreenHeight - Size.Height) / 2);
 
-            // 版面：y=28 为金色分隔线（标题栏），内容区 y=29~238，y=239 以下为底部装饰
+            // 版面：y=0~29 顶部标题栏，y=30~33 金色分隔线，内容区 y=40~430，y=434 以下为底部装饰
             TitleLabel = new MirLabel
             {
                 Location = new Point(8, 5),
-                Size = new Size(216, 20),
+                Size = new Size(292, 20),
                 DrawFormat = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter,
                 Parent = this,
                 NotControl = true,
@@ -48,16 +49,15 @@ namespace Client.MirScenes.Dialogs
                 HoverIndex = 361,
                 Index = 360,
                 PressedIndex = 362,
-                Location = new Point(235, 3),   // 盖在背景图自带的关闭叉（约 243~252, 9~18）上
+                Location = new Point(279, 4),   // 顶部标题栏右上角
                 Library = Libraries.Prguse2,
                 Parent = this,
                 Sound = SoundList.ButtonA,
             };
             CloseButton.Click += (o, e) => Hide();
 
-            // 左列：本地开关；右列：服务器开关
-            // 每列最多 8 项，行距 24（内容区 y=29~238）
-            AllBox = CreateBox(28, 42, "内挂总开关", Settings.AutoPlay);
+            // 两列布局：左列 x=28（10 项），右列 x=160（9 项），行距 36（内容区 y=40~430）
+            AllBox = CreateBox(28, 48, "内挂总开关", Settings.AutoPlay);
             AllBox.Click += (o, e) =>
             {
                 Settings.AutoPlay = AllBox.Checked;
@@ -69,22 +69,44 @@ namespace Client.MirScenes.Dialogs
                 GameScene.Scene.OutputMessage(Settings.AutoPlay ? "内挂已开启" : "内挂已关闭");
             };
 
-            AttackBox = CreateBox(28, 66, "自动攻击", Settings.AutoAttack);
+            AttackBox = CreateBox(28, 84, "自动攻击", Settings.AutoAttack);
             AttackBox.Click += (o, e) => { Settings.AutoAttack = AttackBox.Checked; Settings.Save(); };
 
-            MoveBox = CreateBox(28, 90, "自动走位", Settings.AutoMove);
+            MoveBox = CreateBox(28, 120, "自动走位", Settings.AutoMove);
             MoveBox.Click += (o, e) => { Settings.AutoMove = MoveBox.Checked; Settings.Save(); };
 
-            PickUpBox = CreateBox(28, 114, "自动捡物", Settings.AutoPickup);
-            PickUpBox.Click += (o, e) => { Settings.AutoPickup = PickUpBox.Checked; Settings.Save(); };
+            PickUpBox = CreateBox(28, 156, "自动捡物", Settings.AutoPickup);
+            PickUpBox.Click += (o, e) =>
+            {
+                Settings.AutoPickup = PickUpBox.Checked;
+                Settings.Save();
+                GameScene.Scene.OutputMessage(Settings.AutoPickup
+                    ? "自动捡物已开启：未开总开关时只捡脚下的物品；开了总开关会主动去捡，且只捡物品过滤列表里的物品"
+                    : "自动捡物已关闭");
+            };
 
-            PotHPBox = CreateBox(28, 138, "自动喝血药", Settings.AutoPotHP);
+            // 魔法锁定：锁定鼠标指向的对象（玩家/怪物/NPC），指向新对象自动换锁，鼠标移开不丢目标
+            MagicLockBox = CreateBox(28, 192, "魔法锁定", Settings.MagicLock);
+            MagicLockBox.Click += (o, e) =>
+            {
+                Settings.MagicLock = MagicLockBox.Checked;
+                Settings.Save();
+
+                if (!Settings.MagicLock)
+                    MapObject.LockObjectID = 0;
+
+                GameScene.Scene.OutputMessage(Settings.MagicLock
+                    ? "魔法锁定已开启：锁定鼠标指向的玩家/怪物/NPC，鼠标移开不丢目标，指向新对象自动换锁"
+                    : "魔法锁定已关闭");
+            };
+
+            PotHPBox = CreateBox(28, 228, "自动喝血药", Settings.AutoPotHP);
             PotHPBox.Click += (o, e) => { Settings.AutoPotHP = PotHPBox.Checked; Settings.Save(); };
 
-            PotMPBox = CreateBox(28, 162, "自动喝蓝药", Settings.AutoPotMP);
+            PotMPBox = CreateBox(28, 264, "自动喝蓝药", Settings.AutoPotMP);
             PotMPBox.Click += (o, e) => { Settings.AutoPotMP = PotMPBox.Checked; Settings.Save(); };
 
-            AutoSkillBox = CreateBox(28, 186, "自动技能", Settings.AutoSkill);
+            AutoSkillBox = CreateBox(28, 300, "自动技能", Settings.AutoSkill);
             AutoSkillBox.Click += (o, e) =>
             {
                 Settings.AutoSkill = AutoSkillBox.Checked;
@@ -92,7 +114,7 @@ namespace Client.MirScenes.Dialogs
                 GameScene.Scene.OutputMessage(Settings.AutoSkill ? "自动技能已开启：远怪用远程、近怪用近攻、围攻用群攻" : "自动技能已关闭");
             };
 
-            PoisonSwapBox = CreateBox(28, 210, "毒符互换", Settings.AutoSwapPoison);
+            PoisonSwapBox = CreateBox(28, 336, "毒符互换", Settings.AutoSwapPoison);
             PoisonSwapBox.Click += (o, e) =>
             {
                 Settings.AutoSwapPoison = PoisonSwapBox.Checked;
@@ -102,11 +124,37 @@ namespace Client.MirScenes.Dialogs
                     : "毒符互换已关闭");
             };
 
-            AutoMoveRunBox = CreateBox(132, 162, "走位跑步", Settings.AutoMoveRun);
+            // 物品过滤：列表文件 Data\ItemFilter.txt，只有列表里匹配到的地面物品才显示名字
+            ItemFilterBox = CreateBox(28, 372, "物品过滤", Settings.ItemFilterOn);
+            ItemFilterBox.Click += (o, e) =>
+            {
+                Settings.ItemFilterOn = ItemFilterBox.Checked;
+                Settings.Save();
+
+                ItemFilter.Reload();
+
+                if (!Settings.ItemFilterOn)
+                {
+                    GameScene.Scene.OutputMessage("物品过滤已关闭：恢复显示全部地面物品");
+                    return;
+                }
+
+                if (ItemFilter.NameCount == 0 && ItemFilter.MinGrade == ItemGrade.None)
+                {
+                    GameScene.Scene.OutputMessage("物品过滤已开启，但列表为空（Data\\ItemFilter.txt 不存在或没有有效行），暂不生效");
+                    return;
+                }
+
+                GameScene.Scene.OutputMessage(string.Format("物品过滤已开启：只显示列表内的物品（名字 {0} 条{1}）",
+                    ItemFilter.NameCount,
+                    ItemFilter.MinGrade != ItemGrade.None ? "，品质≥" + ItemFilter.MinGrade : string.Empty));
+            };
+
+            AutoMoveRunBox = CreateBox(160, 48, "走位跑步", Settings.AutoMoveRun);
             AutoMoveRunBox.Click += (o, e) => { Settings.AutoMoveRun = AutoMoveRunBox.Checked; Settings.Save(); };
 
             // 战士隔位刺杀：勾选即生效（手动打怪也生效），不需要开内挂总开关
-            ThrustingGapBox = CreateBox(132, 210, "隔位刺杀", Settings.AutoThrustingGap);
+            ThrustingGapBox = CreateBox(160, 84, "隔位刺杀", Settings.AutoThrustingGap);
             ThrustingGapBox.Click += (o, e) =>
             {
                 Settings.AutoThrustingGap = ThrustingGapBox.Checked;
@@ -116,7 +164,7 @@ namespace Client.MirScenes.Dialogs
                     : "隔位刺杀已关闭");
             };
 
-            AutoDodgeBox = CreateBox(132, 186, "自动躲避", Settings.AutoDodge);
+            AutoDodgeBox = CreateBox(160, 120, "自动躲避", Settings.AutoDodge);
             AutoDodgeBox.Click += (o, e) =>
             {
                 Settings.AutoDodge = AutoDodgeBox.Checked;
@@ -124,7 +172,7 @@ namespace Client.MirScenes.Dialogs
                 GameScene.Scene.OutputMessage(Settings.AutoDodge ? "自动躲避已开启：被围攻时自动走开" : "自动躲避已关闭");
             };
 
-            NoLampBox = CreateBox(132, 42, "免蜡", Settings.NoLamp);
+            NoLampBox = CreateBox(160, 156, "免蜡", Settings.NoLamp);
             NoLampBox.Click += (o, e) =>
             {
                 if (!GameScene.NoLampAllowed)
@@ -137,7 +185,7 @@ namespace Client.MirScenes.Dialogs
                 GameScene.RequestPlayerOption(PlayerOptionType.NoLamp, NoLampBox.Checked);
             };
 
-            WalkThroughBox = CreateBox(132, 66, "穿人/怪/NPC", Settings.WalkThrough);
+            WalkThroughBox = CreateBox(160, 192, "穿人/怪/NPC", Settings.WalkThrough);
             WalkThroughBox.Click += (o, e) =>
             {
                 if (!GameScene.WalkThroughAllowed && !GameScene.WalkThroughMonsterAllowed
@@ -164,7 +212,7 @@ namespace Client.MirScenes.Dialogs
                 GameScene.RequestPlayerOption(PlayerOptionType.WalkThrough, WalkThroughBox.Checked);
             };
 
-            NoRunUpBox = CreateBox(132, 90, "免助跑", Settings.NoRunUp);
+            NoRunUpBox = CreateBox(160, 228, "免助跑", Settings.NoRunUp);
             NoRunUpBox.Click += (o, e) =>
             {
                 if (!GameScene.NoRunUpAllowed)
@@ -177,7 +225,7 @@ namespace Client.MirScenes.Dialogs
                 GameScene.RequestPlayerOption(PlayerOptionType.NoRunUp, NoRunUpBox.Checked);
             };
 
-            OverWeightBox = CreateBox(132, 114, "超负重", Settings.OverWeight);
+            OverWeightBox = CreateBox(160, 264, "超负重", Settings.OverWeight);
             OverWeightBox.Click += (o, e) =>
             {
                 if (!GameScene.OverWeightAllowed)
@@ -190,7 +238,7 @@ namespace Client.MirScenes.Dialogs
                 GameScene.RequestPlayerOption(PlayerOptionType.OverWeight, OverWeightBox.Checked);
             };
 
-            MountTaiBox = CreateBox(132, 138, "泰山(不后仰)", Settings.MountTai);
+            MountTaiBox = CreateBox(160, 300, "泰山(不后仰)", Settings.MountTai);
             MountTaiBox.Click += (o, e) =>
             {
                 if (!GameScene.MountTaiAllowed)
@@ -203,14 +251,25 @@ namespace Client.MirScenes.Dialogs
                 GameScene.RequestPlayerOption(PlayerOptionType.MountTai, MountTaiBox.Checked);
             };
 
+            // 数字显血：纯本地显示开关，血条下方显示血量百分比（不影响服务器）
+            HealthNumberBox = CreateBox(160, 336, "数字显血", Settings.HealthNumber);
+            HealthNumberBox.Click += (o, e) =>
+            {
+                Settings.HealthNumber = HealthNumberBox.Checked;
+                Settings.Save();
+                GameScene.Scene.OutputMessage(Settings.HealthNumber
+                    ? "数字显血已开启：血条下方显示血量百分比（自己/宝宝、队友，以及刚被你打到的怪物）"
+                    : "数字显血已关闭");
+            };
+
             HintLabel = new MirLabel
             {
-                Location = new Point(0, 240),
-                Size = new Size(264, 14),
+                Location = new Point(0, 400),
+                Size = new Size(308, 14),
                 DrawFormat = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter,
                 Parent = this,
                 NotControl = true,
-                Text = "右列开关需服务器开放，未开放时置灰",
+                Text = "右列开关需服务器开放，其余为本地设置",
             };
         }
 
@@ -242,6 +301,7 @@ namespace Client.MirScenes.Dialogs
             AttackBox.Checked = Settings.AutoAttack;
             MoveBox.Checked = Settings.AutoMove;
             PickUpBox.Checked = Settings.AutoPickup;
+            MagicLockBox.Checked = Settings.MagicLock;
             PotHPBox.Checked = Settings.AutoPotHP;
             PotMPBox.Checked = Settings.AutoPotMP;
             AutoMoveRunBox.Checked = Settings.AutoMoveRun;
@@ -249,6 +309,8 @@ namespace Client.MirScenes.Dialogs
             AutoDodgeBox.Checked = Settings.AutoDodge;
             ThrustingGapBox.Checked = Settings.AutoThrustingGap;
             PoisonSwapBox.Checked = Settings.AutoSwapPoison;
+            ItemFilterBox.Checked = Settings.ItemFilterOn;
+            HealthNumberBox.Checked = Settings.HealthNumber;
 
             NoLampBox.Checked = Settings.NoLamp;
             WalkThroughBox.Checked = Settings.WalkThrough;

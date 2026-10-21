@@ -106,6 +106,9 @@
         SealHero,
         DeleteHero,
 		ConquestRepairAll,
-		GiveGuildExp
+		GiveGuildExp,
+        Recycle,
+        RecycleKey,
+        Repair
     }
 }

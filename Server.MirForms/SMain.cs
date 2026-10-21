@@ -213,6 +213,13 @@ namespace Server
             form.ShowDialog();
         }
 
+        private void sendAwardToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            SendAwardForm form = new SendAwardForm();
+
+            form.ShowDialog();
+        }
+
         private void balanceToolStripMenuItem_Click(object sender, EventArgs e)
         {
             BalanceConfigForm form = new BalanceConfigForm();

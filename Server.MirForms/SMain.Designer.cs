@@ -119,6 +119,7 @@ namespace Server
             heroesToolStripMenuItem = new ToolStripMenuItem();
             monsterTunerToolStripMenuItem = new ToolStripMenuItem();
             dropBuilderToolStripMenuItem = new ToolStripMenuItem();
+            sendAwardToolStripMenuItem = new ToolStripMenuItem();
             CharacterToolStripMenuItem = new ToolStripMenuItem();
             UpTimeLabel = new ToolStripTextBox();
             InterfaceTimer = new Timer(components);
@@ -658,7 +659,7 @@ namespace Server
             // 
             // configToolStripMenuItem1
             // 
-            configToolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { serverToolStripMenuItem, balanceToolStripMenuItem, systemToolStripMenuItem, monsterTunerToolStripMenuItem, dropBuilderToolStripMenuItem });
+            configToolStripMenuItem1.DropDownItems.AddRange(new ToolStripItem[] { serverToolStripMenuItem, balanceToolStripMenuItem, systemToolStripMenuItem, monsterTunerToolStripMenuItem, dropBuilderToolStripMenuItem, sendAwardToolStripMenuItem });
             configToolStripMenuItem1.Name = "configToolStripMenuItem1";
             configToolStripMenuItem1.Size = new Size(44, 21);
             configToolStripMenuItem1.Text = "配置";
@@ -788,6 +789,13 @@ namespace Server
             dropBuilderToolStripMenuItem.Size = new Size(160, 22);
             dropBuilderToolStripMenuItem.Text = "物品掉落设置";
             dropBuilderToolStripMenuItem.Click += dropBuilderToolStripMenuItem_Click;
+            // 
+            // sendAwardToolStripMenuItem
+            // 
+            sendAwardToolStripMenuItem.Name = "sendAwardToolStripMenuItem";
+            sendAwardToolStripMenuItem.Size = new Size(160, 22);
+            sendAwardToolStripMenuItem.Text = "发送邮件奖励";
+            sendAwardToolStripMenuItem.Click += sendAwardToolStripMenuItem_Click;
             //
             // CharacterToolStripMenuItem
             // 
@@ -916,6 +924,7 @@ namespace Server
         private ToolStripMenuItem itemNEWToolStripMenuItem;
         private ToolStripMenuItem monsterExperimentalToolStripMenuItem;
         private ToolStripMenuItem dropBuilderToolStripMenuItem;
+        private ToolStripMenuItem sendAwardToolStripMenuItem;
         private ToolStripStatusLabel BlockedIPsLabel;
         private ToolStripMenuItem clearBlockedIPsToolStripMenuItem;
         private ToolStripMenuItem reloadToolStripMenuItem;

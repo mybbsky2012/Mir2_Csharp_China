@@ -354,6 +354,9 @@ namespace Server.MirNetwork
                 case (short)ClientPacketIds.MoveItem:
                     MoveItem((C.MoveItem) p);
                     break;
+                case (short)ClientPacketIds.SortBag:
+                    SortBag((C.SortBag) p);
+                    break;
                 case (short)ClientPacketIds.StoreItem:
                     StoreItem((C.StoreItem) p);
                     break;
@@ -1053,6 +1056,13 @@ namespace Server.MirNetwork
             if (Stage != GameStage.Game) return;
 
             Player.MoveItem(p.Grid, p.From, p.To);
+        }
+
+        private void SortBag(C.SortBag p)
+        {
+            if (Stage != GameStage.Game) return;
+
+            Player.SortBag();
         }
         private void StoreItem(C.StoreItem p)
         {

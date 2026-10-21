@@ -294,6 +294,17 @@ namespace Server
         //Gem Settings
         public static bool GemStatIndependent = true;
 
+        //Stone Settings（气血石 / 魔血石，守护石选项卡可调）
+        public static int StoneHPDelay = 4;           // 气血石回复间隔（秒）
+        public static int StoneHPTriggerPercent = 50; // HP 低于总量的百分之多少时开启
+        public static int StoneHPGainPercent = 1;     // 每跳增加值 = 石头总持久的百分之多少
+        public static int StoneHPDuraCost = 100;      // 气血石每跳消耗的持久点数
+        public static int StoneMPDelay = 4;           // 魔血石回复间隔（秒）
+        public static int StoneMPTriggerPercent = 50; // MP 低于总量的百分之多少时开启
+        public static int StoneMPGainPercent = 1;     // 每跳增加值 = 石头总持久的百分之多少
+        public static int StoneMPDuraCost = 100;      // 魔血石每跳消耗的持久点数
+        public static bool StoneAllowBagUse = false;  // 允许背包内使用：不佩戴守护石时，自动用背包里第一块有电量的气血石/魔血石
+
 
         //Goods Settings
         public static bool GoodsOn = true;
@@ -1704,13 +1715,31 @@ namespace Server
             InIReader reader = new InIReader(Path.Combine(ConfigPath, "GemSystem.ini"));
             GemStatIndependent = reader.ReadBoolean("Config", "GemStatIndependent", GemStatIndependent);
 
-
+            StoneHPDelay = reader.ReadInt32("Stone", "HPDelaySeconds", StoneHPDelay);
+            StoneHPTriggerPercent = reader.ReadInt32("Stone", "HPTriggerPercent", StoneHPTriggerPercent);
+            StoneHPGainPercent = reader.ReadInt32("Stone", "HPGainPercent", StoneHPGainPercent);
+            StoneHPDuraCost = reader.ReadInt32("Stone", "HPDuraCost", StoneHPDuraCost);
+            StoneMPDelay = reader.ReadInt32("Stone", "MPDelaySeconds", StoneMPDelay);
+            StoneMPTriggerPercent = reader.ReadInt32("Stone", "MPTriggerPercent", StoneMPTriggerPercent);
+            StoneMPGainPercent = reader.ReadInt32("Stone", "MPGainPercent", StoneMPGainPercent);
+            StoneMPDuraCost = reader.ReadInt32("Stone", "MPDuraCost", StoneMPDuraCost);
+            StoneAllowBagUse = reader.ReadBoolean("Stone", "AllowBagUse", StoneAllowBagUse);
         }
         public static void SaveGem()
         {
             File.Delete(Path.Combine(ConfigPath, "GemSystem.ini"));
             InIReader reader = new InIReader(Path.Combine(ConfigPath, "GemSystem.ini"));
             reader.Write("Config", "GemStatIndependent", GemStatIndependent);
+
+            reader.Write("Stone", "HPDelaySeconds", StoneHPDelay);
+            reader.Write("Stone", "HPTriggerPercent", StoneHPTriggerPercent);
+            reader.Write("Stone", "HPGainPercent", StoneHPGainPercent);
+            reader.Write("Stone", "HPDuraCost", StoneHPDuraCost);
+            reader.Write("Stone", "MPDelaySeconds", StoneMPDelay);
+            reader.Write("Stone", "MPTriggerPercent", StoneMPTriggerPercent);
+            reader.Write("Stone", "MPGainPercent", StoneMPGainPercent);
+            reader.Write("Stone", "MPDuraCost", StoneMPDuraCost);
+            reader.Write("Stone", "AllowBagUse", StoneAllowBagUse);
         }
 
         public static void LoadGoods()

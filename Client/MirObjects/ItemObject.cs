@@ -18,6 +18,9 @@ namespace Client.MirObjects
 
         public Size Size;
 
+        /// <summary>物品品质（服务端下发），供内挂「物品过滤」按品质筛选</summary>
+        public ItemGrade Grade;
+
 
         public ItemObject(uint objectID) : base(objectID)
         {
@@ -28,6 +31,7 @@ namespace Client.MirObjects
         {
             Name = info.Name;
             NameColour = info.NameColour;
+            Grade = info.grade;
 
             BodyLibrary = Libraries.FloorItems;
 

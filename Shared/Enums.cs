@@ -997,7 +997,10 @@ public enum ItemType : byte
     攻击型绝技 = 43,
     防御型绝技 = 44,
     技能型绝技 = 45,
-    绝技材料 = 46
+    绝技材料 = 46,
+    // 石头类（追加在末尾，保持已有物品的枚举值不变）
+    气血石 = 47,
+    魔血石 = 48
 }
 
 public enum MirGridType : byte
@@ -2093,7 +2096,8 @@ public enum ClientPacketIds : short
     ItemRentalLockFee,
     ItemRentalLockItem,
     ConfirmItemRental,
-    SetPlayerOption
+    SetPlayerOption,
+    SortBag
 }
 
 public enum ConquestType : byte

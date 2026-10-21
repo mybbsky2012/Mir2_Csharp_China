@@ -16,6 +16,8 @@ namespace Client.MirScenes.Dialogs
 
         public MirButton CloseButton, ItemButton, ItemButton2, QuestButton, AddButton;
         public MirLabel GoldLabel, WeightLabel;
+        public MirLabel RecycleLabel;
+        public MirButton SortButton;
 
         public InventoryDialog()
         {
@@ -105,6 +107,26 @@ namespace Client.MirScenes.Dialogs
             };
             CloseButton.Click += (o, e) => Hide();
 
+            // 一键回收入口：点击向服务器发 @一键回收，弹出按套装分类的回收菜单。
+            // 86 格背包后扩展槽按钮（AddButton）永远隐藏，这里复用它留出的凹槽底座；
+            // 若某角色还是 46 格旧背包（AddButton 会显示），RefreshInventory2 里会把本按钮隐藏，避免重叠。
+            RecycleLabel = new MirLabel
+            {
+                Parent = this,
+                Location = new Point(231, 7),
+                Size = new Size(54, 20),
+                DrawFormat = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter,
+                ForeColour = Color.FromArgb(255, 216, 150),
+                OutLine = true,
+                OutLineColour = Color.Black,
+                Text = "一键回收",
+                Sound = SoundList.ButtonA,
+            };
+            RecycleLabel.Click += (o, e) =>
+            {
+                Network.Enqueue(new C.Chat { Message = "@一键回收" });
+            };
+
             GoldLabel = new MirLabel
             {
                 Parent = this,
@@ -164,6 +186,19 @@ namespace Client.MirScenes.Dialogs
                 Location = new Point(268, 212),
                 Size = new Size(26, 14)
             };
+
+            // 整理背包按钮（Prguse 969 = 橙色循环箭头图标）：请求服务端整理背包（腰带格不动）
+            SortButton = new MirButton
+            {
+                Index = 969,
+                Library = Libraries.Prguse,
+                Location = new Point(297, 207),
+                Parent = this,
+                Size = new Size(18, 16),
+                Sound = SoundList.ButtonA,
+                Hint = "整理背包",
+            };
+            SortButton.Click += (o, e) => Network.Enqueue(new C.SortBag());
             WeightBar.BeforeDraw += WeightBar_BeforeDraw;
 
             for (int i = 0; i < LockBar.Length; i++)
@@ -292,6 +327,9 @@ namespace Client.MirScenes.Dialogs
             }
 
             AddButton.Visible = openLevel >= 10 ? false : true;
+
+            // 扩展槽按钮要显示时（46 格旧背包），让一键回收按钮让位，避免两者叠在同一凹槽里
+            RecycleLabel.Visible = !AddButton.Visible;
         }
 
         public void Process()

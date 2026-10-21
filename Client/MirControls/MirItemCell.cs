@@ -500,6 +500,16 @@ namespace Client.MirControls
                         Locked = true;
                     }
                     break;
+                case ItemType.气血石:
+                case ItemType.魔血石:
+                    // 气血石 / 魔血石 装进人物面板的「石头」格
+                    if (dialog.Grid[(int)EquipmentSlot.守护石].CanWearItem(actor, Item))
+                    {
+                        Network.Enqueue(new C.EquipItem { Grid = GridType, UniqueID = Item.UniqueID, To = (int)EquipmentSlot.守护石 });
+                        dialog.Grid[(int)EquipmentSlot.守护石].Locked = true;
+                        Locked = true;
+                    }
+                    break;
                 case ItemType.照明物:
                     if (dialog.Grid[(int)EquipmentSlot.照明物].CanWearItem(actor, Item))
                     {
@@ -2097,7 +2107,7 @@ namespace Client.MirControls
                 case EquipmentSlot.腰带:
                     return type == ItemType.腰带;
                 case EquipmentSlot.守护石:
-                    return type == ItemType.守护石;
+                    return type == ItemType.守护石 || type == ItemType.气血石 || type == ItemType.魔血石;
                 case EquipmentSlot.坐骑:
                     return type == ItemType.坐骑;
                 default:

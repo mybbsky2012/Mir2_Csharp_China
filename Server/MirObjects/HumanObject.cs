@@ -202,8 +202,10 @@ namespace Server.MirObjects
 
         public LevelEffects LevelEffects = LevelEffects.None;
 
-        public const long LoyaltyDelay = 1000, ItemExpireDelay = 60000, DuraDelay = 10000, RegenDelay = 10000, PotDelay = 200, HealDelay = 600, VampDelay = 500, MoveDelay = 600;
-        public long StruckTime, RunTime, ActionTime, AttackTime, RegenTime, SpellTime, StackingTime, IncreaseLoyaltyTime, ItemExpireTime, TorchTime, DuraTime, PotTime, HealTime, VampTime, LogTime, DecreaseLoyaltyTime, SearchTime;
+        public const long LoyaltyDelay = 1000, ItemExpireDelay = 60000, DuraDelay = 10000, RegenDelay = 10000, PotDelay = 200, HealDelay = 600, VampDelay = 500, MoveDelay = 600, StoneDelay = 4000;
+        // 气血石 / 魔血石 每跳消耗的电量（1000 = 显示 1 点电量）。60000 电量 ≈ 600 跳 ≈ 40 分钟
+        public const int StoneDuraCost = 100;
+        public long StruckTime, RunTime, ActionTime, AttackTime, RegenTime, SpellTime, StackingTime, IncreaseLoyaltyTime, ItemExpireTime, TorchTime, DuraTime, PotTime, HealTime, VampTime, LogTime, DecreaseLoyaltyTime, SearchTime, StoneTime;
 
         protected int _stepCounter, _runCounter;
 
@@ -581,6 +583,11 @@ namespace Server.MirObjects
                 RefreshStats();
             }
         }
+        /// <summary>
+        /// 气血石 / 魔血石的每跳固定回复，只有玩家有背包，故由 PlayerObject 重写；怪物、英雄为空实现。
+        /// </summary>
+        protected virtual void ProcessStones(ref int healthRegen, ref int manaRegen) { }
+
         private void ProcessRegen()
         {
             if (Dead) return;
@@ -664,6 +671,15 @@ namespace Server.MirObjects
                     healthRegen += VampAmount;
                     VampAmount = 0;
                 }
+            }
+
+            // 气血石 / 魔血石：装备在「石头」格时自动生效。
+            // 这里只做 1 秒节拍，HP / MP 各自的回复间隔、触发阈值、增量、耗电都在 Settings（守护石选项卡）里配置，
+            // 由 PlayerObject.ProcessStones 内部分别计时。
+            if (Envir.Time > StoneTime)
+            {
+                StoneTime = Envir.Time + 1000;
+                ProcessStones(ref healthRegen, ref manaRegen);
             }
 
             if (healthRegen > 0)
@@ -1220,6 +1236,20 @@ namespace Server.MirObjects
                             }
                             break;
                         case 2:
+                            if (CurrentMap.Info.NoRandom)
+                            {
+                                ReceiveChat(GameLanguage.CanNotRandom, ChatType.System);
+                                return false;
+                            }
+                            break;
+                        case 20: // 回城石
+                            if (CurrentMap.Info.NoTownTeleport)
+                            {
+                                ReceiveChat(GameLanguage.NoTownTeleport, ChatType.System);
+                                return false;
+                            }
+                            break;
+                        case 21: // 随机石
                             if (CurrentMap.Info.NoRandom)
                             {
                                 ReceiveChat(GameLanguage.CanNotRandom, ChatType.System);
@@ -1895,8 +1925,12 @@ namespace Server.MirObjects
 
                 if (temp.Info.IsFishingRod) continue;
 
-                Stats.Add(realItem.Stats);
-                Stats.Add(temp.AddedStats);
+                // 气血石 / 魔血石 的属性栏填的是「每跳回复量」，不是人物属性加成，不能并入 Stats
+                if (realItem.Type != ItemType.气血石 && realItem.Type != ItemType.魔血石)
+                {
+                    Stats.Add(realItem.Stats);
+                    Stats.Add(temp.AddedStats);
+                }
 
                 Stats[Stat.MinAC] += temp.Awake.GetAC();
                 Stats[Stat.MaxAC] += temp.Awake.GetAC();
@@ -9184,7 +9218,8 @@ namespace Server.MirObjects
                         return false;
                     break;
                 case EquipmentSlot.守护石:
-                    if (item.Info.Type != ItemType.守护石)
+                    // 石头格：原有的守护石，以及气血石 / 魔血石
+                    if (item.Info.Type != ItemType.守护石 && item.Info.Type != ItemType.气血石 && item.Info.Type != ItemType.魔血石)
                         return false;
                     break;
                 case EquipmentSlot.坐骑:
@@ -9318,7 +9353,8 @@ namespace Server.MirObjects
         {
             if (!SpecialMode.HasFlag(SpecialItemMode.NoDuraLoss))
                 for (int i = 0; i < Info.Equipment.Length; i++)
-                    if (i != (int)EquipmentSlot.武器)
+                    // 石头格的耐力就是气血石 / 魔血石的电量，由 ProcessStones 按秒扣，战斗不能再扣一次
+                    if (i != (int)EquipmentSlot.武器 && i != (int)EquipmentSlot.守护石)
                         DamageItem(Info.Equipment[i], Envir.Random.Next(1) + 1);
         }
         public void DamageWeapon()
@@ -9949,7 +9985,7 @@ namespace Server.MirObjects
         {
             if (!player.IsMember(this) && Envir.Time > RevTime) return;
             byte time = Math.Min(byte.MaxValue, (byte)Math.Max(5, (RevTime - Envir.Time) / 1000));
-            player.Enqueue(new S.ObjectHealth { ObjectID = ObjectID, Percent = PercentHealth, Expire = time });
+            player.Enqueue(new S.ObjectHealth { ObjectID = ObjectID, Percent = PercentHealth, Expire = time, CurrentHP = Health, MaxHP = MaxHealth });
         }
         protected virtual void CleanUp()
         {

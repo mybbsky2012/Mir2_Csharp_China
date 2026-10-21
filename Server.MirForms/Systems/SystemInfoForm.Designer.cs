@@ -105,6 +105,31 @@
             MenteeSkillBoost_checkbox = new CheckBox();
             tabPage7 = new TabPage();
             GemStatCheckBox = new CheckBox();
+            chkStoneBagUse = new CheckBox();
+            grpStoneHP = new GroupBox();
+            StoneHPTriggerUpDown = new NumericUpDown();
+            StoneHPDelayUpDown = new NumericUpDown();
+            StoneHPGainUpDown = new NumericUpDown();
+            StoneHPDuraUpDown = new NumericUpDown();
+            grpStoneMP = new GroupBox();
+            StoneMPTriggerUpDown = new NumericUpDown();
+            StoneMPDelayUpDown = new NumericUpDown();
+            StoneMPGainUpDown = new NumericUpDown();
+            StoneMPDuraUpDown = new NumericUpDown();
+            lblHPTrigger = new Label();
+            lblHPDelay = new Label();
+            lblHPSec = new Label();
+            lblHPGain = new Label();
+            lblHPPercent = new Label();
+            lblHPDura = new Label();
+            lblHPPoint = new Label();
+            lblMPTrigger = new Label();
+            lblMPDelay = new Label();
+            lblMPSec = new Label();
+            lblMPGain = new Label();
+            lblMPPercent = new Label();
+            lblMPDura = new Label();
+            lblMPPoint = new Label();
             tabPage8 = new TabPage();
             panel1 = new Panel();
             lbltickmins = new Label();
@@ -153,6 +178,16 @@
             tabPage5.SuspendLayout();
             tabPage6.SuspendLayout();
             tabPage7.SuspendLayout();
+            grpStoneHP.SuspendLayout();
+            grpStoneMP.SuspendLayout();
+            StoneHPTriggerUpDown.SuspendLayout();
+            StoneHPDelayUpDown.SuspendLayout();
+            StoneHPGainUpDown.SuspendLayout();
+            StoneHPDuraUpDown.SuspendLayout();
+            StoneMPTriggerUpDown.SuspendLayout();
+            StoneMPDelayUpDown.SuspendLayout();
+            StoneMPGainUpDown.SuspendLayout();
+            StoneMPDuraUpDown.SuspendLayout();
             tabPage8.SuspendLayout();
             panel1.SuspendLayout();
             pnlSpawnTickConfig.SuspendLayout();
@@ -975,6 +1010,9 @@
             // tabPage7
             // 
             tabPage7.Controls.Add(GemStatCheckBox);
+            tabPage7.Controls.Add(grpStoneHP);
+            tabPage7.Controls.Add(grpStoneMP);
+            tabPage7.Controls.Add(chkStoneBagUse);
             tabPage7.Location = new Point(4, 26);
             tabPage7.Margin = new Padding(4, 4, 4, 4);
             tabPage7.Name = "tabPage7";
@@ -996,6 +1034,271 @@
             GemStatCheckBox.Text = "宝石单独计算";
             GemStatCheckBox.UseVisualStyleBackColor = true;
             GemStatCheckBox.CheckedChanged += GemStatCheckBox_CheckedChanged;
+            // 
+            // chkStoneBagUse
+            // 
+            chkStoneBagUse.AutoSize = true;
+            chkStoneBagUse.Location = new Point(8, 283);
+            chkStoneBagUse.Name = "chkStoneBagUse";
+            chkStoneBagUse.Size = new Size(400, 21);
+            chkStoneBagUse.TabIndex = 22;
+            chkStoneBagUse.Text = "允许背包内使用（不佩戴时自动用背包里的气血石/魔血石）";
+            chkStoneBagUse.UseVisualStyleBackColor = true;
+            chkStoneBagUse.CheckedChanged += StoneBagUse_CheckedChanged;
+            //
+            // grpStoneHP
+            //
+            grpStoneHP.Controls.Add(StoneHPTriggerUpDown);
+            grpStoneHP.Controls.Add(StoneHPDelayUpDown);
+            grpStoneHP.Controls.Add(StoneHPGainUpDown);
+            grpStoneHP.Controls.Add(StoneHPDuraUpDown);
+            grpStoneHP.Controls.Add(lblHPTrigger);
+            grpStoneHP.Controls.Add(lblHPDelay);
+            grpStoneHP.Controls.Add(lblHPSec);
+            grpStoneHP.Controls.Add(lblHPGain);
+            grpStoneHP.Controls.Add(lblHPPercent);
+            grpStoneHP.Controls.Add(lblHPDura);
+            grpStoneHP.Controls.Add(lblHPPoint);
+            grpStoneHP.Location = new Point(8, 35);
+            grpStoneHP.Name = "grpStoneHP";
+            grpStoneHP.Size = new Size(445, 120);
+            grpStoneHP.TabIndex = 20;
+            grpStoneHP.TabStop = false;
+            grpStoneHP.Text = "气血石（回体力）";
+            //
+            // StoneHPTriggerUpDown
+            //
+            StoneHPTriggerUpDown.Location = new Point(80, 30);
+            StoneHPTriggerUpDown.Maximum = new decimal(new int[] { 100, 0, 0, 0 });
+            StoneHPTriggerUpDown.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            StoneHPTriggerUpDown.Name = "StoneHPTriggerUpDown";
+            StoneHPTriggerUpDown.Size = new Size(55, 23);
+            StoneHPTriggerUpDown.TabIndex = 0;
+            StoneHPTriggerUpDown.Value = new decimal(new int[] { 50, 0, 0, 0 });
+            StoneHPTriggerUpDown.ValueChanged += StoneSetting_ValueChanged;
+            //
+            // StoneHPDelayUpDown
+            //
+            StoneHPDelayUpDown.Location = new Point(275, 30);
+            StoneHPDelayUpDown.Maximum = new decimal(new int[] { 3600, 0, 0, 0 });
+            StoneHPDelayUpDown.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            StoneHPDelayUpDown.Name = "StoneHPDelayUpDown";
+            StoneHPDelayUpDown.Size = new Size(55, 23);
+            StoneHPDelayUpDown.TabIndex = 1;
+            StoneHPDelayUpDown.Value = new decimal(new int[] { 4, 0, 0, 0 });
+            StoneHPDelayUpDown.ValueChanged += StoneSetting_ValueChanged;
+            //
+            // StoneHPGainUpDown
+            //
+            StoneHPGainUpDown.Location = new Point(185, 65);
+            StoneHPGainUpDown.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
+            StoneHPGainUpDown.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            StoneHPGainUpDown.Name = "StoneHPGainUpDown";
+            StoneHPGainUpDown.Size = new Size(55, 23);
+            StoneHPGainUpDown.TabIndex = 2;
+            StoneHPGainUpDown.Value = new decimal(new int[] { 1, 0, 0, 0 });
+            StoneHPGainUpDown.ValueChanged += StoneSetting_ValueChanged;
+            //
+            // StoneHPDuraUpDown
+            //
+            StoneHPDuraUpDown.Location = new Point(165, 95);
+            StoneHPDuraUpDown.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
+            StoneHPDuraUpDown.Minimum = new decimal(new int[] { 0, 0, 0, 0 });
+            StoneHPDuraUpDown.Name = "StoneHPDuraUpDown";
+            StoneHPDuraUpDown.Size = new Size(70, 23);
+            StoneHPDuraUpDown.TabIndex = 3;
+            StoneHPDuraUpDown.Value = new decimal(new int[] { 100, 0, 0, 0 });
+            StoneHPDuraUpDown.ValueChanged += StoneSetting_ValueChanged;
+            //
+            // grpStoneMP
+            //
+            grpStoneMP.Controls.Add(StoneMPTriggerUpDown);
+            grpStoneMP.Controls.Add(StoneMPDelayUpDown);
+            grpStoneMP.Controls.Add(StoneMPGainUpDown);
+            grpStoneMP.Controls.Add(StoneMPDuraUpDown);
+            grpStoneMP.Controls.Add(lblMPTrigger);
+            grpStoneMP.Controls.Add(lblMPDelay);
+            grpStoneMP.Controls.Add(lblMPSec);
+            grpStoneMP.Controls.Add(lblMPGain);
+            grpStoneMP.Controls.Add(lblMPPercent);
+            grpStoneMP.Controls.Add(lblMPDura);
+            grpStoneMP.Controls.Add(lblMPPoint);
+            grpStoneMP.Location = new Point(8, 160);
+            grpStoneMP.Name = "grpStoneMP";
+            grpStoneMP.Size = new Size(445, 120);
+            grpStoneMP.TabIndex = 21;
+            grpStoneMP.TabStop = false;
+            grpStoneMP.Text = "魔血石（回魔力）";
+            //
+            // StoneMPTriggerUpDown
+            //
+            StoneMPTriggerUpDown.Location = new Point(80, 30);
+            StoneMPTriggerUpDown.Maximum = new decimal(new int[] { 100, 0, 0, 0 });
+            StoneMPTriggerUpDown.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            StoneMPTriggerUpDown.Name = "StoneMPTriggerUpDown";
+            StoneMPTriggerUpDown.Size = new Size(55, 23);
+            StoneMPTriggerUpDown.TabIndex = 0;
+            StoneMPTriggerUpDown.Value = new decimal(new int[] { 50, 0, 0, 0 });
+            StoneMPTriggerUpDown.ValueChanged += StoneSetting_ValueChanged;
+            //
+            // StoneMPDelayUpDown
+            //
+            StoneMPDelayUpDown.Location = new Point(275, 30);
+            StoneMPDelayUpDown.Maximum = new decimal(new int[] { 3600, 0, 0, 0 });
+            StoneMPDelayUpDown.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            StoneMPDelayUpDown.Name = "StoneMPDelayUpDown";
+            StoneMPDelayUpDown.Size = new Size(55, 23);
+            StoneMPDelayUpDown.TabIndex = 1;
+            StoneMPDelayUpDown.Value = new decimal(new int[] { 4, 0, 0, 0 });
+            StoneMPDelayUpDown.ValueChanged += StoneSetting_ValueChanged;
+            //
+            // StoneMPGainUpDown
+            //
+            StoneMPGainUpDown.Location = new Point(185, 65);
+            StoneMPGainUpDown.Maximum = new decimal(new int[] { 1000, 0, 0, 0 });
+            StoneMPGainUpDown.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            StoneMPGainUpDown.Name = "StoneMPGainUpDown";
+            StoneMPGainUpDown.Size = new Size(55, 23);
+            StoneMPGainUpDown.TabIndex = 2;
+            StoneMPGainUpDown.Value = new decimal(new int[] { 1, 0, 0, 0 });
+            StoneMPGainUpDown.ValueChanged += StoneSetting_ValueChanged;
+            //
+            // StoneMPDuraUpDown
+            //
+            StoneMPDuraUpDown.Location = new Point(165, 95);
+            StoneMPDuraUpDown.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
+            StoneMPDuraUpDown.Minimum = new decimal(new int[] { 0, 0, 0, 0 });
+            StoneMPDuraUpDown.Name = "StoneMPDuraUpDown";
+            StoneMPDuraUpDown.Size = new Size(70, 23);
+            StoneMPDuraUpDown.TabIndex = 3;
+            StoneMPDuraUpDown.Value = new decimal(new int[] { 100, 0, 0, 0 });
+            StoneMPDuraUpDown.ValueChanged += StoneSetting_ValueChanged;
+            //
+            // lblHPTrigger
+            //
+            lblHPTrigger.AutoSize = true;
+            lblHPTrigger.Location = new Point(10, 33);
+            lblHPTrigger.Name = "lblHPTrigger";
+            lblHPTrigger.Size = new Size(62, 17);
+            lblHPTrigger.TabIndex = 10;
+            lblHPTrigger.Text = "当 HP <";
+            //
+            // lblHPDelay
+            //
+            lblHPDelay.AutoSize = true;
+            lblHPDelay.Location = new Point(140, 33);
+            lblHPDelay.Name = "lblHPDelay";
+            lblHPDelay.Size = new Size(130, 17);
+            lblHPDelay.TabIndex = 11;
+            lblHPDelay.Text = "% 开启气血石，间隔";
+            //
+            // lblHPSec
+            //
+            lblHPSec.AutoSize = true;
+            lblHPSec.Location = new Point(335, 33);
+            lblHPSec.Name = "lblHPSec";
+            lblHPSec.Size = new Size(22, 17);
+            lblHPSec.TabIndex = 12;
+            lblHPSec.Text = "秒";
+            //
+            // lblHPGain
+            //
+            lblHPGain.AutoSize = true;
+            lblHPGain.Location = new Point(10, 68);
+            lblHPGain.Name = "lblHPGain";
+            lblHPGain.Size = new Size(170, 17);
+            lblHPGain.TabIndex = 13;
+            lblHPGain.Text = "增加HP为气血石总持久的";
+            //
+            // lblHPPercent
+            //
+            lblHPPercent.AutoSize = true;
+            lblHPPercent.Location = new Point(245, 68);
+            lblHPPercent.Name = "lblHPPercent";
+            lblHPPercent.Size = new Size(20, 17);
+            lblHPPercent.TabIndex = 14;
+            lblHPPercent.Text = "%";
+            //
+            // lblHPDura
+            //
+            lblHPDura.AutoSize = true;
+            lblHPDura.Location = new Point(10, 99);
+            lblHPDura.Name = "lblHPDura";
+            lblHPDura.Size = new Size(150, 17);
+            lblHPDura.TabIndex = 15;
+            lblHPDura.Text = "每次气血石减少的持久值";
+            //
+            // lblHPPoint
+            //
+            lblHPPoint.AutoSize = true;
+            lblHPPoint.Location = new Point(240, 99);
+            lblHPPoint.Name = "lblHPPoint";
+            lblHPPoint.Size = new Size(20, 17);
+            lblHPPoint.TabIndex = 16;
+            lblHPPoint.Text = "点";
+            //
+            // lblMPTrigger
+            //
+            lblMPTrigger.AutoSize = true;
+            lblMPTrigger.Location = new Point(10, 33);
+            lblMPTrigger.Name = "lblMPTrigger";
+            lblMPTrigger.Size = new Size(62, 17);
+            lblMPTrigger.TabIndex = 10;
+            lblMPTrigger.Text = "当 MP <";
+            //
+            // lblMPDelay
+            //
+            lblMPDelay.AutoSize = true;
+            lblMPDelay.Location = new Point(140, 33);
+            lblMPDelay.Name = "lblMPDelay";
+            lblMPDelay.Size = new Size(130, 17);
+            lblMPDelay.TabIndex = 11;
+            lblMPDelay.Text = "% 开启魔血石，间隔";
+            //
+            // lblMPSec
+            //
+            lblMPSec.AutoSize = true;
+            lblMPSec.Location = new Point(335, 33);
+            lblMPSec.Name = "lblMPSec";
+            lblMPSec.Size = new Size(22, 17);
+            lblMPSec.TabIndex = 12;
+            lblMPSec.Text = "秒";
+            //
+            // lblMPGain
+            //
+            lblMPGain.AutoSize = true;
+            lblMPGain.Location = new Point(10, 68);
+            lblMPGain.Name = "lblMPGain";
+            lblMPGain.Size = new Size(170, 17);
+            lblMPGain.TabIndex = 13;
+            lblMPGain.Text = "增加MP为魔血石总持久的";
+            //
+            // lblMPPercent
+            //
+            lblMPPercent.AutoSize = true;
+            lblMPPercent.Location = new Point(245, 68);
+            lblMPPercent.Name = "lblMPPercent";
+            lblMPPercent.Size = new Size(20, 17);
+            lblMPPercent.TabIndex = 14;
+            lblMPPercent.Text = "%";
+            //
+            // lblMPDura
+            //
+            lblMPDura.AutoSize = true;
+            lblMPDura.Location = new Point(10, 99);
+            lblMPDura.Name = "lblMPDura";
+            lblMPDura.Size = new Size(150, 17);
+            lblMPDura.TabIndex = 15;
+            lblMPDura.Text = "每次魔血石减少的持久值";
+            //
+            // lblMPPoint
+            //
+            lblMPPoint.AutoSize = true;
+            lblMPPoint.Location = new Point(240, 99);
+            lblMPPoint.Name = "lblMPPoint";
+            lblMPPoint.Size = new Size(20, 17);
+            lblMPPoint.TabIndex = 16;
+            lblMPPoint.Text = "点";
             // 
             // tabPage8
             // 
@@ -1446,6 +1749,16 @@
             tabPage6.ResumeLayout(false);
             tabPage6.PerformLayout();
             tabPage7.ResumeLayout(false);
+            grpStoneHP.ResumeLayout(false);
+            grpStoneMP.ResumeLayout(false);
+            StoneHPTriggerUpDown.ResumeLayout(false);
+            StoneHPDelayUpDown.ResumeLayout(false);
+            StoneHPGainUpDown.ResumeLayout(false);
+            StoneHPDuraUpDown.ResumeLayout(false);
+            StoneMPTriggerUpDown.ResumeLayout(false);
+            StoneMPDelayUpDown.ResumeLayout(false);
+            StoneMPGainUpDown.ResumeLayout(false);
+            StoneMPDuraUpDown.ResumeLayout(false);
             tabPage7.PerformLayout();
             tabPage8.ResumeLayout(false);
             panel1.ResumeLayout(false);
@@ -1542,6 +1855,31 @@
         private System.Windows.Forms.TextBox MenteeExpBank_textbox;
         private System.Windows.Forms.TabPage tabPage7;
         private System.Windows.Forms.CheckBox GemStatCheckBox;
+        private System.Windows.Forms.CheckBox chkStoneBagUse;
+        private System.Windows.Forms.GroupBox grpStoneHP;
+        private System.Windows.Forms.NumericUpDown StoneHPTriggerUpDown;
+        private System.Windows.Forms.NumericUpDown StoneHPDelayUpDown;
+        private System.Windows.Forms.NumericUpDown StoneHPGainUpDown;
+        private System.Windows.Forms.NumericUpDown StoneHPDuraUpDown;
+        private System.Windows.Forms.GroupBox grpStoneMP;
+        private System.Windows.Forms.NumericUpDown StoneMPTriggerUpDown;
+        private System.Windows.Forms.NumericUpDown StoneMPDelayUpDown;
+        private System.Windows.Forms.NumericUpDown StoneMPGainUpDown;
+        private System.Windows.Forms.NumericUpDown StoneMPDuraUpDown;
+        private System.Windows.Forms.Label lblHPTrigger;
+        private System.Windows.Forms.Label lblHPDelay;
+        private System.Windows.Forms.Label lblHPSec;
+        private System.Windows.Forms.Label lblHPGain;
+        private System.Windows.Forms.Label lblHPPercent;
+        private System.Windows.Forms.Label lblHPDura;
+        private System.Windows.Forms.Label lblHPPoint;
+        private System.Windows.Forms.Label lblMPTrigger;
+        private System.Windows.Forms.Label lblMPDelay;
+        private System.Windows.Forms.Label lblMPSec;
+        private System.Windows.Forms.Label lblMPGain;
+        private System.Windows.Forms.Label lblMPPercent;
+        private System.Windows.Forms.Label lblMPDura;
+        private System.Windows.Forms.Label lblMPPoint;
         private System.Windows.Forms.TabPage tabPage8;
         private System.Windows.Forms.Button btnSpawnTickRemove;
         private System.Windows.Forms.Button btnSpawnTickAdd;

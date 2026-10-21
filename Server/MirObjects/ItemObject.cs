@@ -371,7 +371,9 @@ namespace Server.MirObjects
                         Name = Item.Count > 1 ? string.Format("{0} ({1})", Name, Item.Count) : Name,
                         NameColour = NameColour,
                         Location = CurrentLocation,
-                        Image = Item.Image
+                        Image = Item.Image,
+                        // 品质：客户端内挂「物品过滤」按它筛选（不填就是 None，客户端无法按品质过滤）
+                        grade = Item.Info.Grade
                     };
 
             return new S.ObjectGold

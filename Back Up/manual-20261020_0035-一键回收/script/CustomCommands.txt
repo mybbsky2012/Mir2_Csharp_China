@@ -1,0 +1,32 @@
+﻿;;召唤护卫命令
+[@_CUSTOMCOMMAND(召唤神兽)]
+#INCLUDE [SystemScripts\00Default\命令物品\神兽护卫.txt] @Main
+
+;;PK点数查询命令
+[@_CUSTOMCOMMAND(PK)]
+#INCLUDE [SystemScripts\00Default\命令物品\PK查询.txt] @Main
+
+;;移除变形物品命令
+[@_CUSTOMCOMMAND(外形关闭)]
+#INCLUDE [SystemScripts\00Default\命令物品\移除变形.txt] @Main
+
+;;华丽的雨光时装命令
+[@_CUSTOMCOMMAND(雨光开启)]
+#INCLUDE [SystemScripts\00Default\命令物品\雨光开启.txt] @Main
+
+[@_CUSTOMCOMMAND(雨光关闭)]
+#INCLUDE [SystemScripts\00Default\命令物品\雨光关闭.txt] @Main
+
+;;安息之气命令
+[@_CUSTOMCOMMAND(安息开启)]
+#INCLUDE [SystemScripts\00Default\命令物品\安息开启.txt] @Main
+
+[@_CUSTOMCOMMAND(安息关闭)]
+#INCLUDE [SystemScripts\00Default\命令物品\安息关闭.txt] @Main
+
+;;远古气息命令
+[@_CUSTOMCOMMAND(远古开启)]
+#INCLUDE [SystemScripts\00Default\命令物品\远古开启.txt] @Main
+
+[@_CUSTOMCOMMAND(远古关闭)]
+#INCLUDE [SystemScripts\00Default\命令物品\远古关闭.txt] @Main

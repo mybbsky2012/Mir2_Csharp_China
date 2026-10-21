@@ -17,6 +17,22 @@ namespace Client.MirObjects
         public static HeroObject HeroObject;
         public static MapObject MouseObject, TargetObject, MagicObject;
 
+        //魔法锁定（内挂面板勾选）：被锁定的对象。锁定期间 TargetObject/MagicObject 每帧强制指回它，
+        //鼠标移开不丢目标，指向新的玩家/怪物/NPC 自动换锁；对象从视野消失（Remove）即解除锁定。
+        public static MapObject LockObject;
+
+        private static uint lockObjectID;
+        public static uint LockObjectID
+        {
+            get { return lockObjectID; }
+            set
+            {
+                if (lockObjectID == value) return;
+                lockObjectID = value;
+                LockObject = value == 0 ? null : MapControl.Objects.Find(x => x.ObjectID == value);
+            }
+        }
+
         private static uint mouseObjectID;
         public static uint MouseObjectID
         {
@@ -112,7 +128,7 @@ namespace Client.MirObjects
 
         public MLibrary BodyLibrary;
         public Color DrawColour = Color.White, NameColour = Color.White, LightColour = Color.White;
-        public MirLabel NameLabel, ChatLabel, GuildLabel;
+        public MirLabel NameLabel, ChatLabel, GuildLabel, HealthNumberLabel;
         public long ChatTime;
         public int DrawFrame, DrawWingFrame;
         public Point DrawLocation, Movement, FinalDrawLocation, OffSetMove;
@@ -137,6 +153,9 @@ namespace Client.MirObjects
         public MirLabel TempLabel;
 
         public static List<MirLabel> DamageLabelList = new List<MirLabel>();
+
+        //数字显血用的当前/最大血量绝对值（服务端 S.ObjectHealth 下发；MaxHP==0 表示服务端没给，退回百分比）
+        public int CurrentHP, MaxHP;
         public List<Damage> Damages = new List<Damage>();
 
         protected Point GlobalDisplayLocationOffset
@@ -164,6 +183,7 @@ namespace Client.MirObjects
         public void Remove()
         {
             if (MouseObject == this) MouseObjectID = 0;
+            if (LockObject == this) LockObjectID = 0;   // 魔法锁定：目标离开视野即解除
             if (TargetObject == this)
             {
                 TargetObjectID = 0;
@@ -595,6 +615,38 @@ namespace Client.MirObjects
             }
 
             Libraries.Prguse2.Draw(index, new Rectangle(0, 0, (int)(32 * PercentHealth / 100F), 4), new Point(DisplayRectangle.X + 8, DisplayRectangle.Y - 64), Color.White, false);
+
+            //数字显血（内挂面板勾选）：在血条下方显示百分比数字，只有血条本身显示时才显示
+            if (Settings.HealthNumber) DrawHealthNumber();
+        }
+
+        /// <summary>
+        /// 在血条下方绘制血量数字：服务端给了绝对值就显示「当前/最大」，没给（MaxHP=0）才退回百分比。
+        /// 位置固定在 32x4 血条正下方（Y-54，避开英雄蓝条 Y-60~Y-56）。
+        /// </summary>
+        private void DrawHealthNumber()
+        {
+            string text = MaxHP > 0
+                ? string.Format("{0}/{1}", CurrentHP, MaxHP)
+                : string.Format("{0}%", PercentHealth);
+
+            if (HealthNumberLabel == null || HealthNumberLabel.IsDisposed)
+            {
+                HealthNumberLabel = new MirLabel
+                {
+                    AutoSize = true,
+                    BackColour = Color.Transparent,
+                    ForeColour = Color.White,
+                    OutLine = true,
+                    OutLineColour = Color.Black,
+                };
+            }
+
+            //Text 相同时 MirLabel 内部不会重建纹理
+            HealthNumberLabel.Text = text;
+
+            HealthNumberLabel.Location = new Point(DisplayRectangle.X + 8 + (32 - HealthNumberLabel.Size.Width) / 2, DisplayRectangle.Y - 54);
+            HealthNumberLabel.Draw();
         }
 
         public void DrawPoison()

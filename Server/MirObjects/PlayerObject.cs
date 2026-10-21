@@ -92,6 +92,9 @@ namespace Server.MirObjects
 
         public bool NewMail = false;
 
+        // 回城石 / 随机石 冷却结束时间
+        private long StoneUseTime;
+
         public override int PKPoints
         {
             get { return Info.PKPoints; }
@@ -5436,6 +5439,74 @@ namespace Server.MirObjects
 
             Enqueue(p);
         }
+        /// <summary>
+        /// 整理背包（服务端权威）：腰带 0~5 格不动，只整理 6 起的背包区。
+        /// 药水排最前，其余按 ItemType + 名字稳定排序，空格全部压实到尾部。
+        /// 同步方式：把「现状→目标」拆成一串对调，逐个发 S.MoveItem，客户端逐条镜像，两端状态一致。
+        /// </summary>
+        public void SortBag()
+        {
+            if (Dead) return;
+            if (TradePartner != null || ItemRentalPartner != null)   // 交易/租借中不许动背包
+            {
+                ReceiveChat("交易或租借进行中，无法整理背包。", ChatType.System);
+                return;
+            }
+
+            const int bagStart = 6;                                  // 与客户端 User.BeltIdx 一致
+            UserItem[] bag = Info.Inventory;
+            int len = bag.Length;
+
+            // 快照排序前的背包区引用（用于重演对调）
+            UserItem[] before = new UserItem[len];
+            for (int i = 0; i < len; i++) before[i] = bag[i];
+
+            // 取出背包区全部物品，按规则排出目标序列
+            List<UserItem> items = new List<UserItem>();
+            for (int i = bagStart; i < len; i++)
+            {
+                if (bag[i] != null) items.Add(bag[i]);
+                bag[i] = null;
+            }
+
+            items.Sort((a, b) =>
+            {
+                int ga = a.Info.Type == ItemType.药水 ? 0 : 1;
+                int gb = b.Info.Type == ItemType.药水 ? 0 : 1;
+                if (ga != gb) return ga - gb;
+                if (a.Info.Type != b.Info.Type) return ((int)a.Info.Type).CompareTo((int)b.Info.Type);
+                int byName = String.Compare(a.Info.Name, b.Info.Name, StringComparison.CurrentCulture);
+                if (byName != 0) return byName;
+                return b.Count.CompareTo(a.Count);                   // 同名堆叠多的放前面
+            });
+
+            // 目标排布：排好序的物品压实到背包区前段
+            UserItem[] target = new UserItem[len];
+            for (int i = 0; i < items.Count; i++) target[bagStart + i] = items[i];
+
+            // 服务端数组直接落为最终排布
+            for (int i = bagStart; i < len; i++) bag[i] = target[i];
+
+            // 重演对调过程同步客户端：把 before 变成 target，每步对调发一个 S.MoveItem
+            int swaps = 0;
+            for (int i = bagStart; i < len; i++)
+            {
+                if (ReferenceEquals(before[i], target[i])) continue;
+
+                for (int j = i + 1; j < len; j++)
+                {
+                    if (!ReferenceEquals(before[j], target[i])) continue;
+
+                    UserItem tmp = before[i];
+                    before[i] = before[j];
+                    before[j] = tmp;
+
+                    Enqueue(new S.MoveItem { Grid = MirGridType.Inventory, From = i, To = j, Success = true });
+                    if (++swaps > 500) return;                       // 保险丝，正常到不了
+                    break;
+                }
+            }
+        }
         public void StoreItem(int from, int to)
         {
             S.StoreItem p = new S.StoreItem { From = from, To = to, Success = false };
@@ -5823,6 +5894,139 @@ namespace Server.MirObjects
             }
             Enqueue(p);
         }
+        /// <summary>
+        /// 生命魔法石（气血石 / 魔血石）：装备在「石头」格（EquipmentSlot.守护石）时自动生效。
+        /// 全部参数在服务端「系统配置 → 游戏系统 → 守护石」选项卡里设置（存 Configs\GemSystem.ini [Stone] 节）：
+        ///   触发阈值：HP / MP 低于总量的百分之多少时开启（HP、MP 各自可调）；
+        ///   回复间隔：HP、MP 各自可调（秒）；
+        ///   每跳增加值 = 石头总持久（Durability）的百分之多少（HP、MP 各自可调），固定值不随电量消耗衰减；
+        ///   每跳消耗持久：HP、MP 各自可调（点）。
+        /// 加什么仍由物品的「外观值 Shape」决定：1 = 只加体力，2 = 只加魔力，3 = 体力魔力一起加，其它值不生效。
+        /// 触发后中途回到阈值以上也继续加，直到补满才停（满后复位，等下次再掉到阈值以下）。
+        /// Shape=3 时 HP、MP 各按自己的节奏跳、各扣各的持久。
+        /// </summary>
+        private bool StoneHPActive, StoneMPActive;
+        private long StoneHPNextTime, StoneMPNextTime;
+
+        protected override void ProcessStones(ref int healthRegen, ref int manaRegen)
+        {
+            if (Dead) return;
+
+            UserItem item = Info.Equipment[(int)EquipmentSlot.守护石];
+            if (item == null || (item.Info.Type != ItemType.气血石 && item.Info.Type != ItemType.魔血石))
+            {
+                // 装备槽没有生命魔法石：开启「允许背包内使用」时，取背包里第一块有电量的气血石/魔血石
+                item = null;
+                if (Settings.StoneAllowBagUse)
+                {
+                    for (int i = 0; i < Info.Inventory.Length; i++)
+                    {
+                        UserItem bagItem = Info.Inventory[i];
+                        if (bagItem == null || bagItem.CurrentDura == 0) continue;
+                        if (bagItem.Info.Type != ItemType.气血石 && bagItem.Info.Type != ItemType.魔血石) continue;
+                        item = bagItem;
+                        break;
+                    }
+                }
+
+                if (item == null)
+                {
+                    StoneHPActive = false;
+                    StoneMPActive = false;
+                    StoneHPNextTime = 0;
+                    StoneMPNextTime = 0;
+                    return; // 普通守护石不处理
+                }
+            }
+
+            long now = Envir.Time;
+
+            // ---- HP（气血石）----
+            if ((item.Info.Shape == 1 || item.Info.Shape == 3) && Settings.StoneHPGainPercent > 0)
+            {
+                if (now >= StoneHPNextTime)
+                {
+                    if (NeedStoneHeal(ref StoneHPActive, HP, Stats[Stat.HP], Settings.StoneHPTriggerPercent))
+                    {
+                        if (item.CurrentDura == 0) { RemoveStone(item); return; }
+
+                        healthRegen += Math.Max(1, item.Info.Durability * Settings.StoneHPGainPercent / 100);
+                        if (ConsumeStoneDura(item, Settings.StoneHPDuraCost)) { RemoveStone(item); return; }
+
+                        StoneHPNextTime = now + Math.Max(1, Settings.StoneHPDelay) * 1000;
+                    }
+                    else StoneHPNextTime = now + 1000; // 未触发：1 秒后再查
+                }
+            }
+            else { StoneHPActive = false; StoneHPNextTime = 0; }
+
+            // ---- MP（魔血石）----
+            if ((item.Info.Shape == 2 || item.Info.Shape == 3) && Settings.StoneMPGainPercent > 0)
+            {
+                if (now >= StoneMPNextTime)
+                {
+                    if (NeedStoneHeal(ref StoneMPActive, MP, Stats[Stat.MP], Settings.StoneMPTriggerPercent))
+                    {
+                        if (item.CurrentDura == 0) { RemoveStone(item); return; }
+
+                        manaRegen += Math.Max(1, item.Info.Durability * Settings.StoneMPGainPercent / 100);
+                        if (ConsumeStoneDura(item, Settings.StoneMPDuraCost)) { RemoveStone(item); return; }
+
+                        StoneMPNextTime = now + Math.Max(1, Settings.StoneMPDelay) * 1000;
+                    }
+                    else StoneMPNextTime = now + 1000;
+                }
+            }
+            else { StoneMPActive = false; StoneMPNextTime = 0; }
+        }
+
+        /// <summary>扣一次持久；返回 true 表示电量已归零（调用方应移除石头）。</summary>
+        private static bool ConsumeStoneDura(UserItem item, int cost)
+        {
+            if (cost <= 0) return false;
+            item.CurrentDura = (ushort)Math.Max(0, item.CurrentDura - cost);
+            item.DuraChanged = true;
+            return item.CurrentDura == 0;
+        }
+
+        /// <summary>
+        /// 生命魔法石的「补到满」状态机：
+        /// 满 → 停止并复位；掉到「触发阈值」以下 → 启动；启动后只要没满就一直保持。
+        /// </summary>
+        private static bool NeedStoneHeal(ref bool active, int current, int max, int triggerPercent)
+        {
+            if (max <= 0) { active = false; return false; }
+            if (current >= max) { active = false; return false; }                 // 已满：停止
+            int threshold = max * Math.Max(0, triggerPercent) / 100;
+            if (!active && current < threshold) active = true;                    // 掉到阈值以下：启动
+            return active;                                                        // 启动后一直补到满
+        }
+
+        private void RemoveStone(UserItem item)
+        {
+            StoneHPActive = false;
+            StoneMPActive = false;
+
+            // 石头可能在装备槽，也可能在背包里（「允许背包内使用」模式），按引用找到实际位置清除
+            if (ReferenceEquals(Info.Equipment[(int)EquipmentSlot.守护石], item))
+            {
+                Info.Equipment[(int)EquipmentSlot.守护石] = null;
+            }
+            else
+            {
+                for (int i = 0; i < Info.Inventory.Length; i++)
+                {
+                    if (!ReferenceEquals(Info.Inventory[i], item)) continue;
+                    Info.Inventory[i] = null;
+                    break;
+                }
+            }
+
+            Enqueue(new S.DeleteItem { UniqueID = item.UniqueID, Count = item.Count });
+            RefreshStats();
+            ReceiveChat(string.Format("{0} 的能量已经耗尽", item.Info.Name), ChatType.Hint);
+        }
+
         public override void UseItem(ulong id)
         {
             S.UseItem p = new S.UseItem { UniqueID = id, Grid = MirGridType.Inventory, Success = false };
@@ -5976,6 +6180,62 @@ namespace Server.MirObjects
                                 ac.FlaggedToRemove = true;
                             }
                             break;
+                        case 20: // 回城石
+                        case 21: // 随机石
+                            {
+                                if (Envir.Time < StoneUseTime)
+                                {
+                                    ReceiveChat("传送石冷却中，请稍候再试", ChatType.System);
+                                    Enqueue(p);
+                                    return;
+                                }
+
+                                if (item.Info.Durability > 0 && item.CurrentDura == 0)
+                                {
+                                    ReceiveChat(string.Format("{0} 的能量已经耗尽", item.Info.Name), ChatType.System);
+                                    Enqueue(p);
+                                    return;
+                                }
+
+                                bool teleported = item.Info.Shape == 20
+                                    ? Teleport(Envir.GetMap(BindMapIndex), BindLocation)
+                                    : TeleportRandom(200, 0);
+
+                                if (!teleported)
+                                {
+                                    ReceiveChat(item.Info.Shape == 20 ? "回城点未设置，无法使用回城石" : "当前地图无法随机传送", ChatType.System);
+                                    Enqueue(p);
+                                    return;
+                                }
+
+                                foreach (DelayedAction ac in ActionList.Where(u => u.Type == DelayedType.NPC))
+                                {
+                                    ac.FlaggedToRemove = true;
+                                }
+
+                                StoneUseTime = Envir.Time + 2000;
+
+                                // 传送石按电量消耗，不消耗物品数量；电量归零则销毁
+                                if (item.Info.Durability > 0)
+                                {
+                                    item.CurrentDura = (ushort)Math.Max(0, item.CurrentDura - 1000);
+                                    item.DuraChanged = true;
+                                    Enqueue(new S.DuraChanged { UniqueID = item.UniqueID, CurrentDura = item.CurrentDura });
+
+                                    if (item.CurrentDura == 0)
+                                    {
+                                        Info.Inventory[index] = null;
+                                        Enqueue(new S.DeleteItem { UniqueID = item.UniqueID, Count = item.Count });
+                                        RefreshBagWeight();
+                                        ReceiveChat(string.Format("{0} 的能量已经耗尽", item.Info.Name), ChatType.Hint);
+                                    }
+                                }
+
+                                // 客户端收到 Success=true 会把物品数量减 1，而石头只扣电量不减数量，
+                                // 所以这里保持 Success=false（客户端只解锁格子，不动物品），提前 return 跳过统一扣数量。
+                                Enqueue(p);
+                                return;
+                            }
                         case 3: //BenedictionOil
                             if (!TryLuckWeapon())
                             {
@@ -6156,6 +6416,13 @@ namespace Server.MirObjects
                     break;
                 case ItemType.特殊消耗品:
                     CallDefaultNPC(DefaultNPCType.UseItem, item.Info.Shape);
+
+                    // Effect=2 的特殊消耗品：使用后不消失（可重复触发脚本，如一键回收令）
+                    if (item.Info.Effect == 2)
+                    {
+                        Enqueue(p); // Success 保持 false，客户端不减数量
+                        return;
+                    }
                     break;
                 case ItemType.坐骑食物:
                     temp = Info.Equipment[(int)EquipmentSlot.坐骑];
@@ -9293,23 +9560,23 @@ namespace Server.MirObjects
 
                 byte time = Math.Min(byte.MaxValue, (byte)Math.Max(5, (RevTime - Envir.Time) / 1000));
 
-                member.Enqueue(new S.ObjectHealth { ObjectID = ObjectID, Percent = PercentHealth, Expire = time });
-                Enqueue(new S.ObjectHealth { ObjectID = member.ObjectID, Percent = member.PercentHealth, Expire = time });
+                member.Enqueue(new S.ObjectHealth { ObjectID = ObjectID, Percent = PercentHealth, Expire = time, CurrentHP = Health, MaxHP = MaxHealth });
+                Enqueue(new S.ObjectHealth { ObjectID = member.ObjectID, Percent = member.PercentHealth, Expire = time, CurrentHP = member.Health, MaxHP = member.MaxHealth });
 
                 if (Hero != null)
                 {
-                    member.Enqueue(new S.ObjectHealth { ObjectID = Hero.ObjectID, Percent = Hero.PercentHealth, Expire = time }); // Send Party Leader's HeroHP to Group Members
+                    member.Enqueue(new S.ObjectHealth { ObjectID = Hero.ObjectID, Percent = Hero.PercentHealth, Expire = time, CurrentHP = Hero.Health, MaxHP = Hero.MaxHealth }); // Send Party Leader's HeroHP to Group Members
                 }
                 if (member.Hero != null)
                 {
-                    Enqueue(new S.ObjectHealth { ObjectID = member.Hero.ObjectID, Percent = member.Hero.PercentHealth, Expire = time }); // Send Party Members HeroHP to Leader
+                    Enqueue(new S.ObjectHealth { ObjectID = member.Hero.ObjectID, Percent = member.Hero.PercentHealth, Expire = time, CurrentHP = member.Hero.Health, MaxHP = member.Hero.MaxHealth }); // Send Party Members HeroHP to Leader
                 }
 
                 for (int j = 0; j < member.Pets.Count; j++)
                 {
                     MonsterObject pet = member.Pets[j];
 
-                    Enqueue(new S.ObjectHealth { ObjectID = pet.ObjectID, Percent = pet.PercentHealth, Expire = time }); 
+                    Enqueue(new S.ObjectHealth { ObjectID = pet.ObjectID, Percent = pet.PercentHealth, Expire = time, CurrentHP = pet.Health, MaxHP = pet.MaxHealth }); 
                 }
             }
 

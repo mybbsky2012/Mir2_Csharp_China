@@ -112,6 +112,8 @@ public abstract class Packet
                 return new C.Chat();
             case (short)ClientPacketIds.MoveItem:
                 return new C.MoveItem();
+            case (short)ClientPacketIds.SortBag:
+                return new C.SortBag();
             case (short)ClientPacketIds.StoreItem:
                 return new C.StoreItem();
             case (short)ClientPacketIds.TakeBackItem:

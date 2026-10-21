@@ -352,6 +352,12 @@ namespace Client.MirGraphics
 
         private static void LoadGameLibraries()
         {
+            // ★整个方法跑在启动后台线程上，任何未处理异常都会直接杀死整个客户端进程
+            //（事件日志实测：IndexOutOfRangeException 已让客户端多次「双击即崩」，10-20 起累计 15 次）。
+            // 图库本身支持懒加载（首次使用时按需 Initialize，缺文件走微端下载），
+            // 所以这里失败只记日志、照常放行，绝不让进程死掉。
+            try
+            {
             Count = MapLibs.Length + Monsters.Length + Gates.Length + Flags.Length + Siege.Length + NPCs.Length + CArmours.Length +
                 CHair.Length + CWeapons.Length + CWeaponEffect.Length + AArmours.Length + AHair.Length + AWeaponsL.Length + AWeaponsR.Length +
                 AWeaponEffectL.Length + AWeaponEffectR.Length +ARArmours.Length + ARHair.Length + ARWeapons.Length + ARWeaponsS.Length + ARWeaponsEffect.Length + ARWeaponsEffectS.Length +
@@ -503,16 +509,16 @@ namespace Client.MirGraphics
             }
 
             for (int i = 0; i < AWeaponEffectL.Length; i++)
-            {
-                AWeaponsL[i].Initialize();
-                Progress++;
-            }
+			{
+				AWeaponEffectL[i].Initialize();
+				Progress++;
+			}
 
-            for (int i = 0; i < AWeaponEffectR.Length; i++)
-            {
-                AWeaponsR[i].Initialize();
-                Progress++;
-            }
+			for (int i = 0; i < AWeaponEffectR.Length; i++)
+			{
+				AWeaponEffectR[i].Initialize();
+				Progress++;
+			}
 
             for (int i = 0; i < ARArmours.Length; i++)
             {
@@ -610,8 +616,19 @@ namespace Client.MirGraphics
                 TransformMounts[i].Initialize();
                 Progress++;
             }
-            
+
             Loaded = true;
+            }
+            catch (Exception ex)
+            {
+                // 只记日志不退出：Loaded 在 finally 里照常置位，选人界面照样放行
+                if (Settings.LogErrors) CMain.SaveError("LoadGameLibraries 异常 : " + ex);
+            }
+            finally
+            {
+                // SelectScene 在等这个闸（!Libraries.Loaded 则一直卡选人），失败也要放行
+                Loaded = true;
+            }
         }
 
     }

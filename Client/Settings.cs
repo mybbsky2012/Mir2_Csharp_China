@@ -157,7 +157,11 @@ namespace Client
             ExpandedBuffWindow = true,
             ExpandedHeroBuffWindow = true,
             DisplayBodyName = false,
-            NewMove = false;
+            NewMove = false,
+            // 地面物品名字过滤：只显示 Data\ItemFilter.txt 列表里匹配到的物品（内挂面板勾选）
+            ItemFilterOn = false,
+            // 数字显血：血条下方显示血量百分比数字（内挂面板勾选）
+            HealthNumber = false;
 
         //内挂（自动挂机）
         public static bool
@@ -171,7 +175,8 @@ namespace Client
             AutoSkill = true,           // 自动按需用技能：远怪用远程、近怪用近攻、围攻用群攻
             AutoDodge = false,          // 被怪物围攻时自动躲避走位
             AutoThrustingGap = true,    // 战士隔位刺杀（刀刀刺杀）：目标隔一格时原地用刺杀剑气打，不贴脸
-            AutoSwapPoison = true;      // 道士毒符互换：符与毒共用「护身符」装备槽，按需自动切换（换毒时红绿交替）
+            AutoSwapPoison = true,      // 道士毒符互换：符与毒共用「护身符」装备槽，按需自动切换（换毒时红绿交替）
+            MagicLock = false;          // 魔法锁定：锁定鼠标指向的对象（玩家/怪物/NPC），指向新对象自动换锁，不随鼠标移开而丢目标
 
         public static int
             AutoPotHPPercent = 50,      // HP 低于该百分比时自动喝药
@@ -323,6 +328,8 @@ namespace Client
             Effect = Reader.ReadBoolean("Game", "Effect", Effect);
             LevelEffect = Reader.ReadBoolean("Game", "LevelEffect", Effect);
             DropView = Reader.ReadBoolean("Game", "DropView", DropView);
+            ItemFilterOn = Reader.ReadBoolean("Game", "ItemFilter", ItemFilterOn);
+            HealthNumber = Reader.ReadBoolean("Game", "HealthNumber", HealthNumber);
             NameView = Reader.ReadBoolean("Game", "NameView", NameView);
             HPView = Reader.ReadBoolean("Game", "HPMPView", HPView);
             ModeView = Reader.ReadBoolean("Game", "ModeView", ModeView);
@@ -349,6 +356,7 @@ namespace Client
             AutoDodge = Reader.ReadBoolean("AutoPlay", "AutoDodge", AutoDodge);
             AutoThrustingGap = Reader.ReadBoolean("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
             AutoSwapPoison = Reader.ReadBoolean("AutoPlay", "AutoSwapPoison", AutoSwapPoison);
+            MagicLock = Reader.ReadBoolean("AutoPlay", "MagicLock", MagicLock);
             AutoPotHPPercent = Reader.ReadInt32("AutoPlay", "AutoPotHPPercent", AutoPotHPPercent);
             AutoPotMPPercent = Reader.ReadInt32("AutoPlay", "AutoPotMPPercent", AutoPotMPPercent);
             AutoSearchRange = Reader.ReadInt32("AutoPlay", "AutoSearchRange", AutoSearchRange);
@@ -494,6 +502,8 @@ namespace Client
             Reader.Write("Game", "Effect", Effect);
             Reader.Write("Game", "LevelEffect", LevelEffect);
             Reader.Write("Game", "DropView", DropView);
+            Reader.Write("Game", "ItemFilter", ItemFilterOn);
+            Reader.Write("Game", "HealthNumber", HealthNumber);
             Reader.Write("Game", "NameView", NameView);
             Reader.Write("Game", "HPMPView", HPView);
             Reader.Write("Game", "ModeView", ModeView);
@@ -520,6 +530,7 @@ namespace Client
             Reader.Write("AutoPlay", "AutoDodge", AutoDodge);
             Reader.Write("AutoPlay", "AutoThrustingGap", AutoThrustingGap);
             Reader.Write("AutoPlay", "AutoSwapPoison", AutoSwapPoison);
+            Reader.Write("AutoPlay", "MagicLock", MagicLock);
             Reader.Write("AutoPlay", "AutoPotHPPercent", AutoPotHPPercent);
             Reader.Write("AutoPlay", "AutoPotMPPercent", AutoPotMPPercent);
             Reader.Write("AutoPlay", "AutoSearchRange", AutoSearchRange);
