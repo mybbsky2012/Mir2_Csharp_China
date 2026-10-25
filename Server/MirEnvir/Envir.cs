@@ -529,6 +529,20 @@ namespace Server.MirEnvir
             return "true";
         }
 
+        //＝＝＝内循环容错（10-24）：任何一拍异常只记日志，不停服、不踢人＝＝＝
+        //同一秒内重复异常只记第一条，防止坏对象每帧报错刷屏日志
+        private long _lastInnerErrorLog;
+        private void LogInnerError(string tag, Exception ex)
+        {
+            long now = Stopwatch.ElapsedMilliseconds;
+            if (now - _lastInnerErrorLog < 1000) return;
+            _lastInnerErrorLog = now;
+
+            var st = new StackTrace(ex, true);
+            var line = st.FrameCount > 0 ? st.GetFrame(0).GetFileLineNumber() : 0;
+            MessageQueue.Enqueue($"[{tag} 线程 {line}]" + ex);
+        }
+
         private void WorkLoop()
         {
             try
@@ -632,8 +646,12 @@ namespace Server.MirEnvir
                         }
                     }
                 }
-                try
+                bool innerRestart;   //内循环兜底：出错不踢人不停服，记日志后续跑下一轮
+                do
                 {
+                    innerRestart = false;
+                    try
+                    {
                     while (Running)
                     {
                         Time = Stopwatch.ElapsedMilliseconds;
@@ -713,8 +731,20 @@ namespace Server.MirEnvir
                             {
                                 if (Time > current.Value.OperateTime)
                                 {
-                                    current.Value.Process();
-                                    current.Value.SetOperateTime();
+                                    try
+                                    {
+                                        current.Value.Process();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        //单个对象出错只记日志，不影响同拍其它对象，也不打断主循环
+                                        LogInnerError("对象处理错误", ex);
+                                    }
+                                    finally
+                                    {
+                                        //无论成败都推进节拍，避免同一坏对象下一帧立刻再炸
+                                        try { current.Value.SetOperateTime(); } catch { }
+                                    }
                                 }
                                 processCount++;
                             }
@@ -722,11 +752,25 @@ namespace Server.MirEnvir
                         }
 
                         for (var i = 0; i < MapList.Count; i++)
-                            MapList[i].Process();
+                        {
+                            try { MapList[i].Process(); }
+                            catch (Exception ex) { LogInnerError("地图处理错误", ex); }
+                        }
 
-                        DragonSystem?.Process();
+                        if (DragonSystem != null)
+                        {
+                            try { DragonSystem.Process(); }
+                            catch (Exception ex) { LogInnerError("龙系统处理错误", ex); }
+                        }
 
-                        Process();
+                        try
+                        {
+                            Process();
+                        }
+                        catch (Exception ex)
+                        {
+                            LogInnerError("系统处理错误", ex);
+                        }
 
                         if (Time >= saveTime)
                         {
@@ -760,24 +804,21 @@ namespace Server.MirEnvir
                         //   if (Players.Count == 0) Thread.Sleep(1);
                         //   GC.Collect();
                     }
-                }
-                catch (Exception ex)
-                {
-                    lock (Connections)
-                    {
-                        for (var i = Connections.Count - 1; i >= 0; i--)
-                            Connections[i].SendDisconnect(3);
                     }
+                    catch (Exception ex)
+                    {
+                        //兜底：漏网的异常只记日志，不踢人、不停服，直接续跑下一轮。
+                        //★原版「踢全服+停服」逻辑注释保留，需要恢复原行为时取消注释并删掉 innerRestart = true 即可
+                        //lock (Connections)
+                        //{
+                        //    for (var i = Connections.Count - 1; i >= 0; i--)
+                        //        Connections[i].SendDisconnect(3);
+                        //}
 
-                    // Get stack trace for the exception with source file information
-                    var st = new StackTrace(ex, true);
-                    // Get the top stack frame
-                    var frame = st.GetFrame(0);
-                    // Get the line number from the stack frame
-                    var line = frame.GetFileLineNumber();
-
-                    MessageQueue.Enqueue($"[内循环错误 线程 {line}]" + ex);
-                }
+                        LogInnerError("内循环错误(已忽略·继续运行)", ex);
+                        innerRestart = true;
+                    }
+                } while (innerRestart && Running);
 
                 StopNetwork();
                 StopEnvir();
@@ -832,8 +873,20 @@ namespace Server.MirEnvir
                         {
                             if (Info._current.Value.Master == null) //since we are running multithreaded, dont allow pets to be processed (unless you constantly move pets into their map appropriate thead)
                             {
-                                Info._current.Value.Process();
-                                Info._current.Value.SetOperateTime();
+                                try
+                                {
+                                    Info._current.Value.Process();
+                                }
+                                catch (Exception ex)
+                                {
+                                    //单只怪/玩家出错只记日志，不终止本处理线程
+                                    LogInnerError("怪物线程处理错误", ex);
+                                }
+                                finally
+                                {
+                                    //无论成败都推进节拍，避免同一坏对象每帧重炸
+                                    try { Info._current.Value.SetOperateTime(); } catch { }
+                                }
                             }
                         }
                         Info._current = next;
@@ -3931,16 +3984,23 @@ namespace Server.MirEnvir
         {
             ReloadNPCs();
 
-            // ---- 1) 撤下已删除的 NPC ----
+            // 数据源用编辑器实例（Envir.Edit）的列表：编辑器里新增/删除/修改 NPC 后
+            // （即使编辑器窗体还没关），这里能立即同步到运行服，不用重启。
+            // Main 的 NPCInfoList 只在启动时从 DB 读一次，是"新增 NPC 不重启不上线"的根因。
+            List<NPCInfo> editInfos = Edit.NPCInfoList;
+            HashSet<int> editIds = new HashSet<int>();
+            foreach (NPCInfo e in editInfos) editIds.Add(e.Index);
+
+            // ---- 1) 撤下已在编辑器里删除的 NPC ----
             List<NPCObject> removed = new List<NPCObject>();
 
             for (int i = NPCs.Count - 1; i >= 0; i--)
             {
                 NPCObject npc = NPCs[i];
 
-                if (npc == null || npc.Conq != null) continue; // 攻城旗等由攻城系统管理，不在此处理
-                if (npc.Info.Index == 0) continue;             // 运行时临时创建的 NPCInfo（如攻城旗），不在信息列表里属正常
-                if (NPCInfoList.Contains(npc.Info)) continue;  // 信息还在，正常保留
+                if (npc == null || npc.Conq != null) continue;  // 攻城旗等由攻城系统管理，不在此处理
+                if (npc.Info == null || npc.Info.Index == 0) continue; // 运行时临时创建的 NPCInfo（如攻城旗）
+                if (editIds.Contains(npc.Info.Index)) continue; // 编辑器列表里还在，正常保留
 
                 removed.Add(npc);
             }
@@ -3950,19 +4010,24 @@ namespace Server.MirEnvir
                 npc.CurrentMap?.RemoveObject(npc);
                 npc.Despawn();
                 NPCs.Remove(npc);
+                NPCInfoList.RemoveAll(x => x.Index == npc.Info.Index); // 信息列表一并移除
             }
 
             if (removed.Count > 0)
                 MessageQueue.Enqueue(string.Format("NPC全量重载：撤下 {0} 个已删除的 NPC", removed.Count));
 
-            // ---- 2) 上线新加的 NPC ----
-            int added = 0;
+            // ---- 2) 同步新增/修改的 NPC ----
+            int added = 0, rebuilt = 0;
 
-            for (int i = 0; i < NPCInfoList.Count; i++)
+            for (int i = 0; i < editInfos.Count; i++)
             {
-                NPCInfo info = NPCInfoList[i];
+                NPCInfo info = editInfos[i];
+                if (info.Index == 0) continue;
 
-                if (NPCs.Any(x => x.Info == info)) continue; // 已有对象，跳过
+                int listIdx = NPCInfoList.FindIndex(x => x.Index == info.Index);
+                NPCInfo old = listIdx >= 0 ? NPCInfoList[listIdx] : null;
+
+                if (old != null && SameConfig(old, info)) continue; // 配置没变，跳过
 
                 Map map = GetMap(info.MapIndex);
                 if (map == null)
@@ -3977,15 +4042,54 @@ namespace Server.MirEnvir
                     continue;
                 }
 
+                // 修改场景：撤下旧对象（位置/外观/脚本名等变了需要重建）
+                if (old != null)
+                {
+                    NPCObject existing = NPCs.FirstOrDefault(x => x.Info == old && x.Conq == null);
+                    if (existing != null)
+                    {
+                        existing.CurrentMap?.RemoveObject(existing);
+                        existing.Despawn();
+                        NPCs.Remove(existing);
+                        rebuilt++;
+                    }
+
+                    Map oldMap = GetMap(old.MapIndex);
+                    oldMap?.Info?.NPCs.Remove(old);
+                }
+
+                if (listIdx >= 0) NPCInfoList[listIdx] = info;
+                else { NPCInfoList.Add(info); added++; }
+
                 // 写回地图的 NPC 列表，保证下次重启后仍会生成
                 if (!map.Info.NPCs.Contains(info)) map.Info.NPCs.Add(info);
 
                 // 与 Map.Load 相同的生成方式：构造时按 FileName 自动加载脚本（新脚本文件由此生效）
                 map.AddObject(new NPCObject(info) { CurrentMap = map });
-                added++;
             }
 
-            MessageQueue.Enqueue(string.Format("NPC全量重载完成：新上线 {0} 个 NPC", added));
+            MessageQueue.Enqueue(string.Format("NPC全量重载完成：新上线 {0} 个，重建 {1} 个", added, rebuilt));
+        }
+
+        /// <summary>
+        /// 对比两个 NPCInfo 的全部配置字段（不含 Index，调用前已保证相等）。
+        /// 用于全量重载判断编辑器里的改动是否需要重建 NPC 对象。
+        /// </summary>
+        private static bool SameConfig(NPCInfo a, NPCInfo b)
+        {
+            return a.FileName == b.FileName && a.Name == b.Name
+                && a.MapIndex == b.MapIndex && a.Location.Equals(b.Location)
+                && a.Rate == b.Rate && a.Image == b.Image && a.Colour.Equals(b.Colour)
+                && a.TimeVisible == b.TimeVisible
+                && a.HourStart == b.HourStart && a.MinuteStart == b.MinuteStart
+                && a.HourEnd == b.HourEnd && a.MinuteEnd == b.MinuteEnd
+                && a.MinLev == b.MinLev && a.MaxLev == b.MaxLev
+                && a.DayofWeek == b.DayofWeek && a.ClassRequired == b.ClassRequired
+                && a.Sabuk == b.Sabuk && a.FlagNeeded == b.FlagNeeded && a.Conquest == b.Conquest
+                && a.ShowOnBigMap == b.ShowOnBigMap && a.BigMapIcon == b.BigMapIcon
+                && a.CanTeleportTo == b.CanTeleportTo && a.ConquestVisible == b.ConquestVisible
+                && a.CollectQuestIndexes.SequenceEqual(b.CollectQuestIndexes)
+                && a.FinishQuestIndexes.SequenceEqual(b.FinishQuestIndexes);
         }
 
         /// <summary>
@@ -3996,79 +4100,184 @@ namespace Server.MirEnvir
         /// </summary>
         public void ReloadGameShop()
         {
-            var newList = new List<GameShopItem>();
-            int gameshopIndex = GameshopIndex;
+            // 数据源用编辑器实例（Envir.Edit）的商城列表：编辑器里加/删/改商品后
+            // （即使窗体还没关），点重载立即同步到运行服，并全服推送刷新客户端。
+            // Main 的 GameShopList 只在启动时从 DB 读一次，是"重载后还是旧数据"的根因。
+            List<GameShopItem> newList = new List<GameShopItem>();
+            int unbound = 0;
 
-            try
+            for (int i = 0; i < Edit.GameShopList.Count; i++)
             {
-                using (var stream = File.OpenRead(DatabasePath))
-                using (var reader = new BinaryReader(stream))
+                GameShopItem src = Edit.GameShopList[i];
+
+                // Info 必须重新绑定到运行服（Main）的物品表：编辑器条目指向 Edit 的 ItemInfo 实例
+                ItemInfo bound = null;
+                for (int j = 0; j < ItemInfoList.Count; j++)
                 {
-                    int loadVersion = reader.ReadInt32();
-                    int loadCustomVersion = reader.ReadInt32();
-
-                    reader.ReadInt32(); // MapIndex
-                    reader.ReadInt32(); // ItemIndex
-                    reader.ReadInt32(); // MonsterIndex
-                    reader.ReadInt32(); // NPCIndex
-                    reader.ReadInt32(); // QuestIndex
-                    if (loadVersion >= 63) gameshopIndex = reader.ReadInt32();
-                    if (loadVersion >= 66) reader.ReadInt32(); // ConquestIndex
-                    if (loadVersion >= 68) reader.ReadInt32(); // RespawnIndex
-
-                    int count = reader.ReadInt32();
-                    for (int i = 0; i < count; i++) new MapInfo(reader);               // 地图段：跳过
-
-                    count = reader.ReadInt32();
-                    for (int i = 0; i < count; i++) new ItemInfo(reader, loadVersion, loadCustomVersion); // 物品段：跳过
-
-                    count = reader.ReadInt32();
-                    for (int i = 0; i < count; i++) new MonsterInfo(reader);           // 怪物段：跳过
-
-                    count = reader.ReadInt32();
-                    for (int i = 0; i < count; i++) new NPCInfo(reader);               // NPC段：跳过
-
-                    count = reader.ReadInt32();
-                    for (int i = 0; i < count; i++) new QuestInfo(reader);             // 任务段：跳过
-
-                    new DragonInfo(reader);                                            // 魔龙段：跳过
-
-                    count = reader.ReadInt32();
-                    for (int i = 0; i < count; i++) new MagicInfo(reader, loadVersion, loadCustomVersion); // 技能段：跳过
-
-                    if (loadVersion >= 63)
-                    {
-                        count = reader.ReadInt32();
-                        for (int i = 0; i < count; i++)
-                        {
-                            var item = new GameShopItem(reader, loadVersion, loadCustomVersion);
-
-                            // 绑定到当前（运行中）物品表：编辑器运行时新加的物品也能绑上
-                            bool bound = false;
-                            for (int j = 0; j < ItemInfoList.Count; j++)
-                            {
-                                if (ItemInfoList[j].Index != item.ItemIndex) continue;
-                                item.Info = ItemInfoList[j];
-                                bound = true;
-                                break;
-                            }
-
-                            if (bound) newList.Add(item);
-                        }
-                    }
+                    if (ItemInfoList[j].Index != src.ItemIndex) continue;
+                    bound = ItemInfoList[j];
+                    break;
                 }
-            }
-            catch (Exception ex)
-            {
-                MessageQueue.Enqueue(string.Format("商城重载失败（保留原列表）：{0}", ex.Message));
-                return;
+
+                if (bound == null) { unbound++; continue; }
+
+                newList.Add(new GameShopItem
+                {
+                    ItemIndex = src.ItemIndex,
+                    GIndex = src.GIndex,
+                    Info = bound,
+                    GoldPrice = src.GoldPrice,
+                    CreditPrice = src.CreditPrice,
+                    Count = src.Count,
+                    Class = src.Class,
+                    Category = src.Category,
+                    Stock = src.Stock,
+                    iStock = src.iStock,
+                    Deal = src.Deal,
+                    TopItem = src.TopItem,
+                    Date = src.Date,
+                    CanBuyGold = src.CanBuyGold,
+                    CanBuyCredit = src.CanBuyCredit,
+                });
             }
 
             GameShopList.Clear();
             GameShopList.AddRange(newList);
-            GameshopIndex = gameshopIndex;
 
-            MessageQueue.Enqueue(string.Format("商城已重新加载，共 {0} 条商品", GameShopList.Count));
+            MessageQueue.Enqueue(string.Format("商城已重新加载，共 {0} 条商品{1}",
+                GameShopList.Count, unbound > 0 ? string.Format("（{0} 条物品在物品库中未找到，已跳过）", unbound) : ""));
+
+            // 全服推送：先 Reset 清空客户端本地缓存，再全量下发
+            for (int i = 0; i < Players.Count; i++)
+            {
+                PlayerObject online = Players[i];
+                if (online == null) continue;
+
+                online.Enqueue(new S.GameShopInfo { Reset = true });
+                online.GetGameShop();
+            }
+        }
+
+        /// <summary>
+        /// 重载物品库：与编辑器实例（Envir.Edit）的物品列表按 Index 同步。
+        /// ItemInfo 为纯数据类（无跨环境引用），条目直接采用编辑器实例；
+        /// 已有物品（UserItem.Info）继续指向旧实例、属性不变，新生成的物品用新数据。
+        /// </summary>
+        public void ReloadItems()
+        {
+            int added = 0, removed = 0;
+
+            HashSet<int> editIds = new HashSet<int>();
+            for (int i = 0; i < Edit.ItemInfoList.Count; i++) editIds.Add(Edit.ItemInfoList[i].Index);
+
+            for (int i = 0; i < Edit.ItemInfoList.Count; i++)
+            {
+                ItemInfo src = Edit.ItemInfoList[i];
+                int idx = ItemInfoList.FindIndex(x => x.Index == src.Index);
+                if (idx >= 0) ItemInfoList[idx] = src;
+                else { ItemInfoList.Add(src); added++; }
+            }
+
+            for (int i = ItemInfoList.Count - 1; i >= 0; i--)
+            {
+                if (editIds.Contains(ItemInfoList[i].Index)) continue;
+                ItemInfoList.RemoveAt(i);
+                removed++;
+            }
+
+            // 商城条目的 Info 重新绑定到新物品实例
+            for (int i = 0; i < GameShopList.Count; i++)
+            {
+                GameShopItem gs = GameShopList[i];
+                ItemInfo bound = ItemInfoList.FirstOrDefault(x => x.Index == gs.ItemIndex);
+                if (bound != null) gs.Info = bound;
+            }
+
+            MessageQueue.Enqueue(string.Format("物品库已重载：新增 {0}，删除 {1}，其余已同步（已有物品属性不变，新物品即生效）", added, removed));
+        }
+
+        /// <summary>
+        /// 重载怪物库：与编辑器实例（Envir.Edit）的怪物列表按 Index 同步。
+        /// 已刷出的怪物继续用旧属性直到死亡/重刷，之后新刷出的生效；
+        /// 掉落表对新条目重新加载（绑定到 Main 的物品实例）。
+        /// </summary>
+        public void ReloadMonsters()
+        {
+            int added = 0, removed = 0;
+
+            HashSet<int> editIds = new HashSet<int>();
+            for (int i = 0; i < Edit.MonsterInfoList.Count; i++) editIds.Add(Edit.MonsterInfoList[i].Index);
+
+            for (int i = 0; i < Edit.MonsterInfoList.Count; i++)
+            {
+                MonsterInfo src = Edit.MonsterInfoList[i];
+                int idx = MonsterInfoList.FindIndex(x => x.Index == src.Index);
+                if (idx >= 0) MonsterInfoList[idx] = src;
+                else { MonsterInfoList.Add(src); added++; }
+            }
+
+            for (int i = MonsterInfoList.Count - 1; i >= 0; i--)
+            {
+                if (editIds.Contains(MonsterInfoList[i].Index)) continue;
+                MonsterInfoList.RemoveAt(i);
+                removed++;
+            }
+
+            // 掉落表对新条目重新加载；容错处理——掉落文件异常不能炸掉管理端 UI 线程
+            try
+            {
+                ReloadDrops();
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format("怪物掉落重载失败（怪物数据已同步）：{0}", ex.Message));
+            }
+
+            MessageQueue.Enqueue(string.Format("怪物库已重载：新增 {0}，删除 {1}，掉落已重载（已刷出的怪物保持原属性，新刷出的生效）", added, removed));
+        }
+
+        /// <summary>
+        /// 重载技能库：与编辑器实例（Envir.Edit）的技能列表按 Spell 同步（MagicInfo 无 Index）。
+        /// 在线玩家已学技能重新绑定到新数据（等级/经验保留，威力/延迟/消耗立即生效）。
+        /// </summary>
+        public void ReloadMagics()
+        {
+            int added = 0, removed = 0, rebound = 0;
+
+            HashSet<Spell> editSpells = new HashSet<Spell>();
+            for (int i = 0; i < Edit.MagicInfoList.Count; i++) editSpells.Add(Edit.MagicInfoList[i].Spell);
+
+            for (int i = 0; i < Edit.MagicInfoList.Count; i++)
+            {
+                MagicInfo src = Edit.MagicInfoList[i];
+                int idx = MagicInfoList.FindIndex(x => x.Spell == src.Spell);
+                if (idx >= 0) MagicInfoList[idx] = src;
+                else { MagicInfoList.Add(src); added++; }
+            }
+
+            for (int i = MagicInfoList.Count - 1; i >= 0; i--)
+            {
+                if (editSpells.Contains(MagicInfoList[i].Spell)) continue;
+                MagicInfoList.RemoveAt(i);
+                removed++;
+            }
+
+            for (int p = 0; p < Players.Count; p++)
+            {
+                PlayerObject player = Players[p];
+                if (player == null || player.Info == null) continue;
+
+                for (int m = 0; m < player.Info.Magics.Count; m++)
+                {
+                    UserMagic magic = player.Info.Magics[m];
+                    MagicInfo bound = MagicInfoList.FirstOrDefault(x => x.Spell == magic.Spell);
+                    if (bound == null || bound == magic.Info) continue;
+                    magic.Info = bound;
+                    rebound++;
+                }
+            }
+
+            MessageQueue.Enqueue(string.Format("技能库已重载：新增 {0}，删除 {1}，在线玩家技能重绑 {2} 个", added, removed, rebound));
         }
 
         /// <summary>

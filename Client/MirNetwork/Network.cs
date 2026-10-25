@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Net.Sockets;
 using Client.MirControls;
+using Client.MirScenes;
 using C = ClientPackets;
 
 
@@ -21,6 +22,27 @@ namespace Client.MirNetwork
         static byte[] _rawData = new byte[0];
         static readonly byte[] _rawBytes = new byte[8 * 1024];
 
+        //★地址池轮换（10-25）：连接失败自动换 Settings.ServerAddressPool 里的下一个地址；
+        //连上后归零（下次连接默认从第一个地址开始）。单地址配置行为与原来完全一致。
+        private static int _poolIndex;
+
+        /// <summary>当前应尝试的连接地址（地址池为空时回落 Settings.IPAddress）</summary>
+        private static string CurrentAddress
+        {
+            get
+            {
+                if (Settings.ServerAddressPool.Count == 0) return Settings.IPAddress;
+                return Settings.ServerAddressPool[_poolIndex % Settings.ServerAddressPool.Count];
+            }
+        }
+
+        /// <summary>本次尝试失败，下次换池中下一个地址（单地址池不轮换）</summary>
+        private static void NextPoolAddress()
+        {
+            if (Settings.ServerAddressPool.Count > 1)
+                _poolIndex = (_poolIndex + 1) % Settings.ServerAddressPool.Count;
+        }
+
         public static void Connect()
         {
             if (_client != null)
@@ -39,6 +61,8 @@ namespace Client.MirNetwork
                 errorBox.CancelButton.Click += (o, e) => Program.Form.Close();
                 errorBox.Label.Text = $"已达最大连接尝试次数： {MaxAttempts}" +
                                       $"{Environment.NewLine}请稍后再试或检查您的连接设置";
+                if (Settings.ServerAddressPool.Count > 1)
+                    errorBox.Label.Text += $"{Environment.NewLine}已尝试以下地址均未成功： {string.Join(", ", Settings.ServerAddressPool)}";
                 errorBox.Show();
                 return;
             }
@@ -48,11 +72,18 @@ namespace Client.MirNetwork
             try
             {
                 _client = new TcpClient { NoDelay = true };
-                _client?.BeginConnect(Settings.IPAddress, Settings.Port, Connection, null);
+                _client?.BeginConnect(CurrentAddress, Settings.Port, Connection, null);
             }
             catch (ObjectDisposedException ex)
             {
                 if (Settings.LogErrors) CMain.SaveError(ex.ToString());
+                Disconnect();
+            }
+            catch (Exception ex)
+            {
+                //地址池里可能有解析不了的地址（域名失效等）：记日志、换下一个地址，不让客户端卡死
+                if (Settings.LogErrors) CMain.SaveError(ex.ToString());
+                NextPoolAddress();
                 Disconnect();
             }
         }
@@ -67,9 +98,13 @@ namespace Client.MirNetwork
                     !_client.Connected) ||
                     _client == null)
                 {
+                    NextPoolAddress();
                     Connect();
                     return;
                 }
+
+                //连上了：归零，下次连接默认从池里第一个地址开始
+                _poolIndex = 0;
 
                 _receiveList = new ConcurrentQueue<Packet>();
                 _sendList = new ConcurrentQueue<Packet>();
@@ -83,6 +118,7 @@ namespace Client.MirNetwork
             catch (SocketException)
             {
                 Thread.Sleep(100);
+                NextPoolAddress();
                 Connect();
             }
             catch (Exception ex)
@@ -214,8 +250,20 @@ namespace Client.MirNetwork
                         return;
                     }
 
-                    MirMessageBox.Show("与服务器的连接中断", true);
                     Disconnect();
+
+                    // 断线不再退出客户端：游戏场景回登录界面重新连，其他场景留在原地即可重连
+                    GameScene gameScene = MirScene.ActiveScene as GameScene;
+                    if (gameScene != null)
+                    {
+                        MirMessageBox box = new MirMessageBox("与服务器的连接中断，点击确定返回登录界面重新连接。");
+                        box.OKButton.Click += (o, e) => gameScene.ReturnToLoginOnDisconnect();
+                        box.Show();
+                    }
+                    else
+                    {
+                        MirMessageBox.Show("与服务器的连接中断");
+                    }
                     return;
                 }
                 else if (CMain.Time >= RetryTime)
@@ -228,6 +276,8 @@ namespace Client.MirNetwork
 
             if (!Connected && TimeConnected > 0 && CMain.Time > TimeConnected + 5000)
             {
+                //连上了 TCP 但 5 秒内没握手成功：当失败处理，换下一个地址重连
+                NextPoolAddress();
                 Disconnect();
                 Connect();
                 return;

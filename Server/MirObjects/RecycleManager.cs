@@ -121,6 +121,10 @@ namespace Server.MirObjects
                 if (item == null || item.Info == null) continue;
                 if (!match(item)) continue;
 
+                // ★特殊物品（麻痹/复活/护身/传送/记忆/隐身等特殊戒指、特殊项链手镯等）
+                //   一律不回收：这类装备价值极高且标识就是 Info.Unique != None，误收无法挽回
+                if (item.Info.Unique != SpecialItemMode.None) continue;
+
                 // 绑定为不可出售的（任务/活动装备）不回收，避免玩家损失
                 if (item.Info.Bind.HasFlag(BindMode.DontSell)) continue;
                 if (item.RentalInformation != null) continue;

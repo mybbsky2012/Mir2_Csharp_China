@@ -1,4 +1,5 @@
-﻿using Client.MirSounds;
+﻿using System.Collections.Generic;
+using Client.MirSounds;
 
 namespace Client
 {
@@ -85,6 +86,9 @@ namespace Client
         public static int Port = 7000;
         public const int TimeOut = 5000;
 
+        //★连接地址池：由 IPAddress 解析（逗号/分号/空格分隔多个地址），连接失败自动轮换
+        public static readonly List<string> ServerAddressPool = new List<string>();
+
         //Sound
         public static int SoundOverLap = 3;
         private static byte _volume = 100;
@@ -164,6 +168,11 @@ namespace Client
             HealthNumber = false,
             // 品质动态发光：宝物/圣物/神物物品格旋转激光放射光（Mir2Config.ini [Game] QualityEffect）
             QualityEffectOn = true;
+
+        // 战斗后 10 秒退出等待开关（Mir2Config.ini [Game] LogoutCombatDelay）。
+        // True = 保留原版行为：被打/攻击后 10 秒内退出游戏、关窗口会被拦下（代码原样保留，只是加了这个闸）。
+        // False（默认）= 不等待：怪物攻击状态退出、退出登录、切换角色都不再有 10 秒限制。
+        public static bool LogoutCombatDelay = false;
 
         //内挂（自动挂机）
         public static bool
@@ -252,6 +261,11 @@ namespace Client
         //AutoPatcher
         public static bool P_Patcher = true;
         public static string P_Host = @"http://127.0.0.1/mir2/cmir/patch/";//默认 mirfiles.com
+
+        //★补丁（更新）服务器地址池（10-25）：Host 支持填多个地址，逗号/分号/空格分隔（中英文都认）。
+        //例：Host=http://1.2.3.4/patch/,http://5.6.7.8/patch/
+        //连接失败自动换下一个；换过去就一直用（不回跳，防主地址抖动）。单个地址（原写法）行为完全不变。
+        public static readonly List<string> P_HostPool = new List<string>();
         public static string P_PatchFileName = @"PList.gz";
         public static bool P_NeedLogin = false;
         public static string P_Login = string.Empty;
@@ -265,6 +279,13 @@ namespace Client
         //微端：客户端只带核心资源，其余在用到时向服务端 HTTP 资源服务按需下载
         public static bool MicroClient = false;
         public static string MicroHost = @"http://127.0.0.1:5679/";
+
+        //★微端资源服务器地址池（10-25）：Host 支持填多个地址，逗号/分号/空格分隔（中英文都认）。
+        //例：Host=http://1.2.3.4:5679/,http://5.6.7.8:5679/,http://mir.example.com:5679/
+        //连接失败（超时/断连）自动换下一个；换过去就一直用，直到它也失败再轮换（不成功不回跳，
+        //避免主地址抖动时每个文件都先撞一次超时）。单个地址（原写法）行为完全不变。
+        public static readonly List<string> MicroHostPool = new List<string>();
+
         public static int MicroTimeout = 8000;
         public static bool MicroLog = true;
 
@@ -307,6 +328,18 @@ namespace Client
                 Port = Reader.ReadInt32("Network", "Port", Port);
             }
 
+            //★地址池（10-25）：IPAddress 支持填多个地址，逗号/分号/空格分隔（中英文逗号分号都认）。
+            //例：IPAddress=1.2.3.4,5.6.7.8,mir.example.com
+            //连接时默认用第一个，失败自动换下一个，循环直到连上；全池反复失败走原有的「连接错误」提示。
+            //单个地址（原写法）行为完全不变。
+            ServerAddressPool.Clear();
+            foreach (var part in IPAddress.Split(new[] { ',', '，', ';', '；', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string addr = part.Trim();
+                if (addr.Length > 0 && !ServerAddressPool.Contains(addr)) ServerAddressPool.Add(addr);
+            }
+            if (ServerAddressPool.Count == 0) ServerAddressPool.Add(IPAddress);
+
             //Logs
             LogErrors = Reader.ReadBoolean("Logs", "LogErrors", LogErrors);
             LogChat = Reader.ReadBoolean("Logs", "LogChat", LogChat);
@@ -333,6 +366,7 @@ namespace Client
             ItemFilterOn = Reader.ReadBoolean("Game", "ItemFilter", ItemFilterOn);
             HealthNumber = Reader.ReadBoolean("Game", "HealthNumber", HealthNumber);
             QualityEffectOn = Reader.ReadBoolean("Game", "QualityEffect", QualityEffectOn);
+            LogoutCombatDelay = Reader.ReadBoolean("Game", "LogoutCombatDelay", LogoutCombatDelay);
             NameView = Reader.ReadBoolean("Game", "NameView", NameView);
             HPView = Reader.ReadBoolean("Game", "HPMPView", HPView);
             ModeView = Reader.ReadBoolean("Game", "ModeView", ModeView);
@@ -438,6 +472,21 @@ namespace Client
                 P_Host = "http://127.0.0.1/mir2/cmir/patch/";//默认 mirfiles.com
             }
 
+            //★补丁地址池：解析 Host 里的多个地址。每项自动补 http:// 前缀、补结尾斜杠；P_Host 恒=池第一个（供兼容）。
+            P_HostPool.Clear();
+            foreach (var part in P_Host.Split(new[] { ',', '，', ';', '；', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string addr = part.Trim();
+                if (addr.Length == 0) continue;
+
+                if (addr.IndexOf("://", StringComparison.Ordinal) < 0) addr = "http://" + addr;
+                if (!addr.EndsWith("/")) addr += "/";
+
+                if (!P_HostPool.Contains(addr)) P_HostPool.Add(addr);
+            }
+            if (P_HostPool.Count == 0) P_HostPool.Add(P_Host);
+            P_Host = P_HostPool[0];
+
             if (P_Concurrency < 1) P_Concurrency = 1;
             if (P_Concurrency > 100) P_Concurrency = 100;
 
@@ -452,6 +501,22 @@ namespace Client
             MicroHint = Reader.ReadBoolean("MicroClient", "Hint", MicroHint);   //默认 False，不显示下载提示
 
             if (string.IsNullOrWhiteSpace(MicroHost)) MicroHost = "http://127.0.0.1:5679/";
+
+            //★微端地址池：解析 Host 里的多个地址。每个地址自动补 http:// 前缀（只填 ip:端口 也能用）。
+            //MicroHost 恒等于池第一个地址，供旧代码/显示用；下载器实际用 MicroHostPool 轮换。
+            MicroHostPool.Clear();
+            foreach (var part in MicroHost.Split(new[] { ',', '，', ';', '；', ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string addr = part.Trim().TrimEnd('/');
+                if (addr.Length == 0) continue;
+
+                if (addr.IndexOf("://", StringComparison.Ordinal) < 0) addr = "http://" + addr;
+
+                if (!MicroHostPool.Contains(addr)) MicroHostPool.Add(addr);
+            }
+            if (MicroHostPool.Count == 0) MicroHostPool.Add("http://127.0.0.1:5679");
+            MicroHost = MicroHostPool[0] + "/";
+
             if (!MicroHost.EndsWith("/")) MicroHost += "/";
             if (MicroTimeout < 1000) MicroTimeout = 8000;
             if (MicroConcurrency < 1) MicroConcurrency = 2;
@@ -508,6 +573,7 @@ namespace Client
             Reader.Write("Game", "ItemFilter", ItemFilterOn);
             Reader.Write("Game", "HealthNumber", HealthNumber);
             Reader.Write("Game", "QualityEffect", QualityEffectOn);
+            Reader.Write("Game", "LogoutCombatDelay", LogoutCombatDelay);
             Reader.Write("Game", "NameView", NameView);
             Reader.Write("Game", "HPMPView", HPView);
             Reader.Write("Game", "ModeView", ModeView);
@@ -575,7 +641,8 @@ namespace Client
 
             //AutoPatcher
             Reader.Write("Launcher", "Enabled", P_Patcher);
-            Reader.Write("Launcher", "Host", P_Host);
+            //地址池原样回写（逗号分隔），保证保存后多地址不丢
+            Reader.Write("Launcher", "Host", string.Join(",", P_HostPool));
             Reader.Write("Launcher", "PatchFile", P_PatchFileName);
             Reader.Write("Launcher", "NeedLogin", P_NeedLogin);
             Reader.Write("Launcher", "Login", P_Login);
@@ -586,7 +653,8 @@ namespace Client
 
             //微端
             Reader.Write("MicroClient", "Enabled", MicroClient);
-            Reader.Write("MicroClient", "Host", MicroHost);
+            //地址池原样回写（逗号分隔），保证保存后多地址不丢
+            Reader.Write("MicroClient", "Host", string.Join(",", MicroHostPool));
             Reader.Write("MicroClient", "Timeout", MicroTimeout);
             Reader.Write("MicroClient", "Log", MicroLog);
             Reader.Write("MicroClient", "Concurrency", MicroConcurrency);

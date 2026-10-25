@@ -85,11 +85,11 @@ namespace Server.MirObjects
                 NextMagicSpell = Spell.None;
             }
 
-            // 没有月华乱舞还被 3 个以上敌人围死：脱围求生
+            // 没有月华乱舞还被 3 个以上敌人围死：脱围求生；
+            // 切不开口子不站桩，照常单体反击，切不开到底就瞬移回主人身边
             if (Target != null && !Target.Dead && CanMove && !HasMagic(Spell.CrescentSlash) && SurroundedCount >= 3)
             {
-                MoveAwayFrom(Target);
-                return;
+                if (TryBreakout(Target)) return;
             }
 
             base.ProcessTarget();

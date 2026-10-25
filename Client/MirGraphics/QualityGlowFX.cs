@@ -51,6 +51,10 @@ namespace Client.MirGraphics
             Texture tex = _frames[gi][(int)(CMain.Time / FrameDelay % FrameCount)];
             if (tex == null || tex.Disposed) return;
 
+            //★实际画了旋转光：标记需要每帧重绘，否则对话框缓存贴图不刷新，
+            //查看他人装备（InspectDialog）等面板开着时光效会整帧冻结（用户实测）。
+            QualityOutlineGlow.NeedAnimate = true;
+
             bool oldBlend = DXManager.Blending;
             float oldRate = DXManager.BlendingRate;
             BlendMode oldMode = DXManager.BlendingMode;

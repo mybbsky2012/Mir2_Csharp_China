@@ -1866,13 +1866,15 @@ namespace Server.MirObjects
 
             return true;
         }
-        public void CheckItemInfo(ItemInfo info, bool dontLoop = false)
+        public virtual void CheckItemInfo(ItemInfo info, bool dontLoop = false)
         {
+            if (Connection == null) return;   // 英雄无连接；玩家断线瞬间也不再炸
             Connection.CheckItemInfo(info, dontLoop);
         }
-        public void CheckItem(UserItem item)
+        public virtual void CheckItem(UserItem item)
         {
-            Connection.CheckItem(item);         
+            if (Connection == null) return;   // 同上：HeroObject 在子类里转发给主人
+            Connection.CheckItem(item);
         }
         public void SetLevelEffects()
         {

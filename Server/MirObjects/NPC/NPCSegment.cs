@@ -260,6 +260,17 @@ namespace Server.MirObjects
                     CheckList.Add(new NPCChecks(CheckType.CheckHeroItem, parts[1], tempString, tempString2));
                     break;
 
+                // 本次 [@_UseItem(Shape)] 脚本触发来源：CHECKHEROUSE [1|0]。
+                // 1（省略）= 英雄使用的；0 = 玩家自己使用的。只对 UseItem 触发的脚本页有意义。
+                case "CHECKHEROUSE":
+                    CheckList.Add(new NPCChecks(CheckType.CheckHeroUse, parts.Length < 2 ? "1" : parts[1]));
+                    break;
+
+                // 是否在安全区：CHECKSAFEZONE [1|0]。1（省略）= 在安全区；0 = 不在安全区。
+                case "CHECKSAFEZONE":
+                    CheckList.Add(new NPCChecks(CheckType.CheckSafeZone, parts.Length < 2 ? "1" : parts[1]));
+                    break;
+
                 case "CHECKGOLD":
                     if (parts.Length < 3) return;
 
@@ -1328,6 +1339,15 @@ namespace Server.MirObjects
                     acts.Add(new NPCActions(ActionType.Repair, parts[1], parts.Length > 2 ? parts[2] : string.Empty));
                     break;
 
+                // 直接修复英雄身上某个部位的装备：HEROREPAIR <部位> [special]
+                // 参数规则与 REPAIR 完全一致（EquipmentSlot 名 / 0~13 数字；special/特修/1 = 特修不损上限）
+                // 区别只在对象：修的是当前已召唤英雄的装备，刷新包发给主人客户端（客户端按 UniqueID 自动定位英雄装备）
+                case "HEROREPAIR":
+                    if (parts.Length < 2) return;
+
+                    acts.Add(new NPCActions(ActionType.HeroRepair, parts[1], parts.Length > 2 ? parts[2] : string.Empty));
+                    break;
+
                 // 直接把物品穿到玩家身上（不进背包）：EQUIPITEM <物品名> [部位]
                 // 部位：EquipmentSlot 的名字或 0~13 数字；省略时按物品类型自动挑第一个合法且空闲的部位
                 case "EQUIPITEM":
@@ -1341,6 +1361,12 @@ namespace Server.MirObjects
                     if (parts.Length < 2) return;
 
                     acts.Add(new NPCActions(ActionType.HeroEquipItem, parts[1], parts.Length > 2 ? parts[2] : string.Empty));
+                    break;
+
+                // 开启离线挂机（10-25）：本角色下次下线时不断线，留在场上继续在线跑。
+                // 一般放在 [@_LOGOUT] 页里（触发即决定本次下线是否留场）；在线时执行则预挂标记。
+                case "OFFLINEAFK":
+                    acts.Add(new NPCActions(ActionType.OfflineAFK));
                     break;
             }
         }
@@ -1629,6 +1655,43 @@ namespace Server.MirObjects
                         if (Conquest == null) return string.Empty;
 
                         newValue = Conquest.GuildInfo.NPCRate.ToString() + "%";
+                    }
+                    break;
+                case "CONQUESTTIME()":
+                    val1 = FindVariable(player, "%" + oneValMatch.Groups[2].Captures[0].Value.ToUpper());
+
+                    if (int.TryParse(val1.Replace("%", ""), out intVal1))
+                    {
+                        Conquest = Envir.Conquests.FirstOrDefault(x => x.Info.Index == intVal1);
+                        if (Conquest == null) return "攻城编号无效";
+
+                        if (Conquest.WarIsOn)
+                        {
+                            newValue = string.Format("攻城战进行中，预计 {0:HH:mm} 结束", Conquest.WarEndTime);
+                            break;
+                        }
+
+                        var dayNames = new List<string>();
+                        if (Conquest.Info.Monday) dayNames.Add("周一");
+                        if (Conquest.Info.Tuesday) dayNames.Add("周二");
+                        if (Conquest.Info.Wednesday) dayNames.Add("周三");
+                        if (Conquest.Info.Thursday) dayNames.Add("周四");
+                        if (Conquest.Info.Friday) dayNames.Add("周五");
+                        if (Conquest.Info.Saturday) dayNames.Add("周六");
+                        if (Conquest.Info.Sunday) dayNames.Add("周日");
+
+                        if (dayNames.Count == 0)
+                        {
+                            newValue = "未安排攻城时间";
+                        }
+                        else
+                        {
+                            newValue = string.Format("每周 {0} {1:00}:00 开战，历时 {2} 分钟",
+                                string.Join("、", dayNames), Conquest.Info.StartHour, Conquest.Info.WarLength);
+
+                            if (Conquest.Info.Type == ConquestType.申请启动 && Conquest.GuildInfo.AttackerID == -1)
+                                newValue += "（申请启动型：需行会申请后才开战）";
+                        }
                     }
                     break;
                 case "CONQUESTSCHEDULE()":
@@ -2405,6 +2468,26 @@ namespace Server.MirObjects
 
                             if (heroItemCount > 0)
                                 failed = true;
+                        }
+                        break;
+
+                    // 本次 UseItem 脚本的触发来源：CHECKHEROUSE [1|0]。
+                    // 1（省略）= 英雄使用；0 = 玩家使用。触发源由 CallDefaultNPC 随延迟动作透传，
+                    // 只在 [@_UseItem(Shape)] 脚本页里判断才有意义。
+                    case CheckType.CheckHeroUse:
+                        {
+                            bool wantHero = param[0] != "0";
+
+                            failed = player.LastNPCTriggerByHero != wantHero;
+                        }
+                        break;
+
+                    // 是否在安全区：CHECKSAFEZONE [1|0]。1（省略）= 在安全区；0 = 不在安全区
+                    case CheckType.CheckSafeZone:
+                        {
+                            bool wantSafe = param[0] != "0";
+
+                            failed = player.InSafeZone != wantSafe;
                         }
                         break;
 
@@ -4844,6 +4927,42 @@ namespace Server.MirObjects
                         }
                         break;
 
+                    // HEROREPAIR <部位> [special]：修满已召唤英雄身上该部位装备（规则与 REPAIR 一致，对象换成英雄）
+                    case ActionType.HeroRepair:
+                        {
+                            if (param == null || param.Count == 0 || string.IsNullOrWhiteSpace(param[0])) break;
+                            if (!player.HasHero || !player.HeroSpawned || player.Hero.Dead) break;
+
+                            int slotIndex;
+                            if (!int.TryParse(param[0], out slotIndex))
+                            {
+                                EquipmentSlot parsedSlot;
+                                if (!Enum.TryParse(param[0], true, out parsedSlot)) break;
+                                slotIndex = (int)parsedSlot;
+                            }
+                            if (slotIndex < 0 || slotIndex >= player.Hero.Info.Equipment.Length) break;
+
+                            // 第二个参数：special / 特修 / 1 → 特修（不损上限）；其余（含不写）→ 普通修理
+                            bool special = param.Count > 1 && (param[1].Equals("special", StringComparison.OrdinalIgnoreCase)
+                                                               || param[1].Equals("true", StringComparison.OrdinalIgnoreCase)
+                                                               || param[1] == "1" || param[1] == "特修");
+
+                            UserItem item = player.Hero.Info.Equipment[slotIndex];
+                            if (item == null || item.CurrentDura >= item.MaxDura) break; // 空位 / 已经满持久：跳过，继续下一条
+                            if (item.Info.Bind.HasFlag(BindMode.DontRepair)) break;
+                            if (special && item.Info.Bind.HasFlag(BindMode.NoSRepair)) break;
+
+                            // 普通修理会永久损耗耐久上限（缺口 1/30），特修不损上限，与原版 NPC 修理规则一致
+                            if (!special) item.MaxDura = (ushort)Math.Max(0, item.MaxDura - (item.MaxDura - item.CurrentDura) / 30);
+
+                            item.CurrentDura = item.MaxDura;
+                            item.DuraChanged = false;
+                            // 客户端 ItemRepaired 处理器会按 UniqueID 依次搜玩家背包/装备、英雄背包/装备，
+                            // 直接发给主人连接即可刷新英雄面板上的耐久
+                            player.Enqueue(new S.ItemRepaired { UniqueID = item.UniqueID, MaxDura = item.MaxDura, CurrentDura = item.CurrentDura });
+                        }
+                        break;
+
                     // EQUIPITEM <物品名> [部位]：直接把物品穿到玩家身上（不进背包，部位被占则拒绝）
                     case ActionType.EquipItem:
                         {
@@ -4866,6 +4985,13 @@ namespace Server.MirObjects
 
                             NpcEquip(player.Hero, player, param[0], param.Count > 1 ? param[1] : string.Empty, true);
                         }
+                        break;
+
+                    // OFFLINEAFK：开启离线挂机——角色下线后留在场上继续在线（判定在 PlayerObject.StopGame）
+                    case ActionType.OfflineAFK:
+                        player.OfflineAFK = true;
+                        // 排查用日志：能在服务端控制台看到这一行，说明 [@_LOGOUT] 脚本链路已通
+                        MessageQueue.Enqueue(string.Format("[离线挂机] {0} 已挂起离线挂机标记（下线时生效）", player.Name));
                         break;
 
                 }

@@ -21,6 +21,7 @@ namespace Client.MirSounds
 
         private static int _vol;
         private static int _musicVol;
+        private static bool _shuttingDown;
 
         public static readonly List<string> SupportedFileTypes;
         private static long _checkSoundTime;
@@ -101,6 +102,7 @@ namespace Client.MirSounds
         public static void PlaySound(int index, bool loop = false, int delay = 0)
         {
             SyncSoundList();
+            EnsureOutputAlive();
             CheckSoundTimeOut();
 
             if (delay > 0)
@@ -189,6 +191,38 @@ namespace Client.MirSounds
             }
         }
 
+        /// <summary>
+        /// ★音效输出设备看门狗。
+        /// 系统休眠/唤醒、切换默认音频设备、声卡被独占后，WaveOutEvent 会悄悄停止
+        /// （PlaybackState 变 Stopped），原代码只在启动时 Play 一次、没有任何恢复手段，
+        /// 此后所有一次性音效（攻击/拾取/技能……走共享 mixer 的全部声音）永久无声。
+        /// 每次播放前检查：设备没在响就重新 Init+Play 救活；重建也失败则换新设备再试。
+        /// </summary>
+        private static void EnsureOutputAlive()
+        {
+            if (_shuttingDown || _OneShots == null || mixer == null) return;
+            if (_OneShots.PlaybackState == PlaybackState.Playing) return;
+
+            try
+            {
+                _OneShots.Init(mixer);
+                _OneShots.Volume = ScaleVolume(_vol);
+                _OneShots.Play();
+            }
+            catch
+            {
+                try
+                {
+                    _OneShots.Dispose();
+                    _OneShots = new WaveOutEvent();
+                    _OneShots.Init(mixer);
+                    _OneShots.Volume = ScaleVolume(_vol);
+                    _OneShots.Play();
+                }
+                catch { /* 设备仍不可用时保持静默，下次播放再试 */ }
+            }
+        }
+
         private static void AdjustAllVolumes()
         {
             if (_OneShots != null)
@@ -258,6 +292,7 @@ namespace Client.MirSounds
 
         public static void Dispose()
         {
+            _shuttingDown = true;
             _OneShots?.Dispose();
             _music?.Dispose();
 

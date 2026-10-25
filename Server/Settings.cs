@@ -60,7 +60,7 @@ namespace Server
         public static string IPAddress = "127.0.0.1";
 
         public static ushort Port = 7000,
-                             TimeOut = 10000,
+                             TimeOut = 60000,   // 连接超时（毫秒）：放宽到 60 秒，网络短时抖动不再被误踢
                              MaxUser = 500,
                              RelogDelay = 50,
                              MaxIP = 5,
@@ -91,7 +91,16 @@ namespace Server
         public static int ResourceWriteTimeout = 300;    //单个请求最长传输秒数，超时断开清理
         public static int ResourceBufferKB = 64;         //流式发送的分块大小
         public static bool ResourceVerboseLog = false;   //是否逐条记录资源下发（高并发下建议关闭）
-        public static int ResourceMaxKBps = 0;           //资源下发总限速(KB/s)，0=不限速。窄带宽服务器务必设置，给游戏数据留带宽
+        public static int ResourceMaxKBps = 0;
+
+        //＝＝＝英雄智能战斗（[Hero]，10-24）＝＝＝
+        //SmartAI：主人打谁我打谁 + 卡住绕路 + 残血躲避 + 被围击退 + 攻击间隙动态走位
+        public static bool SmartHeroAI = true;
+        //AutoSkill：英雄自主施法，不再要求玩家给技能设快捷键（默认开；关=恢复原版只放设过键的技能）
+        public static bool HeroAutoSkill = true;
+        public static int HeroDodgePercent = 30;        //血量低于该百分比开始且退且打（风筝）
+        public static int HeroPushMinSurround = 3;      //贴身敌人达到该数量才发动「击退脱围」
+        public static int HeroPushCooldownMs = 8000;    //两次击退脱围的最小间隔           //资源下发总限速(KB/s)，0=不限速。窄带宽服务器务必设置，给游戏数据留带宽
 
         //Permission
         public static bool AllowNewAccount = true,
@@ -448,6 +457,18 @@ namespace Server
             if (ResourceBufferKB > 1024) ResourceBufferKB = 1024;
             if (ResourceMaxKBps < 0) ResourceMaxKBps = 0;
 
+            //英雄智能战斗
+            SmartHeroAI = Reader.ReadBoolean("Hero", "SmartAI", SmartHeroAI);
+            HeroAutoSkill = Reader.ReadBoolean("Hero", "AutoSkill", HeroAutoSkill);
+            HeroDodgePercent = Reader.ReadInt32("Hero", "DodgePercent", HeroDodgePercent);
+            HeroPushMinSurround = Reader.ReadInt32("Hero", "PushMinSurround", HeroPushMinSurround);
+            HeroPushCooldownMs = Reader.ReadInt32("Hero", "PushCooldownMs", HeroPushCooldownMs);
+            if (HeroDodgePercent < 5) HeroDodgePercent = 5;
+            if (HeroDodgePercent > 90) HeroDodgePercent = 90;
+            if (HeroPushMinSurround < 2) HeroPushMinSurround = 2;
+            if (HeroPushMinSurround > 8) HeroPushMinSurround = 8;
+            if (HeroPushCooldownMs < 2000) HeroPushCooldownMs = 2000;
+
             //Permission
             AllowNewAccount = Reader.ReadBoolean("Permission", "AllowNewAccount", AllowNewAccount);
             AllowChangePassword = Reader.ReadBoolean("Permission", "AllowChangePassword", AllowChangePassword);
@@ -778,6 +799,13 @@ namespace Server
             Reader.Write("Network", "ResourceBufferKB", ResourceBufferKB);
             Reader.Write("Network", "ResourceVerboseLog", ResourceVerboseLog);
             Reader.Write("Network", "ResourceMaxKBps", ResourceMaxKBps);
+
+            //英雄智能战斗
+            Reader.Write("Hero", "SmartAI", SmartHeroAI);
+            Reader.Write("Hero", "AutoSkill", HeroAutoSkill);
+            Reader.Write("Hero", "DodgePercent", HeroDodgePercent);
+            Reader.Write("Hero", "PushMinSurround", HeroPushMinSurround);
+            Reader.Write("Hero", "PushCooldownMs", HeroPushCooldownMs);
 
             //Permission
             Reader.Write("Permission", "AllowNewAccount", AllowNewAccount);

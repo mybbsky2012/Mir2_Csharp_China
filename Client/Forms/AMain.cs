@@ -56,6 +56,56 @@ namespace Launcher
             }
         }
 
+        #region 补丁服务器地址池
+
+        //★地址池（10-25）：Host 可填多个补丁服务器地址，连接失败自动换下一个。
+        //换过去就一直用（不回跳主地址，防主地址抖动时每个文件都先撞一次超时）。
+        private static int _patchHostIndex;
+
+        /// <summary>当前使用的补丁服务器地址（以 / 结尾）。</summary>
+        private static string CurrentPatchHost
+        {
+            get
+            {
+                var pool = Settings.P_HostPool;
+                if (pool == null || pool.Count == 0) return Settings.P_Host;
+
+                int i = _patchHostIndex;
+                if (i < 0 || i >= pool.Count) i = 0;
+                return pool[i];
+            }
+        }
+
+        /// <summary>
+        /// 向补丁服务器发 GET；当前地址连接失败时自动换下一个重试，全部失败抛原异常。
+        /// 只在「连不上」（异常）时换址；404/5xx 等服务器有回应的状态不换（那是文件/配置问题）。
+        /// </summary>
+        private static HttpResponseMessage PatchGet(HttpClient client, string fileName)
+        {
+            var pool = Settings.P_HostPool;
+            int count = pool == null || pool.Count == 0 ? 1 : pool.Count;
+
+            for (int attempt = 0; ; attempt++)
+            {
+                string host = CurrentPatchHost;
+                try
+                {
+                    return client.GetAsync(new Uri(host + fileName), HttpCompletionOption.ResponseHeadersRead).Result;
+                }
+                catch (Exception ex)
+                {
+                    SaveError($"补丁服务器 {host} 连接失败: {ex.GetBaseException().Message}");
+
+                    if (attempt >= count - 1) throw;
+
+                    _patchHostIndex = (_patchHostIndex + 1) % count;
+                    SaveError($"切换补丁服务器 -> {pool[_patchHostIndex]}");
+                }
+            }
+        }
+
+        #endregion
+
         public void Start()
         {
             try
@@ -248,10 +298,7 @@ namespace Launcher
 
                     ActiveDownloads.Add(dl);
 
-                    var task = Task.Run(() => client
-                                    .GetAsync(new Uri($"{Settings.P_Host}{fileName}"), HttpCompletionOption.ResponseHeadersRead));
-
-                    var response = task.Result;
+                    var response = PatchGet(client, fileName);
 
                     //清单说压缩、服务端却没有 .gz（老清单 Compressed 记错、或压缩文件没上传）时，
                     //自动退回原始文件名再试一次，避免整个文件更新失败
@@ -261,9 +308,7 @@ namespace Launcher
                             $"[{DateTime.Now}] {fileName} 返回 {response.StatusCode}，退回未压缩文件重试{Environment.NewLine}");
 
                         string plain = fileName.Substring(0, fileName.Length - 3);
-                        var task2 = Task.Run(() => client
-                                        .GetAsync(new Uri($"{Settings.P_Host}{plain}"), HttpCompletionOption.ResponseHeadersRead));
-                        var response2 = task2.Result;
+                        var response2 = PatchGet(client, plain);
 
                         if (response2.IsSuccessStatusCode)
                         {
@@ -423,10 +468,7 @@ namespace Launcher
                     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authInfo);
                 }
 
-                var task = Task.Run(() => client
-                    .GetAsync(new Uri(Settings.P_Host + Path.ChangeExtension(fileName, ".gz")), HttpCompletionOption.ResponseHeadersRead));
-
-                var response = task.Result;
+                var response = PatchGet(client, Path.ChangeExtension(fileName, ".gz"));
 
                 //清单请求同样必须检查状态码，防止 404 HTML 被当成清单解析
                 if (!response.IsSuccessStatusCode)
@@ -823,13 +865,26 @@ namespace Launcher
 
             foreach (var oldFilename in files)
             {
-                if (!File.Exists(oldFilename.Replace("Old__", "")))
+                try
                 {
-                    File.Move(oldFilename, oldFilename.Replace("Old__", ""));
+                    //只读属性会让删除报 UnauthorizedAccessException，先摘掉
+                    File.SetAttributes(oldFilename, FileAttributes.Normal);
+
+                    if (!File.Exists(oldFilename.Replace("Old__", "")))
+                    {
+                        File.Move(oldFilename, oldFilename.Replace("Old__", ""));
+                    }
+                    else
+                    {
+                        File.Delete(oldFilename);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    File.Delete(oldFilename);
+                    //★单个残留文件被占用（杀毒扫描/残留句柄/二次启动撞车）时只跳过不崩溃，
+                    //否则 AMain_Load 直接弹异常框、客户端起不来（用户实测 Old__Client.dll 炸启动）。
+                    //留到下次启动再清。
+                    SaveError($"清理残留文件失败: {oldFilename} : {ex.GetBaseException().Message}");
                 }
             }
         }
@@ -840,10 +895,18 @@ namespace Launcher
 
             foreach (var oldFilename in files)
             {
-                string originalFilename = Path.Combine(Path.GetDirectoryName(oldFilename), (Path.GetFileName(oldFilename).Replace("Old__", "")));
+                try
+                {
+                    string originalFilename = Path.Combine(Path.GetDirectoryName(oldFilename), (Path.GetFileName(oldFilename).Replace("Old__", "")));
 
-                if (!File.Exists(originalFilename) && File.Exists(oldFilename))
-                    File.Move(oldFilename, originalFilename);
+                    if (!File.Exists(originalFilename) && File.Exists(oldFilename))
+                        File.Move(oldFilename, originalFilename);
+                }
+                catch (Exception ex)
+                {
+                    //同 RepairOldFiles：单个文件操作失败只跳过，不影响更新主流程
+                    SaveError($"恢复旧文件失败: {oldFilename} : {ex.GetBaseException().Message}");
+                }
             }
         }
     } 

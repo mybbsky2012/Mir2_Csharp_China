@@ -988,6 +988,11 @@ namespace Server.MirNetwork
             //    return;
             //}
 
+            // ★离线挂机回收（10-25）：角色还挂着离线挂机对象时，先让它完整下线，再正常进游戏。
+            // 否则 new PlayerObject 会因 info.Player 非空抛「Player.Info 不能为空」。
+            if (info.Player != null && info.Player.OfflineAFK)
+                info.Player.TerminateOfflineAFK();
+
             Player = new PlayerObject(info, this);
             Player.StartGame();
         }
@@ -996,11 +1001,12 @@ namespace Server.MirNetwork
         {
             if (Stage != GameStage.Game) return;
 
-            if (Envir.Time < Player.LogTime)
-            {
-                Enqueue(new S.LogOutFailed());
-                return;
-            }
+            // 战斗后 10 秒等待限制已按需求注释：任何时候都可以退出
+            //if (Envir.Time < Player.LogTime)
+            //{
+            //    Enqueue(new S.LogOutFailed());
+            //    return;
+            //}
 
             Player.StopGame(23);
 

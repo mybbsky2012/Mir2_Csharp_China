@@ -602,6 +602,7 @@ namespace Client.Utils
                     catch (OperationCanceledException)
                     {
                         Log("连接超时（" + (headerTimeoutMs / 1000) + " 秒未收到响应头）: " + relative);
+                        NextHost();   // 连不上当前服务器：地址池换下一个
                         return DownloadResult.Transient;
                     }
 
@@ -675,6 +676,7 @@ namespace Client.Utils
                                 catch (OperationCanceledException)
                                 {
                                     Log("读取超时（" + (stallMs / 1000) + " 秒未收到数据）: " + relative);
+                                    NextHost();   // 传输中途断流：多半也是当前服务器网络问题，换下一个
                                     return DownloadResult.Transient;
                                 }
 
@@ -752,6 +754,10 @@ namespace Client.Utils
                 // 冷却后重试 —— 写盘冲突尤其常见于「重新下载已存在的文件」。
                 // 续传时 .tmp 还在，下次自动从断点继续。
                 Log("下载失败 " + relative + " : " + ex.Message);
+
+                // 连接层异常（断连/无法建立连接）时地址池换下一个服务器。
+                // 写盘冲突这类本地异常换地址也无妨：下次成功下载继续用新地址。
+                NextHost();
                 return DownloadResult.Transient;
             }
             finally
@@ -982,6 +988,7 @@ namespace Client.Utils
             catch (Exception ex)
             {
                 Log("资源清单获取异常 : " + ex.Message);
+                NextHost();   // 连不上当前服务器：地址池换下一个，30 秒冷却后对新地址重试
             }
 
             lock (_sync)
@@ -1154,8 +1161,8 @@ namespace Client.Utils
 
         private static string BuildUrl(string path, string key, string value)
         {
-            string host = Settings.MicroHost ?? string.Empty;
-            if (host.Length == 0) host = "http://127.0.0.1:5679/";
+            string host = CurrentHost;
+            if (host.Length == 0) host = "http://127.0.0.1:5679";
             host = host.TrimEnd('/');
 
             string url = host + "/" + path;
@@ -1168,6 +1175,46 @@ namespace Client.Utils
 
             return url;
         }
+
+        #region 资源服务器地址池
+
+        //★地址池（10-25）：Host 可填多个资源服务器地址，连接失败自动换下一个。
+        //换过去就一直用（不成功不回跳主地址，避免主地址抖动时每个文件都先撞一次超时）；
+        //当前地址也失败就继续轮换，循环使用。池只有一个地址时行为与原来完全一致。
+        private static int _hostIndex;
+
+        /// <summary>当前使用的资源服务器地址（含 scheme，无结尾斜杠）。</summary>
+        private static string CurrentHost
+        {
+            get
+            {
+                var pool = Settings.MicroHostPool;
+                if (pool == null || pool.Count == 0) return "http://127.0.0.1:5679";
+                int i = _hostIndex;
+                if (i < 0 || i >= pool.Count) i = 0;
+                return pool[i];
+            }
+        }
+
+        /// <summary>当前地址连接失败：换下一个（循环）。池只有一个地址时无事可做。</summary>
+        private static void NextHost()
+        {
+            var pool = Settings.MicroHostPool;
+            if (pool == null || pool.Count < 2) return;
+
+            _hostIndex = (_hostIndex + 1) % pool.Count;
+            Log("微端资源服务器连接失败，切换到下一个地址: " + pool[_hostIndex]);
+
+            // 「服务端拒绝本机 IP」是按服务器算的：换地址后给新服务器一次机会，
+            // 否则旧服务器的拒绝状态会把所有请求挡死，备用地址形同虚设。
+            if (_serverNotTrusted)
+            {
+                _serverNotTrusted = false;
+                Log("已切换资源服务器，重置本机 IP 受信状态");
+            }
+        }
+
+        #endregion
 
         /// <summary>取字符串结尾的数字，例如 "000" -> 0、"100 R" -> 100、"0012" -> 12。</summary>
         private static int TrailingNumber(string stem)

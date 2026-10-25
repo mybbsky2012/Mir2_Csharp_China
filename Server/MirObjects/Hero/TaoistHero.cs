@@ -184,18 +184,17 @@ namespace Server.MirObjects
 
             if (Target == null || !CanAttack) return;
 
-            // 风筝走位：目标贴身时后撤拉开距离，保持远程输出位置
+            // 风筝走位：目标贴身时后撤拉开距离，保持远程输出位置；
+            // 被围死（≥2 个贴身）切不开口子时不站桩，照常单体反击，切不开到底就瞬移回主人身边
             if (CanMove && HasRangedSpell && TargetDistance == 1)
             {
-                MoveAwayFrom(Target);
-                return;
+                if (TryBreakout(Target, 2)) return;
             }
 
-            // 被围且没有毒云可用（没学技能或没毒粉）：脱围后撤
+            // 被围且没有毒云可用（没学技能或没毒粉）：脱围后撤；切不开就反击/瞬移
             if (CanMove && SurroundedCount >= 2 && (GetMagic(Spell.PoisonCloud) == null || GetPoison(1) == null))
             {
-                MoveAwayFrom(Target);
-                return;
+                if (TryBreakout(Target, 2)) return;
             }
 
             if (CanAttack && (!HasRangedSpell && InAttackRange() || NextMagicSpell == Spell.None && Owner.Info.HeroBehaviour == HeroBehaviour.攻击 && TargetDistance == 1))

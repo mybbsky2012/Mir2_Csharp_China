@@ -887,7 +887,8 @@ namespace Client
 
         private void CMain_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (CMain.Time < GameScene.LogTime && !Settings.UseTestConfig && !GameScene.Observing)
+            // ★战斗后 10 秒等待已改为配置开关（Mir2Config.ini [Game] LogoutCombatDelay，默认 False=不拦截）。
+            if (Settings.LogoutCombatDelay && CMain.Time < GameScene.LogTime && !Settings.UseTestConfig && !GameScene.Observing)
             {
                 GameScene.Scene.ChatDialog.ReceiveChat(string.Format(GameLanguage.CannotLeaveGame, (GameScene.LogTime - CMain.Time) / 1000), ChatType.System);
                 e.Cancel = true;

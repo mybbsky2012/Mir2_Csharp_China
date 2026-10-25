@@ -5284,17 +5284,20 @@ namespace ServerPackets
 
         public GameShopItem Item;
         public int StockLevel;
+        public bool Reset; // true = 让客户端先清空本地商城缓存（商城热重载后重新下发全量用）
 
         protected override void ReadPacket(BinaryReader reader)
         {
             Item = new GameShopItem(reader, true);
             StockLevel = reader.ReadInt32();
+            Reset = reader.ReadBoolean();
         }
 
         protected override void WritePacket(BinaryWriter writer)
         {
             Item.Save(writer, true);
             writer.Write(StockLevel);
+            writer.Write(Reset);
         }
     }
 

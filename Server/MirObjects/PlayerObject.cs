@@ -140,6 +140,20 @@ namespace Server.MirObjects
         /// </summary>
         public bool NPCSilent;
 
+        /// <summary>
+        /// 离线挂机（10-25）：由 [@_LOGOUT] 页里的 OFFLINEAFK 命令点头。
+        /// 角色下线时若此标记成立且属于客户端正常退出/掉线/回选人，
+        /// 则不做下线清理——角色留在原地图继续被 Process（怪物照打、泡点循环照跑）。
+        /// 每次下线由脚本重新决定，不落存档。
+        /// </summary>
+        public bool OfflineAFK;
+
+        /// <summary>重登回收离线挂机对象时置位：回收不算再次登出，避免 [@_LOGOUT] 重复触发。</summary>
+        private bool _suppressLogoutTrigger;
+
+        /// <summary>离线挂机死亡后的自动回城复活计时（0=未在等待）。</summary>
+        private long _offlineReviveTick;
+
         public bool UserMatch;
         public string MatchName;
         public ItemType MatchType;
@@ -272,6 +286,22 @@ namespace Server.MirObjects
         public void StopGame(byte reason)
         {
             if (Node == null) return;
+
+            // ★[@_LOGOUT] 登出触发（10-25）：任何下线路径（关游戏/掉线/回选人）都先静默执行
+            // 默认 NPC 的 [@_LOGOUT] 页；页内可执行 OFFLINEAFK 开启「离线挂机」。
+            if (!_suppressLogoutTrigger)
+                TriggerLogoutScript();
+
+            // ★离线挂机（10-25）：脚本点头 + 客户端正常退出/掉线/回选人(20~23) + 服务器运行中
+            // → 跳过整段下线清理，角色留在原地图继续被 Process（怪物照打、Buff/泡点循环照跑）。
+            if (OfflineAFK && reason >= 20 && reason <= 23 && Envir.Running)
+            {
+                EnterOfflineAFK();
+                return;
+            }
+
+            // 走完整下线时清掉挂机标记：下次下线由 [@_LOGOUT] 脚本重新决定
+            OfflineAFK = false;
 
             for (int i = Pets.Count - 1; i >= 0; i--)
             {
@@ -420,6 +450,84 @@ namespace Server.MirObjects
 
             CleanUp();
         }
+
+        /// <summary>
+        /// 离线挂机收尾（10-25）：连接已断，只断开连接对象对本角色的引用，
+        /// 保留 Info/Account/Node/在场状态——Process 照常驱动。
+        /// 故意保留本对象对死连接的引用：HumanObject/PlayerObject.Process 都要求 Connection 非空，
+        /// 死连接的 Enqueue 因 _sendList==null 而静默，等价于所有发包变空操作；
+        /// Connection.Player 已清空，死连接后续任何 Disconnect 都不会再摸到本对象。
+        /// </summary>
+        private void EnterOfflineAFK()
+        {
+            if (Connection != null)
+                Connection.Player = null;
+
+            // 完整下线路径里的这几步与「是否留场」无关，只清交互残留，离线挂机也要做：
+            // 否则断线瞬间正在交易/寄售/精炼时，对方的 TradePartner 等引用会一直挂着离线对象
+            TradeCancel();
+            CancelItemRental();
+            RefineCancel();
+
+            MessageQueue.Enqueue(string.Format("{0} 已进入离线挂机（角色保持在线）", Name));
+        }
+
+        /// <summary>
+        /// 重新登录时回收离线挂机对象（10-25）：清掉标记后走一次完整下线流程，
+        /// 让位给新登录的 PlayerObject（宠物/英雄存回存档、公会/排名/在场状态正常回收）。
+        /// </summary>
+        public void TerminateOfflineAFK()
+        {
+            if (!OfflineAFK) return;
+
+            OfflineAFK = false;
+            _suppressLogoutTrigger = true; // 回收不算再次登出，避免 [@_LOGOUT] 重复触发
+            try
+            {
+                MessageQueue.Enqueue(string.Format("{0} 离线挂机结束（重新登录接管）", Name));
+                StopGame(1); // 原因 1=再次登录，走完整下线清理
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format("[离线挂机] {0} 回收异常—— {1}", Name, ex));
+            }
+            finally
+            {
+                _suppressLogoutTrigger = false;
+            }
+        }
+
+        /// <summary>
+        /// 登出触发（10-25）：静默执行默认 NPC 的 [@_LOGOUT] 页（不弹对话框、不发包）。
+        /// 复用泡点静默机制：NPCSilent 屏蔽 NPCResponse 包 + DrainLoopGoto 排空页内 GOTO 链。
+        /// 页内可执行 OFFLINEAFK 命令开启离线挂机；脚本异常不影响正常下线。
+        /// </summary>
+        private void TriggerLogoutScript()
+        {
+            if (Envir.DefaultNPC == null) return;
+
+            NPCSilent = true;
+            NPCDelayed = true; // 与 CompleteNPC 触发方式一致，绕过 Call 里的按钮跳转来源校验
+            try
+            {
+                var script = NPCScript.Get(Envir.DefaultNPC.ScriptID);
+                if (script == null) return;
+
+                script.Call(this, Envir.DefaultNPC.LoadedObjectID, "[@_LOGOUT]");
+
+                DrainLoopGoto(); // 页内 GOTO 只入队不执行，同步排空
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format("[NPC脚本执行错误] {0} @_LOGOUT 触发异常—— {1}", Name, ex));
+            }
+            finally
+            {
+                NPCSilent = false;
+                NPCDelayed = false; // 防异常路径残留 true，污染后续玩家点击 NPC 的校验
+            }
+        }
+
         private string LogOutReason(byte reason)
         {
             switch (reason)
@@ -466,6 +574,21 @@ namespace Server.MirObjects
         public override void Process()
         {
             if (Connection == null || Node == null || Info == null) return;
+
+            // 离线挂机：死亡 5 秒后自动回城复活，别让角色一直躺尸（复活动作不依赖连接，发包自动静默）
+            if (OfflineAFK && Dead)
+            {
+                if (_offlineReviveTick == 0) _offlineReviveTick = Envir.Time + 5000;
+                else if (Envir.Time > _offlineReviveTick)
+                {
+                    _offlineReviveTick = 0;
+                    TownRevive();
+                }
+            }
+            else if (_offlineReviveTick != 0)
+            {
+                _offlineReviveTick = 0;
+            }
 
             if (GroupInvitation != null && GroupInvitation.Node == null)
                 GroupInvitation = null;
@@ -3169,9 +3292,34 @@ namespace Server.MirObjects
                     case "RELOADGAMESHOP":
                         if (!IsGM) return;
 
+                        // ReloadGameShop 内部已做编辑器同步 + 全服推送（Reset + 全量下发）
                         Envir.ReloadGameShop();
 
-                        ReceiveChat(string.Format("商城已重新加载，共 {0} 条商品", Envir.GameShopList.Count), ChatType.Hint);
+                        ReceiveChat(string.Format("商城已重新加载，共 {0} 条商品，已推送全服", Envir.GameShopList.Count), ChatType.Hint);
+                        break;
+
+                    //★ 重载物品库（与编辑器同步，免重启）
+                    case "RELOADITEMS":
+                        if (!IsGM) return;
+
+                        Envir.ReloadItems();
+                        ReceiveChat("物品库已重载", ChatType.Hint);
+                        break;
+
+                    //★ 重载怪物库（与编辑器同步 + 掉落重载，免重启）
+                    case "RELOADMONSTER":
+                        if (!IsGM) return;
+
+                        Envir.ReloadMonsters();
+                        ReceiveChat("怪物库已重载，掉落已同步", ChatType.Hint);
+                        break;
+
+                    //★ 重载技能库（与编辑器同步 + 在线玩家技能重绑，免重启）
+                    case "RELOADSKILL":
+                        if (!IsGM) return;
+
+                        Envir.ReloadMagics();
+                        ReceiveChat("技能库已重载，在线玩家技能已刷新", ChatType.Hint);
                         break;
 
                     //★ 重载自定义 BUFF 配置（Configs\BuffSystem.ini），对应 GM 工具的「自定义BUFF属性」编辑器
@@ -4641,6 +4789,9 @@ namespace Server.MirObjects
 
                 Teleport(map, coords);
             }
+
+            //UseItem 触发源透传（CallDefaultNPC 第 4 参）：true=英雄使用 → 脚本里 CHECKHEROUSE 1 成立
+            LastNPCTriggerByHero = data.Count >= 4 && data[3] is bool && (bool)data[3];
 
             NPCDelayed = true;
 
@@ -8046,7 +8197,18 @@ namespace Server.MirObjects
 
         #region NPC
 
+        //★最近一次 UseItem 脚本触发来源（10-25）：true=英雄使用、false=玩家自己使用。
+        //由 CallDefaultNPC 的 byHero 参数随 DelayedAction 透传，在 CompleteNPC 里赋值后立刻被
+        //script.Call 同步消费——不做全局长存标记，连点也不会串。
+        //脚本端用 CHECKHEROUSE [1|0] 检测。
+        public bool LastNPCTriggerByHero;
+
         public void CallDefaultNPC(DefaultNPCType type, params object[] value)
+        {
+            CallDefaultNPC(type, false, value);
+        }
+
+        public void CallDefaultNPC(DefaultNPCType type, bool byHero, params object[] value)
         {
             string key = string.Empty;
 
@@ -8100,7 +8262,7 @@ namespace Server.MirObjects
 
             key = string.Format("[@_{0}]", key);
 
-            DelayedAction action = new DelayedAction(DelayedType.NPC, Envir.Time, Envir.DefaultNPC.LoadedObjectID, Envir.DefaultNPC.ScriptID, key);
+            DelayedAction action = new DelayedAction(DelayedType.NPC, Envir.Time, Envir.DefaultNPC.LoadedObjectID, Envir.DefaultNPC.ScriptID, key, byHero);
             ActionList.Add(action);
 
             Enqueue(new S.NPCUpdate { NPCID = Envir.DefaultNPC.LoadedObjectID });
@@ -13685,25 +13847,27 @@ namespace Server.MirObjects
 
                 if (Product.iStock && Product.Stock != 0)
                 {
+                    // 键统一用 Info.Index（与 13611 行的库存查询保持一致；原来错用 GIndex，
+                    // 当 GIndex != Info.Index 时第二次购买会在 += 处抛 KeyNotFoundException）
                     Info.GSpurchases.TryGetValue(Product.Info.Index, out purchased);
                     if (purchased == 0)
                     {
-                        Info.GSpurchases[Product.GIndex] = Quantity;
+                        Info.GSpurchases[Product.Info.Index] = Quantity;
                     }
                     else
                     {
-                        Info.GSpurchases[Product.GIndex] += Quantity;
+                        Info.GSpurchases[Product.Info.Index] += Quantity;
                     }
                 }
 
                 Envir.GameshopLog.TryGetValue(Product.Info.Index, out purchased);
                 if (purchased == 0)
                 {
-                    Envir.GameshopLog[Product.GIndex] = Quantity;
+                    Envir.GameshopLog[Product.Info.Index] = Quantity;
                 }
                 else
                 {
-                    Envir.GameshopLog[Product.GIndex] += Quantity;
+                    Envir.GameshopLog[Product.Info.Index] += Quantity;
                 }
 
                 if (Product.Stock != 0) GameShopStock(Product);

@@ -91,7 +91,7 @@ namespace Server
 
                     if (!MessageQueue.MessageLog.TryDequeue(out message)) continue;
 
-                    LogTextBox.AppendText(message);
+                    AppendLog(LogTextBox, message);
                 }
 
                 while (!MessageQueue.DebugLog.IsEmpty)
@@ -100,7 +100,7 @@ namespace Server
 
                     if (!MessageQueue.DebugLog.TryDequeue(out message)) continue;
 
-                    DebugLogTextBox.AppendText(message);
+                    AppendLog(DebugLogTextBox, message);
                 }
 
                 while (!MessageQueue.ChatLog.IsEmpty)
@@ -109,7 +109,7 @@ namespace Server
 
                     if (!MessageQueue.ChatLog.TryDequeue(out message)) continue;
 
-                    ChatLogTextBox.AppendText(message);
+                    AppendLog(ChatLogTextBox, message);
                 }
 
                 ProcessPlayersOnlineTab(false);
@@ -131,6 +131,20 @@ namespace Server
             ListItem.SubItems.Add(character.Gender.ToString());
 
             return ListItem;
+        }
+
+        private void AppendLog(TextBox box, string message)
+        {
+            box.AppendText(message);
+
+            // 防止长期运行日志无限增长：超过 3 万字符时修剪掉老的一半
+            if (box.TextLength <= 30000) return;
+
+            int cut = box.TextLength / 2;
+            string text = box.Text;
+            while (cut < text.Length && text[cut] != '\n') cut++;
+            if (cut < text.Length) cut++;
+            box.Text = text.Substring(Math.Min(cut, text.Length));
         }
 
         private void ProcessPlayersOnlineTab(bool forced = false)
@@ -477,6 +491,21 @@ namespace Server
         private void gameShopToolStripMenuItem1_Click(object sender, EventArgs e)
         {
             Envir.ReloadGameShop();
+        }
+
+        private void itemDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Envir.ReloadItems();
+        }
+
+        private void monsterDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Envir.ReloadMonsters();
+        }
+
+        private void magicDatabaseToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Envir.ReloadMagics();
         }
 
         private void dropsToolStripMenuItem_Click(object sender, EventArgs e)

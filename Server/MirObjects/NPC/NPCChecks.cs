@@ -66,6 +66,8 @@
         CheckHero,
         CheckHeroClass,
         CheckHeroGender,
-        CheckHeroItem
+        CheckHeroItem,
+        CheckHeroUse,
+        CheckSafeZone
     }
 }

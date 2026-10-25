@@ -82,11 +82,11 @@ namespace Server.MirObjects
                 NextMagicSpell = Spell.None;
             }
 
-            // 完全没有群攻手段还被 3 个以上敌人围死：先脱围再打
+            // 完全没有群攻手段还被 3 个以上敌人围死：先脱围再打；
+            // 脱困失败（切不开口子）不站桩，落下去照常单体攻击，切不开到底就瞬移回主人身边
             if (Target != null && !Target.Dead && CanMove && !HasAnySurroundedAoE && SurroundedCount >= 3)
             {
-                MoveAwayFrom(Target);
-                return;
+                if (TryBreakout(Target)) return;
             }
 
             base.ProcessTarget();

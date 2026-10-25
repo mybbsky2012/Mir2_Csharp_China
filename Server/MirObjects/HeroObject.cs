@@ -71,6 +71,18 @@ namespace Server.MirObjects
         public const int SearchDelay = 3000, ViewRange = 8, RoamDelay = 1000, RevivalDelay = 2000, AutoPotDelay = 1000, HeroRecallDelay = 180000, SupplySearchDelay = 2000;
         public long RoamTime, AutoPotTime, HeroRecallTime, SupplyTime;
 
+        //＝＝＝智能战斗层状态（[Hero] SmartAI，10-24）＝＝＝
+        private Point _smartLastLocation;   // 卡位检测：上次采样位置
+        private int _stuckTicks;            // 连续原地没动的采样次数
+        private long _nextStuckCheck;       // 下次卡位采样时间
+        private long _nextDodgeMove;        // 下次躲避走位时间（风筝节拍）
+        private long _nextPushTime;         // 下次「击退脱围」可用时间
+        private long _nextMicroMove;        // 下次攻击间隙微走位时间
+        protected bool _kiting;             // 残血风筝中：够不着目标就不硬贴
+        private int _escapeFails;           // 被围死脱困：连续「切不开口子」的次数
+        private long _nextEscapeTry;        // 被围死脱困：下次尝试切口子的时间（间隙里照常单体反击）
+        private long _nextBreakoutTeleport; // 被围死脱困：瞬移回主人身边的冷却
+
         public override long BrownTime
         {
             get { return Owner.BrownTime; }
@@ -133,6 +145,8 @@ namespace Server.MirObjects
         {
             CheckCellTime = false;
 
+            NoRunUp = true;   // 英雄免助跑：无需先走一步即可直接奔跑（否则打几秒怪计数器清零后只会走路）
+
             Owner = owner;
 
             base.Report = owner.Report;
@@ -171,8 +185,18 @@ namespace Server.MirObjects
             Grade = (byte)Envir.Random.Next(4);
         }
 
-        public override void Enqueue(Packet p) 
+        /// <summary>英雄没有自己的网络连接（Connection 恒为 null），客户端物品校验统一转发给主人，否则一捡东西就 NullReferenceException。</summary>
+        public override void CheckItemInfo(ItemInfo info, bool dontLoop = false)
         {
+            if (Owner != null) Owner.CheckItemInfo(info, dontLoop);
+        }
+
+        public override void CheckItem(UserItem item)
+        {
+            if (Owner != null) Owner.CheckItem(item);
+        }
+
+        public override void Enqueue(Packet p)        {
             if (p == null) return;
 
             switch ((ServerPacketIds)p.Index)
@@ -289,7 +313,11 @@ namespace Server.MirObjects
         {
             if (magic == null) return false;
             if (MagicCost(magic) > MP) return false;
-            if (magic.Key <= 0) return false;
+
+            // 自主施法开关（Setup.ini [Hero] AutoSkill，默认开）：
+            //   开 = 不要求玩家给技能设快捷键，英雄按职业 AI 自主选技能（远攻/近攻/群攻/自保增益）；
+            //   关 = 恢复原版行为：只自动释放玩家设过快捷键（Key > 0）的技能。
+            if (!Settings.HeroAutoSkill && magic.Key <= 0) return false;
 
             return true;
         }
@@ -594,6 +622,20 @@ namespace Server.MirObjects
                 case ItemType.攻城弹药:
                     //TODO;
                     break;
+                case ItemType.特殊消耗品:
+                    //★10-25 补：特殊消耗品 = 脚本触发类道具（对应 NPC 脚本 UseItem(Shape) 页）。
+                    //原实现英雄侧没这个分支 → 落 default: return，静默失败且连失败包都不回（客户端格子卡住）。
+                    //英雄没有自己的 NPC 脚本上下文，统一由主人触发，与玩家使用同一行为；
+                    //byHero=true → 脚本里 CHECKHEROUSE 1 成立，可区分是谁用的；
+                    //Effect=2 用后不消失（可重复触发的道具，如一键回收令）。
+                    Owner.CallDefaultNPC(DefaultNPCType.UseItem, true, item.Info.Shape);
+
+                    if (item.Info.Effect == 2)
+                    {
+                        Owner.Enqueue(p);   // Success 保持 false，客户端不减数量
+                        return;
+                    }
+                    break;
                 default:
                     return;
             }
@@ -809,7 +851,8 @@ namespace Server.MirObjects
             ProcessSupply();
             ProcessStacking();
             ProcessSearch();
-            ProcessAI();            
+            ProcessSmartCombat();
+            ProcessAI();
             ProcessTarget();
             ProcessRoam();
         }
@@ -982,8 +1025,148 @@ namespace Server.MirObjects
                 : best);
         }
 
-        protected void ProcessAI() 
-        {           
+        //＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+        // ★智能战斗层（[Hero] SmartAI，默认开）。借假人 FakePlayerBrain 的四样本事：
+        //   ① 主人打谁我打谁（FindTarget 已有，不动）
+        //   ② 残血会躲：血量低于 DodgePercent 转入风筝——评分式往远处走，够得着就继续出手，
+        //      近战拉开距离等血线回升，不死顶
+        //   ③ 被围会一个个击退：贴身敌人 ≥ PushMinSurround 时把周围敌人逐一推开（Pushed 走原生
+        //      S.ObjectPushed 表现，客户端无需改动），冷却 PushCooldownMs
+        //   ④ 卡住会绕：持续 ~2.5 秒原地没动就强制沿目标左右 45°/90° 绕行
+        //   ⑤ 不站木头：攻击冷却间隙有小概率绕着目标侧翼挪一格，像真人一样不停找位置
+        // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+        protected virtual void ProcessSmartCombat()
+        {
+            if (!Settings.SmartHeroAI || Dead) { _kiting = false; _stuckTicks = 0; return; }
+
+            // ---- ② 残血躲避（风筝） ----
+            _kiting = Target != null && PercentHealth <= Settings.HeroDodgePercent;
+            if (_kiting && CanMove && Envir.Time >= _nextDodgeMove)
+            {
+                MoveAwayFrom(Target);
+                _nextDodgeMove = Envir.Time + 700 + Envir.Random.Next(500);
+            }
+
+            if (Target == null) { _stuckTicks = 0; return; }
+
+            // ---- ③ 被围击退脱围 ----
+            if (CanAttack && Envir.Time >= _nextPushTime && SurroundedCount >= Settings.HeroPushMinSurround)
+            {
+                List<MapObject> adjacent = FindAllTargets(1, CurrentLocation, false);
+                int pushed = 0;
+                for (int i = 0; i < adjacent.Count; i++)
+                {
+                    MapObject ob = adjacent[i];
+                    if (ob.InSafeZone) continue;
+                    MirDirection pushDir = Functions.DirectionFromPoint(CurrentLocation, ob.CurrentLocation);
+                    if (ob.Pushed(this, pushDir, 1) > 0) pushed++;
+                }
+
+                // 推动了就给个像样的冷却；一个都推不动（等级差/被地形卡死）也别狂试
+                _nextPushTime = Envir.Time + (pushed > 0
+                    ? Settings.HeroPushCooldownMs + Envir.Random.Next(3000)
+                    : 2000);
+                return;
+            }
+
+            // ---- ④ 卡位检测（试图接近目标却原地不动） ----
+            if (Envir.Time >= _nextStuckCheck)
+            {
+                _nextStuckCheck = Envir.Time + 600 + Envir.Random.Next(300);
+
+                if (CanMove && !InAttackRange() && CurrentLocation == _smartLastLocation)
+                    _stuckTicks++;
+                else
+                    _stuckTicks = 0;
+                _smartLastLocation = CurrentLocation;
+
+                if (_stuckTicks >= 4)
+                {
+                    TrySidestepAround();
+                    _stuckTicks = 0;
+                }
+            }
+
+            // ---- ⑤ 攻击间隙微走位（绕着目标找侧翼，不做木头桩） ----
+            if (Envir.Time >= _nextMicroMove)
+            {
+                _nextMicroMove = Envir.Time + 900 + Envir.Random.Next(1000);
+
+                if (CanMove && InAttackRange() && Envir.Random.Next(4) == 0)
+                {
+                    MirDirection backDir = Functions.DirectionFromPoint(Target.CurrentLocation, CurrentLocation);
+                    MirDirection side = (MirDirection)(((int)backDir + (Envir.Random.Next(2) == 0 ? 1 : 7)) % 8);
+                    Point flank = Functions.PointMove(Target.CurrentLocation, side, 1);
+                    if (flank != CurrentLocation && CurrentMap.ValidPoint(flank))
+                        MoveTo(flank);
+                }
+            }
+        }
+
+        /// <summary>卡位脱困：沿「朝目标」方向的左右 45°/90° 依次试走，先挪出去再说。</summary>
+        protected void TrySidestepAround()
+        {
+            MirDirection dir = Functions.DirectionFromPoint(CurrentLocation, Target.CurrentLocation);
+
+            for (int off = 1; off <= 2; off++)
+            {
+                MirDirection d1 = (MirDirection)(((int)dir + off) % 8);
+                MirDirection d2 = (MirDirection)(((int)dir - off + 8) % 8);
+
+                if (Walk(d1) || Run(d1)) return;
+                if (Walk(d2) || Run(d2)) return;
+            }
+        }
+
+        /// <summary>
+        /// 被围脱困（10-24）：修「被围死只会站桩」的老毛病。
+        ///   - 还没围到 minSurround 个 → 按原节奏评分式撤退（有隙可逃就逃）；
+        ///   - 围死了 → 节拍式（约 1.2 秒一次）尝试切口子，间隙里照常单体反击，不再一味白试；
+        ///   - 连续 3 次都切不开 → 瞬移回主人身边（10 秒冷却），回来接着打。
+        /// 返回 true = 本拍已用于脱困/瞬移（调用方直接 return）；false = 照常单体攻击。
+        /// </summary>
+        protected bool TryBreakout(MapObject threat, int minSurround = 3)
+        {
+            if (threat == null || threat.Dead || !CanMove) return false;
+
+            if (SurroundedCount < minSurround)
+            {
+                _escapeFails = 0;
+                MoveAwayFrom(threat);            // 还有空隙：保持原来的撤退节奏
+                return true;
+            }
+
+            // 被围死：不到尝试节拍就先让位给单体反击
+            if (Envir.Time < _nextEscapeTry) return false;
+            _nextEscapeTry = Envir.Time + 1200 + Envir.Random.Next(400);
+
+            Point before = CurrentLocation;
+            MoveAwayFrom(threat);
+            if (CurrentLocation != before)       // 切开了口子，挪出去了
+            {
+                _escapeFails = 0;
+                return true;
+            }
+
+            _escapeFails++;
+            if (_escapeFails < 3) return false;  // 这次没切开：不站桩，下一拍继续单体反击
+
+            // 连续 3 次切不开 → 瞬移回主人身边
+            _escapeFails = 0;
+            if (Owner != null && !Owner.Dead && Envir.Time >= _nextBreakoutTeleport)
+            {
+                _nextBreakoutTeleport = Envir.Time + 10000;
+                if (!Teleport(Owner.CurrentMap, Owner.Back))
+                    Teleport(Owner.CurrentMap, Owner.CurrentLocation);
+                MessageQueue.Instance.Enqueue("[英雄] " + Name + " 被围死无法脱身，瞬移回主人身边");
+                return true;
+            }
+
+            return false;                        // 瞬移冷却中：继续就地反击
+        }
+
+        protected void ProcessAI()
+        {
             if (NextMagicSpell != Spell.None) return;            
             ProcessFriend();
 
@@ -1080,6 +1263,9 @@ namespace Server.MirObjects
                 return;
             }
 
+            // 残血风筝中：够不着就不硬贴——远程英雄继续且退且打，近战英雄拉开距离等血线回升
+            if (_kiting) return;
+
             MoveTo(Target.CurrentLocation);
         }
 
@@ -1169,7 +1355,9 @@ namespace Server.MirObjects
 
             MirDirection dir = Functions.DirectionFromPoint(CurrentLocation, location);
 
-            if (!inRunRange && _stepCounter > 0 && Run(dir))
+            // 优先尝试奔跑（与假人 StepTo 同款：Run 失败自动回落 Walk）。
+            // 跑不过去（2 格终点被挡/超重/被冻等）时 Run 返回 false，自然走一格。
+            if (!inRunRange && Run(dir))
                 return;
 
             if (Walk(dir)) return;

@@ -88,6 +88,9 @@ namespace Server
             nPCsToolStripMenuItem = new ToolStripMenuItem();
             allNPCsToolStripMenuItem = new ToolStripMenuItem();
             gameShopToolStripMenuItem1 = new ToolStripMenuItem();
+            itemDatabaseToolStripMenuItem = new ToolStripMenuItem();
+            monsterDatabaseToolStripMenuItem = new ToolStripMenuItem();
+            magicDatabaseToolStripMenuItem = new ToolStripMenuItem();
             dropsToolStripMenuItem = new ToolStripMenuItem();
             lineMessageToolStripMenuItem = new ToolStripMenuItem();
             accountToolStripMenuItem = new ToolStripMenuItem();
@@ -546,7 +549,7 @@ namespace Server
             // 
             // reloadToolStripMenuItem
             // 
-            reloadToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { nPCsToolStripMenuItem, allNPCsToolStripMenuItem, gameShopToolStripMenuItem1, dropsToolStripMenuItem, lineMessageToolStripMenuItem });
+            reloadToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { nPCsToolStripMenuItem, allNPCsToolStripMenuItem, gameShopToolStripMenuItem1, itemDatabaseToolStripMenuItem, monsterDatabaseToolStripMenuItem, magicDatabaseToolStripMenuItem, dropsToolStripMenuItem, lineMessageToolStripMenuItem });
             reloadToolStripMenuItem.Name = "reloadToolStripMenuItem";
             reloadToolStripMenuItem.Size = new Size(180, 22);
             reloadToolStripMenuItem.Text = "重新加载";
@@ -571,6 +574,27 @@ namespace Server
             gameShopToolStripMenuItem1.Size = new Size(180, 22);
             gameShopToolStripMenuItem1.Text = "商城数据";
             gameShopToolStripMenuItem1.Click += gameShopToolStripMenuItem1_Click;
+            //
+            // itemDatabaseToolStripMenuItem
+            //
+            itemDatabaseToolStripMenuItem.Name = "itemDatabaseToolStripMenuItem";
+            itemDatabaseToolStripMenuItem.Size = new Size(180, 22);
+            itemDatabaseToolStripMenuItem.Text = "物品数据库";
+            itemDatabaseToolStripMenuItem.Click += itemDatabaseToolStripMenuItem_Click;
+            //
+            // monsterDatabaseToolStripMenuItem
+            //
+            monsterDatabaseToolStripMenuItem.Name = "monsterDatabaseToolStripMenuItem";
+            monsterDatabaseToolStripMenuItem.Size = new Size(180, 22);
+            monsterDatabaseToolStripMenuItem.Text = "怪物数据库";
+            monsterDatabaseToolStripMenuItem.Click += monsterDatabaseToolStripMenuItem_Click;
+            //
+            // magicDatabaseToolStripMenuItem
+            //
+            magicDatabaseToolStripMenuItem.Name = "magicDatabaseToolStripMenuItem";
+            magicDatabaseToolStripMenuItem.Size = new Size(180, 22);
+            magicDatabaseToolStripMenuItem.Text = "技能数据库";
+            magicDatabaseToolStripMenuItem.Click += magicDatabaseToolStripMenuItem_Click;
             //
             // dropsToolStripMenuItem
             //
@@ -947,6 +971,9 @@ namespace Server
         private ToolStripMenuItem nPCsToolStripMenuItem;
         private ToolStripMenuItem allNPCsToolStripMenuItem;
         private ToolStripMenuItem gameShopToolStripMenuItem1;
+        private ToolStripMenuItem itemDatabaseToolStripMenuItem;
+        private ToolStripMenuItem monsterDatabaseToolStripMenuItem;
+        private ToolStripMenuItem magicDatabaseToolStripMenuItem;
         private ToolStripMenuItem dropsToolStripMenuItem;
         private ToolStripMenuItem lineMessageToolStripMenuItem;
         private TabPage tabPage5;

@@ -112,6 +112,8 @@
 		GiveGuildExp,
         Recycle,
         RecycleKey,
-        Repair
+        Repair,
+        HeroRepair,
+        OfflineAFK
     }
 }

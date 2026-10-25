@@ -1084,7 +1084,9 @@ namespace Client.MirScenes
         }
         public void QuitGame()
         {
-            if (CMain.Time >= LogTime)
+            // ★战斗后 10 秒等待已改为配置开关（Mir2Config.ini [Game] LogoutCombatDelay，默认 False=不等待）。
+            //   原版判断逻辑原样保留在下面，只是整体套上了开关：True 时恢复 10 秒限制，False 时随时可退。
+            if (!Settings.LogoutCombatDelay || CMain.Time >= LogTime || (User != null && User.Dead))
             {
                 //If Last Combat < 10 CANCEL
                 MirMessageBox messageBox = new MirMessageBox(GameLanguage.ExitTip, MirMessageBoxButtons.YesNo);
@@ -1104,31 +1106,40 @@ namespace Client.MirScenes
         }
         public void LogOut()
         {
-            if (CMain.Time >= LogTime)
+            // 战斗后 10 秒等待限制已按需求注释：任何时候都可以直接退出
+            //if (CMain.Time >= LogTime)
+            //{
+            //    //If Last Combat < 10 CANCEL
+            //    MirMessageBox messageBox = new MirMessageBox(GameLanguage.LogOutTip, MirMessageBoxButtons.YesNo);
+            //    messageBox.YesButton.Click += (o, e) =>
+            //    {
+            //        Network.Enqueue(new C.LogOut());
+            //        Enabled = false;
+            //    };
+            //    messageBox.Show();
+            //}
+            //else if (User.Dead)
+            //{
+            //    MirMessageBox messageBox = new MirMessageBox(GameLanguage.LogOutTip, MirMessageBoxButtons.YesNo);
+            //    messageBox.YesButton.Click += (o, e) =>
+            //    {
+            //        Network.Enqueue(new C.LogOut());
+            //        Enabled = false;
+            //    };
+            //    messageBox.Show();
+            //}
+            //else
+            //{
+            //    ChatDialog.ReceiveChat(string.Format(GameLanguage.CannotLeaveGame, (LogTime - CMain.Time) / 1000), ChatType.System);
+            //}
+
+            MirMessageBox messageBox = new MirMessageBox(GameLanguage.LogOutTip, MirMessageBoxButtons.YesNo);
+            messageBox.YesButton.Click += (o, e) =>
             {
-                //If Last Combat < 10 CANCEL
-                MirMessageBox messageBox = new MirMessageBox(GameLanguage.LogOutTip, MirMessageBoxButtons.YesNo);
-                messageBox.YesButton.Click += (o, e) =>
-                {
-                    Network.Enqueue(new C.LogOut());
-                    Enabled = false;
-                };
-                messageBox.Show();
-            }
-            else if (User.Dead)
-            {
-                MirMessageBox messageBox = new MirMessageBox(GameLanguage.LogOutTip, MirMessageBoxButtons.YesNo);
-                messageBox.YesButton.Click += (o, e) =>
-                {
-                    Network.Enqueue(new C.LogOut());
-                    Enabled = false;
-                };
-                messageBox.Show();
-            }
-            else
-            {
-                ChatDialog.ReceiveChat(string.Format(GameLanguage.CannotLeaveGame, (LogTime - CMain.Time) / 1000), ChatType.System);
-            }
+                Network.Enqueue(new C.LogOut());
+                Enabled = false;
+            };
+            messageBox.Show();
         }
 
         protected internal override void DrawControl()
@@ -1244,11 +1255,14 @@ namespace Client.MirScenes
             RestorePlayerOptions();
 
             // ★品质光效动画驱动：场景与对话框都渲染进缓存贴图，只有 Redraw 才会重画。
-            //   不动鼠标、周围也没有对象换帧时，内观面板上的发光/火焰就会整帧冻结（用户实测）。
-            //   面板开着且画过品质光效时，每帧强制场景重绘，让光效随时间呼吸流动。
+            //   不动鼠标、周围也没有对象换帧时，面板上的发光/旋转光就会整帧冻结（用户实测）。
+            //   有动画光效的面板开着（自己/英雄内观、查看他人装备）且画过光效时，
+            //   每帧强制场景重绘，让光效随时间呼吸流动。NeedAnimate 由
+            //   QualityOutlineGlow.DrawPortrait（内观描边）和 QualityGlowFX.Draw（格子旋转光）置位。
             bool qualityDialogOpen = Settings.QualityEffectOn &&
                 ((CharacterDialog != null && CharacterDialog.Visible) ||
-                 (HeroDialog != null && HeroDialog.Visible));
+                 (HeroDialog != null && HeroDialog.Visible) ||
+                 (InspectDialog != null && InspectDialog.Visible));
             if (qualityDialogOpen && QualityOutlineGlow.NeedAnimate)
                 Redraw();
             else if (!qualityDialogOpen)
@@ -3271,6 +3285,13 @@ namespace Client.MirScenes
 
         private void ReturnToLogin(S.ReturnToLogin p)
         {
+            ReturnToLoginOnDisconnect();
+            MirMessageBox.Show("注销观察模式");
+        }
+
+        /// <summary>断线后返回登录界面（不退出客户端），清理序列与正常退出一致。</summary>
+        public void ReturnToLoginOnDisconnect()
+        {
             User = null;
 
             // 登录界面固定用默认档窗口，这里按实际尺寸比较，避免分辨率值语义变化后漏判
@@ -3280,7 +3301,6 @@ namespace Client.MirScenes
 
             ActiveScene = new LoginScene();
             Dispose();
-            MirMessageBox.Show("注销观察模式");
         }
 
         private void TimeOfDay(S.TimeOfDay p)
@@ -7065,6 +7085,15 @@ namespace Client.MirScenes
 
         private void GameShopUpdate(S.GameShopInfo p)
         {
+            if (p.Reset)
+            {
+                // 商城热重载：先清空本地缓存，随后服务端会重新下发全量商品
+                GameShopInfoList.Clear();
+                GameShopDialog.New.Visible = false;
+                if (GameShopDialog.Visible) GameShopDialog.UpdateShop();
+                return;
+            }
+
             p.Item.Stock = p.StockLevel;
             GameShopInfoList.Add(p.Item);
             if (p.Item.Date > CMain.Now.AddDays(-7)) GameShopDialog.New.Visible = true;
