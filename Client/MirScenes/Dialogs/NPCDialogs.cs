@@ -2124,7 +2124,11 @@ namespace Client.MirScenes.Dialogs
             CraftButton.Enabled = true;
             CraftButton.GrayScale = false;
 
-            Recipe = GameScene.RecipeInfoList.SingleOrDefault(x => x.Item.ItemIndex == selectedItem.ItemIndex);
+            //★First 而非 Single：配方列表在重登后会短暂/意外出现重复条目，
+            //  Single 遇重复直接抛异常 → 工艺窗口所有点击静默失效（点制作没反应的根因）
+            Recipe = GameScene.RecipeInfoList.FirstOrDefault(x => x.Item.ItemIndex == selectedItem.ItemIndex);
+
+            if (Recipe == null) return; // 客户端没有该配方（服务端未下发），不弹窗不报错，保持原样
 
             RecipeLabel.Text = Recipe.Item.FriendlyName;
             PossibilityLabel.Text = (UserObject.User.Stats[Stat.大师概率数率] > 0 ? $"{Math.Min(100, Recipe.Chance + UserObject.User.Stats[Stat.大师概率数率])}% (+{UserObject.User.Stats[Stat.大师概率数率]}%)" : $"{Recipe.Chance}%") + " 成功几率";

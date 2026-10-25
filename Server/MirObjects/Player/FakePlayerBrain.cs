@@ -1246,6 +1246,9 @@ namespace Server.MirObjects
         {
             FakePlayerObject p = Player;
 
+            //★防御（10-25）：假人刚被回收/尚未落图时不走，防止 Run/Walk 内 CurrentMap NRE
+            if (p == null || p.Node == null || p.CurrentMap == null) return false;
+
             if (p.CurrentLocation == location) return false;
 
             MirDirection dir = Functions.DirectionFromPoint(p.CurrentLocation, location);

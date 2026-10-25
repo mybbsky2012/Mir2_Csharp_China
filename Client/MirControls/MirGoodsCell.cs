@@ -76,9 +76,12 @@ namespace Client.MirControls
             }
             else if (Recipe)
             {
-                ClientRecipeInfo recipe = GameScene.RecipeInfoList.SingleOrDefault(x => x.Item.ItemIndex == Item.ItemIndex);
+                //★First 而非 Single：配方列表重登后可能出现重复条目，Single 遇重复抛异常会炸掉整个绘制帧
+                ClientRecipeInfo recipe = GameScene.RecipeInfoList.FirstOrDefault(x => x.Item.ItemIndex == Item.ItemIndex);
 
-                PriceLabel.Text = string.Format("价格: {0} 金币", (uint)(recipe.Gold * GameScene.NPCRate));
+                PriceLabel.Text = recipe != null
+                    ? string.Format("价格: {0} 金币", (uint)(recipe.Gold * GameScene.NPCRate))
+                    : string.Format("价格: {0} 金币", (uint)(Item.Price() * GameScene.NPCRate));
             }
             else
             {

@@ -1256,13 +1256,15 @@ namespace Client.MirScenes
 
             // ★品质光效动画驱动：场景与对话框都渲染进缓存贴图，只有 Redraw 才会重画。
             //   不动鼠标、周围也没有对象换帧时，面板上的发光/旋转光就会整帧冻结（用户实测）。
-            //   有动画光效的面板开着（自己/英雄内观、查看他人装备）且画过光效时，
+            //   有动画光效的面板开着（自己/英雄内观、查看他人装备、背包/英雄背包）且画过光效时，
             //   每帧强制场景重绘，让光效随时间呼吸流动。NeedAnimate 由
             //   QualityOutlineGlow.DrawPortrait（内观描边）和 QualityGlowFX.Draw（格子旋转光）置位。
             bool qualityDialogOpen = Settings.QualityEffectOn &&
                 ((CharacterDialog != null && CharacterDialog.Visible) ||
                  (HeroDialog != null && HeroDialog.Visible) ||
-                 (InspectDialog != null && InspectDialog.Visible));
+                 (InspectDialog != null && InspectDialog.Visible) ||
+                 (InventoryDialog != null && InventoryDialog.Visible) ||
+                 (HeroInventoryDialog != null && HeroInventoryDialog.Visible));
             if (qualityDialogOpen && QualityOutlineGlow.NeedAnimate)
                 Redraw();
             else if (!qualityDialogOpen)
@@ -3293,6 +3295,11 @@ namespace Client.MirScenes
         public void ReturnToLoginOnDisconnect()
         {
             User = null;
+
+            //★静态缓存必须清：服务端每次登录都会全量重发（按连接去重），
+            //  不清的话重登一次配方/商城列表就翻倍，工艺窗口按索引查重直接抛异常
+            RecipeInfoList.Clear();
+            GameShopInfoList.Clear();
 
             // 登录界面固定用默认档窗口，这里按实际尺寸比较，避免分辨率值语义变化后漏判
             Size loginSize = ResolutionHelper.GetSize(ResolutionHelper.DefaultResolution);

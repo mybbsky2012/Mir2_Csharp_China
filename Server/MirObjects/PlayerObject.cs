@@ -287,14 +287,21 @@ namespace Server.MirObjects
         {
             if (Node == null) return;
 
+            // ★假人与登出系统互斥（10-25）：假人重登 StopGame(23) 的 reason 正落在离线挂机
+            // 的 20~23 区间，而 [@_LOGOUT] 页里若有无条件 OFFLINEAFK，假人会误入离线挂机——
+            // 该状态故意保留 Info.Player 等真人接管，假人没人接管 → 下次创建抛
+            // 「Player.Info 不能为空」连败 5 次报废（用户报障）。假人一律不触发登出脚本、
+            // 不进离线挂机，永远走完整下线清理。
+            bool isFake = this is FakePlayerObject;
+
             // ★[@_LOGOUT] 登出触发（10-25）：任何下线路径（关游戏/掉线/回选人）都先静默执行
             // 默认 NPC 的 [@_LOGOUT] 页；页内可执行 OFFLINEAFK 开启「离线挂机」。
-            if (!_suppressLogoutTrigger)
+            if (!_suppressLogoutTrigger && !isFake)
                 TriggerLogoutScript();
 
             // ★离线挂机（10-25）：脚本点头 + 客户端正常退出/掉线/回选人(20~23) + 服务器运行中
             // → 跳过整段下线清理，角色留在原地图继续被 Process（怪物照打、Buff/泡点循环照跑）。
-            if (OfflineAFK && reason >= 20 && reason <= 23 && Envir.Running)
+            if (!isFake && OfflineAFK && reason >= 20 && reason <= 23 && Envir.Running)
             {
                 EnterOfflineAFK();
                 return;
@@ -6353,6 +6360,13 @@ namespace Server.MirObjects
                             }
                         case 3: //BenedictionOil
                             if (!TryLuckWeapon())
+                            {
+                                Enqueue(p);
+                                return;
+                            }
+                            break;
+                        case 22: //SuperBenedictionOil 超级祝福油：必成、不诅咒、上限10
+                            if (!TryLuckWeapon(10, true))
                             {
                                 Enqueue(p);
                                 return;

@@ -1,14 +1,13 @@
+using System.Text;
 using Server;
 using Server.MirEnvir;
-using Server.MirObjects;
-using System.Text;
+using Server.MirDatabase;
 
 namespace PotionProbe;
 
 /// <summary>
-/// 只读探针：列出名字含"准确"的物品，以及所有 Shape=3（Buff 类药水），
-/// 显示持久（=Buff 时长分钟数）和附加属性，用于核对药水时长设置。
-/// 用法：放到服务端目录（与 Server.MirDB 同级）运行 PotionProbe.exe。只读不写库。
+/// 只读探针（配方诊断）：完整复刻 StartEnvir 里的配方加载，
+/// 报告 RecipePath、文件数、每个配方的解析结果。dotnet PotionProbe.dll
 /// </summary>
 internal static class Program
 {
@@ -16,13 +15,9 @@ internal static class Program
     {
         try { Console.OutputEncoding = Encoding.UTF8; } catch { }
 
-        if (!File.Exists(Envir.DatabasePath))
-        {
-            Console.WriteLine($"当前目录下找不到 {Envir.DatabasePath}，请在服务端目录运行。");
-            return 2;
-        }
-
         Settings.Load();
+        Console.WriteLine($"RecipePath = {Settings.RecipePath}");
+        Console.WriteLine($"目录存在 = {Directory.Exists(Settings.RecipePath)}");
 
         var envir = Envir.Main;
         if (!envir.LoadDB())
@@ -31,43 +26,39 @@ internal static class Program
             return 2;
         }
 
-        Console.WriteLine("=== 名字含「准确」的物品 ===");
-        foreach (var it in envir.ItemInfoList)
+        string[] files;
+        try { files = Directory.GetFiles(Settings.RecipePath, "*.txt"); }
+        catch (Exception ex) { Console.WriteLine("!! GetFiles 失败: " + ex.Message); return 2; }
+
+        Console.WriteLine($"配方文件 {files.Length} 个，数据库物品 {envir.ItemInfoList.Count(it => it != null)} 个\n");
+
+        int ok = 0, bad = 0;
+        foreach (var path in files)
         {
-            if (it == null || string.IsNullOrEmpty(it.Name)) continue;
-            if (!it.Name.Contains("准确")) continue;
-            Print(it);
+            string name = Path.GetFileNameWithoutExtension(path);
+            string err = null;
+            try
+            {
+                var r = new RecipeInfo(name);
+                if (!r.IsValid)
+                    err = "无效（本体物品缺失/创建失败）";
+                else if (r.Ingredients.Count == 0)
+                    err = "有效但 Ingredients=0（NPC 端会拒收：『缺少材料』）";
+                else
+                {
+                    ok++;
+                    Console.WriteLine($"[OK] {name}  成品x{r.Item.Count} 材料{r.Ingredients.Count}种 工具{r.Tools.Count}种 金币{r.Gold} 概率{r.Chance}%");
+                    continue;
+                }
+            }
+            catch (Exception ex) { err = "解析异常: " + ex.Message; }
+
+            bad++;
+            Console.WriteLine($"[FAIL] {name} —— {err}");
         }
 
-        Console.WriteLine();
-        Console.WriteLine("=== Shape=3（Buff 类药水，全部） ===");
-        foreach (var it in envir.ItemInfoList)
-        {
-            if (it == null) continue;
-            if ((int)it.Shape != 3) continue;
-            if ((byte)it.Type <= 20) continue;
-            Print(it);
-        }
-
+        Console.WriteLine($"\n合计: 可用 {ok} / 异常 {bad} / 共 {files.Length}");
+        Console.WriteLine("（服务端启动时同样流程：可用数会进入 RecipeInfoList，0 个 = 所有工艺窗口无配方可做）");
         return 0;
-    }
-
-    private static void Print(ItemInfo it)
-    {
-        var sb = new System.Text.StringBuilder();
-        sb.Append($"[{it.Index}] '{it.Name}' Type={it.Type} Shape={(int)it.Shape}");
-        sb.Append($" 持久(Durability)={it.Durability}(Buff时长={it.Durability}分钟)");
-        sb.Append($" StackSize={it.StackSize}");
-
-        // 附加属性里有buff效果的键
-        var keys = new[] { Stat.准确, Stat.敏捷, Stat.MaxDC, Stat.MaxMC, Stat.MaxSC, Stat.攻击速度, Stat.HP, Stat.MP, Stat.MaxAC, Stat.MaxMAC, Stat.背包负重, Stat.幸运 };
-        var parts = new List<string>();
-        foreach (var k in keys)
-        {
-            if (it.Stats != null && it.Stats[k] != 0)
-                parts.Add($"{k}={it.Stats[k]}");
-        }
-        sb.Append(parts.Count > 0 ? " 属性[" + string.Join(",", parts) + "]" : " 属性[无]");
-        Console.WriteLine(sb.ToString());
     }
 }

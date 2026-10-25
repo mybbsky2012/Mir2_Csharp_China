@@ -5295,6 +5295,12 @@ namespace ServerPackets
 
         protected override void WritePacket(BinaryWriter writer)
         {
+            //★ Reset 包（商城热重载广播）没有商品本体：必须写一个占位 GameShopItem。
+            //  客户端 ReadPacket 无条件先读一个 GameShopItem 再判断 Reset，
+            //  直接写 null 会 NRE（Item.Save）并毒死当批发送队列（原崩溃点）。
+            if (Item == null)
+                Item = new GameShopItem { Info = new ItemInfo { Name = string.Empty } };
+
             Item.Save(writer, true);
             writer.Write(StockLevel);
             writer.Write(Reset);

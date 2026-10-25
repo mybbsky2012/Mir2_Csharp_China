@@ -1138,11 +1138,13 @@ namespace Server.MirObjects
         {
             return false;
         }
-        protected bool TryLuckWeapon()
+        /// <summary>祝福油吃幸运。普通版(luckCap=7)：成功率 1/(10×当前幸运)、1/20 诅咒；
+        /// 超级版(superOil=true，超级祝福油 Shape=22)：必成、不诅咒、上限由 luckCap 决定（默认 10）。</summary>
+        protected bool TryLuckWeapon(int luckCap = 7, bool superOil = false)
         {
             var item = Info.Equipment[(int)EquipmentSlot.武器];
 
-            if (item == null || item.AddedStats[Stat.幸运] >= 7)
+            if (item == null || item.AddedStats[Stat.幸运] >= luckCap)
                 return false;
 
             if (item.Info.Bind.HasFlag(BindMode.DontUpgrade))
@@ -1154,7 +1156,7 @@ namespace Server.MirObjects
             string message = String.Empty;
             ChatType chatType;
 
-            if (item.AddedStats[Stat.幸运] > (Settings.MaxLuck * -1) && Envir.Random.Next(20) == 0)
+            if (!superOil && item.AddedStats[Stat.幸运] > (Settings.MaxLuck * -1) && Envir.Random.Next(20) == 0)
             {
                 Stats[Stat.幸运]--;
                 item.AddedStats[Stat.幸运]--;
@@ -1162,9 +1164,9 @@ namespace Server.MirObjects
 
                 message = GameLanguage.WeaponCurse;
                 chatType = ChatType.System;
-                
+
             }
-            else if (item.AddedStats[Stat.幸运] <= 0 || Envir.Random.Next(10 * item.GetTotal(Stat.幸运)) == 0)
+            else if (superOil || item.AddedStats[Stat.幸运] <= 0 || Envir.Random.Next(10 * item.GetTotal(Stat.幸运)) == 0)
             {
                 Stats[Stat.幸运]++;
                 item.AddedStats[Stat.幸运]++;
@@ -2685,6 +2687,10 @@ namespace Server.MirObjects
         }
         public bool Walk(MirDirection dir)
         {
+            //★防御（10-25）：假人脑在对象刚被回收/尚未落图时仍可能跑一次移动，
+            //CurrentMap 为空会在 ValidPoint 处 NRE（用户报障）。返回 false 让调用方自然放弃。
+            if (CurrentMap == null || Stats == null) return false;
+
             if (!CanMove || !CanWalk)
             {
                 Enqueue(new S.UserLocation { Direction = Direction, Location = CurrentLocation });
@@ -2786,19 +2792,28 @@ namespace Server.MirObjects
 
             cell = CurrentMap.GetCell(CurrentLocation);
 
-            for (int i = 0; i < cell.Objects.Count; i++)
+            //★防御（10-25）：空格子 Objects 可能为 null（与上方 2716 行的判空保持一致），
+            //假人/英雄快速移动踩到刚清空的格子会 NRE（用户报障：假人 Walk 栈）。
+            if (cell.Objects != null)
             {
-                if (cell.Objects[i].Race != ObjectType.Spell) continue;
-                SpellObject ob = (SpellObject)cell.Objects[i];
+                for (int i = 0; i < cell.Objects.Count; i++)
+                {
+                    if (cell.Objects[i].Race != ObjectType.Spell) continue;
+                    SpellObject ob = (SpellObject)cell.Objects[i];
 
-                ob.ProcessSpell(this);
-                //break;
+                    ob.ProcessSpell(this);
+                    //break;
+                }
             }
 
             return true;
         }
         public bool Run(MirDirection dir)
         {
+            //★防御（10-25）：同 Walk——对象未落图/已回收时 CurrentMap 或 Stats 可能为空，
+            //直接返回 false，不抛 NRE（假人 StepTo / 英雄 MoveTo 都会走到这里）。
+            if (CurrentMap == null || Stats == null) return false;
+
             // 超负重：背包超重时不再被强制降级为走路
             if (!IgnoreWeight && CurrentBagWeight > Stats[Stat.背包负重])
             {

@@ -691,6 +691,29 @@ namespace Server.MirObjects
             if (rec.Online) return false;
             if (rec.FailCount >= 5) return false;   // 一再失败就别试了
 
+            //★自愈（10-25）：上一次下线若留下未回收的 PlayerObject（离线挂机误入/异常残留），
+            //rec.Info.Player 非空会让 new FakePlayerObject 抛「Player.Info 不能为空」，
+            //假人连败 5 次报废（用户报障）。创建前先回收残留；实在清不掉才放弃本次。
+            if (rec.Info.Player != null)
+            {
+                PlayerObject leftover = rec.Info.Player;
+                try
+                {
+                    if (leftover.OfflineAFK)
+                        leftover.TerminateOfflineAFK();          // 挂机态：清标记+完整下线
+                    else if (leftover is FakePlayerObject)
+                        leftover.StopGame(1);                    // 假人残留：补一次完整下线
+                }
+                catch { /* 回收失败按残留处理 */ }
+
+                if (rec.Info.Player != null)
+                {
+                    rec.FailCount++;
+                    MessageQueue.Instance.Enqueue($"[假人] {rec.Name} 上次对象未回收（Info.Player 占用），跳过本次");
+                    return false;
+                }
+            }
+
             // 每次上线都从登录点配置里**随机**挑一个点（地图、坐标都随机）。
             // 之前是「一个假人固定绑一个点」，假人每次重登都回同一个位置，看起来太死板。
             // 随机挑 + 50 个假人多次上下线，自然会均匀铺开；复活点也跟着这次的点走，

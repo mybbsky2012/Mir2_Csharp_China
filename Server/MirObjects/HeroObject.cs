@@ -463,6 +463,13 @@ namespace Server.MirObjects
                                 return;
                             }
                             break;
+                        case 22: //SuperBenedictionOil 超级祝福油：必成、不诅咒、上限10
+                            if (!TryLuckWeapon(10, true))
+                            {
+                                Owner.Enqueue(p);
+                                return;
+                            }
+                            break;
                         case 4: //RepairOil
                             temp = Info.Equipment[(int)EquipmentSlot.武器];
                             if (temp == null || temp.MaxDura == temp.CurrentDura)
