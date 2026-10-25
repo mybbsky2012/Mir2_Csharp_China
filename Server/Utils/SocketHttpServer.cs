@@ -226,6 +226,9 @@ namespace Server.Library.Utils
                 string name = line.Substring(0, colon).Trim();
                 string value = line.Substring(colon + 1).Trim();
 
+                // 全部请求头都存进 request.Headers（断点续传的 Range 从这里取）
+                request.Headers[name] = value;
+
                 if (name.Equals("Connection", StringComparison.OrdinalIgnoreCase))
                 {
                     if (value.IndexOf("close", StringComparison.OrdinalIgnoreCase) >= 0) keepAlive = false;

@@ -1243,6 +1243,17 @@ namespace Client.MirScenes
             // 进图后自动恢复玩家上次勾选的辅助开关（免蜡/穿人/免助跑/超负重/泰山）
             RestorePlayerOptions();
 
+            // ★品质光效动画驱动：场景与对话框都渲染进缓存贴图，只有 Redraw 才会重画。
+            //   不动鼠标、周围也没有对象换帧时，内观面板上的发光/火焰就会整帧冻结（用户实测）。
+            //   面板开着且画过品质光效时，每帧强制场景重绘，让光效随时间呼吸流动。
+            bool qualityDialogOpen = Settings.QualityEffectOn &&
+                ((CharacterDialog != null && CharacterDialog.Visible) ||
+                 (HeroDialog != null && HeroDialog.Visible));
+            if (qualityDialogOpen && QualityOutlineGlow.NeedAnimate)
+                Redraw();
+            else if (!qualityDialogOpen)
+                QualityOutlineGlow.NeedAnimate = false;   // 面板关掉后停止强制重绘
+
             if (CMain.Time >= MoveTime)
             {
                 MoveTime += 100; //Move Speed
@@ -10996,9 +11007,69 @@ namespace Client.MirScenes
             UpdateWeather();
         }
 
+        // ---- 微端：空地图兜底后自动重载（10-23） ----
+        // 切图时 .map 超 10 秒没下来会先进空地图；后台把文件补齐后由看护线程触发这里，
+        // 主循环里检查到就重载地面 —— 玩家无感从「空地图」切回真实地图。
+        private static volatile string _pendingLateReloadFile;
+
+        static MapControl()
+        {
+            MapReader.MapFileArrivedLate += delegate (string file)
+            {
+                // 只置标记，真正的重载在主线程 Process() 里做（格子/对象都不允许跨线程动）
+                _pendingLateReloadFile = file;
+            };
+        }
+
+        /// <summary>
+        /// 重载地面：只重建格子数据并重新登记现有对象，不走 LoadMap/ResetMap ——
+        /// 那两个会把 Objects 清空，玩家和其它角色会从画面里消失直到重新下发。
+        /// </summary>
+        public void ReloadFloor()
+        {
+            try
+            {
+                MapReader map = new MapReader(FileName);
+                M2CellInfo = map.MapCells;
+                Width = map.Width;
+                Height = map.Height;
+                PathFinder = new PathFinder(this);
+
+                // 旧格子上登记的 CellObjects 随旧数组被替换掉了，重新登记一遍
+                for (int i = Objects.Count - 1; i >= 0; i--)
+                {
+                    MapObject ob = Objects[i];
+                    int x = ob.MapLocation.X, y = ob.MapLocation.Y;
+                    if (x < 0 || y < 0 || x >= Width || y >= Height) continue;
+                    M2CellInfo[x, y].AddObject(ob);
+                }
+
+                FloorValid = false;
+
+                ResourceDownloader.Log("地图文件后台补齐完成，已自动重载：" + FileName);
+            }
+            catch (Exception ex)
+            {
+                ResourceDownloader.Log("地图自动重载失败 " + FileName + " : " + ex.Message);
+            }
+        }
+
+        private void CheckLateMapReload()
+        {
+            string file = _pendingLateReloadFile;
+            if (file == null) return;
+
+            _pendingLateReloadFile = null;
+
+            // 已经换到别的地图了（文件名对不上）：标记作废
+            if (!string.Equals(file, FileName, StringComparison.OrdinalIgnoreCase)) return;
+
+            ReloadFloor();
+        }
 
         public void Process()
         {
+            CheckLateMapReload();
             Processdoors();
             User.Process();
             for (int i = Objects.Count - 1; i >= 0; i--)

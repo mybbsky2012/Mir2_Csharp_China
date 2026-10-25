@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>道士技能音效试听与选配</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1b1f24;--sub:#5b6672;--line:#e3e6ea;--acc:#2f6fed;--warn:#c2410c;--ok:#15803d}
+@media (prefers-color-scheme:dark){:root{--bg:#16181c;--card:#1e2126;--fg:#e8eaed;--sub:#9aa4af;--line:#30343b;--acc:#6ea8fe;--warn:#fb923c;--ok:#4ade80}}
+*{box-sizing:border-box}
+body{margin:0;padding:24px;background:var(--bg);color:var(--fg);font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+h1{font-size:20px;margin:0 0 6px}
+h2{font-size:16px;margin:26px 0 10px;padding-left:9px;border-left:3px solid var(--acc)}
+p.lead{color:var(--sub);margin:0 0 4px}
+.hint{color:var(--sub);font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{background:rgba(47,111,237,.08);font-weight:600;font-size:13px}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(47,111,237,.05)}
+.play{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:7px;padding:3px 9px;cursor:pointer;font-size:12px;margin:2px 3px 2px 0;white-space:nowrap}
+.play:hover{border-color:var(--acc);color:var(--acc)}
+.play.on{background:var(--acc);border-color:var(--acc);color:#fff}
+select{max-width:330px;width:100%;padding:5px 7px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--fg);font-size:13px}
+.sp{display:inline-block;min-width:40px;color:var(--sub);font-size:12px}
+.miss{color:var(--warn);font-size:12px}
+.cur{color:var(--sub);font-size:12px}
+textarea{width:100%;height:150px;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--fg);font:12px/1.5 ui-monospace,Consolas,monospace}
+.btn{border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;font-size:13px;margin-top:8px}
+.btn.ghost{background:transparent;color:var(--acc)}
+.tag{display:inline-block;background:rgba(21,128,61,.15);color:var(--ok);border-radius:6px;padding:1px 7px;font-size:11.5px;margin-left:6px}
+.tag.w{background:rgba(194,65,12,.15);color:var(--warn)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.flex{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+</style>
+</head>
+<body>
+<h1>道士技能音效 · 试听与选配</h1>
+<p class="lead">资源包里没有道士原音（M61~M70 被法师段 M41~M50 覆盖），所以「重配」= 用包内已有素材重新指定。</p>
+<p class="lead hint">选完后点最下方「生成 / 复制结果」，把文本发我，我来写入 <code>SoundList.lst</code>（只加 <code>20xxx</code> 映射，不动代码，可回滚）。</p>
+<h2>① 已按你的选择修好（召唤物本体音）<span class="tag">已部署，重启客户端生效</span></h2>
+<div class="grid" id="done"></div>
+<h2>② 其余道士技能 —— 请试听后选择<span class="tag w">待你决定</span></h2>
+<p class="lead hint">「现用」就是现在游戏里响的那个；下拉里是可选素材，选中后可点右边 ▶ 再听一遍。</p>
+<table><thead><tr><th style="width:140px">技能</th><th style="width:32%">现用音</th><th>改成</th><th style="width:64px">试听</th></tr></thead>
+<tbody id="tb"></tbody></table>
+<h2>③ 复制结果</h2>
+<div class="card">
+  <button class="btn" onclick="exportSel()">生成 / 复制结果</button>
+  <button class="btn ghost" onclick="resetSel()">全部恢复「现用」</button>
+  <textarea id="out" placeholder="点上面的按钮生成…"></textarea>
+</div>
+<script>
+const DATA = {"pool": [{"file": "400-1.wav", "label": "骷髅 · 出现/站立"}, {"file": "400-2.wav", "label": "骷髅 · 攻击"}, {"file": "400-4.wav", "label": "骷髅 · 受击"}, {"file": "1900-1.wav", "label": "神兽 · 出现/站立"}, {"file": "1900-5.wav", "label": "神兽 · 死亡"}, {"file": "1910-0.wav", "label": "神兽1 · 出现"}, {"file": "1910-2.wav", "label": "神兽1 · 攻击"}, {"file": "1920-0.wav", "label": "月灵(圣兽) · 出现"}, {"file": "1920-1.wav", "label": "月灵 · 站立"}, {"file": "M3-0.wav", "label": "独立技能音"}, {"file": "M4-0.wav", "label": "独立技能音"}, {"file": "M6-0.wav", "label": "独立技能音"}, {"file": "M8-1.wav", "label": "独立技能音"}, {"file": "M9-0.wav", "label": "独立技能音"}, {"file": "M9-1.wav", "label": "独立技能音"}, {"file": "M10-0.wav", "label": "独立技能音"}, {"file": "M11-0.wav", "label": "独立技能音"}, {"file": "M12-0.wav", "label": "独立技能音"}, {"file": "M13-0.wav", "label": "独立技能音"}, {"file": "M15-0.wav", "label": "独立技能音"}, {"file": "M20-0.wav", "label": "独立技能音"}, {"file": "M72-0.wav", "label": "道士·气功波 原音"}, {"file": "M73-0.wav", "label": "道士·困魔咒 原音"}, {"file": "M79-0.wav", "label": "道士·苏生术 原音"}, {"file": "M80-0.wav", "label": "道士·精魂召唤 原音"}, {"file": "M81-0.wav", "label": "道士·诅咒术 原音"}, {"file": "M81-1.wav", "label": "道士·诅咒术 原音2"}, {"file": "M61-0.wav", "label": "现用音 M61-0.wav"}, {"file": "M61-1.wav", "label": "现用音 M61-1.wav"}, {"file": "M62-0.wav", "label": "现用音 M62-0.wav"}, {"file": "M63-0.wav", "label": "现用音 M63-0.wav"}, {"file": "M63-1.wav", "label": "现用音 M63-1.wav"}, {"file": "M64-0.wav", "label": "现用音 M64-0.wav"}, {"file": "M64-1.wav", "label": "现用音 M64-1.wav"}, {"file": "M65-0.wav", "label": "现用音 M65-0.wav"}, {"file": "M67-0.wav", "label": "现用音 M67-0.wav"}, {"file": "M68-0.wav", "label": "现用音 M68-0.wav"}, {"file": "M68-1.wav", "label": "现用音 M68-1.wav"}, {"file": "M69-0.wav", "label": "现用音 M69-0.wav"}, {"file": "M70-0.wav", "label": "现用音 M70-0.wav"}, {"file": "M70-1.wav", "label": "现用音 M70-1.wav"}, {"file": "M71-0.wav", "label": "现用音 M71-0.wav"}, {"file": "M75-0.wav", "label": "现用音 M75-0.wav"}, {"file": "M76-0.wav", "label": "现用音 M76-0.wav"}, {"file": "M79-1.wav", "label": "现用音 M79-1.wav"}], "rows": [{"name": "治愈术", "sp": 61, "cur": [{"file": "M61-0.wav", "label": "现用 M61-0.wav ＝M41-0.wav"}, {"file": "M61-1.wav", "label": "现用 M61-1.wav"}]}, {"name": "精神力战法", "sp": 62, "cur": [{"file": "M62-0.wav", "label": "现用 M62-0.wav ＝M42-0.wav"}]}, {"name": "施毒术", "sp": 63, "cur": [{"file": "M63-0.wav", "label": "现用 M63-0.wav ＝M43-0.wav"}, {"file": "M63-1.wav", "label": "现用 M63-1.wav"}]}, {"name": "灵魂火符", "sp": 64, "cur": [{"file": "M64-0.wav", "label": "现用 M64-0.wav ＝M44-0.wav"}, {"file": "M64-1.wav", "label": "现用 M64-1.wav"}, {"file": null, "label": "M64-2.wav（两端都缺，当前静音）"}]}, {"name": "召唤骷髅", "sp": 65, "cur": [{"file": "M65-0.wav", "label": "现用 M65-0.wav ＝M45-0.wav"}]}, {"name": "隐身术", "sp": 67, "cur": [{"file": "M67-0.wav", "label": "现用 M67-0.wav ＝M47-0.wav"}]}, {"name": "集体隐身术", "sp": 68, "cur": [{"file": "M68-0.wav", "label": "现用 M68-0.wav ＝M48-0.wav"}, {"file": "M68-1.wav", "label": "现用 M68-1.wav"}]}, {"name": "幽灵盾", "sp": 69, "cur": [{"file": "M69-0.wav", "label": "现用 M69-0.wav ＝M49-0.wav"}, {"file": null, "label": "M69-1.wav（两端都缺，当前静音）"}]}, {"name": "心灵启示", "sp": 70, "cur": [{"file": "M70-0.wav", "label": "现用 M70-0.wav ＝M50-0.wav"}, {"file": "M70-1.wav", "label": "现用 M70-1.wav"}]}, {"name": "神圣战甲术", "sp": 71, "cur": [{"file": "M71-0.wav", "label": "现用 M71-0.wav ＝M126-0.wav、M128-0.wav"}, {"file": null, "label": "M71-1.wav（两端都缺，当前静音）"}]}, {"name": "气功波", "sp": 72, "cur": [{"file": "M72-0.wav", "label": "现用 M72-0.wav "}]}, {"name": "困魔咒", "sp": 73, "cur": [{"file": "M73-0.wav", "label": "现用 M73-0.wav "}, {"file": null, "label": "M73-1.wav（两端都缺，当前静音）"}]}, {"name": "净化术", "sp": 74, "cur": [{"file": null, "label": "M74-0.wav（两端都缺，当前静音）"}]}, {"name": "群体治疗术", "sp": 75, "cur": [{"file": "M75-0.wav", "label": "现用 M75-0.wav "}, {"file": null, "label": "M75-1.wav（两端都缺，当前静音）"}]}, {"name": "迷魂术", "sp": 76, "cur": [{"file": "M76-0.wav", "label": "现用 M76-0.wav ＝M126-0.wav、M128-0.wav"}]}, {"name": "无极真气", "sp": 77, "cur": [{"file": null, "label": "M77-0.wav（两端都缺，当前静音）"}]}, {"name": "召唤神兽", "sp": 78, "cur": [{"file": null, "label": "M78-0.wav（两端都缺，当前静音）"}]}, {"name": "苏生术", "sp": 79, "cur": [{"file": "M79-0.wav", "label": "现用 M79-0.wav "}, {"file": "M79-1.wav", "label": "现用 M79-1.wav"}]}, {"name": "精魂召唤术", "sp": 80, "cur": [{"file": "M80-0.wav", "label": "现用 M80-0.wav "}]}, {"name": "诅咒术", "sp": 81, "cur": [{"file": "M81-0.wav", "label": "现用 M81-0.wav "}]}, {"name": "烦脑(瘟疫)", "sp": 82, "cur": [{"file": null, "label": "M82-3.wav（两端都缺，当前静音）"}]}, {"name": "毒雾", "sp": 83, "cur": [{"file": null, "label": "M83-0.wav（两端都缺，当前静音）"}]}, {"name": "先天气功", "sp": 84, "cur": [{"file": null, "label": "M84-0.wav（两端都缺，当前静音）"}, {"file": null, "label": "M84-1.wav（两端都缺，当前静音）"}]}, {"name": "血龙水(宠物强化)", "sp": 85, "cur": [{"file": null, "label": "M85-0.wav（两端都缺，当前静音）"}]}, {"name": "阴阳五行阵", "sp": 86, "cur": [{"file": null, "label": "M86-0.wav（两端都缺，当前静音）"}, {"file": null, "label": "M86-1.wav（两端都缺，当前静音）"}]}, {"name": "治愈术-秘籍", "sp": 87, "cur": [{"file": null, "label": "M87-1.wav（两端都缺，当前静音）"}]}, {"name": "阴阳五行阵-秘籍", "sp": 88, "cur": [{"file": null, "label": "M88-0.wav（两端都缺，当前静音）"}]}]};
+const audio = {}; let curBtn = null, curFile = null;
+function player(f){
+  if(!audio[f]){ const a = new Audio(f); a.preload='none';
+    a.addEventListener('ended', ()=>{ if(curBtn) curBtn.classList.remove('on'); }); audio[f]=a; }
+  return audio[f];
+}
+function play(f, btn){
+  if(curFile === f){ const a=player(f); a.pause(); a.currentTime=0; curFile=null; if(curBtn) curBtn.classList.remove('on'); return; }
+  Object.values(audio).forEach(a=>{a.pause(); a.currentTime=0;});
+  if(curBtn) curBtn.classList.remove('on');
+  const a = player(f); a.currentTime = 0;
+  a.play().catch(e=>alert('播放失败：'+f+'（'+e.message+'）'));
+  curBtn = btn; btn.classList.add('on'); curFile = f;
+}
+function mkbtn(f, label){
+  const b = document.createElement('button'); b.className='play'; b.textContent='\u25B6 '+(label||f);
+  b.onclick = ()=>play(f,b); return b;
+}
+const DONE = [
+ {n:'召唤骷髅', sp:65, from:'M65-0.wav', fromlab:'法师 嗜血术 的音', to:'400-1.wav', tolab:'骷髅 · 出现/站立'},
+ {n:'召唤神兽', sp:78, from:'M78-0.wav', fromlab:'客户端缺文件（原本静音）', to:'1900-1.wav', tolab:'神兽 · 出现/站立'},
+ {n:'精魂召唤术(圣兽)', sp:80, from:'M80-0.wav', fromlab:'原音偏怪', to:'1920-0.wav', tolab:'月灵(圣兽) · 出现'}
+];
+const dEl = document.getElementById('done');
+DONE.forEach(d=>{
+  const c = document.createElement('div'); c.className='card';
+  const t = document.createElement('div');
+  t.innerHTML = '<b>'+d.n+'</b> <span class="sp">('+d.sp+')</span>';
+  c.appendChild(t);
+  const l = document.createElement('div'); l.className='flex'; l.style.marginTop='6px';
+  const s = document.createElement('span'); s.className='cur'; s.textContent='旧：';
+  l.appendChild(s); l.appendChild(mkbtn(d.from, d.from+' — '+d.fromlab));
+  c.appendChild(l);
+  const l2 = document.createElement('div'); l2.className='flex';
+  const s2 = document.createElement('span'); s2.className='cur'; s2.textContent='新：';
+  l2.appendChild(s2); l2.appendChild(mkbtn(d.to, d.to+' — '+d.tolab));
+  c.appendChild(l2);
+  dEl.appendChild(c);
+});
+const POOL = DATA.pool;
+const tb = document.getElementById('tb');
+const sel = {};
+DATA.rows.forEach(r=>{
+  if([65,78,80].indexOf(r.sp) >= 0) return;
+  const tr = document.createElement('tr');
+  const td1 = document.createElement('td');
+  td1.innerHTML = '<b>'+r.name+'</b><br><span class="sp">'+r.sp+'</span>';
+  tr.appendChild(td1);
+  const td2 = document.createElement('td');
+  let firstFile = null;
+  r.cur.forEach(c=>{
+    if(c.file && !firstFile) firstFile = c.file;
+    const w = document.createElement('div');
+    if(c.file){ w.appendChild(mkbtn(c.file, c.file + (c.label.indexOf('\uFF08')>=0 ? ' ' + c.label.split('\uFF08')[1] : ''))); }
+    else { w.innerHTML = '<span class="miss">'+c.label+'</span>'; }
+    td2.appendChild(w);
+  });
+  tr.appendChild(td2);
+  const td3 = document.createElement('td');
+  const sl = document.createElement('select');
+  const o0 = document.createElement('option'); o0.value=''; o0.textContent='\u2014 \u4fdd\u6301\u73b0\u503c \u2014'; sl.appendChild(o0);
+  POOL.forEach(p=>{ const o=document.createElement('option'); o.value=p.file; o.textContent = p.file + '   ' + p.label; sl.appendChild(o); });
+  td3.appendChild(sl);
+  sel[r.sp] = {sl:sl, name:r.name, cur:firstFile};
+  tr.appendChild(td3);
+  const td4 = document.createElement('td');
+  const pb = document.createElement('button'); pb.className='play'; pb.textContent='\u25B6';
+  pb.onclick = ()=>{ const f = sl.value || sel[r.sp].cur; if(f) play(f, pb); else alert('\u8be5\u6280\u80fd\u5f53\u524d\u4e24\u7aef\u90fd\u7f3a\u6587\u4ef6'); };
+  td4.appendChild(pb);
+  tr.appendChild(td4);
+  tb.appendChild(tr);
+});
+function exportSel(){
+  const sps = Object.keys(sel).map(Number).sort((a,b)=>a-b);
+  const lines = [];
+  sps.forEach(sp=>{ const s = sel[sp]; if(s.sl.value){ lines.push('20' + String(sp+1000).slice(1) + ': ' + s.sl.value + '   // ' + s.name); } });
+  const txt = lines.length ? lines.join('\n') : '\uFF08\u6ca1\u6709\u6539\u52a8\uFF09';
+  document.getElementById('out').value = txt;
+  document.getElementById('out').select();
+  try{ document.execCommand('copy'); }catch(e){}
+  alert('\u5df2\u751f\u6210\u5e76\u5c1d\u8bd5\u590d\u5236\uFF0c\u5171 ' + lines.length + ' \u6761\u3002');
+}
+function resetSel(){ Object.keys(sel).forEach(k=>sel[k].sl.value=''); document.getElementById('out').value=''; }
+</script>
+</body>
+</html>

@@ -91,6 +91,7 @@ namespace Server
         public static int ResourceWriteTimeout = 300;    //单个请求最长传输秒数，超时断开清理
         public static int ResourceBufferKB = 64;         //流式发送的分块大小
         public static bool ResourceVerboseLog = false;   //是否逐条记录资源下发（高并发下建议关闭）
+        public static int ResourceMaxKBps = 0;           //资源下发总限速(KB/s)，0=不限速。窄带宽服务器务必设置，给游戏数据留带宽
 
         //Permission
         public static bool AllowNewAccount = true,
@@ -438,12 +439,14 @@ namespace Server
             ResourceWriteTimeout = Reader.ReadInt32("Network", "ResourceWriteTimeout", ResourceWriteTimeout);
             ResourceBufferKB = Reader.ReadInt32("Network", "ResourceBufferKB", ResourceBufferKB);
             ResourceVerboseLog = Reader.ReadBoolean("Network", "ResourceVerboseLog", ResourceVerboseLog);
+            ResourceMaxKBps = Reader.ReadInt32("Network", "ResourceMaxKBps", ResourceMaxKBps);
 
             if (ResourceMaxConcurrent < 4) ResourceMaxConcurrent = 4;
             if (ResourceMaxConcurrent > 512) ResourceMaxConcurrent = 512;
             if (ResourceWriteTimeout < 30) ResourceWriteTimeout = 300;
             if (ResourceBufferKB < 16) ResourceBufferKB = 64;
             if (ResourceBufferKB > 1024) ResourceBufferKB = 1024;
+            if (ResourceMaxKBps < 0) ResourceMaxKBps = 0;
 
             //Permission
             AllowNewAccount = Reader.ReadBoolean("Permission", "AllowNewAccount", AllowNewAccount);
@@ -774,6 +777,7 @@ namespace Server
             Reader.Write("Network", "ResourceWriteTimeout", ResourceWriteTimeout);
             Reader.Write("Network", "ResourceBufferKB", ResourceBufferKB);
             Reader.Write("Network", "ResourceVerboseLog", ResourceVerboseLog);
+            Reader.Write("Network", "ResourceMaxKBps", ResourceMaxKBps);
 
             //Permission
             Reader.Write("Permission", "AllowNewAccount", AllowNewAccount);

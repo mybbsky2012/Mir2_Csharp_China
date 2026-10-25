@@ -1,0 +1,4482 @@
+[
+ {
+  "index": 3,
+  "name": "卫士",
+  "level": 99,
+  "hp": 999,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "飞天县",
+   "沃玛森林",
+   "石槽矿山",
+   "毒蛇山谷",
+   "梦村县",
+   "夔龙城"
+  ],
+  "points": 72,
+  "count": 72,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 4,
+  "name": "卫士0",
+  "level": 99,
+  "hp": 999,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "飞天县"
+  ],
+  "points": 45,
+  "count": 45,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 8,
+  "name": "带刀侍卫",
+  "level": 99,
+  "hp": 999,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "道馆",
+   "夔龙城"
+  ],
+  "points": 38,
+  "count": 38,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 9,
+  "name": "带刀侍卫0",
+  "level": 99,
+  "hp": 999,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "道馆"
+  ],
+  "points": 8,
+  "count": 8,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 31,
+  "name": "弦月坛术士1",
+  "level": 18,
+  "hp": 90,
+  "exp": 140,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 70,
+  "items": 37,
+  "gold": 100
+ },
+ {
+  "index": 36,
+  "name": "弦月坛道士1",
+  "level": 18,
+  "hp": 100,
+  "exp": 140,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 70,
+  "items": 33,
+  "gold": 2300
+ },
+ {
+  "index": 41,
+  "name": "弦月坛刺客1",
+  "level": 19,
+  "hp": 105,
+  "exp": 150,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 70,
+  "items": 35,
+  "gold": 230
+ },
+ {
+  "index": 46,
+  "name": "弦月坛战士1",
+  "level": 20,
+  "hp": 110,
+  "exp": 160,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 70,
+  "items": 32,
+  "gold": 230
+ },
+ {
+  "index": 55,
+  "name": "暗黑战士",
+  "level": 26,
+  "hp": 165,
+  "exp": 240,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "沃玛寺庙二层",
+   "沃玛寺庙三层"
+  ],
+  "points": 20,
+  "count": 182,
+  "items": 41,
+  "gold": 310
+ },
+ {
+  "index": 56,
+  "name": "暗黑战士0",
+  "level": 26,
+  "hp": 165,
+  "exp": 240,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "沃玛寺庙二层",
+   "沃玛寺庙三层"
+  ],
+  "points": 4,
+  "count": 4,
+  "items": 44,
+  "gold": 520
+ },
+ {
+  "index": 67,
+  "name": "金胜战士",
+  "level": 31,
+  "hp": 240,
+  "exp": 350,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 50,
+  "items": 54,
+  "gold": 580
+ },
+ {
+  "index": 68,
+  "name": "金胜战士0",
+  "level": 31,
+  "hp": 240,
+  "exp": 350,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 50,
+  "items": 51,
+  "gold": 580
+ },
+ {
+  "index": 73,
+  "name": "圣术士",
+  "level": 30,
+  "hp": 2070,
+  "exp": 340,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 50,
+  "items": 53,
+  "gold": 4600
+ },
+ {
+  "index": 74,
+  "name": "圣术士0",
+  "level": 30,
+  "hp": 2850,
+  "exp": 340,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 50,
+  "items": 49,
+  "gold": 4600
+ },
+ {
+  "index": 79,
+  "name": "定缘道士",
+  "level": 30,
+  "hp": 285,
+  "exp": 310,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 50,
+  "items": 43,
+  "gold": 520
+ },
+ {
+  "index": 80,
+  "name": "定缘道士0",
+  "level": 30,
+  "hp": 285,
+  "exp": 310,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 50,
+  "items": 40,
+  "gold": 520
+ },
+ {
+  "index": 89,
+  "name": "焱门客",
+  "level": 60,
+  "hp": 3000,
+  "exp": 6000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 18,
+  "items": 71,
+  "gold": 16000
+ },
+ {
+  "index": 90,
+  "name": "焱门客0",
+  "level": 60,
+  "hp": 600,
+  "exp": 1000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 4,
+  "items": 71,
+  "gold": 5800
+ },
+ {
+  "index": 130,
+  "name": "沙虫",
+  "level": 17,
+  "hp": 54,
+  "exp": 77,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "梦村县"
+  ],
+  "points": 4,
+  "count": 60,
+  "items": 29,
+  "gold": 250
+ },
+ {
+  "index": 148,
+  "name": "巡城侍卫",
+  "level": 255,
+  "hp": 999,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "飞天县",
+   "梦村县",
+   "道馆",
+   "夔龙城",
+   "雪白县",
+   "潘夜岛"
+  ],
+  "points": 36,
+  "count": 36,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 181,
+  "name": "灌木",
+  "level": 16,
+  "hp": 25,
+  "exp": 36,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "飞天县"
+  ],
+  "points": 27,
+  "count": 54,
+  "items": 5,
+  "gold": 0
+ },
+ {
+  "index": 185,
+  "name": "弓箭守卫",
+  "level": 0,
+  "hp": 9999,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "飞天县",
+   "毒蛇山谷",
+   "连接通道",
+   "梦村县",
+   "地牢一层东",
+   "夔龙城"
+  ],
+  "points": 149,
+  "count": 149,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 189,
+  "name": "练功师",
+  "level": 1,
+  "hp": 100,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "飞天练武场",
+   "飞天城"
+  ],
+  "points": 8,
+  "count": 8,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 216,
+  "name": "半兽人",
+  "level": 15,
+  "hp": 30,
+  "exp": 30,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "飞天县",
+   "沃玛森林",
+   "毒蛇山谷",
+   "道馆",
+   "夔龙城",
+   "潘夜岛"
+  ],
+  "points": 50,
+  "count": 1460,
+  "items": 41,
+  "gold": 300
+ },
+ {
+  "index": 217,
+  "name": "半兽人0",
+  "level": 15,
+  "hp": 30,
+  "exp": 30,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "沃玛森林",
+   "毒蛇山谷",
+   "潘夜岛"
+  ],
+  "points": 6,
+  "count": 6,
+  "items": 40,
+  "gold": 2000
+ },
+ {
+  "index": 283,
+  "name": "可怕的利奇",
+  "level": 61,
+  "hp": 1300,
+  "exp": 5000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱深渊",
+   "黑暗深渊1",
+   "黑暗深渊2",
+   "黑暗深渊3",
+   "黑暗深渊4",
+   "黑暗深渊5"
+  ],
+  "points": 92,
+  "count": 1300,
+  "items": 57,
+  "gold": 400
+ },
+ {
+  "index": 284,
+  "name": "可怕的利奇0",
+  "level": 61,
+  "hp": 1300,
+  "exp": 5000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱深渊",
+   "黑暗深渊1",
+   "黑暗深渊2",
+   "黑暗深渊3",
+   "黑暗深渊4",
+   "黑暗深渊5"
+  ],
+  "points": 84,
+  "count": 1200,
+  "items": 55,
+  "gold": 400
+ },
+ {
+  "index": 285,
+  "name": "变异的利奇",
+  "level": 63,
+  "hp": 900,
+  "exp": 5100,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱深渊"
+  ],
+  "points": 8,
+  "count": 160,
+  "items": 57,
+  "gold": 1600
+ },
+ {
+  "index": 286,
+  "name": "变异的利奇0",
+  "level": 63,
+  "hp": 900,
+  "exp": 5100,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱深渊"
+  ],
+  "points": 8,
+  "count": 140,
+  "items": 54,
+  "gold": 1700
+ },
+ {
+  "index": 287,
+  "name": "变异破坏者",
+  "level": 64,
+  "hp": 1150,
+  "exp": 5300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱深渊"
+  ],
+  "points": 26,
+  "count": 470,
+  "items": 52,
+  "gold": 2400
+ },
+ {
+  "index": 288,
+  "name": "变异破坏者0",
+  "level": 64,
+  "hp": 1150,
+  "exp": 5300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱深渊"
+  ],
+  "points": 16,
+  "count": 290,
+  "items": 49,
+  "gold": 2900
+ },
+ {
+  "index": 289,
+  "name": "疯狂破坏者",
+  "level": 65,
+  "hp": 1500,
+  "exp": 5500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱深渊",
+   "黑暗深渊1"
+  ],
+  "points": 20,
+  "count": 380,
+  "items": 57,
+  "gold": 580
+ },
+ {
+  "index": 290,
+  "name": "疯狂破坏者0",
+  "level": 65,
+  "hp": 1500,
+  "exp": 5500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱深渊"
+  ],
+  "points": 10,
+  "count": 200,
+  "items": 57,
+  "gold": 750
+ },
+ {
+  "index": 291,
+  "name": "噬夢者",
+  "level": 68,
+  "hp": 2000,
+  "exp": 7000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱深渊"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 63,
+  "gold": 16000
+ },
+ {
+  "index": 366,
+  "name": "浪人鬼",
+  "level": 35,
+  "hp": 430,
+  "exp": 1020,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "潘夜岛",
+   "般若石窟1层",
+   "般若石窟2层东",
+   "般若石窟2层西",
+   "般若石窟3层",
+   "般若石窟4层"
+  ],
+  "points": 60,
+  "count": 938,
+  "items": 49,
+  "gold": 200
+ },
+ {
+  "index": 367,
+  "name": "浪人鬼0",
+  "level": 35,
+  "hp": 430,
+  "exp": 1020,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "潘夜岛",
+   "般若石窟1层",
+   "般若石窟4层"
+  ],
+  "points": 18,
+  "count": 18,
+  "items": 48,
+  "gold": 650
+ },
+ {
+  "index": 368,
+  "name": "古代浪人鬼",
+  "level": 35,
+  "hp": 430,
+  "exp": 1020,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟1层",
+   "古代般若石窟2层",
+   "古代般若石窟3层"
+  ],
+  "points": 14,
+  "count": 266,
+  "items": 45,
+  "gold": 3400
+ },
+ {
+  "index": 369,
+  "name": "古代浪人鬼0",
+  "level": 35,
+  "hp": 430,
+  "exp": 1020,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟3层"
+  ],
+  "points": 2,
+  "count": 38,
+  "items": 44,
+  "gold": 6500
+ },
+ {
+  "index": 370,
+  "name": "腐蚀鬼",
+  "level": 33,
+  "hp": 350,
+  "exp": 940,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "潘夜岛",
+   "般若石窟1层",
+   "般若石窟2层东",
+   "般若石窟2层西",
+   "般若石窟3层",
+   "般若石窟4层"
+  ],
+  "points": 60,
+  "count": 920,
+  "items": 54,
+  "gold": 120
+ },
+ {
+  "index": 371,
+  "name": "腐蚀鬼0",
+  "level": 33,
+  "hp": 350,
+  "exp": 940,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "潘夜岛",
+   "般若石窟2层东",
+   "般若石窟2层西",
+   "般若石窟3层",
+   "般若石窟4层"
+  ],
+  "points": 22,
+  "count": 22,
+  "items": 53,
+  "gold": 390
+ },
+ {
+  "index": 372,
+  "name": "古代腐蚀鬼",
+  "level": 33,
+  "hp": 350,
+  "exp": 940,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟1层",
+   "古代般若石窟2层",
+   "古代般若石窟3层"
+  ],
+  "points": 16,
+  "count": 292,
+  "items": 46,
+  "gold": 320
+ },
+ {
+  "index": 373,
+  "name": "古代腐蚀鬼0",
+  "level": 33,
+  "hp": 350,
+  "exp": 940,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟1层",
+   "古代般若石窟2层",
+   "古代般若石窟3层"
+  ],
+  "points": 10,
+  "count": 106,
+  "items": 47,
+  "gold": 480
+ },
+ {
+  "index": 374,
+  "name": "骷髅武将",
+  "level": 49,
+  "hp": 620,
+  "exp": 1350,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "般若石窟4层",
+   "般若石窟5层"
+  ],
+  "points": 20,
+  "count": 296,
+  "items": 47,
+  "gold": 1400
+ },
+ {
+  "index": 375,
+  "name": "骷髅武将0",
+  "level": 49,
+  "hp": 620,
+  "exp": 1350,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "般若石窟4层",
+   "般若石窟5层"
+  ],
+  "points": 4,
+  "count": 4,
+  "items": 46,
+  "gold": 2900
+ },
+ {
+  "index": 376,
+  "name": "古代骷髅武将",
+  "level": 49,
+  "hp": 620,
+  "exp": 1350,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟3层"
+  ],
+  "points": 4,
+  "count": 64,
+  "items": 42,
+  "gold": 2600
+ },
+ {
+  "index": 377,
+  "name": "古代骷髅武将0",
+  "level": 49,
+  "hp": 620,
+  "exp": 1350,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟3层"
+  ],
+  "points": 2,
+  "count": 38,
+  "items": 42,
+  "gold": 2900
+ },
+ {
+  "index": 378,
+  "name": "骷髅士兵",
+  "level": 42,
+  "hp": 520,
+  "exp": 1150,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "般若石窟1层",
+   "般若石窟2层东",
+   "般若石窟2层西",
+   "般若石窟3层",
+   "般若石窟4层",
+   "般若石窟5层"
+  ],
+  "points": 48,
+  "count": 778,
+  "items": 49,
+  "gold": 960
+ },
+ {
+  "index": 379,
+  "name": "骷髅士兵0",
+  "level": 42,
+  "hp": 520,
+  "exp": 1150,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "般若石窟1层",
+   "般若石窟2层东",
+   "般若石窟2层西",
+   "般若石窟3层",
+   "般若石窟4层",
+   "般若石窟5层"
+  ],
+  "points": 12,
+  "count": 12,
+  "items": 44,
+  "gold": 2900
+ },
+ {
+  "index": 380,
+  "name": "古代骷髅士兵",
+  "level": 42,
+  "hp": 520,
+  "exp": 1150,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟1层",
+   "古代般若石窟2层",
+   "古代般若石窟3层"
+  ],
+  "points": 16,
+  "count": 256,
+  "items": 48,
+  "gold": 1500
+ },
+ {
+  "index": 381,
+  "name": "古代骷髅士兵0",
+  "level": 42,
+  "hp": 520,
+  "exp": 1150,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟1层",
+   "古代般若石窟2层",
+   "古代般若石窟3层"
+  ],
+  "points": 12,
+  "count": 60,
+  "items": 45,
+  "gold": 2700
+ },
+ {
+  "index": 382,
+  "name": "骷髅武士",
+  "level": 45,
+  "hp": 540,
+  "exp": 1280,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "般若石窟1层",
+   "般若石窟2层东",
+   "般若石窟2层西",
+   "般若石窟3层",
+   "般若石窟4层",
+   "般若石窟5层"
+  ],
+  "points": 40,
+  "count": 636,
+  "items": 51,
+  "gold": 1000
+ },
+ {
+  "index": 383,
+  "name": "骷髅武士0",
+  "level": 45,
+  "hp": 540,
+  "exp": 1280,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "般若石窟1层",
+   "般若石窟2层东",
+   "般若石窟2层西",
+   "般若石窟3层",
+   "般若石窟4层",
+   "般若石窟5层"
+  ],
+  "points": 14,
+  "count": 14,
+  "items": 49,
+  "gold": 2900
+ },
+ {
+  "index": 384,
+  "name": "古代骷髅武士",
+  "level": 45,
+  "hp": 540,
+  "exp": 1280,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟1层",
+   "古代般若石窟2层",
+   "古代般若石窟3层"
+  ],
+  "points": 16,
+  "count": 284,
+  "items": 45,
+  "gold": 50
+ },
+ {
+  "index": 385,
+  "name": "古代骷髅武士0",
+  "level": 45,
+  "hp": 540,
+  "exp": 1280,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟1层",
+   "古代般若石窟2层",
+   "古代般若石窟3层"
+  ],
+  "points": 10,
+  "count": 96,
+  "items": 48,
+  "gold": 2200
+ },
+ {
+  "index": 388,
+  "name": "古代骷髅弓箭手",
+  "level": 38,
+  "hp": 450,
+  "exp": 1020,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟1层",
+   "古代般若石窟2层",
+   "古代般若石窟3层"
+  ],
+  "points": 10,
+  "count": 178,
+  "items": 44,
+  "gold": 50
+ },
+ {
+  "index": 389,
+  "name": "古代骷髅弓箭手0",
+  "level": 38,
+  "hp": 450,
+  "exp": 1020,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟1层",
+   "古代般若石窟2层",
+   "古代般若石窟3层"
+  ],
+  "points": 8,
+  "count": 62,
+  "items": 54,
+  "gold": 6000
+ },
+ {
+  "index": 392,
+  "name": "古代骸骨盘王",
+  "level": 60,
+  "hp": 10000,
+  "exp": 10000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟3层"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 70,
+  "gold": 19500
+ },
+ {
+  "index": 393,
+  "name": "古代骸骨盘王0",
+  "level": 60,
+  "hp": 10000,
+  "exp": 10000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "古代般若石窟3层"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 62,
+  "gold": 19500
+ },
+ {
+  "index": 438,
+  "name": "舌刃大虫",
+  "level": 50,
+  "hp": 2000,
+  "exp": 3300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "虫洞4层"
+  ],
+  "points": 2,
+  "count": 4,
+  "items": 59,
+  "gold": 35000
+ },
+ {
+  "index": 442,
+  "name": "幻影寒虎",
+  "level": 54,
+  "hp": 1200,
+  "exp": 2000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "潘夜岛"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 50,
+  "gold": 650
+ },
+ {
+  "index": 444,
+  "name": "弦月寒虎",
+  "level": 54,
+  "hp": 3600,
+  "exp": 3000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 60,
+  "items": 60,
+  "gold": 10500
+ },
+ {
+  "index": 448,
+  "name": "水晶蜘蛛0",
+  "level": 54,
+  "hp": 2000,
+  "exp": 5000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "龙蛇川"
+  ],
+  "points": 2,
+  "count": 60,
+  "items": 55,
+  "gold": 5500
+ },
+ {
+  "index": 470,
+  "name": "狐月陷阱",
+  "level": 100,
+  "hp": 500,
+  "exp": 100,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "悲月山洞",
+   "悲月山"
+  ],
+  "points": 6,
+  "count": 220,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 478,
+  "name": "悲月天珠",
+  "level": 39,
+  "hp": 32000,
+  "exp": 640000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "悲月神殿"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 93,
+  "gold": 37500
+ },
+ {
+  "index": 482,
+  "name": "狐月刺虫",
+  "level": 38,
+  "hp": 800,
+  "exp": 2400,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "悲月山"
+  ],
+  "points": 2,
+  "count": 80,
+  "items": 39,
+  "gold": 2700
+ },
+ {
+  "index": 505,
+  "name": "暗之魔龙铁蛾0",
+  "level": 58,
+  "hp": 1100,
+  "exp": 4700,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "灰色神殿2层"
+  ],
+  "points": 2,
+  "count": 60,
+  "items": 53,
+  "gold": 850
+ },
+ {
+  "index": 518,
+  "name": "月之镰神将",
+  "level": 100,
+  "hp": 21000,
+  "exp": 30000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层"
+  ],
+  "points": 4,
+  "count": 4,
+  "items": 88,
+  "gold": 31000
+ },
+ {
+  "index": 530,
+  "name": "月之月魔蜘蛛",
+  "level": 50,
+  "hp": 1270,
+  "exp": 7300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层",
+   "月之圣殿左室"
+  ],
+  "points": 6,
+  "count": 120,
+  "items": 38,
+  "gold": 4100
+ },
+ {
+  "index": 531,
+  "name": "月之月魔蜘蛛0",
+  "level": 50,
+  "hp": 1270,
+  "exp": 7300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层",
+   "月之圣殿左室"
+  ],
+  "points": 6,
+  "count": 40,
+  "items": 39,
+  "gold": 5800
+ },
+ {
+  "index": 534,
+  "name": "月之蓝背蜘蛛",
+  "level": 50,
+  "hp": 1400,
+  "exp": 7600,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层"
+  ],
+  "points": 4,
+  "count": 70,
+  "items": 58,
+  "gold": 2900
+ },
+ {
+  "index": 535,
+  "name": "月之蓝背蜘蛛0",
+  "level": 50,
+  "hp": 1400,
+  "exp": 7600,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层"
+  ],
+  "points": 4,
+  "count": 20,
+  "items": 57,
+  "gold": 3200
+ },
+ {
+  "index": 538,
+  "name": "月之天狼蜘蛛",
+  "level": 50,
+  "hp": 1100,
+  "exp": 7700,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层"
+  ],
+  "points": 4,
+  "count": 70,
+  "items": 21,
+  "gold": 5100
+ },
+ {
+  "index": 539,
+  "name": "月之天狼蜘蛛0",
+  "level": 50,
+  "hp": 1100,
+  "exp": 7700,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层"
+  ],
+  "points": 4,
+  "count": 30,
+  "items": 18,
+  "gold": 5800
+ },
+ {
+  "index": 542,
+  "name": "月之黑锷蜘蛛",
+  "level": 50,
+  "hp": 1420,
+  "exp": 8000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层"
+  ],
+  "points": 4,
+  "count": 60,
+  "items": 57,
+  "gold": 3000
+ },
+ {
+  "index": 543,
+  "name": "月之黑锷蜘蛛0",
+  "level": 50,
+  "hp": 1420,
+  "exp": 8000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层"
+  ],
+  "points": 4,
+  "count": 20,
+  "items": 57,
+  "gold": 3200
+ },
+ {
+  "index": 546,
+  "name": "月之花吻蜘蛛",
+  "level": 50,
+  "hp": 1420,
+  "exp": 8000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层",
+   "月之圣殿左室"
+  ],
+  "points": 6,
+  "count": 120,
+  "items": 58,
+  "gold": 2300
+ },
+ {
+  "index": 547,
+  "name": "月之花吻蜘蛛0",
+  "level": 50,
+  "hp": 1420,
+  "exp": 8000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层",
+   "月之圣殿左室"
+  ],
+  "points": 6,
+  "count": 30,
+  "items": 60,
+  "gold": 3200
+ },
+ {
+  "index": 550,
+  "name": "月之水晶蜘蛛",
+  "level": 50,
+  "hp": 1320,
+  "exp": 7900,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层"
+  ],
+  "points": 4,
+  "count": 40,
+  "items": 35,
+  "gold": 5800
+ },
+ {
+  "index": 551,
+  "name": "月之水晶蜘蛛0",
+  "level": 50,
+  "hp": 1320,
+  "exp": 7900,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层"
+  ],
+  "points": 4,
+  "count": 20,
+  "items": 37,
+  "gold": 5800
+ },
+ {
+  "index": 555,
+  "name": "月之祖玛雕像",
+  "level": 54,
+  "hp": 1100,
+  "exp": 4400,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之圣殿左室"
+  ],
+  "points": 2,
+  "count": 50,
+  "items": 42,
+  "gold": 650
+ },
+ {
+  "index": 556,
+  "name": "月之祖玛雕像0",
+  "level": 54,
+  "hp": 1100,
+  "exp": 4400,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之圣殿左室"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 43,
+  "gold": 650
+ },
+ {
+  "index": 559,
+  "name": "月之祖玛卫士",
+  "level": 54,
+  "hp": 1100,
+  "exp": 4400,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之圣殿左室"
+  ],
+  "points": 2,
+  "count": 50,
+  "items": 45,
+  "gold": 650
+ },
+ {
+  "index": 560,
+  "name": "月之祖玛卫士0",
+  "level": 54,
+  "hp": 1100,
+  "exp": 4400,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之圣殿左室"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 43,
+  "gold": 650
+ },
+ {
+  "index": 563,
+  "name": "月之红将",
+  "level": 54,
+  "hp": 6300,
+  "exp": 9100,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "月之圣殿左室"
+  ],
+  "points": 2,
+  "count": 20,
+  "items": 63,
+  "gold": 19500
+ },
+ {
+  "index": 564,
+  "name": "月之红将0",
+  "level": 54,
+  "hp": 6300,
+  "exp": 9100,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "月之圣殿左室"
+  ],
+  "points": 2,
+  "count": 4,
+  "items": 62,
+  "gold": 19500
+ },
+ {
+  "index": 568,
+  "name": "月之幻影蜘蛛",
+  "level": 60,
+  "hp": 5400,
+  "exp": 9100,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "月之圣殿左室"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 73,
+  "gold": 19500
+ },
+ {
+  "index": 570,
+  "name": "月之巨镰蜘蛛",
+  "level": 54,
+  "hp": 3600,
+  "exp": 6800,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层",
+   "月之圣殿左室"
+  ],
+  "points": 6,
+  "count": 90,
+  "items": 61,
+  "gold": 13500
+ },
+ {
+  "index": 571,
+  "name": "月之巨镰蜘蛛0",
+  "level": 54,
+  "hp": 3600,
+  "exp": 6800,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之谷1层",
+   "月之谷2层",
+   "月之圣殿左室"
+  ],
+  "points": 6,
+  "count": 30,
+  "items": 66,
+  "gold": 17000
+ },
+ {
+  "index": 574,
+  "name": "月之金杖蜘蛛",
+  "level": 54,
+  "hp": 4400,
+  "exp": 7000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之圣殿左室"
+  ],
+  "points": 2,
+  "count": 50,
+  "items": 70,
+  "gold": 16000
+ },
+ {
+  "index": 575,
+  "name": "月之金杖蜘蛛0",
+  "level": 54,
+  "hp": 4400,
+  "exp": 7000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "月之圣殿左室"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 66,
+  "gold": 16000
+ },
+ {
+  "index": 580,
+  "name": "地狱噬魂者",
+  "level": 54,
+  "hp": 930,
+  "exp": 6100,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱道3层"
+  ],
+  "points": 2,
+  "count": 18,
+  "items": 31,
+  "gold": 5800
+ },
+ {
+  "index": 581,
+  "name": "地狱噬魂者0",
+  "level": 54,
+  "hp": 930,
+  "exp": 6100,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱道3层"
+  ],
+  "points": 2,
+  "count": 12,
+  "items": 37,
+  "gold": 5800
+ },
+ {
+  "index": 582,
+  "name": "地狱食人者",
+  "level": 54,
+  "hp": 1350,
+  "exp": 6100,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱道3层"
+  ],
+  "points": 2,
+  "count": 18,
+  "items": 52,
+  "gold": 5800
+ },
+ {
+  "index": 583,
+  "name": "地狱食人者0",
+  "level": 54,
+  "hp": 1350,
+  "exp": 6100,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱道3层"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 49,
+  "gold": 5800
+ },
+ {
+  "index": 584,
+  "name": "地狱守门人",
+  "level": 54,
+  "hp": 20000,
+  "exp": 20000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "地狱道3层"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 82,
+  "gold": 37500
+ },
+ {
+  "index": 586,
+  "name": "地狱瘟疫者",
+  "level": 54,
+  "hp": 1350,
+  "exp": 6300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱道3层"
+  ],
+  "points": 2,
+  "count": 18,
+  "items": 55,
+  "gold": 5800
+ },
+ {
+  "index": 587,
+  "name": "地狱瘟疫者0",
+  "level": 54,
+  "hp": 1350,
+  "exp": 6300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱道3层"
+  ],
+  "points": 2,
+  "count": 12,
+  "items": 55,
+  "gold": 5800
+ },
+ {
+  "index": 588,
+  "name": "地狱女巫",
+  "level": 60,
+  "hp": 750,
+  "exp": 6300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱道3层"
+  ],
+  "points": 2,
+  "count": 18,
+  "items": 49,
+  "gold": 2600
+ },
+ {
+  "index": 589,
+  "name": "地狱女巫0",
+  "level": 60,
+  "hp": 750,
+  "exp": 6300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "地狱道3层"
+  ],
+  "points": 2,
+  "count": 12,
+  "items": 54,
+  "gold": 2600
+ },
+ {
+  "index": 594,
+  "name": "寒冰战将",
+  "level": 50,
+  "hp": 1100,
+  "exp": 8500,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "寒冰大殿"
+  ],
+  "points": 2,
+  "count": 32,
+  "items": 20,
+  "gold": 5800
+ },
+ {
+  "index": 596,
+  "name": "寒冰侍卫",
+  "level": 50,
+  "hp": 1100,
+  "exp": 8100,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "寒冰大殿"
+  ],
+  "points": 2,
+  "count": 32,
+  "items": 18,
+  "gold": 5800
+ },
+ {
+  "index": 598,
+  "name": "尖啸幽灵",
+  "level": 50,
+  "hp": 900,
+  "exp": 7800,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "尖啸地狱"
+  ],
+  "points": 2,
+  "count": 50,
+  "items": 31,
+  "gold": 5800
+ },
+ {
+  "index": 600,
+  "name": "尖啸幽灵1",
+  "level": 50,
+  "hp": 900,
+  "exp": 7800,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "尖啸地狱"
+  ],
+  "points": 2,
+  "count": 50,
+  "items": 33,
+  "gold": 5800
+ },
+ {
+  "index": 602,
+  "name": "尖啸幽灵2",
+  "level": 50,
+  "hp": 900,
+  "exp": 7800,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "尖啸地狱"
+  ],
+  "points": 2,
+  "count": 50,
+  "items": 34,
+  "gold": 5800
+ },
+ {
+  "index": 604,
+  "name": "寒冰守将",
+  "level": 50,
+  "hp": 1800,
+  "exp": 9300,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "寒冰大殿"
+  ],
+  "points": 4,
+  "count": 64,
+  "items": 62,
+  "gold": 15000
+ },
+ {
+  "index": 607,
+  "name": "寒冰魔王",
+  "level": 60,
+  "hp": 20000,
+  "exp": 20000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "寒冰大殿"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 92,
+  "gold": 37500
+ },
+ {
+  "index": 613,
+  "name": "业火奴隶",
+  "level": 50,
+  "hp": 1500,
+  "exp": 8500,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱1层"
+  ],
+  "points": 2,
+  "count": 96,
+  "items": 60,
+  "gold": 1000
+ },
+ {
+  "index": 615,
+  "name": "业火巨锤",
+  "level": 50,
+  "hp": 1500,
+  "exp": 8500,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱1层"
+  ],
+  "points": 2,
+  "count": 128,
+  "items": 66,
+  "gold": 2200
+ },
+ {
+  "index": 617,
+  "name": "业火炸弹手",
+  "level": 50,
+  "hp": 1100,
+  "exp": 8700,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱1层",
+   "业火地狱2层"
+  ],
+  "points": 4,
+  "count": 128,
+  "items": 22,
+  "gold": 4000
+ },
+ {
+  "index": 619,
+  "name": "业火投石手",
+  "level": 50,
+  "hp": 1100,
+  "exp": 8700,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱1层",
+   "业火地狱2层"
+  ],
+  "points": 4,
+  "count": 128,
+  "items": 20,
+  "gold": 4000
+ },
+ {
+  "index": 621,
+  "name": "业火巨锤魔王",
+  "level": 50,
+  "hp": 5000,
+  "exp": 10000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱1层"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 72,
+  "gold": 19500
+ },
+ {
+  "index": 623,
+  "name": "业火长枪手",
+  "level": 50,
+  "hp": 1600,
+  "exp": 8850,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱2层",
+   "业火地狱3层"
+  ],
+  "points": 4,
+  "count": 128,
+  "items": 66,
+  "gold": 2200
+ },
+ {
+  "index": 625,
+  "name": "业火法师",
+  "level": 50,
+  "hp": 1600,
+  "exp": 8850,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱2层",
+   "业火地狱3层"
+  ],
+  "points": 4,
+  "count": 128,
+  "items": 68,
+  "gold": 2200
+ },
+ {
+  "index": 627,
+  "name": "业火镰刀",
+  "level": 50,
+  "hp": 1600,
+  "exp": 9000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱3层"
+  ],
+  "points": 2,
+  "count": 64,
+  "items": 64,
+  "gold": 3000
+ },
+ {
+  "index": 629,
+  "name": "业火双刀",
+  "level": 50,
+  "hp": 1600,
+  "exp": 9000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱3层"
+  ],
+  "points": 2,
+  "count": 64,
+  "items": 63,
+  "gold": 3000
+ },
+ {
+  "index": 631,
+  "name": "业火女王",
+  "level": 50,
+  "hp": 20000,
+  "exp": 15000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "业火地狱3层"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 76,
+  "gold": 23500
+ },
+ {
+  "index": 637,
+  "name": "阎魔太子",
+  "level": 100,
+  "hp": 32767,
+  "exp": 30000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "业火大殿"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 80,
+  "gold": 37500
+ },
+ {
+  "index": 671,
+  "name": "南蛮黑虎",
+  "level": 60,
+  "hp": 1500,
+  "exp": 5600,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "远古废墟"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 63,
+  "gold": 1300
+ },
+ {
+  "index": 673,
+  "name": "南蛮白虎",
+  "level": 60,
+  "hp": 1700,
+  "exp": 5800,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿山"
+  ],
+  "points": 12,
+  "count": 380,
+  "items": 60,
+  "gold": 580
+ },
+ {
+  "index": 675,
+  "name": "愤怒的狒狒",
+  "level": 60,
+  "hp": 1550,
+  "exp": 5200,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿山"
+  ],
+  "points": 14,
+  "count": 202,
+  "items": 58,
+  "gold": 750
+ },
+ {
+  "index": 682,
+  "name": "灵猫斗士",
+  "level": 54,
+  "hp": 1250,
+  "exp": 5200,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿区一层",
+   "石槽矿区二层",
+   "石槽矿区三层",
+   "石槽矿区四层"
+  ],
+  "points": 10,
+  "count": 512,
+  "items": 36,
+  "gold": 2300
+ },
+ {
+  "index": 684,
+  "name": "灵猫武士",
+  "level": 54,
+  "hp": 1300,
+  "exp": 5500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿区一层",
+   "石槽矿区二层",
+   "石槽矿区三层",
+   "石槽矿区四层"
+  ],
+  "points": 10,
+  "count": 512,
+  "items": 33,
+  "gold": 2300
+ },
+ {
+  "index": 686,
+  "name": "长枪猫卫",
+  "level": 56,
+  "hp": 1400,
+  "exp": 5500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿区二层",
+   "石槽矿区三层",
+   "石槽矿区四层"
+  ],
+  "points": 6,
+  "count": 288,
+  "items": 60,
+  "gold": 650
+ },
+ {
+  "index": 688,
+  "name": "铁锤猫卫",
+  "level": 56,
+  "hp": 1300,
+  "exp": 5700,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿区一层",
+   "石槽矿区二层",
+   "石槽矿区三层",
+   "石槽矿区四层",
+   "壶中天"
+  ],
+  "points": 20,
+  "count": 404,
+  "items": 55,
+  "gold": 2600
+ },
+ {
+  "index": 689,
+  "name": "铁锤猫卫0",
+  "level": 56,
+  "hp": 1300,
+  "exp": 5700,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "壶中天"
+  ],
+  "points": 12,
+  "count": 36,
+  "items": 57,
+  "gold": 5800
+ },
+ {
+  "index": 690,
+  "name": "黑锤猫卫",
+  "level": 56,
+  "hp": 1350,
+  "exp": 6000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿区一层",
+   "石槽矿区二层",
+   "石槽矿区三层",
+   "石槽矿区四层",
+   "壶中天"
+  ],
+  "points": 20,
+  "count": 320,
+  "items": 50,
+  "gold": 620
+ },
+ {
+  "index": 691,
+  "name": "黑锤猫卫0",
+  "level": 56,
+  "hp": 1350,
+  "exp": 6000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "壶中天"
+  ],
+  "points": 12,
+  "count": 36,
+  "items": 51,
+  "gold": 1300
+ },
+ {
+  "index": 692,
+  "name": "陵庙刀卫",
+  "level": 56,
+  "hp": 1150,
+  "exp": 6500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿山",
+   "壶中天"
+  ],
+  "points": 14,
+  "count": 86,
+  "items": 21,
+  "gold": 4700
+ },
+ {
+  "index": 693,
+  "name": "陵庙刀卫0",
+  "level": 56,
+  "hp": 1150,
+  "exp": 6500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "壶中天"
+  ],
+  "points": 12,
+  "count": 36,
+  "items": 17,
+  "gold": 5800
+ },
+ {
+  "index": 694,
+  "name": "陵庙巫师",
+  "level": 100,
+  "hp": 1100,
+  "exp": 6500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿区三层",
+   "石槽矿区四层"
+  ],
+  "points": 4,
+  "count": 96,
+  "items": 44,
+  "gold": 4500
+ },
+ {
+  "index": 696,
+  "name": "重耳壶1",
+  "level": 52,
+  "hp": 1000,
+  "exp": 4000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "石槽矿区四层",
+   "壶中天"
+  ],
+  "points": 14,
+  "count": 62,
+  "items": 43,
+  "gold": 840
+ },
+ {
+  "index": 698,
+  "name": "重耳壶2",
+  "level": 52,
+  "hp": 1000,
+  "exp": 4000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "壶中天"
+  ],
+  "points": 12,
+  "count": 60,
+  "items": 43,
+  "gold": 850
+ },
+ {
+  "index": 706,
+  "name": "兔子",
+  "level": 14,
+  "hp": 25,
+  "exp": 28,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "飞天县",
+   "道馆",
+   "夔龙城"
+  ],
+  "points": 10,
+  "count": 250,
+  "items": 34,
+  "gold": 50
+ },
+ {
+  "index": 720,
+  "name": "异秘蛋",
+  "level": 50,
+  "hp": 10,
+  "exp": 20,
+  "kind": "container",
+  "nofile": false,
+  "maps": [
+   "异秘洞4层"
+  ],
+  "points": 2,
+  "count": 16,
+  "items": 5,
+  "gold": 0
+ },
+ {
+  "index": 721,
+  "name": "异秘蛋1",
+  "level": 50,
+  "hp": 10,
+  "exp": 20,
+  "kind": "container",
+  "nofile": false,
+  "maps": [
+   "异秘洞4层"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 5,
+  "gold": 0
+ },
+ {
+  "index": 722,
+  "name": "瘟疫鱼人",
+  "level": 50,
+  "hp": 1,
+  "exp": 5000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "异秘洞3层"
+  ],
+  "points": 2,
+  "count": 160,
+  "items": 77,
+  "gold": 1600
+ },
+ {
+  "index": 724,
+  "name": "瘟疫蟾蜍",
+  "level": 50,
+  "hp": 1,
+  "exp": 6500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "异秘洞3层"
+  ],
+  "points": 2,
+  "count": 100,
+  "items": 68,
+  "gold": 2000
+ },
+ {
+  "index": 726,
+  "name": "噬人龙",
+  "level": 50,
+  "hp": 3200,
+  "exp": 6500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "异秘洞3层"
+  ],
+  "points": 2,
+  "count": 160,
+  "items": 69,
+  "gold": 10500
+ },
+ {
+  "index": 730,
+  "name": "毒气蟾蜍",
+  "level": 50,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "异秘洞4层",
+   "如何神殿1层"
+  ],
+  "points": 4,
+  "count": 60,
+  "items": 69,
+  "gold": 18500
+ },
+ {
+  "index": 731,
+  "name": "毒气蟾蜍0",
+  "level": 50,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "如何神殿1层"
+  ],
+  "points": 2,
+  "count": 20,
+  "items": 65,
+  "gold": 19500
+ },
+ {
+  "index": 732,
+  "name": "螳螂",
+  "level": 50,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "如何神殿1层",
+   "如何神殿2层"
+  ],
+  "points": 4,
+  "count": 60,
+  "items": 76,
+  "gold": 18500
+ },
+ {
+  "index": 733,
+  "name": "螳螂0",
+  "level": 50,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "如何神殿1层"
+  ],
+  "points": 2,
+  "count": 20,
+  "items": 65,
+  "gold": 19500
+ },
+ {
+  "index": 734,
+  "name": "沼泽战士",
+  "level": 100,
+  "hp": 4600,
+  "exp": 6500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "如何神殿1层",
+   "如何神殿2层"
+  ],
+  "points": 4,
+  "count": 70,
+  "items": 68,
+  "gold": 14500
+ },
+ {
+  "index": 735,
+  "name": "鸟人刺客",
+  "level": 100,
+  "hp": 4600,
+  "exp": 6500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "如何神殿1层",
+   "如何神殿2层",
+   "如何神殿3层"
+  ],
+  "points": 6,
+  "count": 110,
+  "items": 63,
+  "gold": 12000
+ },
+ {
+  "index": 736,
+  "name": "犀牛武士",
+  "level": 100,
+  "hp": 5600,
+  "exp": 7000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "如何神殿1层",
+   "如何神殿2层",
+   "如何神殿3层"
+  ],
+  "points": 6,
+  "count": 110,
+  "items": 67,
+  "gold": 12000
+ },
+ {
+  "index": 737,
+  "name": "犀牛法师",
+  "level": 100,
+  "hp": 5600,
+  "exp": 7000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "如何神殿2层",
+   "如何神殿3层"
+  ],
+  "points": 4,
+  "count": 60,
+  "items": 65,
+  "gold": 15000
+ },
+ {
+  "index": 738,
+  "name": "巨象锤兵",
+  "level": 100,
+  "hp": 5600,
+  "exp": 7000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "如何神殿2层",
+   "如何神殿3层"
+  ],
+  "points": 4,
+  "count": 60,
+  "items": 64,
+  "gold": 15000
+ },
+ {
+  "index": 739,
+  "name": "石巨人",
+  "level": 100,
+  "hp": 6400,
+  "exp": 7500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "如何神殿3层"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 65,
+  "gold": 16000
+ },
+ {
+  "index": 740,
+  "name": "土巨人",
+  "level": 60,
+  "hp": 5800,
+  "exp": 7500,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "如何神殿3层"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 68,
+  "gold": 16000
+ },
+ {
+  "index": 741,
+  "name": "象王法师",
+  "level": 100,
+  "hp": 8400,
+  "exp": 9000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "如何神殿3层"
+  ],
+  "points": 2,
+  "count": 20,
+  "items": 70,
+  "gold": 19500
+ },
+ {
+  "index": 742,
+  "name": "如何树",
+  "level": 100,
+  "hp": 23000,
+  "exp": 46000,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "如何神殿4层"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 5,
+  "gold": 0
+ },
+ {
+  "index": 746,
+  "name": "双头黑虎",
+  "level": 60,
+  "hp": 3800,
+  "exp": 4800,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "灰色神殿2层"
+  ],
+  "points": 2,
+  "count": 70,
+  "items": 64,
+  "gold": 14500
+ },
+ {
+  "index": 748,
+  "name": "沃玛食人魔",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "灰色神殿2层"
+  ],
+  "points": 2,
+  "count": 70,
+  "items": 71,
+  "gold": 17000
+ },
+ {
+  "index": 750,
+  "name": "沃玛巨魔拳",
+  "level": 65,
+  "hp": 8400,
+  "exp": 9600,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "灰色神殿2层"
+  ],
+  "points": 2,
+  "count": 70,
+  "items": 68,
+  "gold": 17000
+ },
+ {
+  "index": 752,
+  "name": "沃玛巨镰",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "灰色神殿2层"
+  ],
+  "points": 2,
+  "count": 70,
+  "items": 67,
+  "gold": 17000
+ },
+ {
+  "index": 754,
+  "name": "沃玛黑刺兵",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "灰色神殿2层"
+  ],
+  "points": 2,
+  "count": 70,
+  "items": 69,
+  "gold": 17000
+ },
+ {
+  "index": 756,
+  "name": "沃玛魔兵",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "灰色神殿2层"
+  ],
+  "points": 2,
+  "count": 70,
+  "items": 71,
+  "gold": 17000
+ },
+ {
+  "index": 758,
+  "name": "沃玛大祭司",
+  "level": 80,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "灰色神殿2层"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 67,
+  "gold": 19500
+ },
+ {
+  "index": 763,
+  "name": "黑暗之王",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "灰色神殿3层"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 70,
+  "gold": 19500
+ },
+ {
+  "index": 766,
+  "name": "长鼻猴",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "片木岛"
+  ],
+  "points": 2,
+  "count": 60,
+  "items": 70,
+  "gold": 18500
+ },
+ {
+  "index": 767,
+  "name": "长鼻猴0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "片木岛"
+  ],
+  "points": 2,
+  "count": 30,
+  "items": 64,
+  "gold": 19500
+ },
+ {
+  "index": 768,
+  "name": "变异甲虫",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "片木岛"
+  ],
+  "points": 2,
+  "count": 60,
+  "items": 71,
+  "gold": 18500
+ },
+ {
+  "index": 769,
+  "name": "变异甲虫0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "片木岛"
+  ],
+  "points": 2,
+  "count": 30,
+  "items": 66,
+  "gold": 19500
+ },
+ {
+  "index": 770,
+  "name": "大食人花",
+  "level": 100,
+  "hp": 3200,
+  "exp": 4800,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "片木岛"
+  ],
+  "points": 2,
+  "count": 60,
+  "items": 4,
+  "gold": 0
+ },
+ {
+  "index": 771,
+  "name": "大食人花0",
+  "level": 100,
+  "hp": 3200,
+  "exp": 4800,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "片木岛"
+  ],
+  "points": 2,
+  "count": 30,
+  "items": 4,
+  "gold": 0
+ },
+ {
+  "index": 772,
+  "name": "幽灵弓箭手",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "片木岛",
+   "货船入口",
+   "货船仓库",
+   "货船居住仓",
+   "货船船艄",
+   "帆船入口"
+  ],
+  "points": 18,
+  "count": 420,
+  "items": 70,
+  "gold": 8400
+ },
+ {
+  "index": 773,
+  "name": "幽灵弓箭手0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "片木岛",
+   "货船入口",
+   "货船仓库",
+   "货船居住仓",
+   "货船船艄",
+   "帆船入口"
+  ],
+  "points": 18,
+  "count": 210,
+  "items": 75,
+  "gold": 11000
+ },
+ {
+  "index": 774,
+  "name": "熏黑的厨师",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船居住仓",
+   "货船船艄",
+   "帆船居住仓",
+   "帆船船艄"
+  ],
+  "points": 8,
+  "count": 200,
+  "items": 72,
+  "gold": 11500
+ },
+ {
+  "index": 775,
+  "name": "熏黑的厨师0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船居住仓",
+   "货船船艄",
+   "帆船居住仓",
+   "帆船船艄"
+  ],
+  "points": 8,
+  "count": 120,
+  "items": 68,
+  "gold": 14000
+ },
+ {
+  "index": 776,
+  "name": "幽灵船员",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "帆船入口",
+   "帆船仓库"
+  ],
+  "points": 8,
+  "count": 260,
+  "items": 71,
+  "gold": 10000
+ },
+ {
+  "index": 777,
+  "name": "幽灵船员0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "帆船入口",
+   "帆船仓库"
+  ],
+  "points": 8,
+  "count": 100,
+  "items": 74,
+  "gold": 15000
+ },
+ {
+  "index": 778,
+  "name": "溺水的奴隶",
+  "level": 70,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "片木岛",
+   "货船入口",
+   "货船仓库",
+   "货船居住仓",
+   "货船船艄",
+   "帆船入口"
+  ],
+  "points": 18,
+  "count": 440,
+  "items": 66,
+  "gold": 8200
+ },
+ {
+  "index": 779,
+  "name": "溺水的奴隶0",
+  "level": 70,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "片木岛",
+   "货船入口",
+   "货船仓库",
+   "货船居住仓",
+   "货船船艄",
+   "帆船入口"
+  ],
+  "points": 18,
+  "count": 210,
+  "items": 71,
+  "gold": 11000
+ },
+ {
+  "index": 780,
+  "name": "沉船恶灵",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "货船居住仓",
+   "货船船艄",
+   "帆船入口",
+   "帆船仓库"
+  ],
+  "points": 16,
+  "count": 380,
+  "items": 73,
+  "gold": 8700
+ },
+ {
+  "index": 781,
+  "name": "沉船恶灵0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "货船居住仓",
+   "货船船艄",
+   "帆船入口",
+   "帆船仓库"
+  ],
+  "points": 16,
+  "count": 180,
+  "items": 74,
+  "gold": 12000
+ },
+ {
+  "index": 782,
+  "name": "幽灵勇士",
+  "level": 100,
+  "hp": 7200,
+  "exp": 9600,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "货船船艄",
+   "帆船入口",
+   "帆船仓库",
+   "帆船船艄"
+  ],
+  "points": 12,
+  "count": 220,
+  "items": 66,
+  "gold": 11000
+ },
+ {
+  "index": 783,
+  "name": "幽灵勇士0",
+  "level": 100,
+  "hp": 7200,
+  "exp": 9600,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "货船船艄",
+   "帆船入口",
+   "帆船仓库",
+   "帆船船艄"
+  ],
+  "points": 12,
+  "count": 160,
+  "items": 74,
+  "gold": 12500
+ },
+ {
+  "index": 784,
+  "name": "幽灵重锤将",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船居住仓",
+   "货船船艄",
+   "帆船居住仓",
+   "帆船船艄"
+  ],
+  "points": 8,
+  "count": 220,
+  "items": 66,
+  "gold": 11000
+ },
+ {
+  "index": 785,
+  "name": "幽灵重锤将0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船居住仓",
+   "货船船艄",
+   "帆船居住仓",
+   "帆船船艄"
+  ],
+  "points": 8,
+  "count": 100,
+  "items": 73,
+  "gold": 15000
+ },
+ {
+  "index": 786,
+  "name": "被诅咒的银箱",
+  "level": 100,
+  "hp": 50,
+  "exp": 200,
+  "kind": "container",
+  "nofile": false,
+  "maps": [
+   "片木岛",
+   "货船居住仓",
+   "货船船艄",
+   "帆船居住仓",
+   "帆船船艄"
+  ],
+  "points": 10,
+  "count": 140,
+  "items": 10,
+  "gold": 0
+ },
+ {
+  "index": 789,
+  "name": "变异的监工",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "帆船入口",
+   "帆船仓库"
+  ],
+  "points": 8,
+  "count": 180,
+  "items": 73,
+  "gold": 12000
+ },
+ {
+  "index": 790,
+  "name": "变异的监工0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "帆船入口",
+   "帆船仓库"
+  ],
+  "points": 8,
+  "count": 80,
+  "items": 75,
+  "gold": 16500
+ },
+ {
+  "index": 791,
+  "name": "魂火",
+  "level": 100,
+  "hp": 3600,
+  "exp": 5400,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "货船居住仓",
+   "货船船艄",
+   "帆船入口",
+   "帆船仓库"
+  ],
+  "points": 16,
+  "count": 200,
+  "items": 63,
+  "gold": 9400
+ },
+ {
+  "index": 792,
+  "name": "魂火0",
+  "level": 100,
+  "hp": 3600,
+  "exp": 5400,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "货船入口",
+   "货船仓库",
+   "货船居住仓",
+   "货船船艄",
+   "帆船入口",
+   "帆船仓库"
+  ],
+  "points": 16,
+  "count": 140,
+  "items": 65,
+  "gold": 11000
+ },
+ {
+  "index": 793,
+  "name": "黑暗船长",
+  "level": 100,
+  "hp": 12000,
+  "exp": 24000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "货船船长室",
+   "帆船船长室"
+  ],
+  "points": 4,
+  "count": 4,
+  "items": 88,
+  "gold": 31000
+ },
+ {
+  "index": 795,
+  "name": "杀厉鬼",
+  "level": 68,
+  "hp": 3600,
+  "exp": 5400,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "沙遗迹"
+  ],
+  "points": 2,
+  "count": 160,
+  "items": 65,
+  "gold": 10500
+ },
+ {
+  "index": 797,
+  "name": "太古鼠",
+  "level": 69,
+  "hp": 4600,
+  "exp": 5800,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "沙遗迹"
+  ],
+  "points": 2,
+  "count": 160,
+  "items": 65,
+  "gold": 10500
+ },
+ {
+  "index": 799,
+  "name": "遗迹王蛇",
+  "level": 60,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "沙遗迹"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 69,
+  "gold": 19500
+ },
+ {
+  "index": 803,
+  "name": "大蟒",
+  "level": 70,
+  "hp": 5600,
+  "exp": 6400,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "沙遗迹"
+  ],
+  "points": 2,
+  "count": 160,
+  "items": 64,
+  "gold": 10500
+ },
+ {
+  "index": 813,
+  "name": "鬼浮石",
+  "level": 68,
+  "hp": 3600,
+  "exp": 4200,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "沙遗迹"
+  ],
+  "points": 2,
+  "count": 6,
+  "items": 64,
+  "gold": 16000
+ },
+ {
+  "index": 815,
+  "name": "魔石巨人",
+  "level": 60,
+  "hp": 8400,
+  "exp": 11000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "沙遗迹"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 67,
+  "gold": 19500
+ },
+ {
+  "index": 823,
+  "name": "魔风石怪",
+  "level": 999,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "沙遗迹遗址",
+   "沙遗迹村庄"
+  ],
+  "points": 4,
+  "count": 4,
+  "items": 70,
+  "gold": 19500
+ },
+ {
+  "index": 824,
+  "name": "魔风石怪0",
+  "level": 999,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "沙遗迹祠堂"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 68,
+  "gold": 19500
+ },
+ {
+  "index": 825,
+  "name": "草丛龟",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 110,
+  "items": 66,
+  "gold": 14500
+ },
+ {
+  "index": 826,
+  "name": "草丛龟0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 80,
+  "items": 65,
+  "gold": 16500
+ },
+ {
+  "index": 827,
+  "name": "杉精魄",
+  "level": 65,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 8,
+  "count": 150,
+  "items": 5,
+  "gold": 0
+ },
+ {
+  "index": 828,
+  "name": "杉精魄0",
+  "level": 65,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层"
+  ],
+  "points": 4,
+  "count": 40,
+  "items": 5,
+  "gold": 0
+ },
+ {
+  "index": 829,
+  "name": "熊",
+  "level": 65,
+  "hp": 1000,
+  "exp": 2300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 110,
+  "items": 57,
+  "gold": 3800
+ },
+ {
+  "index": 830,
+  "name": "熊0",
+  "level": 65,
+  "hp": 1000,
+  "exp": 2300,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 80,
+  "items": 54,
+  "gold": 4300
+ },
+ {
+  "index": 831,
+  "name": "金钱豹",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 110,
+  "items": 66,
+  "gold": 14500
+ },
+ {
+  "index": 832,
+  "name": "金钱豹0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "玄月林1层",
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 6,
+  "count": 80,
+  "items": 74,
+  "gold": 16500
+ },
+ {
+  "index": 833,
+  "name": "阳龙王",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "至尊王庭"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 66,
+  "gold": 19500
+ },
+ {
+  "index": 837,
+  "name": "流觞弓匠",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 100,
+  "items": 66,
+  "gold": 15000
+ },
+ {
+  "index": 838,
+  "name": "流觞弓匠0",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "玄月林2层",
+   "玄月林3层"
+  ],
+  "points": 4,
+  "count": 30,
+  "items": 70,
+  "gold": 19500
+ },
+ {
+  "index": 851,
+  "name": "冰原鬼尊",
+  "level": 100,
+  "hp": 16800,
+  "exp": 27075,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "雪白县"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 89,
+  "gold": 31000
+ },
+ {
+  "index": 883,
+  "name": "雪原奴役",
+  "level": 80,
+  "hp": 3200,
+  "exp": 4200,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "雪人洞窟1层",
+   "雪人洞窟2层"
+  ],
+  "points": 4,
+  "count": 140,
+  "items": 66,
+  "gold": 11000
+ },
+ {
+  "index": 885,
+  "name": "雪原斧兵",
+  "level": 80,
+  "hp": 6400,
+  "exp": 8500,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "雪人洞窟1层",
+   "雪人洞窟2层"
+  ],
+  "points": 4,
+  "count": 140,
+  "items": 71,
+  "gold": 13000
+ },
+ {
+  "index": 887,
+  "name": "雪原祭司",
+  "level": 80,
+  "hp": 8000,
+  "exp": 9600,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "雪人洞窟1层",
+   "雪人洞窟2层"
+  ],
+  "points": 4,
+  "count": 140,
+  "items": 72,
+  "gold": 13000
+ },
+ {
+  "index": 889,
+  "name": "雪原猿人",
+  "level": 80,
+  "hp": 6800,
+  "exp": 9600,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "雪人洞窟1层",
+   "雪人洞窟2层"
+  ],
+  "points": 4,
+  "count": 140,
+  "items": 62,
+  "gold": 13000
+ },
+ {
+  "index": 891,
+  "name": "冰封雪人",
+  "level": 80,
+  "hp": 7200,
+  "exp": 9600,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "雪人洞窟1层",
+   "雪人洞窟2层"
+  ],
+  "points": 4,
+  "count": 140,
+  "items": 69,
+  "gold": 13000
+ },
+ {
+  "index": 893,
+  "name": "黑暗亡灵",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "雪人洞窟2层"
+  ],
+  "points": 2,
+  "count": 70,
+  "items": 62,
+  "gold": 17000
+ },
+ {
+  "index": 895,
+  "name": "黑暗精灵",
+  "level": 100,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "雪人洞窟2层"
+  ],
+  "points": 2,
+  "count": 70,
+  "items": 68,
+  "gold": 17000
+ },
+ {
+  "index": 897,
+  "name": "青神石魔",
+  "level": 255,
+  "hp": 32000,
+  "exp": 48000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "雪人洞窟"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 85,
+  "gold": 52000
+ },
+ {
+  "index": 951,
+  "name": "强化变异熊",
+  "level": 65,
+  "hp": 3000,
+  "exp": 17955,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "昆仑城"
+  ],
+  "points": 6,
+  "count": 448,
+  "items": 66,
+  "gold": 8200
+ },
+ {
+  "index": 959,
+  "name": "变异棘蔓草",
+  "level": 255,
+  "hp": 9600,
+  "exp": 16445,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "昆仑城"
+  ],
+  "points": 6,
+  "count": 448,
+  "items": 5,
+  "gold": 0
+ },
+ {
+  "index": 961,
+  "name": "道士高手",
+  "level": 255,
+  "hp": 2300,
+  "exp": 4000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "昆仑城"
+  ],
+  "points": 6,
+  "count": 448,
+  "items": 62,
+  "gold": 13500
+ },
+ {
+  "index": 969,
+  "name": "魔法高手",
+  "level": 100,
+  "hp": 2600,
+  "exp": 4000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "昆仑城"
+  ],
+  "points": 6,
+  "count": 448,
+  "items": 56,
+  "gold": 4600
+ },
+ {
+  "index": 971,
+  "name": "变异宠物狐",
+  "level": 100,
+  "hp": 9600,
+  "exp": 17955,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "昆仑城"
+  ],
+  "points": 6,
+  "count": 448,
+  "items": 74,
+  "gold": 8200
+ },
+ {
+  "index": 973,
+  "name": "刺客高手",
+  "level": 255,
+  "hp": 2800,
+  "exp": 4000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "昆仑城"
+  ],
+  "points": 6,
+  "count": 448,
+  "items": 63,
+  "gold": 13500
+ },
+ {
+  "index": 975,
+  "name": "战士高手",
+  "level": 100,
+  "hp": 3600,
+  "exp": 4000,
+  "kind": "normal",
+  "nofile": false,
+  "maps": [
+   "昆仑城"
+  ],
+  "points": 6,
+  "count": 448,
+  "items": 65,
+  "gold": 6800
+ },
+ {
+  "index": 977,
+  "name": "变异食虫草",
+  "level": 100,
+  "hp": 9600,
+  "exp": 16445,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "昆仑城"
+  ],
+  "points": 6,
+  "count": 448,
+  "items": 3,
+  "gold": 0
+ },
+ {
+  "index": 997,
+  "name": "雷帝1",
+  "level": 100,
+  "hp": 96000,
+  "exp": 67320,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "长老堂"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 89,
+  "gold": 37500
+ },
+ {
+  "index": 1003,
+  "name": "毒妖花1",
+  "level": 255,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "毒妖林"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 3,
+  "gold": 0
+ },
+ {
+  "index": 1005,
+  "name": "毒妖花2",
+  "level": 255,
+  "hp": 9600,
+  "exp": 12000,
+  "kind": "resource",
+  "nofile": false,
+  "maps": [
+   "毒妖林"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 3,
+  "gold": 0
+ },
+ {
+  "index": 1007,
+  "name": "变异毒妖族战士",
+  "level": 255,
+  "hp": 9600,
+  "exp": 47510,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "毒妖林",
+   "毒妖村副本"
+  ],
+  "points": 4,
+  "count": 90,
+  "items": 81,
+  "gold": 25000
+ },
+ {
+  "index": 1009,
+  "name": "变异毒妖族弓手",
+  "level": 255,
+  "hp": 9600,
+  "exp": 47333,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "毒妖林",
+   "毒妖村副本"
+  ],
+  "points": 4,
+  "count": 90,
+  "items": 80,
+  "gold": 25000
+ },
+ {
+  "index": 1011,
+  "name": "昆仑石碑兽",
+  "level": 255,
+  "hp": 9600,
+  "exp": 408960,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "毒妖林",
+   "毒妖村副本"
+  ],
+  "points": 4,
+  "count": 26,
+  "items": 92,
+  "gold": 31000
+ },
+ {
+  "index": 1013,
+  "name": "多头毒妖鬼",
+  "level": 255,
+  "hp": 9600,
+  "exp": 460080,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "毒妖村副本"
+  ],
+  "points": 2,
+  "count": 6,
+  "items": 90,
+  "gold": 31000
+ },
+ {
+  "index": 1015,
+  "name": "巨型沃玛",
+  "level": 255,
+  "hp": 56000,
+  "exp": 511200,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "毒妖村副本"
+  ],
+  "points": 2,
+  "count": 6,
+  "items": 83,
+  "gold": 52000
+ },
+ {
+  "index": 1017,
+  "name": "卡瓦尔",
+  "level": 255,
+  "hp": 96000,
+  "exp": 562320,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "毒妖村副本"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 87,
+  "gold": 52000
+ },
+ {
+  "index": 1018,
+  "name": "围栏",
+  "level": 100,
+  "hp": 100,
+  "exp": 200,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "毒妖村副本"
+  ],
+  "points": 1,
+  "count": 1,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1019,
+  "name": "战锣",
+  "level": 100,
+  "hp": 100,
+  "exp": 200,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "毒妖村副本"
+  ],
+  "points": 1,
+  "count": 1,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1025,
+  "name": "BlueArcaneTotem",
+  "level": 100,
+  "hp": 72000,
+  "exp": 78000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "混沌寺"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 86,
+  "gold": 37500
+ },
+ {
+  "index": 1026,
+  "name": "GreenArcaneTotem",
+  "level": 100,
+  "hp": 72000,
+  "exp": 78000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "混沌寺"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 91,
+  "gold": 37500
+ },
+ {
+  "index": 1027,
+  "name": "RedArcaneTotem",
+  "level": 100,
+  "hp": 72000,
+  "exp": 78000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "混沌寺"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 82,
+  "gold": 37500
+ },
+ {
+  "index": 1028,
+  "name": "YellowArcaneTotem",
+  "level": 100,
+  "hp": 72000,
+  "exp": 78000,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "混沌寺"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 85,
+  "gold": 37500
+ },
+ {
+  "index": 1029,
+  "name": "WarpGate",
+  "level": 100,
+  "hp": 72000,
+  "exp": 78000,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "混沌寺"
+  ],
+  "points": 6,
+  "count": 6,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1050,
+  "name": "秦庙石狮",
+  "level": 255,
+  "hp": 18000,
+  "exp": 22100,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 60,
+  "items": 81,
+  "gold": 2000
+ },
+ {
+  "index": 1053,
+  "name": "守护炎魔",
+  "level": 255,
+  "hp": 18000,
+  "exp": 19000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 60,
+  "items": 73,
+  "gold": 2000
+ },
+ {
+  "index": 1055,
+  "name": "木盒",
+  "level": 75,
+  "hp": 50,
+  "exp": 2125,
+  "kind": "container",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 20,
+  "items": 10,
+  "gold": 0
+ },
+ {
+  "index": 1057,
+  "name": "机关车",
+  "level": 75,
+  "hp": 18000,
+  "exp": 15000,
+  "kind": "boss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 20,
+  "items": 63,
+  "gold": 19500
+ },
+ {
+  "index": 1065,
+  "name": "修士剑客",
+  "level": 75,
+  "hp": 18000,
+  "exp": 22800,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 60,
+  "items": 85,
+  "gold": 2000
+ },
+ {
+  "index": 1068,
+  "name": "修士刺客",
+  "level": 75,
+  "hp": 18000,
+  "exp": 22800,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 60,
+  "items": 85,
+  "gold": 35000
+ },
+ {
+  "index": 1075,
+  "name": "度量宫武士",
+  "level": 75,
+  "hp": 18000,
+  "exp": 24375,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 95,
+  "gold": 37500
+ },
+ {
+  "index": 1078,
+  "name": "度量宫术士",
+  "level": 75,
+  "hp": 18000,
+  "exp": 24375,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 91,
+  "gold": 37500
+ },
+ {
+  "index": 1081,
+  "name": "远古武士魂魄",
+  "level": 120,
+  "hp": 32000,
+  "exp": 167150,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 89,
+  "gold": 37500
+ },
+ {
+  "index": 1087,
+  "name": "远古术士魂魄",
+  "level": 120,
+  "hp": 32000,
+  "exp": 167150,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 88,
+  "gold": 37500
+ },
+ {
+  "index": 1090,
+  "name": "远古刺客魂魄",
+  "level": 120,
+  "hp": 32000,
+  "exp": 167150,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 80,
+  "gold": 37500
+ },
+ {
+  "index": 1093,
+  "name": "远古法师魂魄",
+  "level": 100,
+  "hp": 165000,
+  "exp": 243360,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 10,
+  "items": 88,
+  "gold": 37500
+ },
+ {
+  "index": 1096,
+  "name": "度量宫法师",
+  "level": 100,
+  "hp": 32000,
+  "exp": 71250,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "三清英雄陵寝"
+  ],
+  "points": 2,
+  "count": 40,
+  "items": 90,
+  "gold": 37500
+ },
+ {
+  "index": 1126,
+  "name": "阿卡沙",
+  "level": 999,
+  "hp": 32000,
+  "exp": 454272,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "冰龙巢穴四层"
+  ],
+  "points": 1,
+  "count": 1,
+  "items": 84,
+  "gold": 52000
+ },
+ {
+  "index": 1128,
+  "name": "纳哈什",
+  "level": 999,
+  "hp": 32000,
+  "exp": 454272,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "冰龙巢穴五层"
+  ],
+  "points": 1,
+  "count": 1,
+  "items": 81,
+  "gold": 52000
+ },
+ {
+  "index": 1162,
+  "name": "变异的火炮怪",
+  "level": 999,
+  "hp": 32000,
+  "exp": 454272,
+  "kind": "topboss",
+  "nofile": false,
+  "maps": [
+   "竞技场二层"
+  ],
+  "points": 1,
+  "count": 1,
+  "items": 93,
+  "gold": 52000
+ },
+ {
+  "index": 1182,
+  "name": "破龙神像",
+  "level": 255,
+  "hp": 20000,
+  "exp": 1000,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "魔龙殿阁"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1183,
+  "name": "天龙神像",
+  "level": 255,
+  "hp": 20000,
+  "exp": 1000,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "魔龙殿阁"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1184,
+  "name": "魔龙神像",
+  "level": 255,
+  "hp": 20000,
+  "exp": 1000,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "魔龙殿阁"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1185,
+  "name": "归龙神像",
+  "level": 255,
+  "hp": 20000,
+  "exp": 1000,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "魔龙殿阁"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1186,
+  "name": "火龙神像",
+  "level": 255,
+  "hp": 20000,
+  "exp": 1000,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "魔龙殿阁"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1187,
+  "name": "四龙神像",
+  "level": 255,
+  "hp": 20000,
+  "exp": 1000,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "魔龙殿阁"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1210,
+  "name": "寒冰之门",
+  "level": 0,
+  "hp": 100,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "寒冰地狱"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1211,
+  "name": "燃烧昆仑城门",
+  "level": 999,
+  "hp": 300,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "燃烧的昆仑"
+  ],
+  "points": 2,
+  "count": 2,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1212,
+  "name": "通道门1",
+  "level": 0,
+  "hp": 100,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "地下通道"
+  ],
+  "points": 10,
+  "count": 10,
+  "items": 0,
+  "gold": 0
+ },
+ {
+  "index": 1213,
+  "name": "通道门2",
+  "level": 0,
+  "hp": 100,
+  "exp": 0,
+  "kind": "skip",
+  "nofile": false,
+  "maps": [
+   "地下通道"
+  ],
+  "points": 6,
+  "count": 6,
+  "items": 0,
+  "gold": 0
+ }
+]

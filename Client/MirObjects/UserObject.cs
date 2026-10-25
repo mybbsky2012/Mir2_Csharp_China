@@ -144,6 +144,30 @@ namespace Client.MirObjects
             RefreshStats();
         }
 
+        /// <summary>
+        /// 从身上装备取品质档位（盔甲/武器），驱动自己的外观发光。
+        /// 其它玩家的品质走 S.ObjectPlayer/S.PlayerUpdate 封包，自己的走这条本地路径。
+        /// </summary>
+        private void UpdateQualityGrades()
+        {
+            ArmourGrade = 0;
+            WeaponGrade = 0;
+
+            if (Equipment == null) return;
+
+            if ((int)EquipmentSlot.盔甲 < Equipment.Length)
+            {
+                UserItem item = Equipment[(int)EquipmentSlot.盔甲];
+                if (item != null && item.Info != null) ArmourGrade = (byte)item.Info.Grade;
+            }
+
+            if ((int)EquipmentSlot.武器 < Equipment.Length)
+            {
+                UserItem item = Equipment[(int)EquipmentSlot.武器];
+                if (item != null && item.Info != null) WeaponGrade = (byte)item.Info.Grade;
+            }
+        }
+
         public override void SetLibraries()
         {
             base.SetLibraries();
@@ -157,6 +181,10 @@ namespace Client.MirObjects
         public void RefreshStats()
         {
             Stats.Clear();
+
+            // 自己的外观品质光：本地有完整装备数据，直接从身上装备取档位。
+            // 必须放在这里——换装/卸装都会走 RefreshStats，品质跟着实时变。
+            UpdateQualityGrades();
 
             RefreshLevelStats();
             RefreshBagWeight();

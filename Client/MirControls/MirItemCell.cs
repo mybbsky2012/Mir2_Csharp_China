@@ -2522,6 +2522,10 @@ namespace Client.MirControls
                         Libraries.Prguse.Draw(1121, DisplayLocation.Add(new Point(-2, -1)), Color.White, UseOffSet, 0.8F);
                     }
 
+                    // 品质动态发光：宝物/圣物/神物 → 旋转激光放射光（画在图标下面，加法混合）
+                    if (Item.Info != null && (byte)Item.Info.Grade >= 2)
+                        QualityGlowFX.Draw((byte)Item.Info.Grade, DisplayLocation.Add(new Point(Size.Width / 2, Size.Height / 2)));
+
                     Library.Draw(image, DisplayLocation.Add(offSet), ForeColour, UseOffSet, 1F);
 
                     if (Item.SealedInfo != null && Item.SealedInfo.ExpiryDate > CMain.Now)

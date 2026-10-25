@@ -239,9 +239,7 @@ namespace Client.MirObjects
             LoadMapType0();
         }
 
-        /// <summary>
-        /// 等 .map 下载就绪。会阻塞主线程，但期间每 100ms 泵一次心跳、刷新一次载入画面。
-        /// </summary>
+        /// <summary>等 .map 下载就绪。会阻塞主线程，但期间每 100ms 泵一次心跳、刷新一次载入画面。</summary>
         private void WaitForMapFile()
         {
             // 进游戏那一下本来就有载入画面在跑（Armed=true），不能因为这里 Hide 把它关掉，
@@ -253,12 +251,73 @@ namespace Client.MirObjects
 
             try
             {
-                ResourceDownloader.EnsureLocalFileBlocking(FileName, Settings.MicroMapTimeout, PumpWhileWaiting);
+                // ★最多等 10 秒（用户要求）：大地图慢网速下干等几分钟谁都受不了。
+                // 等不到就先进空地图（看得见、能动、心跳正常），下载在后台继续；
+                // 文件补齐后由 MapControl.CheckLateMapReload 自动重载真实地图。
+                ResourceDownloader.EnsureLocalFileBlocking(FileName, MapWaitCapMs, PumpWhileWaiting);
             }
             finally
             {
                 if (!wasArmed) LoadingScreen.Hide();
             }
+
+            if (!File.Exists(FileName))
+            {
+                ResourceDownloader.Log("地图等待超过 " + (MapWaitCapMs / 1000) + " 秒，先进空地图兜底，后台继续下载：" + FileName);
+                StartLateReloadWatcher();
+            }
+        }
+
+        /// <summary>切图等待上限：超过就先进空地图，下载转后台（用户要求 10 秒）。</summary>
+        private const int MapWaitCapMs = 10000;
+
+        /// <summary>地图文件在空地图兜底后才在后台补齐完成时触发（参数=地图文件全路径）。
+        /// 由 MapControl 挂接，在主循环里自动重载地面。</summary>
+        internal static Action<string> MapFileArrivedLate;
+
+        /// <summary>
+        /// 后台看护线程：每 500ms 查一次地图文件到了没有；没到就顺手调一次
+        /// EnsureLocalFile（偶发失败冷却到期后自动重新入队）。最多盯 10 分钟。
+        /// </summary>
+        private void StartLateReloadWatcher()
+        {
+            string file = FileName;
+
+            var thread = new System.Threading.Thread(delegate()
+            {
+                try
+                {
+                    DateTime deadline = DateTime.UtcNow.AddMinutes(10);
+
+                    while (DateTime.UtcNow < deadline)
+                    {
+                        System.Threading.Thread.Sleep(500);
+
+                        if (File.Exists(file))
+                        {
+                            ResourceDownloader.Log("地图文件后台补齐完成：" + file);
+
+                            var handler = MapFileArrivedLate;
+                            if (handler != null)
+                            {
+                                try { handler(file); } catch { }
+                            }
+                            return;
+                        }
+
+                        // 冷却期过后自动重新入队（断线/服务器重启等偶发失败的自愈）
+                        ResourceDownloader.EnsureLocalFile(file);
+                    }
+
+                    ResourceDownloader.Log("地图后台补齐等待超时（10 分钟），放弃自动重载：" + file);
+                }
+                catch
+                {
+                }
+            })
+            { IsBackground = true, Name = "MapLateReload" };
+
+            thread.Start();
         }
 
         /// <summary>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>微端服务剥离可行性 与 负载能力评估</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1a1d21; --ink2:#5b6470; --line:#e3e6ea;
+    --ok:#16a34a; --warn:#ea9a0b; --bad:#dc2626; --accent:#2563eb; --accent2:#7c3aed;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:-apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+       line-height:1.7;font-size:15px}
+  .wrap{max-width:1020px;margin:0 auto;padding:40px 24px 80px}
+  header{margin-bottom:28px}
+  h1{font-size:26px;margin:0 0 8px;letter-spacing:-.3px}
+  .sub{color:var(--ink2);font-size:14px}
+  h2{font-size:19px;margin:38px 0 14px;padding-left:11px;border-left:4px solid var(--accent)}
+  h3{font-size:16px;margin:22px 0 10px;color:var(--ink)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:14px 0}
+  .verdict{background:linear-gradient(135deg,#eff6ff,#f5f3ff);border:1px solid #c7d2fe}
+  .verdict h2{border-left-color:var(--accent2);margin-top:0}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .kpi .n{font-size:23px;font-weight:700;letter-spacing:-.5px}
+  .kpi .l{font-size:12.5px;color:var(--ink2);margin-top:2px}
+  .g{color:var(--ok)} .y{color:var(--warn)} .r{color:var(--bad)} .b{color:var(--accent)}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{background:#f0f2f5;font-weight:600;color:var(--ink2);font-size:12.5px;white-space:nowrap}
+  tbody tr:hover{background:#fafbfc}
+  code{background:#eef1f4;padding:2px 6px;border-radius:5px;font-size:12.5px;
+       font-family:"Cascadia Mono",Consolas,monospace;color:#b1325c}
+  pre{background:#1e293b;color:#e2e8f0;padding:14px 16px;border-radius:9px;overflow-x:auto;
+      font-size:12.5px;line-height:1.6;font-family:"Cascadia Mono",Consolas,monospace}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:600;vertical-align:middle}
+  .tag.ok{background:#dcfce7;color:#15803d}
+  .tag.warn{background:#fef3c7;color:#a16207}
+  .tag.bad{background:#fee2e2;color:#b91c1c}
+  .tag.info{background:#dbeafe;color:#1d4ed8}
+  ul,ol{padding-left:22px;margin:8px 0}
+  li{margin:5px 0}
+  .note{background:#fffbeb;border-left:3px solid var(--warn);padding:11px 15px;border-radius:0 8px 8px 0;margin:12px 0;font-size:14px}
+  .good{background:#f0fdf4;border-left:3px solid var(--ok);padding:11px 15px;border-radius:0 8px 8px 0;margin:12px 0;font-size:14px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.two{grid-template-columns:1fr}}
+  .bar{height:20px;background:#e5e7eb;border-radius:4px;overflow:hidden;position:relative;min-width:80px}
+  .bar>i{display:block;height:100%;background:var(--accent);border-radius:4px}
+  .foot{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink2);font-size:12.5px}
+  svg{max-width:100%;height:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>微端服务剥离可行性 &amp; 负载能力评估</h1>
+  <div class="sub">Korean Mir2 (Crystal / .NET 8) · 实测环境：8 核 / 23.8 GB 内存 · 2026-10-10</div>
+</header>
+
+<div class="card verdict">
+  <h2>结论速览</h2>
+  <p style="margin:6px 0 14px"><strong>① 微端服务可以剥离，而且成本很低</strong>——资源下发的三个接口与游戏世界<b>零耦合</b>，项目里已有的 <code>HttpBenchHost</code> 就是"同一份代码独立进程跑"的现成证明。</p>
+  <p style="margin:6px 0 14px"><strong>② 微端服务本身不会拉爆服务器</strong>——实测 100 个玩家同时下载 2000 次请求：<b>0 失败</b>，进程仅占 <b>1.7 核</b>、<b>~130 MB</b> 内存。</p>
+  <p style="margin:6px 0"><strong>③ 真正的瓶颈是服务器上行带宽</strong>，不是服务端处理能力。而"会不会被拉爆"取决于<b>同时下载的人数</b>与<b>上行带宽</b>之比，与"在线人数"无直接关系。</p>
+</div>
+
+<h2>一、现状：微端服务跑在哪</h2>
+<div class="card">
+  <p>微端（按需下发客户端资源）目前<b>内嵌在游戏服务端 <code>Server.exe</code> 进程里</b>，随 <code>Envir.Start()</code> 一起启动：</p>
+  <pre>Envir.cs:582   if (Settings.StartHTTPService || Settings.EnableResourceService)
+Envir.cs:584       http = new HttpServer();
+Envir.cs:585       http.Start();              // 另起线程监听</pre>
+  <p style="margin-top:14px">线上配置（<code>Configs/Setup.ini</code>）：</p>
+  <table>
+    <thead><tr><th>配置项</th><th>当前值</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td><code>EnableResourceService</code></td><td>True</td><td>微端资源下发开关</td></tr>
+      <tr><td><code>HTTPIPAddress</code></td><td>http://0.0.0.0:5679/</td><td>监听地址</td></tr>
+      <tr><td><code>ResourcePath</code></td><td>.\ClientResources\</td><td>资源根目录（<b>12 GB</b>）</td></tr>
+      <tr><td><code>ResourceMaxConcurrent</code></td><td>64</td><td>同时传输上限（闸门）</td></tr>
+      <tr><td><code>ResourceAllowAnyIP</code></td><td>True</td><td>不限制来源 IP</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:14px">客户端侧（<code>Mir2Config.ini</code>）：<code>Host=http://192.168.2.253:5679/</code>、<code>Concurrency=2</code>、<code>RateLimit=0</code><span class="tag warn">不限速</span></p>
+</div>
+
+<h2>二、剥离可行性：为什么可行</h2>
+<div class="card">
+  <h3>代码依赖极干净</h3>
+  <p>微端服务的实现只有三个文件，它们的对外依赖是这样的：</p>
+  <table>
+    <thead><tr><th>文件</th><th>行数</th><th>依赖</th><th>能否独立</th></tr></thead>
+    <tbody>
+      <tr><td><code>HttpAbstractions.cs</code></td><td>~250</td><td>无</td><td><span class="tag ok">可独立</span></td></tr>
+      <tr><td><code>HttpService.cs</code></td><td>821</td><td>Settings 的 7 个配置项 + 日志</td><td><span class="tag ok">可独立</span></td></tr>
+      <tr><td><code>SocketHttpServer.cs</code></td><td>486</td><td>日志</td><td><span class="tag ok">可独立</span></td></tr>
+      <tr><td><code>HttpServer.cs</code></td><td>347</td><td>上述三者 + <b>Envir.Main</b></td><td><span class="tag warn">仅管理接口耦合</span></td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:12px">关键在于：<code>HttpServer</code> 里的耦合只出现在 <b>账号注册 / 广播 / 改名</b> 三个管理接口（调用 <code>Envir.Main</code>）。而微端真正要用的三条路由——</p>
+  <ul>
+    <li><code>/resource?f=...</code> —— 下发单个资源文件（流式）</li>
+    <li><code>/resindex</code> —— 资源清单（客户端据此推算该有哪些文件）</li>
+    <li><code>/resinfo</code> —— 状态探测</li>
+  </ul>
+  <p><b>全程不碰游戏世界</b>，只读磁盘上的静态文件 + 读几个配置项。所以"剥出来"在架构上是干净的切割，不是硬拆。</p>
+
+  <div class="good"><b>现成的活证明：</b><code>Tools/HttpBenchHost</code> 通过反射加载 <code>Server.Library.dll</code> 里<b>真实的 HttpServer</b>，在独立进程、独立端口上把微端服务跑了起来——本次压测就是用它做的。它已经证明"同一份代码能在 Server.exe 之外运行"。</div>
+</div>
+
+<h2>三、三种剥离方案</h2>
+<div class="card">
+  <div class="two">
+    <div>
+      <h3>方案 A · 独立宿主进程 <span class="tag ok">推荐</span></h3>
+      <p style="font-size:14px">把 <code>HttpBenchHost</code> 正式化为「微端资源服务」，独立进程运行。</p>
+      <ul style="font-size:14px">
+        <li>游戏服务端改 <code>EnableResourceService=False</code></li>
+        <li>客户端 <code>Host</code> 指向新进程/新机器</li>
+        <li>可单独部署到另一台机器</li>
+      </ul>
+      <p style="font-size:14px"><b>优点：</b>零重复代码（与线上同一份实现，改一处两边生效）、进程隔离、改动最小。<br><b>缺点：</b>需带 <code>Server.Library.dll</code>（1.2 MB）。</p>
+    </div>
+    <div>
+      <h3>方案 B · 彻底解耦工程</h3>
+      <p style="font-size:14px">新建独立项目，抽出三个 HTTP 文件 + 精简配置类，不引用 <code>Server.Library.dll</code>。</p>
+      <ul style="font-size:14px">
+        <li>把 <code>Settings.X</code> 换成精简的 <code>MicroSettings</code></li>
+        <li><code>MessageQueue</code> 换成简单的控制台日志</li>
+      </ul>
+      <p style="font-size:14px"><b>优点：</b>最纯净的依赖树，可编译成单文件小工具。<br><b>缺点：</b>需要改代码，且此后有两份 HTTP 实现需要同步。</p>
+    </div>
+  </div>
+  <div class="note" style="margin-top:18px">
+    <b>方案 C · 交给 CDN / 对象存储（生产级最优）</b><br>
+    微端资源是<b>纯静态文件</b>，天然适合 CDN。把 12 GB 资源上传到对象存储（COS/OSS）并开 CDN，客户端 <code>Host</code> 直接指向 CDN 域名 —— <b>服务器上行带宽消耗降为 0</b>，扩容无上限，且比自建更抗并发。若预算允许，这是最彻底的"剥离"。
+  </div>
+</div>
+
+<h2>四、实测：微端服务的真实承载能力</h2>
+<div class="card">
+  <h3>测试 1 · 单文件并发阶梯（每次新建连接，模拟客户端行为）</h3>
+  <table>
+    <thead><tr><th>并发</th><th>墙钟(s)</th><th>吞吐(个/s)</th><th>吞吐(MB/s)</th><th>平均(ms)</th><th>P95(ms)</th><th>失败</th></tr></thead>
+    <tbody>
+      <tr><td>8</td><td>3.64</td><td>411.7</td><td>774.9</td><td>19</td><td>29</td><td class="g">0</td></tr>
+      <tr><td>32</td><td>3.95</td><td>380.2</td><td>715.6</td><td>82</td><td>131</td><td class="g">0</td></tr>
+      <tr><td>64</td><td>3.85</td><td>389.5</td><td>733.2</td><td>147</td><td>244</td><td class="g">0</td></tr>
+      <tr><td>128</td><td>4.06</td><td>369.8</td><td>696.1</td><td>283</td><td>498</td><td class="g">0</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:13.5px;color:var(--ink2)">吞吐稳定在 ~740 MB/s 饱和（环回 + 文件缓存上限），<b>全程 0 失败</b>。延迟随并发上升是 <code>ResourceMaxConcurrent=64</code> 闸门正常排队的结果，不是故障。</p>
+
+  <h3 style="margin-top:26px">测试 2 · 真实负载：100 个玩家同时首次进场</h3>
+  <p style="font-size:14px">每次请求下载<b>互不相同的文件</b>（从真实资源目录按 12G 实际分布采样 360 个文件），模拟玩家首次安装微端时的下载潮。</p>
+  <div class="kpis">
+    <div class="kpi"><div class="n b">2000</div><div class="l">次下载请求</div></div>
+    <div class="kpi"><div class="n g">0</div><div class="l">失败请求</div></div>
+    <div class="kpi"><div class="n b">7.51 GB</div><div class="l">实际传输量</div></div>
+    <div class="kpi"><div class="n b">7.14 s</div><div class="l">全部发完耗时</div></div>
+  </div>
+  <table>
+    <thead><tr><th>指标</th><th>峰值</th><th>均值</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>微端进程 CPU</td><td class="y">240%<br><span style="font-size:11.5px">≈2.4 核</span></td><td>169%<br><span style="font-size:11.5px">≈1.7 核</span></td><td>8 核机器上的 21%~30%</td></tr>
+      <tr><td>微端进程内存</td><td class="g">131 MB</td><td>94 MB</td><td>流式发送，不整块读文件</td></tr>
+      <tr><td>磁盘读速率</td><td>387 MB/s</td><td>160 MB/s</td><td>约六成命中系统文件缓存</td></tr>
+      <tr><td>延迟 P50 / P95</td><td colspan="2">166 ms / 473 ms</td><td>最大 2.14 s（大文件 + 排队）</td></tr>
+    </tbody>
+  </table>
+  <div class="good"><b>解读：</b>即便在"100 人同时下载"这种极端脉冲下，微端服务也只吃掉约 1.7 个 CPU 核心和 130 MB 内存，且<b>零失败</b>。它的处理能力<b>远不是瓶颈</b>。</div>
+</div>
+
+<h2>五、会不会被拉爆？分层看</h2>
+<div class="card">
+  <h3>① 游戏逻辑线程：<span class="tag ok">不受影响</span></h3>
+  <p>这是本次排查最关键的发现——游戏服务端（<code>Server/</code> 下除 <code>Utils/</code> 外的全部代码）<b>完全没有使用</b> <code>Task.Run</code>、<code>async/await</code>、<code>ThreadPool</code>：</p>
+  <pre>GameServer 线程模型
+├── WorkLoop          → new Thread(WorkLoop)   专用线程：网络收发 / 主逻辑 / 存档
+├── MobThreading[i]   → new Thread(ThreadLoop) 专用线程：怪物 AI（Multithreaded=True 时）
+└── http              → new Thread(Listen)     专用线程：微端监听
+                        └─ Task.Run(...)       ▸ 线程池：微端请求处理（唯一用线程池的地方）
+
+★ 游戏逻辑与微端服务分属两套完全独立的线程体系，不存在线程池饥饿。</pre>
+  <p>所以微端<b>不会</b>通过线程池把游戏主循环饿死——它们根本不共享。</p>
+
+  <h3 style="margin-top:22px">② CPU / 磁盘：<span class="tag warn">同机会互相挤占</span></h3>
+  <p>若微端与游戏服务端跑在<b>同一台机器</b>上，两者争抢同一份 CPU 和磁盘：</p>
+  <ul>
+    <li>微端峰值吃 <b>2.4 核</b>（8 核机器的 30%）→ 主循环 tick 与网络处理会被挤慢 → 玩家端表现为轻微卡顿</li>
+    <li>微端读盘峰值 <b>387 MB/s</b> → 若 E 盘是<b>机械硬盘</b>，这个量级足以把 IO 打满，连带游戏存档、地图加载变慢</li>
+  </ul>
+  <p style="font-size:13.5px;color:var(--ink2)">→ 这正是"剥离到另一台机器"的核心价值：<b>进程隔离在单机上不能隔离 CPU 和磁盘，只有物理隔离才能。</b></p>
+
+  <h3 style="margin-top:22px">③ 上行带宽：<span class="tag bad">真正的瓶颈</span></h3>
+  <p>本次压测跑在<b>环回接口</b>上（1077 MB/s），这个数字<b>没有任何现实参考价值</b>。真实世界里，微端的极限由<b>服务器上行带宽 ÷ 同时下载人数</b>决定：</p>
+  <table>
+    <thead><tr><th>上行带宽</th><th>3 人同时下载</th><th>10 人同时下载</th><th>50 人同时下载</th><th>100 人同时下载</th></tr></thead>
+    <tbody>
+      <tr><td>20 Mbps（家用）</td><td class="y">0.83 MB/s</td><td class="r">0.25 MB/s</td><td class="r">0.05 MB/s</td><td class="r">0.025 MB/s</td></tr>
+      <tr><td>50 Mbps</td><td class="g">2.1 MB/s</td><td class="y">0.63 MB/s</td><td class="r">0.125 MB/s</td><td class="r">0.063 MB/s</td></tr>
+      <tr><td>100 Mbps</td><td class="g">4.2 MB/s</td><td class="g">1.25 MB/s</td><td class="y">0.25 MB/s</td><td class="r">0.125 MB/s</td></tr>
+      <tr><td>1 Gbps（机房）</td><td class="g">42 MB/s</td><td class="g">12.5 MB/s</td><td class="g">2.5 MB/s</td><td class="g">1.25 MB/s</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:13.5px;color:var(--ink2)">表中为"每人平分带宽"的理想值。参考：一个 100 MB 的图库，在 0.125 MB/s 下需要 <b>13 分钟</b>才能下完。</p>
+
+  <div class="note">
+    <b>两个加剧因素：</b><br>
+    1. 客户端 <code>RateLimit=0</code>（不限速）→ 单个玩家可独自吃满整条上行链路；<br>
+    2. 下载是<b>脉冲式</b>的——平时几乎为零，<b>一次版本更新会让所有在线玩家同时补资源</b>，正是最容易打满的时刻。
+  </div>
+</div>
+
+<h2>六、建议</h2>
+<div class="card">
+  <ol>
+    <li><b>先测上行带宽</b>——这是唯一决定"会不会被拉爆"的数字。若 ≥100 Mbps 且同时在下载的人不超过十几个，现状完全够用，不必剥离。</li>
+    <li><b>给客户端设限速</b>：把 <code>Mir2Config.ini</code> 的 <code>RateLimit</code> 从 0 改为 100~200（KB/s）。虽然玩家可自行修改，但能挡住绝大多数人，且明显削平更新日的带宽尖峰。</li>
+    <li><b>要剥离就选方案 A</b>（独立宿主进程），改动最小、代码同源。前提是<b>换一台机器部署</b>才有意义——同机双进程隔离不了 CPU 和磁盘。</li>
+    <li><b>上线量级大就直接上 CDN（方案 C）</b>：静态资源交给对象存储 + CDN，服务器带宽消耗归零，且是最省心的长期方案。</li>
+    <li><b>保留服务端闸门</b>：<code>ResourceMaxConcurrent=64</code> 是防"磁盘被打爆"的最后一道闸，不要为了追求速度把它调得过高。</li>
+  </ol>
+</div>
+
+<div class="foot">
+  数据来源：<code>Tools/HttpBenchHost</code>（反射加载线上同一份 HttpServer 实现）+ <code>bench_resource.py</code> / <code>micro_bench.py</code> 实测，资源目录为线上真实 <code>Mir2Server\ClientResources</code>（12 GB）。<br>
+  测试全程使用独立端口 5680，未影响线上 5679 端口上的服务。
+</div>
+
+</div>
+</body>
+</html>

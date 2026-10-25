@@ -1,0 +1,12 @@
+import re
+p = r"E:\BaiduNetdiskDownload\韩Mir2\20260915更新\Mir2Server\ClientResources\Sound\mirsound.lst"
+lines = open(p,'rb').read().decode('euc-kr').splitlines()
+print("=== 10500~10950 原始行（含注释）===")
+for i,l in enumerate(lines,1):
+    if 10500 <= i <= 10950:
+        pass
+for i,l in enumerate(lines,1):
+    s=l.strip()
+    m = re.match(r'^(//)?\s*(\d+)\s*:', s)
+    if m and 10500 <= int(m.group(2)) <= 10960:
+        print(f"{i:5d}| {l}")

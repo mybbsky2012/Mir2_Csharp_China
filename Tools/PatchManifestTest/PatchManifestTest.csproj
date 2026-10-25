@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AssemblyName>PatchManifestTest</AssemblyName>
+    <RootNamespace>PatchManifestTest</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 直接编译客户端真实源码，保证测的是发布出去的那份逻辑 -->
+    <Compile Include="..\..\Client\Utils\FileHelper.cs" Link="FileHelper.cs" />
+  </ItemGroup>
+
+</Project>

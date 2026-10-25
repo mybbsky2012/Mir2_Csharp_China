@@ -805,6 +805,26 @@ namespace Client.MirGraphics
 
             return new Point(_images[index].X, _images[index].Y);
         }
+
+        /// <summary>
+        /// 取某一帧的 MImage（含 VisiblePixel 像素可见性），供特效按真实剪影采样。
+        /// 惰性加载，与 GetOffSet 同一套缓存。
+        /// </summary>
+        public MImage GetMImage(int index)
+        {
+            if (!_initialized) Initialize();
+
+            if (_images == null || index < 0 || index >= _images.Length)
+                return null;
+
+            if (_images[index] == null)
+            {
+                _fStream.Seek(_indexList[index], SeekOrigin.Begin);
+                _images[index] = new MImage(_reader);
+            }
+
+            return _images[index];
+        }
         public Size GetSize(int index)
         {
             if (!_initialized) Initialize();

@@ -161,7 +161,9 @@ namespace Client
             // 地面物品名字过滤：只显示 Data\ItemFilter.txt 列表里匹配到的物品（内挂面板勾选）
             ItemFilterOn = false,
             // 数字显血：血条下方显示血量百分比数字（内挂面板勾选）
-            HealthNumber = false;
+            HealthNumber = false,
+            // 品质动态发光：宝物/圣物/神物物品格旋转激光放射光（Mir2Config.ini [Game] QualityEffect）
+            QualityEffectOn = true;
 
         //内挂（自动挂机）
         public static bool
@@ -330,6 +332,7 @@ namespace Client
             DropView = Reader.ReadBoolean("Game", "DropView", DropView);
             ItemFilterOn = Reader.ReadBoolean("Game", "ItemFilter", ItemFilterOn);
             HealthNumber = Reader.ReadBoolean("Game", "HealthNumber", HealthNumber);
+            QualityEffectOn = Reader.ReadBoolean("Game", "QualityEffect", QualityEffectOn);
             NameView = Reader.ReadBoolean("Game", "NameView", NameView);
             HPView = Reader.ReadBoolean("Game", "HPMPView", HPView);
             ModeView = Reader.ReadBoolean("Game", "ModeView", ModeView);
@@ -504,6 +507,7 @@ namespace Client
             Reader.Write("Game", "DropView", DropView);
             Reader.Write("Game", "ItemFilter", ItemFilterOn);
             Reader.Write("Game", "HealthNumber", HealthNumber);
+            Reader.Write("Game", "QualityEffect", QualityEffectOn);
             Reader.Write("Game", "NameView", NameView);
             Reader.Write("Game", "HPMPView", HPView);
             Reader.Write("Game", "ModeView", ModeView);

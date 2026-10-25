@@ -34,6 +34,9 @@ namespace Server.Library.Utils
 
         /// <summary>取查询参数，已做 URL 解码；参数不存在返回空字符串</summary>
         string QueryParam(string name);
+
+        /// <summary>取请求头（不区分大小写）；不存在返回空字符串。断点续传的 Range 头从这里读。</summary>
+        string Header(string name);
     }
 
     internal interface IHttpResponseLite
@@ -109,6 +112,18 @@ namespace Server.Library.Utils
                 return string.Empty;
             }
         }
+
+        public string Header(string name)
+        {
+            try
+            {
+                return _request.Headers[name] ?? string.Empty;
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
     }
 
     internal sealed class HttpSysResponseAdapter : IHttpResponseLite
@@ -177,6 +192,9 @@ namespace Server.Library.Utils
         private string _path = "/";
         private string _query = string.Empty;
 
+        /// <summary>请求头（不区分大小写）。纯 Socket 通道自己解析出来的头都存这里。</summary>
+        public readonly Dictionary<string, string> Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         public string Path { get { return _path; } }
         public string PathAndQuery { get { return _query.Length == 0 ? _path : _path + "?" + _query; } }
 
@@ -225,6 +243,12 @@ namespace Server.Library.Utils
             }
 
             return string.Empty;
+        }
+
+        public string Header(string name)
+        {
+            string value;
+            return Headers.TryGetValue(name, out value) ? value : string.Empty;
         }
 
         /// <summary>

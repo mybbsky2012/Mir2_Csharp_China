@@ -18,9 +18,9 @@ namespace Server.MirObjects
         }
         protected override void ProcessFriend()
         {
-            if (!CanCast) return;
+            if (!CanCast || InSafeZone) return;
 
-            if (Target != null)
+            // 战斗中优先自保增益，空闲时也预挂（像玩家一样进图先开盾）
             {
                 UserMagic magic = GetMagic(Spell.MagicShield);
                 if (CanUseMagic(magic) && !HasBuff(BuffType.魔法盾))
@@ -178,11 +178,19 @@ namespace Server.MirObjects
 
             if (Target == null || !CanAttack) return;
 
+            // 先施放已排队的法术，再做走位决策（否则队列会被走位分支卡死，法术永远放不出来）
             if (CanCast && NextMagicSpell != Spell.None)
             {
                 Magic(NextMagicSpell, NextMagicDirection, NextMagicTargetID, NextMagicLocation);
                 NextMagicSpell = Spell.None;
-            }            
+            }
+
+            // 风筝走位：目标贴身时立刻后撤拉开距离，而不是站着近战互殴
+            if (CanMove && HasRangedSpell && TargetDistance == 1)
+            {
+                MoveAwayFrom(Target);
+                return;
+            }
 
             if (CanAttack && (!HasRangedSpell && InAttackRange() || NextMagicSpell == Spell.None && Owner.Info.HeroBehaviour == HeroBehaviour.攻击 && TargetDistance == 1))
             {

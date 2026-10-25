@@ -86,6 +86,8 @@ namespace Server
             closeServerToolStripMenuItem = new ToolStripMenuItem();
             reloadToolStripMenuItem = new ToolStripMenuItem();
             nPCsToolStripMenuItem = new ToolStripMenuItem();
+            allNPCsToolStripMenuItem = new ToolStripMenuItem();
+            gameShopToolStripMenuItem1 = new ToolStripMenuItem();
             dropsToolStripMenuItem = new ToolStripMenuItem();
             lineMessageToolStripMenuItem = new ToolStripMenuItem();
             accountToolStripMenuItem = new ToolStripMenuItem();
@@ -544,7 +546,7 @@ namespace Server
             // 
             // reloadToolStripMenuItem
             // 
-            reloadToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { nPCsToolStripMenuItem, dropsToolStripMenuItem, lineMessageToolStripMenuItem });
+            reloadToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { nPCsToolStripMenuItem, allNPCsToolStripMenuItem, gameShopToolStripMenuItem1, dropsToolStripMenuItem, lineMessageToolStripMenuItem });
             reloadToolStripMenuItem.Name = "reloadToolStripMenuItem";
             reloadToolStripMenuItem.Size = new Size(180, 22);
             reloadToolStripMenuItem.Text = "重新加载";
@@ -555,9 +557,23 @@ namespace Server
             nPCsToolStripMenuItem.Size = new Size(180, 22);
             nPCsToolStripMenuItem.Text = "NPC信息";
             nPCsToolStripMenuItem.Click += nPCsToolStripMenuItem_Click;
-            // 
+            //
+            // allNPCsToolStripMenuItem
+            //
+            allNPCsToolStripMenuItem.Name = "allNPCsToolStripMenuItem";
+            allNPCsToolStripMenuItem.Size = new Size(180, 22);
+            allNPCsToolStripMenuItem.Text = "NPC全量（含新增/删除）";
+            allNPCsToolStripMenuItem.Click += allNPCsToolStripMenuItem_Click;
+            //
+            // gameShopToolStripMenuItem1
+            //
+            gameShopToolStripMenuItem1.Name = "gameShopToolStripMenuItem1";
+            gameShopToolStripMenuItem1.Size = new Size(180, 22);
+            gameShopToolStripMenuItem1.Text = "商城数据";
+            gameShopToolStripMenuItem1.Click += gameShopToolStripMenuItem1_Click;
+            //
             // dropsToolStripMenuItem
-            // 
+            //
             dropsToolStripMenuItem.Name = "dropsToolStripMenuItem";
             dropsToolStripMenuItem.Size = new Size(180, 22);
             dropsToolStripMenuItem.Text = "掉落数据";
@@ -929,6 +945,8 @@ namespace Server
         private ToolStripMenuItem clearBlockedIPsToolStripMenuItem;
         private ToolStripMenuItem reloadToolStripMenuItem;
         private ToolStripMenuItem nPCsToolStripMenuItem;
+        private ToolStripMenuItem allNPCsToolStripMenuItem;
+        private ToolStripMenuItem gameShopToolStripMenuItem1;
         private ToolStripMenuItem dropsToolStripMenuItem;
         private ToolStripMenuItem lineMessageToolStripMenuItem;
         private TabPage tabPage5;

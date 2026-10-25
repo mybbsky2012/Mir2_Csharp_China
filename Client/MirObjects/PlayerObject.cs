@@ -30,6 +30,9 @@ namespace Client.MirObjects
         public MLibrary WeaponLibrary1, WeaponEffectLibrary1, WeaponLibrary2, WeaponEffectLibrary2, HairLibrary, WingLibrary, MountLibrary;
         public int Armour, Weapon, WeaponEffect, ArmourOffSet, HairOffSet, WeaponOffSet, WingOffset, MountOffset;
 
+        /// <summary>身上装备品质（服务端下发：0 普通 / 2 宝物 / 3 圣物 / 4 神物），用于衣服/武器轮廓光。</summary>
+        public byte ArmourGrade, WeaponGrade;
+
         public int DieSound, FlinchSound, AttackSound;
 
 
@@ -181,8 +184,12 @@ namespace Client.MirObjects
 
             Weapon = info.Weapon;
 			WeaponEffect = info.WeaponEffect;
-			Armour = info.Armour;
+            Armour = info.Armour;
             Light = info.Light;
+
+            ArmourGrade = info.ArmourGrade;
+            WeaponGrade = info.WeaponGrade;
+            QualityOutlineGlow.DebugLoad(ArmourGrade, WeaponGrade);
 
             Poison = info.Poison;
 
@@ -225,6 +232,9 @@ namespace Client.MirObjects
 			Armour = info.Armour;
             Light = info.Light;
             WingEffect = info.WingEffect;
+
+            ArmourGrade = info.ArmourGrade;
+            WeaponGrade = info.WeaponGrade;
 
             SetLibraries();
             SetEffects();
@@ -5706,6 +5716,10 @@ namespace Client.MirObjects
             bool oldGrayScale = DXManager.GrayScale;
             Color drawColour = ApplyDrawColour();                     
 
+            // 品质轮廓光：画在身体之前，只溢出到轮廓外侧（宝物紫 / 圣物蓝 / 神物金）
+            if (BodyLibrary != null && ArmourGrade >= 2)
+                QualityOutlineGlow.Draw(BodyLibrary, DrawFrame + ArmourOffSet, DrawLocation, ArmourGrade);
+
             if (BodyLibrary != null)
                 BodyLibrary.Draw(DrawFrame + ArmourOffSet, DrawLocation, drawColour, true);
 
@@ -5892,6 +5906,10 @@ namespace Client.MirObjects
 
 			if (WeaponLibrary1 != null)
 			{
+                // 武器品质轮廓光/火焰：画在武器之前，只溢出到武器轮廓外侧（不糊住武器本体的贴图）
+                if (WeaponGrade >= 2)
+                    QualityOutlineGlow.DrawFlame(WeaponLibrary1, DrawFrame + WeaponOffSet, DrawLocation, WeaponGrade);
+
 				WeaponLibrary1.Draw(DrawFrame + WeaponOffSet, DrawLocation, DrawColour, true); //original
 
 				if (WeaponEffectLibrary1 != null)
@@ -5904,6 +5922,9 @@ namespace Client.MirObjects
 
             if (WeaponLibrary2 != null)
             {
+                if (WeaponGrade >= 2)
+                    QualityOutlineGlow.DrawFlame(WeaponLibrary2, DrawFrame + WeaponOffSet, DrawLocation, WeaponGrade);
+
                 WeaponLibrary2.Draw(DrawFrame + WeaponOffSet, DrawLocation, DrawColour, true);
 
                 if (WeaponEffectLibrary2 != null)

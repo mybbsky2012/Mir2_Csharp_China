@@ -60,7 +60,7 @@ namespace Server.MirObjects
 
                 UserItem item = GetAmulet(1);
 
-                if (Target != null)
+                if (!InSafeZone)
                 {
                     magic = GetMagic(Spell.SoulShield);
                     if (CanUseMagic(magic) && item != null && !target.HasBuff(BuffType.幽灵盾))
@@ -101,6 +101,17 @@ namespace Server.MirObjects
             UserMagic magic;
             UserItem amuletItem = GetAmulet(1);
             UserItem poisonItem = GetPoison(1);
+
+            // 被围（2 个以上敌人贴身）时优先毒云群攻（需要携带毒粉）
+            if (CanCast && SurroundedCount >= 2 && poisonItem != null)
+            {
+                magic = GetMagic(Spell.PoisonCloud);
+                if (CanUseMagic(magic))
+                {
+                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
+                    return;
+                }
+            }
 
             if (InAttackRange())
             {
@@ -172,6 +183,20 @@ namespace Server.MirObjects
             }
 
             if (Target == null || !CanAttack) return;
+
+            // 风筝走位：目标贴身时后撤拉开距离，保持远程输出位置
+            if (CanMove && HasRangedSpell && TargetDistance == 1)
+            {
+                MoveAwayFrom(Target);
+                return;
+            }
+
+            // 被围且没有毒云可用（没学技能或没毒粉）：脱围后撤
+            if (CanMove && SurroundedCount >= 2 && (GetMagic(Spell.PoisonCloud) == null || GetPoison(1) == null))
+            {
+                MoveAwayFrom(Target);
+                return;
+            }
 
             if (CanAttack && (!HasRangedSpell && InAttackRange() || NextMagicSpell == Spell.None && Owner.Info.HeroBehaviour == HeroBehaviour.攻击 && TargetDistance == 1))
             {

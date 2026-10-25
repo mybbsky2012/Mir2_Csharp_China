@@ -51,6 +51,11 @@ namespace Client.MirScenes.Dialogs
                 if (Grid[(int)EquipmentSlot.盔甲].Item != null)
                 {
                     RealItem = Functions.GetRealItem(Grid[(int)EquipmentSlot.盔甲].Item.Info, actor.Level, actor.Class, GameScene.ItemInfoList);
+
+                    // 衣服品质描边发光（内观静态立绘：只描边，不冒火，避免三套光叠成脏画面）
+                    QualityOutlineGlow.DrawPortrait(Libraries.StateItems, RealItem.Image, DisplayLocation,
+                                                    (byte)Grid[(int)EquipmentSlot.盔甲].Item.Info.Grade, false);
+
                     Libraries.StateItems.Draw(RealItem.Image, DisplayLocation, Color.White, true, 1F);
                     {
                         if (actor.WingEffect > 0)
@@ -85,6 +90,11 @@ namespace Client.MirScenes.Dialogs
                 if (Grid[(int)EquipmentSlot.武器].Item != null)
                 {
                     RealItem = Functions.GetRealItem(Grid[(int)EquipmentSlot.武器].Item.Info, actor.Level, actor.Class, GameScene.ItemInfoList);
+
+                    // 武器品质火焰：先画光再画武器，火只在武器轮廓外沿（不会糊住武器本体）
+                    QualityOutlineGlow.DrawPortrait(Libraries.StateItems, RealItem.Image, DisplayLocation,
+                                                    (byte)Grid[(int)EquipmentSlot.武器].Item.Info.Grade, true);
+
                     Libraries.StateItems.Draw(RealItem.Image, DisplayLocation, Color.White, true, 1F);
 
                     if (actor.WeaponEffect > 0)
@@ -310,7 +320,13 @@ namespace Client.MirScenes.Dialogs
                 }
 
                 if (Grid[(int)EquipmentSlot.头盔].Item != null)
+                {
+                    // 头饰品质描边发光（硬头盔才有；没戴头盔时画的是发型，本来就没品质）
+                    QualityOutlineGlow.DrawPortrait(Libraries.StateItems, Grid[(int)EquipmentSlot.头盔].Item.Info.Image, DisplayLocation,
+                                                    (byte)Grid[(int)EquipmentSlot.头盔].Item.Info.Grade, false);
+
                     Libraries.StateItems.Draw(Grid[(int)EquipmentSlot.头盔].Item.Info.Image, DisplayLocation, Color.White, true, 1F);
+                }
                 else
                 {
                     int hair = 441 + actor.Hair + (actor.Class == MirClass.刺客 ? 20 : 0) + (actor.Gender == MirGender.男性 ? 0 : 40);

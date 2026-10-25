@@ -1,0 +1,254 @@
+AI,实现类,怪物数,示例怪物(最多8)
+0,MonsterObject,382,森林雪人 / 森林雪人 / 南瓜女巫 / 南瓜女巫 / 骷髅 / 骷髅 / 古代骷髅 / 古代骷髅
+3,Football,1,足球
+10,CannibalPlant,2,食人花 / 食人花
+14,HarvestMonster,6,狼 / 狼 / 土狼 / 土狼 / 黑狼 / 黑狼
+21,AxeSkeleton,46,掷斧骷髅 / 掷斧骷髅 / 古代掷斧骷髅 / 古代掷斧骷髅 / 暗黑战士 / 暗黑战士 / 祖玛弓箭手 / 祖玛弓箭手
+24,CaveMaggot,14,洞蛆 / 洞蛆 / 粪虫 / 粪虫 / 楔蛾 / 楔蛾 / 月魔蜘蛛 / 月魔蜘蛛
+31,FlamingWooma,4,火焰沃玛 / 火焰沃玛 / 古代火焰沃玛 / 古代火焰沃玛
+32,MonsterObject,3,修士刺客 / 修士刺客 / 变异的修炼刺客
+34,WoomaTaurus,8,沃玛教主 / 沃玛教主 / 沃玛教主 / 沃玛教主 / 古代沃玛教主 / 古代沃玛教主 / 牛魔鬼尊 / 牛魔鬼尊
+36,BoneFamiliar,2,变异骷髅 / 变异骷髅
+40,ShamanZombie,4,僵尸 / 僵尸 / 萨满僵尸 / 萨满僵尸
+41,BugBagMaggot,2,角蝇 / 黑龙角蝇
+49,SandWorm,4,沙虫 / 沙虫 / 暗之沙虫 / 暗之沙虫
+50,DigOutZombie,2,僵尸 / 僵尸
+51,RevivingZombie,6,僵尸 / 僵尸 / 僵尸 / 僵尸 / 僵尸 / 僵尸
+54,DarkDevourer,2,暗黑噬夢者 / 暗黑噬夢者
+55,PoisonHugger,1,抱脸虫
+56,Hugger,1,抱脸虫
+57,Behemoth,2,怨恶 / 怨恶
+61,ZumaMonster,26,祖玛雕像 / 祖玛雕像 / 祖玛雕像 / 祖玛雕像 / 祖玛雕像 / 黑龙雕像 / 黑龙雕像 / 古代祖玛雕像
+63,ZumaTaurus,4,祖玛教主 / 祖玛教主 / 咒魔石尊 / 咒魔石尊
+67,BombSpider,1,抱脸虫
+83,Scorpion,2,蝎子 / 蝎子
+119,VenomSpider,4,花吻蜘蛛 / 花吻蜘蛛 / 天狼蜘蛛 / 天狼蜘蛛
+131,RedMoonEvil,4,赤月恶魔 / 赤月恶魔 / 触龙神 / 触龙神
+132,RootSpider,3,幻影蜘蛛 / 月之幻影蜘蛛 / 古代月之幻影蜘蛛
+133,BombSpider,2,炸弹蜘蛛 / 爆炸龟
+137,MutatedManworm,2,变异破坏者 / 变异破坏者
+138,CrazyManworm,9,疯狂破坏者 / 疯狂破坏者 / 峡谷尼尔道士 / 峡谷尼尔道士 / 变异多头奥玛 / 变异多头奥玛 / 毒妖族战士 / 毒妖族战士
+139,DarkDevourer,2,噬夢者 / 噬夢者
+140,EvilCentipede,2,触龙神 / 触龙神
+160,Deer,2,鸡 / 鸡
+161,Deer,10,牛 / 牛 / 羊 / 羊 / 鹿 / 鹿 / 鹿 / 鹿
+163,SpittingSpider,12,毒蜘蛛 / 毒蜘蛛 / 暗之花吻蜘蛛 / 暗之花吻蜘蛛 / 月之天狼蜘蛛 / 月之天狼蜘蛛 / 古代月之天狼蜘蛛 / 古代月之天狼蜘蛛
+170,Shinsu,2,神兽 / 神兽
+172,HolyDeva,2,月灵 / 月灵
+180,KingScorpion,3,黑蛇王 / 黑蛇王 / 满月之黑蛇王
+182,DarkDevil,2,黑天魔王 / 黑天魔王
+191,ToxicGhoul,6,变异的利奇 / 变异的利奇 / 腐蚀鬼 / 腐蚀鬼 / 古代腐蚀鬼 / 古代腐蚀鬼
+193,BoneSpearman,4,骷髅士兵 / 骷髅士兵 / 古代骷髅士兵 / 古代骷髅士兵
+196,BoneLord,4,骸骨盘王 / 骸骨盘王 / 古代骸骨盘王 / 古代骸骨盘王
+205,RightGuard,11,右护法 / 右护法 / 地狱瘟疫者 / 地狱瘟疫者 / 尖啸幽灵 / 尖啸幽灵 / 尖啸幽灵 / 变异项锁奥玛
+206,LeftGuard,4,左护法 / 左护法 / 守护炎魔 / 守护炎魔
+207,MinotaurKing,3,邪牛天王 / 邪牛天王 / 满月之牛魔王
+216,YinDevilNode,2,阳之石碑 / 阳之石碑
+217,YinDevilNode,2,阴之石碑 / 阴之石碑
+218,OmaKing,3,凰天魔神 / 破凰魔神 / 满月之魔神
+220,Khazard,2,舌刃大虫 / 舌刃大虫
+221,RedThunderZuma,7,咒魔击雷将 / 咒魔击雷将 / 月之红将 / 月之红将 / 古代月之红将 / 古代月之红将 / 满月之祖玛击雷掌
+222,FrostTiger,7,幻影寒虎 / 幻影寒虎 / 弦月寒虎 / 弦月寒虎 / 满月之幻影寒虎 / 幻影火虎 / 幻影火虎
+223,CrystalSpider,9,水晶蜘蛛 / 水晶蜘蛛 / 神石毒魔蛛 / 神石毒魔蛛 / 月之水晶蜘蛛 / 月之水晶蜘蛛 / 古代月之水晶蜘蛛 / 古代月之水晶蜘蛛
+224,Yimoogi,12,红色蛇王 / 红色蛇王 / 浮龙金蛇 / 浮龙金蛇 / 蛇 / 蛇 / 蛇 / 蛇
+229,WingedTigerLord,3,万兽之王 / 翼虎王 / 满月之野兽王
+230,BlackFoxman,15,黑狐 / 黑狐 / 寒冰侍卫 / 寒冰侍卫 / 灵猫武士 / 灵猫武士 / 异秘战士 / 异秘战士
+231,RedFoxman,2,赤狐 / 赤狐
+232,WhiteFoxman,2,素狐 / 素狐
+233,TrapRock,2,狐月陷阱 / 狐月陷阱
+234,GuardianRock,2,狐月天珠 / 狐月天珠
+235,ThunderElement,2,电元素 / 气元素
+237,GreatFoxSpirit,2,悲月天珠 / 悲月天珠
+238,HedgeKekTal,6,狐月虎虫 / 狐月虎虫 / 狐月刺虫 / 狐月刺虫 / 毒蛾 / 毒蛾
+243,FinialTurtle,2,寿龟 / 寿龟
+244,TurtleKing,2,龟王 / 龟王
+246,LightTurtle,2,光明之龟 / 光明之龟
+257,FlamingMutant,8,月之镰神将 / 月之镰神将 / 古代月之镰神将 / 古代月之镰神将 / 月之巨镰蜘蛛 / 月之巨镰蜘蛛 / 古代月之巨镰蜘蛛 / 古代月之巨镰蜘蛛
+258,StoningStatue,4,石魔兽 / 石魔兽 / 古代石魔兽 / 古代石魔兽
+259,FlyingStatue,4,鸟人像 / 鸟人像 / 古代鸟人像 / 古代鸟人像
+272,HellSlasher,4,地狱收割者 / 地狱收割者 / 地狱守卫 / 遗忘地狱守卫
+273,HellPirate,2,地狱噬魂者 / 地狱噬魂者
+274,HellCannibal,2,地狱食人者 / 地狱食人者
+275,HellKeeper,2,地狱守门人 / 地狱守门人
+277,WitchDoctor,2,地狱女巫 / 地狱女巫
+280,ManectricClaw,2,寒冰战将 / 寒冰战将
+285,ManectricBlest,3,寒冰守将 / 寒冰守将 / 满月之寒冰守将
+286,ManectricKing,3,寒冰魔王 / 寒冰守护鬼 / 满月之寒冰守护鬼
+288,IcePillar,1,冰柱
+292,TrollBomber,2,业火炸弹手 / 业火炸弹手
+294,TrollKing,2,业火巨锤魔王 / 业火巨锤魔王
+295,FlameSpear,2,业火长枪手 / 业火长枪手
+296,FlameMage,2,业火法师 / 业火法师
+297,FlameScythe,2,业火镰刀 / 业火镰刀
+298,FlameAssassin,2,业火双刀 / 业火双刀
+299,FlameQueen,2,业火女王 / 业火女王
+300,HellKnight,4,玄冰守护将 / 魔焰守护将 / 暗黑守护将 / 光明守护将
+304,HellLord,1,阎魔太子
+306,IceGuard,2,冰焰鬼法 / 遗忘冰焰鬼法
+307,ElementGuard,2,火焰鬼法 / 遗忘火焰鬼法
+308,DemonGuard,2,地狱犬 / 遗忘地狱犬
+309,KingGuard,2,国王守卫 / 遗忘国王守卫
+318,DeathCrawler,2,爬行亡灵 / 爬行亡灵
+319,BurningZombie,4,火僵尸 / 火僵尸 / 冰僵尸 / 冰僵尸
+320,MudZombie,2,泥僵尸 / 泥僵尸
+323,DemonWolf,2,恶魔之狼 / 恶魔之狼
+324,WhiteMammoth,2,白象 / 白象
+325,DarkBeast,18,南蛮黑虎 / 南蛮黑虎 / 南蛮白虎 / 南蛮白虎 / 愤怒的狒狒 / 愤怒的狒狒 / 长枪猫卫 / 长枪猫卫
+328,HardenRhino,2,硬皮犀牛 / 硬皮犀牛
+329,AncientBringer,3,丹墨 / 丹墨 / 满月之丹墨
+334,BlackHammerCat,3,黑锤猫卫 / 黑锤猫卫 / 犀牛武士
+335,StrayCat,2,陵庙刀卫 / 陵庙刀卫
+336,CatShaman,12,陵庙巫师 / 陵庙巫师 / 冰封学者 / 冰封学者 / 冰封贤者 / 冰封贤者 / 道士高手 / 道士高手
+337,Jar1,2,重耳壶 / 重耳壶
+338,Jar2,2,重耳壶 / 重耳壶
+339,SeedingsGeneral,2,猫将军 / 猫将军
+340,RestlessJar,2,玄壶 / 玄壶
+341,GeneralMeowMeow,2,陵庙将军 / 陵庙将军
+345,TucsonMage,2,异秘法师 / 异秘法师
+346,TucsonWarrior,2,异秘武士 / 异秘武士
+347,Armadillo,2,犰狳 / 犰狳
+348,ArmadilloElder,2,犰狳长老 / 犰狳长老
+350,TucsonEgg,2,异秘蛋 / 异秘蛋
+352,SandSnail,2,瘟疫蟾蜍 / 瘟疫蟾蜍
+353,CannibalTentacles,2,噬人龙 / 噬人龙
+354,TucsonGeneral,2,瘟疫统领 / 瘟疫统领
+355,GasToad,2,毒气蟾蜍 / 毒气蟾蜍
+356,Mantis,2,螳螂 / 螳螂
+357,SwampWarrior,1,沼泽战士
+358,AssassinBird,1,鸟人刺客
+360,RhinoPriest,1,犀牛法师
+361,ElephantMan,1,巨象锤兵
+362,StoneGolem,1,石巨人
+363,EarthGolem,1,土巨人
+364,TreeGuardian,1,象王法师
+365,TreeQueen,1,如何树
+366,PeacockSpider,1,孔雀蜘蛛
+369,OmaCannibal,2,沃玛食人魔 / 沃玛食人魔
+370,OmaBlest,2,沃玛巨魔拳 / 沃玛巨魔拳
+371,OmaSlasher,2,沃玛巨镰 / 沃玛巨镰
+373,OmaMage,2,沃玛魔兵 / 沃玛魔兵
+374,OmaWitchDoctor,2,沃玛大祭司 / 沃玛大祭司
+375,PowerBead,3,闪电 / 治愈 / 能量
+378,DarkOmaKing,2,黑暗之王 / 黑暗之王
+380,CaveStatue,1,山洞石像
+381,Mandrill,2,长鼻猴 / 长鼻猴
+382,PlagueCrab,2,变异甲虫 / 变异甲虫
+383,CreeperPlant,6,大食人花 / 大食人花 / 变异棘蔓草 / 变异棘蔓草 / 变异食虫草 / 变异食虫草
+387,Nadz,2,溺水的奴隶 / 溺水的奴隶
+388,AvengingSpirit,2,沉船恶灵 / 沉船恶灵
+390,AvengingWarrior,2,幽灵勇士 / 幽灵勇士
+391,AxePlant,2,幽灵重锤将 / 幽灵重锤将
+392,WoodBox,3,被诅咒的银箱 / 被诅咒的银箱 / 被诅咒的银箱
+395,DarkCaptain,2,黑暗船长 / 黑暗船长
+396,SackWarrior,2,杀厉鬼 / 杀厉鬼
+397,WereTiger,2,太古鼠 / 太古鼠
+398,KingHydrax,2,遗迹王蛇 / 遗迹王蛇
+400,HornedMage,2,咒魔术士 / 咒魔术士
+401,HornedArcher,4,咒魔火弓师 / 咒魔火弓师 / 咒魔风弓师 / 咒魔风弓师
+403,HornedWarrior,2,咒魔剑士 / 咒魔剑士
+404,FloatingRock,2,鬼浮石 / 鬼浮石
+405,ScalyBeast,2,魔石巨人 / 魔石巨人
+406,HornedSorceror,2,魔角大巫 / 魔角大巫
+407,BlueSoul,10,魂火 / 魂火 / 魔风旋 / 魔风旋 / 黑暗精灵 / 黑暗精灵 / 毒妖花 / 毒妖花
+408,BoulderSpirit,2,岩弹 / 岩弹
+409,HornedCommander,2,魔风石怪 / 魔风石怪
+410,TurtleGrass,2,草丛龟 / 草丛龟
+411,ManTree,2,杉精魄 / 杉精魄
+414,ChieftainSword,2,阳龙王 / 阳龙王
+417,ChieftainArcher,2,流觞弓匠 / 流觞弓匠
+419,StoneTrap,1,蜘蛛柱
+420,VampireSpider,1,血蛛
+421,SpittingToad,1,火蟾
+422,SnakeTotem,1,蛇柱
+423,CharmedSnake,1,魅蛇
+427,FrozenKnight,3,冰原鬼尊 / 酷寒冰原鬼尊 / 满月之冰原鬼尊
+429,IcePhantom,2,恶鬼 / 恶鬼
+430,SnowWolf,2,雪狼 / 雪狼
+431,SnowWolfKing,2,雪太狼 / 雪太狼
+432,WaterDragon,6,水龙 / 水龙 / 水龙 / 水龙 / 水龙 / 水龙
+433,BlackTortoise,2,沼玄武 / 强壮洞窟玄武
+434,Manticore,2,穷奇 / 穷奇
+435,DragonWarrior,2,龙骨战士 / 龙骨战士
+436,DragonArcher,2,龙骨弓士 / 龙骨弓士
+437,Tornado,2,沙暴风 / 沙暴风
+438,Kirin,2,麒麟 / 麒麟
+442,FrozenMiner,2,雪原奴役 / 雪原奴役
+443,FrozenAxeman,2,雪原斧兵 / 雪原斧兵
+444,FrozenMagician,2,雪原祭司 / 雪原祭司
+445,SnowYeti,3,雪原猿人 / 雪原猿人 / 变异石怪兽拉卡巴
+446,IceCrystalSoldier,2,冰封雪人 / 冰封雪人
+447,DarkWraith,4,黑暗亡灵 / 黑暗亡灵 / 刺客高手 / 刺客高手
+449,CrystalBeast,2,青神石魔 / 青神石魔
+456,AntCommander,1,腐食虫
+461,CargoBox,1,鹿箱
+466,PurpleFaeFlower,2,魔芋精灵 / 魔芋精灵
+468,GlacierSnail,2,冰蜗牛 / 冰蜗牛
+469,FurbolgWarrior,2,地宫盗贼 / 地宫盗贼
+470,FurbolgArcher,2,地宫弩弓手 / 地宫弩弓手
+472,MonsterObject,2,大王花精灵 / 大王花精灵
+473,FurbolgGuard,2,鱼叉杀手 / 鱼叉杀手
+474,GlacierBeast,2,冰兽 / 冰兽
+475,GlacierWarrior,2,地宫战士 / 地宫战士
+476,ShardGuardian,2,地宫勇士 / 地宫勇士
+477,HoodedSummonerScrolls,4,神秘画轴 / 神秘画轴 / 神秘画轴 / 神秘画轴
+481,HoodedSummoner,2,地宫修道者 / 地宫修道者
+484,ShardMaiden,2,冰灵卡伊 / 冰灵卡伊
+487,ReaperPriest,2,峡谷尼尔术士 / 峡谷尼尔术士
+489,ReaperAssassin,2,峡谷尼尔刺客 / 峡谷尼尔刺客
+494,MonsterObject,1,变异项锁奥玛
+498,MysteriousMonk,2,战士高手 / 战士高手
+502,NobleWarrior,10,天尊 / 天尊 / 天尊 / 马灵 / 远古武士魂魄 / 远古武士魂魄 / 被诅咒的武士魂魄 / 远古刺客魂魄
+503,NobleArcher,12,无极 / 无极 / 无极 / 逸仙 / 逸仙 / 逸仙 / 远古弓手魂魄 / 远古弓手魂魄
+508,Swain,3,雷帝 / 雷帝 / 雷帝
+509,Swain1,2,Swain / Swain
+514,AncientStoneGolem,2,昆仑石碑兽 / 昆仑石碑兽
+515,Serpentirian,2,多头毒妖鬼 / 多头毒妖鬼
+516,Butcher,2,巨型沃玛 / 巨型沃玛
+518,Riklebites,1,卡瓦尔
+521,FeralTundraFurbolg,1,千年乌龟神灵
+522,FeralFlameFurbolg,2,熊怪祭司 / 熊怪祭司
+525,ArcaneTotem,5,BlueArcaneTotem / GreenArcaneTotem / RedArcaneTotem / YellowArcaneTotem / WarpGate
+532,BloodLord,1,变异白骨沃玛
+533,SerpentLord,1,变异沃玛将军
+534,MirEmperor,1,混沌教主
+544,Mon544S,3,秦庙石狮 / 秦庙石狮 / 被诅咒的猫兽
+550,Mon550N,3,修士剑客 / 修士剑客 / 变异的修炼剑士
+552,Mon552N,2,古老遗骸 / 古老遗骸
+562,Mon562N,2,尊者之王 / 尊者之王
+563,Mon563N,2,尊者之魔 / 尊者之魔
+564,Mon564N,2,尊者之魂 / 尊者之魂
+570,Mon570N,3,江白 / 江白 / 江白
+571,Mon571N,2,天月 / 天月
+572,Mon572N,2,风震 / 风震
+573,Mon573N,2,摩鲁 / 摩鲁
+575,Mon575S,2,飞燕魔蛛 / 飞燕魔蛛
+577,Mon577N,2,冰之内尔弓手 / 冰之内尔弓手
+601,Mon601N,2,变异的火炮怪 / 变异的火炮怪
+602,Mon602N,4,紫月香花 / 紫月香花 / 破碎的火炮 / 破碎的火炮
+609,Mon609N,4,变异石魔拉卡巴 / 变异石魔拉卡巴 / 变异石块长拉卡巴 / 变异石块长拉卡巴
+900,EvilMir,1,破天魔龙
+901,EvilMirBody,1,魔龙尸体
+902,DragonStatue,6,破龙神像 / 天龙神像 / 魔龙神像 / 归龙神像 / 火龙神像 / 四龙神像
+903,HellBomb,3,冰弹 / 雷弹 / 焰弹
+950,Gate,4,沙巴克城门 / 夔龙城南城门 / 夔龙城东城门 / 夔龙城西城门
+951,Wall,6,狮北城西墙壁 / 狮北城南墙壁 / 狮北城东墙壁 / 沙巴克左城墙 / 沙巴克中城墙 / 沙巴克右城墙
+960,ConquestArcher,2,弓箭手 / 守卫
+961,Siege,7,投石车 / 弩车 / 机关弩车 / 攻城车 / 攻城车 / 南蛮城外城门 / 南蛮城内城门
+970,IntelligentCreatureObject,17,BabyPig / Chick / Kitten / BabySkeleton / Baekdon / Wimaen / BlackKitten / BabyDragon
+971,Tree,42,大面团 / 大面团 / 黄沙 / 黄沙 / 黑沙 / 黑沙 / 雪堆 / 雪堆
+972,CityGate,6,南蛮城墙 / 寒冰之门 / 燃烧昆仑城门 / 通道门 / 通道门 / 栅栏门
+980,Guard,5,卫士 / 带刀侍卫 / 卫兵 / 巡城侍卫 / 卫士
+981,Guard,3,卫士 / 带刀侍卫 / 卫兵
+982,ArcherGuard,3,卫士 / 带刀侍卫 / 卫兵
+983,TownArcher,4,弓箭守卫 / 弓箭守卫 / 弓箭护卫 / 弓箭守卫
+984,Trainer,1,练功师
+985,HumanWizard,1,Clone
+986,HumanAssassin,1,AssassinClone
+990,SepWarrior,1,弦月坛战士
+992,SepTaoist,2,弦月坛术士 / 弦月坛道士
+993,SepAssassin,1,弦月坛刺客
+995,SepHighWarrior,2,金胜战士 / 金胜战士
+996,SepHighWizard,2,圣术士 / 圣术士
+997,SepHighTaoist,2,定缘道士 / 定缘道士
+998,SepHighAssassin,1,焱门客
+999,SepHighArcher,1,焱门客

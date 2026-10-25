@@ -1,4 +1,5 @@
 ﻿using System.IO.Compression;
+using System.Security.Cryptography;
 using WinSCP;
 
 namespace AutoPatcherAdmin
@@ -116,12 +117,7 @@ namespace AutoPatcherAdmin
                 using MemoryStream stream = new MemoryStream(data);
                 using BinaryReader reader = new BinaryReader(stream);
 
-                int count = reader.ReadInt32();
-
-                for (int i = 0; i < count; i++)
-                {
-                    OldList.Add(new FileInformation(reader));
-                }
+                OldList = FileInformation.ReadList(reader);
             }
         }
 
@@ -130,11 +126,7 @@ namespace AutoPatcherAdmin
             using MemoryStream stream = new MemoryStream();
             using BinaryWriter writer = new BinaryWriter(stream);
 
-            writer.Write(NewList.Count);
-            for (int i = 0; i < NewList.Count; i++)
-            {
-                NewList[i].Save(writer);
-            }
+            FileInformation.WriteList(writer, NewList);
 
             return stream.ToArray();
         }
@@ -214,6 +206,9 @@ namespace AutoPatcherAdmin
                 if (old.Length != info.Length) return true;
                 if (old.Creation != info.Creation) return true;
 
+                //两边都有哈希时比较内容：大小和时间没变但内容变了也能检出
+                if (old.MD5 != null && info.MD5 != null && !FileInformation.Md5Equal(old.MD5, info.MD5)) return true;
+
                 return false;
             }
             return true;
@@ -234,6 +229,10 @@ namespace AutoPatcherAdmin
                 Length = (int)info.Length,
                 Creation = info.LastWriteTime
             };
+
+            //计算文件 MD5，写入清单供客户端校验
+            try { file.MD5 = FileInformation.ComputeMD5File(fileName); }
+            catch { file.MD5 = null; }
 
             return file;
         }
@@ -725,6 +724,12 @@ namespace AutoPatcherAdmin
         public int Length, Compressed;
         public DateTime Creation;
 
+        //MD5（16 字节原始摘要）。旧清单没有此字段，为 null 时跳过校验。
+        public byte[] MD5;
+
+        //哈希追加段标记："MD51"。追加在旧格式末尾，旧版更新器读到 count 条记录即停止，完全兼容。
+        public const int HashMarker = 0x3135444D; // "MD51" little-endian
+
         public FileInformation()
         {
             Creation = DateTime.Now;
@@ -736,6 +741,70 @@ namespace AutoPatcherAdmin
             Compressed = reader.ReadInt32();
             Creation = DateTime.FromBinary(reader.ReadInt64());
         }
+
+        //读取整份清单（自动识别有无哈希段）
+        public static List<FileInformation> ReadList(BinaryReader reader)
+        {
+            var list = new List<FileInformation>();
+
+            int count = reader.ReadInt32();
+            for (int i = 0; i < count; i++)
+                list.Add(new FileInformation(reader));
+
+            try
+            {
+                if (reader.ReadInt32() == HashMarker)
+                {
+                    for (int i = 0; i < count; i++)
+                        list[i].MD5 = reader.ReadBytes(16);
+                }
+            }
+            catch (EndOfStreamException)
+            {
+                //旧版清单：无哈希段
+            }
+
+            return list;
+        }
+
+        //写出整份清单（始终带哈希段，缺省补零）
+        public static void WriteList(BinaryWriter writer, List<FileInformation> list)
+        {
+            writer.Write(list.Count);
+            for (int i = 0; i < list.Count; i++)
+                list[i].Save(writer);
+
+            writer.Write(HashMarker);
+            for (int i = 0; i < list.Count; i++)
+            {
+                byte[] md5 = list[i].MD5;
+                if (md5 == null || md5.Length != 16)
+                    md5 = new byte[16];
+                writer.Write(md5);
+            }
+        }
+
+        public static byte[] ComputeMD5(byte[] data)
+        {
+            using (System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create())
+                return md5.ComputeHash(data);
+        }
+
+        public static byte[] ComputeMD5File(string path)
+        {
+            using (System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5.Create())
+            using (FileStream fs = File.OpenRead(path))
+                return md5.ComputeHash(fs);
+        }
+
+        public static bool Md5Equal(byte[] a, byte[] b)
+        {
+            if (a == null || b == null || a.Length != 16 || b.Length != 16) return false;
+            for (int i = 0; i < 16; i++)
+                if (a[i] != b[i]) return false;
+            return true;
+        }
+
         public void Save(BinaryWriter writer)
         {
             writer.Write(FileName);

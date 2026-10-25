@@ -31,7 +31,8 @@ namespace Client.Utils
     ///
     /// 其它保证：
     ///   - 永不抛异常 —— 下载失败就当作资源不存在，绝不让网络问题把客户端搞崩。
-    ///   - 负缓存 —— 失败过的文件本次运行不再重试，避免反复打不通的服务端拖慢游戏。
+    ///   - 负缓存分级 —— 404（服务端确实没有）本次运行不再重试；偶发失败（网络抖动/断连/5xx）
+    ///     只冷却 30 秒就允许重试，绝不让一次网络抖动把资源「判死刑」到重启为止。
     ///   - 原子写入 —— 先写 .tmp 再改名，避免断线留下的半截文件被当成有效资源加载。
     ///   - 去重 —— 同一文件被多个加载点/多帧反复请求时只下载一次。
     /// </summary>
@@ -40,10 +41,20 @@ namespace Client.Utils
         private static readonly object _sync = new object();
 
         // 文件状态（全部为相对客户端根目录的正斜杠路径）
-        private static readonly HashSet<string> _failed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        //
+        // ★负缓存分级（10-23 修「微端有时候突然不加载」）：
+        //   以前只要下载失败一次（网络抖动/服务器重启/读取超时）就永久拉黑，本次运行再也不重试
+        //   —— 玩家玩着玩着网络抖一下，正在补的那批资源就集体「死」了，只能重启客户端。
+        //   现在：404（服务端确实没有）→ 永久；其余（超时/断连/5xx/写盘失败）→ 冷却 30 秒后自动允许重试。
+        private const int PermanentFail = int.MaxValue;   // 404 等确定性失败：本次运行不再重试
+        private const int TransientRetryMs = 30000;       // 偶发失败的冷却时长
+        private static readonly Dictionary<string, int> _failedUntil =
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);   // 文件 -> 冷却截止(TickCount) / PermanentFail
         private static readonly HashSet<string> _known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);   // 已入队或已完成
 
         private static readonly Queue<string> _queue = new Queue<string>();
+        // 紧急队列：切图等"缺了就走不下去"的资源走这里，永远先于普通队列被 worker 取走
+        private static readonly Queue<string> _urgentQueue = new Queue<string>();
         private static readonly Dictionary<string, List<ManualResetEventSlim>> _waiters =
             new Dictionary<string, List<ManualResetEventSlim>>(StringComparer.OrdinalIgnoreCase);
 
@@ -212,18 +223,24 @@ namespace Client.Utils
 
                 lock (_sync)
                 {
-                    if (_failed.Contains(relative)) return false;
+                    if (_failedUntil.TryGetValue(relative, out int until))
+                    {
+                        if (until == PermanentFail) return false;
+                        if (unchecked(Environment.TickCount - until) < 0) return false;   // 冷却期内，先不重试
+                        _failedUntil.Remove(relative);   // 冷却已过，给一次重新入队的机会
+                    }
+
                     if (_known.Contains(relative)) return false;   // 已经在队列里/下载中，等它自己完成
                 }
 
                 // 批量登记阶段：只登记"本地没有"，不产生任何下载请求
                 if (BulkLoading) return false;
 
-                // 服务端也没有这个文件时直接记失败，省掉一次注定 404 的 HTTP 往返。
+                // 服务端也没有这个文件时直接记永久失败，省掉一次注定 404 的 HTTP 往返。
                 // 音效这类"按扩展名逐个试探"的加载点收益最大。
                 if (!ExistsOnServer(relative))
                 {
-                    lock (_sync) _failed.Add(relative);
+                    lock (_sync) _failedUntil[relative] = PermanentFail;
                     return false;
                 }
 
@@ -265,16 +282,25 @@ namespace Client.Utils
 
                 bool queued;
                 if (EnsureLocalFile(localPath, out queued)) return true;
-                if (!queued) return false;      // 已失败过或不在客户端目录内，等也没用
 
                 string relative = ToRelativePath(localPath);
                 if (relative == null) return false;
+
+                // 玩家正在等这个文件：把它提到紧急队列头，别让它排在预取任务后面
+                PromoteToUrgent(relative);
 
                 var handle = new ManualResetEventSlim(false);
 
                 lock (_sync)
                 {
-                    // 极端情况下文件在入队与注册之间就下完了
+                    // 永久失败 / 偶发失败冷却期内：等也没用
+                    if (_failedUntil.TryGetValue(relative, out int until) &&
+                        (until == PermanentFail || unchecked(Environment.TickCount - until) < 0))
+                        return false;
+
+                    // ★queued=false 有两种含义：永久失败（上面已挡掉），或者「文件已被别处
+                    //   （后台预取/更早的调用）先入了队」。后者必须照样等待 —— 以前这里直接
+                    //   return false，导致预取先入队的 .map 一毫秒都不等就报超时，进图一片黑。
                     if (!_known.Contains(relative))
                         return File.Exists(localPath);
 
@@ -352,7 +378,7 @@ namespace Client.Utils
 
                 lock (_sync)
                 {
-                    _failed.Remove(relative);
+                    _failedUntil.Remove(relative);
                     _known.Remove(relative);
                 }
             }
@@ -395,7 +421,7 @@ namespace Client.Utils
         {
             lock (_sync)
             {
-                if (_failed.Contains(relative) || _known.Contains(relative)) return false;
+                if (_failedUntil.ContainsKey(relative) || _known.Contains(relative)) return false;
 
                 _known.Add(relative);
                 _queue.Enqueue(relative);
@@ -404,6 +430,32 @@ namespace Client.Utils
                 EnsureWorkersLocked();
                 Monitor.Pulse(_sync);
                 return true;
+            }
+        }
+
+        /// <summary>
+        /// 把已在普通队列里的文件提到紧急队列头。
+        /// 用于"玩家正在等"的场景（切图 .map 等）：它可能早被后台预取排进了队尾，
+        /// 不提前的话就要排在所有预取任务后面慢慢轮 —— 带宽越紧等得越久。
+        /// 文件若已出队（正在下载中）或不在队列里，则无事可做。
+        /// </summary>
+        private static void PromoteToUrgent(string relative)
+        {
+            lock (_sync)
+            {
+                if (_urgentQueue.Contains(relative)) return;
+                if (!_queue.Contains(relative)) return;
+
+                // Queue 不支持随机删除：重建一次普通队列
+                var keep = new List<string>(_queue.Count);
+                foreach (var item in _queue)
+                    if (!string.Equals(item, relative, StringComparison.OrdinalIgnoreCase))
+                        keep.Add(item);
+
+                _queue.Clear();
+                foreach (var item in keep) _queue.Enqueue(item);
+                _urgentQueue.Enqueue(relative);
+                Monitor.PulseAll(_sync);
             }
         }
 
@@ -430,6 +482,9 @@ namespace Client.Utils
             Log("微端后台下载线程已启动，并发数 " + count);
         }
 
+        /// <summary>单次下载结果：Success=成功；NotFound=服务端确定没有（404/路径非法），永久拉黑；Transient=偶发失败（超时/断连/5xx/写盘冲突），冷却后允许重试。</summary>
+        private enum DownloadResult { Success, NotFound, Transient }
+
         private static void WorkerLoop()
         {
             while (true)
@@ -438,38 +493,51 @@ namespace Client.Utils
 
                 lock (_sync)
                 {
-                    while (_queue.Count == 0)
+                    while (_queue.Count == 0 && _urgentQueue.Count == 0)
                         Monitor.Wait(_sync);
 
-                    relative = _queue.Dequeue();
+                    // 紧急资源（切图等）优先；普通队列维持先来后到
+                    relative = _urgentQueue.Count > 0 ? _urgentQueue.Dequeue() : _queue.Dequeue();
                 }
 
-                bool ok = false;
+                DownloadResult result;
                 try
                 {
-                    ok = DownloadFile(relative);
+                    result = DownloadFile(relative);
                 }
                 catch (Exception ex)
                 {
                     Log("下载线程异常 " + relative + " : " + ex.Message);
+                    result = DownloadResult.Transient;
                 }
 
                 lock (_sync)
                 {
                     _pending--;
-                    if (ok)
+                    if (result == DownloadResult.Success)
                     {
                         _completed++;
                         _lastFile = relative;
                     }
                     else
                     {
-                        // 服务端拒绝本机 IP 时不算「这个文件不存在」——它是对所有文件的统一拒绝。
-                        // 记进负缓存会让本局再也补不回来，即使中途把服务端配置改对了。
-                        if (!_serverNotTrusted)
+                        _failedCount++;
+
+                        if (result == DownloadResult.NotFound)
                         {
-                            _failed.Add(relative);
-                            _failedCount++;
+                            // 服务端确定没有：本次运行不再重试
+                            _failedUntil[relative] = PermanentFail;
+                        }
+                        else
+                        {
+                            // ★偶发失败（网络抖动/服务器重启/读取超时等）：
+                            // 只冷却 30 秒，之后允许重新入队。以前这里是永久拉黑 ——
+                            // 一次网络抖动就把正在补的资源集体判死刑，表现就是
+                            // 「微端玩着玩着突然不加载了，只能重启客户端」。
+                            // 服务端拒绝本机 IP 时也走这里（不算「这个文件不存在」），
+                            // _serverNotTrusted 会统一挡住请求，IP 放行后自动恢复。
+                            _failedUntil[relative] = unchecked(Environment.TickCount + TransientRetryMs);
+                            _known.Remove(relative);   // 必须移出「已入队」集合，冷却后才能重新入队
                         }
                     }
 
@@ -484,7 +552,7 @@ namespace Client.Utils
             }
         }
 
-        private static bool DownloadFile(string relative)
+        private static DownloadResult DownloadFile(string relative)
         {
             string url = BuildUrl("resource", "f", relative);
 
@@ -494,6 +562,21 @@ namespace Client.Utils
             // 进度：让阻塞等待方（切图载入画面）能显示「已收到多少」
             _activeFile = relative;
             Interlocked.Exchange(ref _activeBytes, 0);
+
+            // ---- 断点续传（10-23）：本地有半截 .tmp 就从它的长度继续要 ----
+            string localPath = ToLocalPath(relative);
+            if (localPath == null) return DownloadResult.NotFound;
+
+            string temp = localPath + ".tmp";
+            long resumeFrom = 0;
+            try
+            {
+                if (File.Exists(temp)) resumeFrom = new FileInfo(temp).Length;
+            }
+            catch
+            {
+                resumeFrom = 0;
+            }
 
             try
             {
@@ -508,14 +591,18 @@ namespace Client.Utils
                     HttpResponseMessage response;
                     try
                     {
+                        var req = new HttpRequestMessage(HttpMethod.Get, url);
+                        if (resumeFrom > 0)
+                            req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(resumeFrom, null);
+
                         // ResponseHeadersRead：拿到响应头就开始写盘，大图库也不会整块堆在内存里
-                        response = client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cts.Token)
+                        response = client.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token)
                                          .GetAwaiter().GetResult();
                     }
                     catch (OperationCanceledException)
                     {
                         Log("连接超时（" + (headerTimeoutMs / 1000) + " 秒未收到响应头）: " + relative);
-                        return false;
+                        return DownloadResult.Transient;
                     }
 
                     using (response)
@@ -525,24 +612,48 @@ namespace Client.Utils
 
                         if (!response.IsSuccessStatusCode)
                         {
+                            // 416 = 续传起点越界：多半是上次 .tmp 已经下完整
+                            //（写完还没来得及改名就断了）。直接把半截文件转正。
+                            if ((int)response.StatusCode == 416 && resumeFrom > 0)
+                                return FinalizeTemp(localPath, temp, relative);
+
                             Log("资源不存在或被拒绝 " + relative + " -> " + (int)response.StatusCode);
-                            return false;
+
+                            // 404 = 服务端确实没有这个文件，永久拉黑没有争议；
+                            // 5xx/其它状态多半是服务端正在重启或临时故障，按偶发失败处理
+                            return (int)response.StatusCode == 404
+                                ? DownloadResult.NotFound
+                                : DownloadResult.Transient;
                         }
 
-                        string localPath = ToLocalPath(relative);
-                        if (localPath == null) return false;
+                        long offset = resumeFrom;
+
+                        // 服务端不支持 Range（回的是 200 全量）：丢弃旧 tmp 重头下
+                        if ((int)response.StatusCode != 206 && resumeFrom > 0)
+                            offset = 0;
+
+                        // 续传起点超出服务端文件大小（服务端换过文件）：扔掉 tmp，冷却后重头下
+                        var contentRange = response.Content.Headers.ContentRange;
+                        if (offset > 0 && contentRange != null && contentRange.Length.HasValue &&
+                            offset > contentRange.Length.Value)
+                        {
+                            Log("续传起点越界（服务端文件已变化），重头下载 " + relative);
+                            try { File.Delete(temp); } catch { }
+                            return DownloadResult.Transient;
+                        }
 
                         string dir = Path.GetDirectoryName(localPath);
                         if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                             Directory.CreateDirectory(dir);
 
-                        // 先写临时文件再改名，避免半截文件被后续加载当成有效资源
-                        string temp = localPath + ".tmp";
-                        long total = 0;
+                        // 续传用 Append 追加；否则建新文件（先写临时文件再改名，避免半截文件被后续加载当成有效资源）
+                        long startOffset = offset;
+                        long received = 0;
                         bool notTrusted = false;
 
                         using (var source = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult())
-                        using (var target = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
+                        using (var target = new FileStream(temp, offset > 0 ? FileMode.Append : FileMode.Create,
+                                                           FileAccess.Write, FileShare.None))
                         {
                             byte[] buffer = new byte[64 * 1024];
                             int limit = Settings.MicroRateLimit;      // KB/s，0 = 不限速
@@ -564,7 +675,7 @@ namespace Client.Utils
                                 catch (OperationCanceledException)
                                 {
                                     Log("读取超时（" + (stallMs / 1000) + " 秒未收到数据）: " + relative);
-                                    return false;
+                                    return DownloadResult.Transient;
                                 }
 
                                 if (read <= 0) break;
@@ -583,9 +694,9 @@ namespace Client.Utils
                                 }
 
                                 target.Write(buffer, 0, read);
-                                total += read;
-                                Interlocked.Exchange(ref _activeBytes, total);
-                                Throttle(watch, total, limit);
+                                received += read;
+                                Interlocked.Exchange(ref _activeBytes, startOffset + received);
+                                Throttle(watch, received, limit);
                             }
 
                             target.Flush();
@@ -593,21 +704,32 @@ namespace Client.Utils
 
                         if (notTrusted)
                         {
-                            try { File.Delete(temp); } catch { }
+                            if (startOffset == 0)
+                            {
+                                try { File.Delete(temp); } catch { }
+                            }
+                            // 续传场景下 tmp 里的旧数据是干净的，只截掉本次追加的垃圾不现实 ——
+                            // 但 notrusted 只回 200 全量（startOffset=0），理论到不了这里；保险起见只记状态。
 
                             // 只在第一次拒绝时写日志：后面每个文件都会撞同一堵墙，不该刷屏
                             if (!_serverNotTrusted)
                                 Log("微端资源服务拒绝了本机 IP：服务端「网络」设置里未允许任意 IP 访问微端资源，"
                                     + "已暂停资源下载（本机 IP 放行后会自动恢复，也可重启客户端）");
                             _serverNotTrusted = true;
-                            return false;
+                            return DownloadResult.Transient;
                         }
 
-                        if (total == 0)
+                        if (received == 0)
                         {
-                            try { File.Delete(temp); } catch { }
-                            Log("资源内容为空 " + relative);
-                            return false;
+                            if (startOffset == 0)
+                            {
+                                try { File.Delete(temp); } catch { }
+                                Log("资源内容为空 " + relative);
+                                return DownloadResult.Transient;
+                            }
+
+                            // 续传请求但服务端没发任何字节：tmp 已是完整文件（长度正好等于起点），转正
+                            return FinalizeTemp(localPath, temp, relative);
                         }
 
                         if (File.Exists(localPath)) File.Delete(localPath);
@@ -615,24 +737,49 @@ namespace Client.Utils
 
                         lock (_sync)
                         {
-                            _bytes += total;
+                            _bytes += received;
                         }
 
-                        Log("已下载 " + relative + " (" + total + " 字节)");
-                        return true;
+                        Log((startOffset > 0 ? "已续传 " : "已下载 ") + relative + " (" + received + " 字节"
+                            + (startOffset > 0 ? "，从第 " + startOffset + " 字节继续" : "") + ")");
+                        return DownloadResult.Success;
                     }
                 }
             }
             catch (Exception ex)
             {
+                // 断连/写盘冲突（比如旧文件还被图库的读句柄占着）等都算偶发失败，
+                // 冷却后重试 —— 写盘冲突尤其常见于「重新下载已存在的文件」。
+                // 续传时 .tmp 还在，下次自动从断点继续。
                 Log("下载失败 " + relative + " : " + ex.Message);
-                return false;
+                return DownloadResult.Transient;
             }
             finally
             {
                 // 无论成功失败都清掉进度，避免载入画面一直显示一个早就结束的下载
                 _activeFile = string.Empty;
                 Interlocked.Exchange(ref _activeBytes, 0);
+            }
+        }
+
+        /// <summary>把下载完的 .tmp 半截文件转正（断点续传收尾）。</summary>
+        private static DownloadResult FinalizeTemp(string localPath, string temp, string relative)
+        {
+            try
+            {
+                if (!File.Exists(temp))
+                    return DownloadResult.Transient;
+
+                if (File.Exists(localPath)) File.Delete(localPath);
+                File.Move(temp, localPath);
+
+                Log("已续传收尾 " + relative + "（本地半截文件已是完整内容，直接转正）");
+                return DownloadResult.Success;
+            }
+            catch (Exception ex)
+            {
+                Log("续传收尾失败 " + relative + " : " + ex.Message);
+                return DownloadResult.Transient;
             }
         }
 

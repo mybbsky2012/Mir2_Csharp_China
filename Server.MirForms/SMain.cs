@@ -469,6 +469,16 @@ namespace Server
             Envir.ReloadNPCs();
         }
 
+        private void allNPCsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Envir.ReloadAllNPCs();
+        }
+
+        private void gameShopToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            Envir.ReloadGameShop();
+        }
+
         private void dropsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Envir.ReloadDrops();

@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using Server.MirDatabase;
 using Server.MirEnvir;
 using Server.MirNetwork;
@@ -584,9 +584,138 @@ namespace Server.MirObjects
             }
         }
         /// <summary>
-        /// 气血石 / 魔血石的每跳固定回复，只有玩家有背包，故由 PlayerObject 重写；怪物、英雄为空实现。
+        /// 生命魔法石（气血石 / 魔血石）：装备在「石头」格（EquipmentSlot.守护石）时自动生效。
+        /// 全部参数在服务端「系统配置 → 游戏系统 → 守护石」选项卡里设置（存 Configs\GemSystem.ini [Stone] 节）：
+        ///   触发阈值：HP / MP 低于总量的百分之多少时开启（HP、MP 各自可调）；
+        ///   回复间隔：HP、MP 各自可调（秒）；
+        ///   每跳增加值 = 石头总持久（Durability）的百分之多少（HP、MP 各自可调），固定值不随电量消耗衰减；
+        ///   每跳消耗持久：HP、MP 各自可调（点）。
+        /// 加什么仍由物品的「外观值 Shape」决定：1 = 只加体力，2 = 只加魔力，3 = 体力魔力一起加，其它值不生效。
+        /// 触发后中途回到阈值以上也继续加，直到补满才停（满后复位，等下次再掉到阈值以下）。
+        /// Shape=3 时 HP、MP 各按自己的节奏跳、各扣各的持久。
+        /// 玩家与英雄共用（原逻辑在 PlayerObject，现整体下沉到基类）；子类可按需重写。
         /// </summary>
-        protected virtual void ProcessStones(ref int healthRegen, ref int manaRegen) { }
+        protected bool StoneHPActive, StoneMPActive;
+        protected long StoneHPNextTime, StoneMPNextTime;
+
+        protected virtual void ProcessStones(ref int healthRegen, ref int manaRegen)
+        {
+            if (Dead) return;
+
+            UserItem item = Info.Equipment[(int)EquipmentSlot.守护石];
+            if (item == null || (item.Info.Type != ItemType.气血石 && item.Info.Type != ItemType.魔血石))
+            {
+                // 装备槽没有生命魔法石：开启「允许背包内使用」时，取背包里第一块有电量的气血石/魔血石
+                item = null;
+                if (Settings.StoneAllowBagUse)
+                {
+                    for (int i = 0; i < Info.Inventory.Length; i++)
+                    {
+                        UserItem bagItem = Info.Inventory[i];
+                        if (bagItem == null || bagItem.CurrentDura == 0) continue;
+                        if (bagItem.Info.Type != ItemType.气血石 && bagItem.Info.Type != ItemType.魔血石) continue;
+                        item = bagItem;
+                        break;
+                    }
+                }
+
+                if (item == null)
+                {
+                    StoneHPActive = false;
+                    StoneMPActive = false;
+                    StoneHPNextTime = 0;
+                    StoneMPNextTime = 0;
+                    return; // 普通守护石不处理
+                }
+            }
+
+            long now = Envir.Time;
+
+            // ---- HP（气血石）----
+            if ((item.Info.Shape == 1 || item.Info.Shape == 3) && Settings.StoneHPGainPercent > 0)
+            {
+                if (now >= StoneHPNextTime)
+                {
+                    if (NeedStoneHeal(ref StoneHPActive, HP, Stats[Stat.HP], Settings.StoneHPTriggerPercent))
+                    {
+                        if (item.CurrentDura == 0) { RemoveStone(item); return; }
+
+                        healthRegen += Math.Max(1, item.Info.Durability * Settings.StoneHPGainPercent / 100);
+                        if (ConsumeStoneDura(item, Settings.StoneHPDuraCost)) { RemoveStone(item); return; }
+
+                        StoneHPNextTime = now + Math.Max(1, Settings.StoneHPDelay) * 1000;
+                    }
+                    else StoneHPNextTime = now + 1000; // 未触发：1 秒后再查
+                }
+            }
+            else { StoneHPActive = false; StoneHPNextTime = 0; }
+
+            // ---- MP（魔血石）----
+            if ((item.Info.Shape == 2 || item.Info.Shape == 3) && Settings.StoneMPGainPercent > 0)
+            {
+                if (now >= StoneMPNextTime)
+                {
+                    if (NeedStoneHeal(ref StoneMPActive, MP, Stats[Stat.MP], Settings.StoneMPTriggerPercent))
+                    {
+                        if (item.CurrentDura == 0) { RemoveStone(item); return; }
+
+                        manaRegen += Math.Max(1, item.Info.Durability * Settings.StoneMPGainPercent / 100);
+                        if (ConsumeStoneDura(item, Settings.StoneMPDuraCost)) { RemoveStone(item); return; }
+
+                        StoneMPNextTime = now + Math.Max(1, Settings.StoneMPDelay) * 1000;
+                    }
+                    else StoneMPNextTime = now + 1000;
+                }
+            }
+            else { StoneMPActive = false; StoneMPNextTime = 0; }
+        }
+
+        /// <summary>扣一次持久；返回 true 表示电量已归零（调用方应移除石头）。</summary>
+        private static bool ConsumeStoneDura(UserItem item, int cost)
+        {
+            if (cost <= 0) return false;
+            item.CurrentDura = (ushort)Math.Max(0, item.CurrentDura - cost);
+            item.DuraChanged = true;
+            return item.CurrentDura == 0;
+        }
+
+        /// <summary>
+        /// 生命魔法石的「补到满」状态机：
+        /// 满 → 停止并复位；掉到「触发阈值」以下 → 启动；启动后只要没满就一直保持。
+        /// </summary>
+        private static bool NeedStoneHeal(ref bool active, int current, int max, int triggerPercent)
+        {
+            if (max <= 0) { active = false; return false; }
+            if (current >= max) { active = false; return false; }                 // 已满：停止
+            int threshold = max * Math.Max(0, triggerPercent) / 100;
+            if (!active && current < threshold) active = true;                    // 掉到阈值以下：启动
+            return active;                                                        // 启动后一直补到满
+        }
+
+        protected void RemoveStone(UserItem item)
+        {
+            StoneHPActive = false;
+            StoneMPActive = false;
+
+            // 石头可能在装备槽，也可能在背包里（「允许背包内使用」模式），按引用找到实际位置清除
+            if (ReferenceEquals(Info.Equipment[(int)EquipmentSlot.守护石], item))
+            {
+                Info.Equipment[(int)EquipmentSlot.守护石] = null;
+            }
+            else
+            {
+                for (int i = 0; i < Info.Inventory.Length; i++)
+                {
+                    if (!ReferenceEquals(Info.Inventory[i], item)) continue;
+                    Info.Inventory[i] = null;
+                    break;
+                }
+            }
+
+            Enqueue(new S.DeleteItem { UniqueID = item.UniqueID, Count = item.Count });
+            RefreshStats();
+            ReceiveChat(string.Format("{0} 的能量已经耗尽", item.Info.Name), ChatType.Hint);
+        }
 
         private void ProcessRegen()
         {
@@ -675,7 +804,7 @@ namespace Server.MirObjects
 
             // 气血石 / 魔血石：装备在「石头」格时自动生效。
             // 这里只做 1 秒节拍，HP / MP 各自的回复间隔、触发阈值、增量、耗电都在 Settings（守护石选项卡）里配置，
-            // 由 PlayerObject.ProcessStones 内部分别计时。
+            // 由 ProcessStones 内部分别计时。
             if (Envir.Time > StoneTime)
             {
                 StoneTime = Envir.Time + 1000;
@@ -8513,6 +8642,11 @@ namespace Server.MirObjects
                 Weapon = Looks_Weapon,
                 WeaponEffect = Looks_WeaponEffect,
                 Armour = Looks_Armour,
+
+                // 换装备后品质也跟着广播，否则别人看你换了神物装备还得等下次重新进视野才发光
+                ArmourGrade = Info.Equipment[(int)EquipmentSlot.盔甲] != null ? (byte)Info.Equipment[(int)EquipmentSlot.盔甲].Info.Grade : (byte)0,
+                WeaponGrade = Info.Equipment[(int)EquipmentSlot.武器] != null ? (byte)Info.Equipment[(int)EquipmentSlot.武器].Info.Grade : (byte)0,
+
                 Light = Light,
                 WingEffect = Looks_Wings
             };

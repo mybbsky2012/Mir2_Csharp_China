@@ -48,6 +48,8 @@ namespace Server.MirObjects
 
         protected override void ProcessFriend()
         {
+            if (InSafeZone) return;
+
             if (!HasBuff(BuffType.气流术))
             {
                 UserMagic magic = GetMagic(Spell.Concentration);
@@ -70,45 +72,63 @@ namespace Server.MirObjects
 
             if (!CanCast) return;
             Direction = Functions.DirectionFromPoint(CurrentLocation, Target.CurrentLocation);
-            UserMagic magic = null;
+            UserMagic magic;
 
-            switch (Envir.Random.Next(4))
+            // 按目标状态选箭，不再随机：
+            // 0. 被围（2 个以上敌人贴身）优先火雨箭群攻；1. 元素珠不足先攒珠；
+            // 2. 血厚的目标没上毒优先毒箭；3. 强敌（不低于自身等级）用削弱射击；4. 普通怪直射。
+            if (SurroundedCount >= 2)
             {
-                case 0:
-                    magic = GetMagic(Spell.PoisonShot);
-                    if (CanUseMagic(magic) && !Target.PoisonList.Any(p => p.PType == PoisonType.Green) && !HasBuff(BuffType.毒魔闪))
-                    {
-                        BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                        return;
-                    }
-                    break;
-                case 1:
-                    magic = GetMagic(Spell.CrippleShot);
-                    if (CanUseMagic(magic))
-                    {
-                        BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                        return;
-                    }
-                    break;
-                case 2:
-                    magic = GetMagic(Spell.StraightShot);
-                    if (CanUseMagic(magic))
-                    {
-                        BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                        return;
-                    }
-                    break;
-                case 3:
-                    if (GetElementalOrbCount() < 1 || GetElementalOrbCount() > 3)
-                    {
-                        magic = GetMagic(Spell.ElementalShot);
-                        if (CanUseMagic(magic))
-                        {
-                            BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                            return;
-                        }
-                    }
-                    break;
+                magic = GetMagic(Spell.NapalmShot);
+                if (CanUseMagic(magic))
+                {
+                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
+                    return;
+                }
+            }
+
+            if (GetElementalOrbCount() < 1)
+            {
+                magic = GetMagic(Spell.ElementalShot);
+                if (CanUseMagic(magic))
+                {
+                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
+                    return;
+                }
+            }
+
+            if (!Target.PoisonList.Any(p => p.PType == PoisonType.Green) && !HasBuff(BuffType.毒魔闪) && Target.PercentHealth > 30)
+            {
+                magic = GetMagic(Spell.PoisonShot);
+                if (CanUseMagic(magic))
+                {
+                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
+                    return;
+                }
+            }
+
+            if (Target.Level >= Level)
+            {
+                magic = GetMagic(Spell.CrippleShot);
+                if (CanUseMagic(magic))
+                {
+                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
+                    return;
+                }
+            }
+
+            magic = GetMagic(Spell.StraightShot);
+            if (CanUseMagic(magic))
+            {
+                BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
+                return;
+            }
+
+            magic = GetMagic(Spell.ElementalShot);
+            if (CanUseMagic(magic))
+            {
+                BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
+                return;
             }
         }
 
@@ -130,7 +150,7 @@ namespace Server.MirObjects
 
             if (HasClassWeapon && TargetDistance < 2)
             {
-                MoveTo(GetRandomPointAround(6, CurrentLocation));
+                MoveAwayFrom(Target); // 定向后撤风筝，不再随机乱跑
                 UpdateTimers();
                 return;
             }

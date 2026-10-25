@@ -914,29 +914,81 @@ namespace Server.MirObjects
                 return;
             }
 
+            bool executed = false;
+
             for (int i = 0; i < NPCPages.Count; i++)
             {
                 NPCPage page = NPCPages[i];
                 if (!String.Equals(page.Key, key, StringComparison.CurrentCultureIgnoreCase)) continue;
 
-                player.NPCSpeech = new List<string>();
-                player.NPCSuccess.Clear();
+                RunPage(player, page, objectID);
+                executed = true;
+            }
 
-                foreach (NPCSegment segment in page.SegmentList)
+            // ★GOTO / SETLOOPTIMER 指向的页面（没有任何按钮跳转到它）不会被 ParsePages
+            //   收进 NPCPages——不补动态解析的话，这类跳转全部静默失效（泡点断链根因）。
+            if (!executed)
+            {
+                NPCPage page = FindPage(key);
+
+                if (page != null)
                 {
-                    if (page.BreakFromSegments)
-                    {
-                        page.BreakFromSegments = false;
-                        break;
-                    }
-
-                    ProcessSegment(player, page, segment, objectID);
+                    RunPage(player, page, objectID);
                 }
-
-                Response(player, page);
             }
 
             player.NPCData.Remove("NPCInputStr");
+        }
+
+        /// <summary>
+        /// 执行单个脚本页：清空玩家对话状态 → 跑各段 → 回应客户端。
+        /// 供 Call（按钮/GOTO 链）使用。
+        /// </summary>
+        private void RunPage(PlayerObject player, NPCPage page, uint objectID)
+        {
+            player.NPCSpeech = new List<string>();
+            player.NPCSuccess.Clear();
+
+            foreach (NPCSegment segment in page.SegmentList)
+            {
+                if (page.BreakFromSegments)
+                {
+                    page.BreakFromSegments = false;
+                    break;
+                }
+
+                ProcessSegment(player, page, segment, objectID);
+            }
+
+            Response(player, page);
+        }
+
+        /// <summary>
+        /// 按页名查找脚本页。优先查 NPCPages；查不到再从原始脚本行动态解析并缓存。
+        /// 背景：ParsePages 只沿「按钮」递归收集页面，GOTO/SETLOOPTIMER 的目标页不在其中。
+        /// </summary>
+        private NPCPage FindPage(string key)
+        {
+            for (int i = 0; i < NPCPages.Count; i++)
+            {
+                if (String.Equals(NPCPages[i].Key, key, StringComparison.CurrentCultureIgnoreCase))
+                    return NPCPages[i];
+            }
+
+            if (_rawLines.Count == 0) return null;
+
+            if (!_dynamicPages.TryGetValue(key, out NPCPage page))
+            {
+                NPCPage parsed = ParsePage(_rawLines, key);
+
+                // ParsePage 对不存在的段落同样会返回空页，用 SegmentList 是否为空来判定
+                if (parsed == null || parsed.SegmentList.Count == 0) return null;
+
+                _dynamicPages[key] = parsed;
+                page = parsed;
+            }
+
+            return page;
         }
 
         /// <summary>
@@ -950,35 +1002,10 @@ namespace Server.MirObjects
 
             key = key.ToUpper();
 
-            NPCPage page = null;
+            NPCPage page = FindPage(key);
 
-            for (int i = 0; i < NPCPages.Count; i++)
-            {
-                if (!String.Equals(NPCPages[i].Key, key, StringComparison.CurrentCultureIgnoreCase)) continue;
-
-                page = NPCPages[i];
-                break;
-            }
-
-            // 动态引用的页面（例如只被 SETLOOPTIMER 指向、没有任何按钮跳转到它的「泡点奖励」页）
-            // 不会被 ParsePages 收进 NPCPages，需要拿原始脚本行现场解析，否则会静默失效。
-            if (page == null)
-            {
-                if (_rawLines.Count == 0) return false;
-
-                if (!_dynamicPages.TryGetValue(key, out page))
-                {
-                    NPCPage parsed = ParsePage(_rawLines, key);
-
-                    // ParsePage 对不存在的段落同样会返回空页，用 SegmentList 是否为空来判定
-                    if (parsed == null || parsed.SegmentList.Count == 0) return false;
-
-                    _dynamicPages[key] = parsed;
-                    page = parsed;
-                }
-
-                if (page == null) return false;
-            }
+            // ParsePage 对不存在的段落同样会返回空页，FindPage 已用 SegmentList 判定
+            if (page == null) return false;
 
             uint oldObjectID = player.NPCObjectID;
             int oldScriptID = player.NPCScriptID;
@@ -1023,7 +1050,10 @@ namespace Server.MirObjects
 
         private void Response(PlayerObject player, NPCPage page)
         {
-            player.Enqueue(new S.NPCResponse { Page = player.NPCSpeech });
+            // ★静默上下文（泡点循环定时器等后台触发的 GOTO 链）不发对话框包，
+            //   否则每秒弹一个空 NPC 对话框。
+            if (!player.NPCSilent)
+                player.Enqueue(new S.NPCResponse { Page = player.NPCSpeech });
 
             // ★面板生成（商店/仓库/精炼/合成等）出错也不能外抛，否则会崩服。
             try

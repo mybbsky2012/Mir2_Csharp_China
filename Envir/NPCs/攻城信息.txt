@@ -1,0 +1,57 @@
+[@main]
+#IF
+CHECKCONQUEST 1
+#ACT
+GOTO @和平
+#ELSEACT
+GOTO @战中
+
+[@和平]
+#SAY
+{══════════ 沙巴克攻城战况 ══════════/Gold}
+{当前状态：/LightBlue}{和平时期，暂无攻城战/LightGreen}
+{开战时间：/LightBlue}{<$CONQUESTTIME(1)>/White}
+{城主行会：/LightBlue}<$CONQUESTOWNER(1)>
+{申请行会：/LightBlue}<$CONQUESTSCHEDULE(1)>
+<申请攻城/@申请攻城>　　<刷新/@main>　　<关闭/@exit>
+
+[@战中]
+#SAY
+{══════════ 沙巴克攻城战况 ══════════/Gold}
+{★ 攻城战正在进行中！ ★/Red}
+{<$CONQUESTTIME(1)>/LightBlue}
+{守方(城主)：/LightBlue}<$CONQUESTOWNER(1)>
+{攻方行会：/LightBlue}<$CONQUESTSCHEDULE(1)>
+<刷新/@main>　　<关闭/@exit>
+
+[@申请攻城]
+#IF
+CHECKCONQUEST 1
+#ACT
+SCHEDULECONQUEST 1
+GOTO @申请结果
+#ELSESAY
+{攻城战正在进行中，无法申请。/Red}
+<返回/@main>
+
+[@申请结果]
+#IF
+CONQUESTAVAILABLE 1
+#SAY
+{申请失败！/Red}
+可能原因：你没有行会 / 你的行会已是城主 / 你的行会已申请过。
+<返回/@main>
+#ELSESAY
+{申请成功！/Green}
+攻城战将按设定时间开启，请准时参战。
+<返回/@main>
+
+;━━━━━━━━━━━ 说明 ━━━━━━━━━━━
+;1) 参数针对【1号攻城(沙巴克)】，查 2~5 号城把参数 1 改成对应编号。
+;2) <$CONQUESTTIME(n)> 为引擎新增标签，输出内容自动跟随管理端
+;   「系统→攻城」里的配置：
+;   - 战中：  "攻城战进行中，预计 22:00 结束"
+;   - 和平：  "每周 周三、周六 20:00 开战，历时 120 分钟"
+;   - 申请型未有人申请时追加提示；未勾选任何星期显示"未安排攻城时间"
+;3) 申请攻城需引擎 Type=申请启动 才生效；Auto 型到点自动开。
+;4) 颜色写法 {文字/颜色名}，支持 .NET 颜色名。

@@ -18,6 +18,7 @@
     {
         IsAdmin,
         Level,
+        HeroLevel,
         CheckItem,
         CheckGold,
         CheckGuildGold,
@@ -61,6 +62,10 @@
         CheckTimer,
         CheckBuff,
         CheckTransform,
-        CheckLoopTimer
+        CheckLoopTimer,
+        CheckHero,
+        CheckHeroClass,
+        CheckHeroGender,
+        CheckHeroItem
     }
 }

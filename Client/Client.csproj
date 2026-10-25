@@ -46,6 +46,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="MicroResumeTest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="SlimDX">
       <HintPath>..\Components\SlimDX.dll</HintPath>
     </Reference>

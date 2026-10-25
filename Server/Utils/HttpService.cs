@@ -1,4 +1,4 @@
-using System.Diagnostics;
+ï»¿using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -17,16 +17,16 @@ namespace Server.Library.Utils
 
         private readonly ManualResetEventSlim _listenDone = new ManualResetEventSlim(false);
 
-        /// <summary>Êµ¼ÊÉúĞ§µÄ¼àÌıµØÖ·£¨¿ÉÄÜÓëÅäÖÃÖµ²»Í¬£©</summary>
+        /// <summary>å®é™…ç”Ÿæ•ˆçš„ç›‘å¬åœ°å€ï¼ˆå¯èƒ½ä¸é…ç½®å€¼ä¸åŒï¼‰</summary>
         public string ActivePrefix { get; private set; } = string.Empty;
 
-        /// <summary>Êµ¼ÊÊ¹ÓÃµÄÍ¨µÀ£ºhttpsys »ò socket</summary>
+        /// <summary>å®é™…ä½¿ç”¨çš„é€šé“ï¼šhttpsys æˆ– socket</summary>
         public string Transport { get; private set; } = string.Empty;
 
-        /// <summary>Æô¶¯½á¹ûËµÃ÷£¨³É¹¦»òÊ§°ÜÔ­Òò£©£¬¹©Æô¶¯ÈÕÖ¾Õ¹Ê¾</summary>
+        /// <summary>å¯åŠ¨ç»“æœè¯´æ˜ï¼ˆæˆåŠŸæˆ–å¤±è´¥åŸå› ï¼‰ï¼Œä¾›å¯åŠ¨æ—¥å¿—å±•ç¤º</summary>
         public string ListenReport { get; private set; } = string.Empty;
 
-        /// <summary>µÈ´ı¡¸¼àÌı½á¹ûÒÑÈ·¶¨¡¹¡£Æô¶¯ÈÕÖ¾¿¿ËüÄÃµ½ÕæÊµÉúĞ§µÄµØÖ·¡£</summary>
+        /// <summary>ç­‰å¾…ã€Œç›‘å¬ç»“æœå·²ç¡®å®šã€ã€‚å¯åŠ¨æ—¥å¿—é å®ƒæ‹¿åˆ°çœŸå®ç”Ÿæ•ˆçš„åœ°å€ã€‚</summary>
         public bool WaitListening(int millisecondsTimeout)
         {
             return _listenDone.Wait(millisecondsTimeout);
@@ -37,13 +37,13 @@ namespace Server.Library.Utils
         }
 
         /// <summary>
-        /// Í¬Ê±´«ÊäÖĞµÄÇëÇóÉÏÏŞ¡£
+        /// åŒæ—¶ä¼ è¾“ä¸­çš„è¯·æ±‚ä¸Šé™ã€‚
         ///
-        /// ×ÊÔ´ÏÂ·¢Òª¡¸¶ÁÅÌ + Ğ´ socket¡¹£¬¶øÍâÍøÍæ¼Ò´ø¿í²Î²î²»Æë£º
-        /// Ò»¸ö 200KB/s µÄÍæ¼ÒÏÂÔØ 47MB µÄ´óÍ¼¿âÒª»¨ºÃ¼¸·ÖÖÓ£¬ÕâÆÚ¼äÄÇÌõÁ¬½Ó
-        /// »áÒ»Ö±Õ¼×Å´¦ÀíÏß³Ì¡£Èç¹ûÍ¬Ê±Ö»ÔÊĞíÒ»Á½ÌõÔÚÅÜ£¬¾ÍµÈÓÚÒ»¸öÂıÍæ¼Ò
-        /// °ÑÈ«·şÆäËûÈËµÄ×ÊÔ´ÏÂÔØÈ«²¿¶ÂËÀ¡£ËùÒÔÕ¢ÃÅÒª¿ªµÃ×ã¹»¿í£¬
-        /// Ö»ÓÃÀ´·ÀÖ¹ÉÏ°ÙÈËÍ¬Ê±¶ÁÅÌ°Ñ´ÅÅÌ´ò±¬£¬¶ø²»ÊÇÓÃÀ´´®ĞĞ»¯¡£
+        /// èµ„æºä¸‹å‘è¦ã€Œè¯»ç›˜ + å†™ socketã€ï¼Œè€Œå¤–ç½‘ç©å®¶å¸¦å®½å‚å·®ä¸é½ï¼š
+        /// ä¸€ä¸ª 200KB/s çš„ç©å®¶ä¸‹è½½ 47MB çš„å¤§å›¾åº“è¦èŠ±å¥½å‡ åˆ†é’Ÿï¼Œè¿™æœŸé—´é‚£æ¡è¿æ¥
+        /// ä¼šä¸€ç›´å ç€å¤„ç†çº¿ç¨‹ã€‚å¦‚æœåŒæ—¶åªå…è®¸ä¸€ä¸¤æ¡åœ¨è·‘ï¼Œå°±ç­‰äºä¸€ä¸ªæ…¢ç©å®¶
+        /// æŠŠå…¨æœå…¶ä»–äººçš„èµ„æºä¸‹è½½å…¨éƒ¨å µæ­»ã€‚æ‰€ä»¥é—¸é—¨è¦å¼€å¾—è¶³å¤Ÿå®½ï¼Œ
+        /// åªç”¨æ¥é˜²æ­¢ä¸Šç™¾äººåŒæ—¶è¯»ç›˜æŠŠç£ç›˜æ‰“çˆ†ï¼Œè€Œä¸æ˜¯ç”¨æ¥ä¸²è¡ŒåŒ–ã€‚
         /// </summary>
         private static SemaphoreSlim _transferGate;
         private static readonly object _gateLock = new object();
@@ -75,12 +75,12 @@ namespace Server.Library.Utils
             if (!HttpListener.IsSupported)
             {
                 throw new InvalidOperationException(
-                    "ÒªÊ¹ÓÃHttp·şÎñÆ÷£¬²Ù×÷ÏµÍ³±ØĞëÊÇWindows XP SP2»òServer 2003»ò¸ü¸ß°æ±¾");
+                    "è¦ä½¿ç”¨HttpæœåŠ¡å™¨ï¼Œæ“ä½œç³»ç»Ÿå¿…é¡»æ˜¯Windows XP SP2æˆ–Server 2003æˆ–æ›´é«˜ç‰ˆæœ¬");
             }
 
-            // ÂıËÙ¿Í»§¶Ë»á³¤Ê±¼ä×èÈû×Ô¼ºÄÇÌõ´¦ÀíÏß³Ì£¬Ïß³Ì³ØÄ¬ÈÏµÄ×îĞ¡Ïß³ÌÊı£¨¡ÖCPU ºËÊı£©
-            // Ô¶Ô¶²»¹»ÓÃ£ºµÈÏß³Ì³ØÃ¿ÃëÒ»Á½¸öµØÂıÂıÅÀÉı£¬ÇëÇó»áÏÈ¿¨ÔÚ¡¸µÈÏß³Ì¡¹ÉÏ¡£
-            // ÕâÀï°´Õ¢ÃÅ¿í¶ÈÁô×ãÓàÁ¿ ¡ª¡ª µÈ´ıÕ¢ÃÅµÄÇëÇóÍ¬ÑùÕ¼×Å¸÷×ÔµÄÏß³Ì¡£
+            // æ…¢é€Ÿå®¢æˆ·ç«¯ä¼šé•¿æ—¶é—´é˜»å¡è‡ªå·±é‚£æ¡å¤„ç†çº¿ç¨‹ï¼Œçº¿ç¨‹æ± é»˜è®¤çš„æœ€å°çº¿ç¨‹æ•°ï¼ˆâ‰ˆCPU æ ¸æ•°ï¼‰
+            // è¿œè¿œä¸å¤Ÿç”¨ï¼šç­‰çº¿ç¨‹æ± æ¯ç§’ä¸€ä¸¤ä¸ªåœ°æ…¢æ…¢çˆ¬å‡ï¼Œè¯·æ±‚ä¼šå…ˆå¡åœ¨ã€Œç­‰çº¿ç¨‹ã€ä¸Šã€‚
+            // è¿™é‡ŒæŒ‰é—¸é—¨å®½åº¦ç•™è¶³ä½™é‡ â€”â€” ç­‰å¾…é—¸é—¨çš„è¯·æ±‚åŒæ ·å ç€å„è‡ªçš„çº¿ç¨‹ã€‚
             int want = Settings.ResourceMaxConcurrent * 4;
             if (want < 256) want = 256;
             ThreadPool.GetMinThreads(out int minWorker, out int minIo);
@@ -96,10 +96,10 @@ namespace Server.Library.Utils
                 ? "auto"
                 : Settings.HttpTransport.Trim().ToLowerInvariant();
 
-            // ---------- Í¨µÀ 1£ºhttp.sys£¨ÄÚºËÌ¬£¬ĞÔÄÜ×îºÃ£¬µ«ĞèÒªÈ¨ÏŞ/µÇ¼Ç£©----------
-            // ÕâÀï¿ÌÒâ²»¸ø»·»Ø¶µµ×£ºhttp.sys ÔÚ 127.0.0.1 ÉÏÓÀÔ¶ÊÇÄÜÆğÀ´µÄ£¬
-            // Èç¹û¡¸¶ÔÍâµØÖ·Ê§°Ü¾ÍÍË»Ø»·»Ø¡¹£¬¾ÍÓÀÔ¶ÂÖ²»µ½´¿ Socket Í¨µÀ½ÓÊÖ£¬
-            // ½á¹û¾ÍÊÇÈÕÖ¾ÏÔÊ¾"¿ªÆô³É¹¦"¡¢¶øÍæ¼ÒÒ»¸ö¶¼ÏÂ²»µ½×ÊÔ´¡£
+            // ---------- é€šé“ 1ï¼šhttp.sysï¼ˆå†…æ ¸æ€ï¼Œæ€§èƒ½æœ€å¥½ï¼Œä½†éœ€è¦æƒé™/ç™»è®°ï¼‰----------
+            // è¿™é‡Œåˆ»æ„ä¸ç»™ç¯å›å…œåº•ï¼šhttp.sys åœ¨ 127.0.0.1 ä¸Šæ°¸è¿œæ˜¯èƒ½èµ·æ¥çš„ï¼Œ
+            // å¦‚æœã€Œå¯¹å¤–åœ°å€å¤±è´¥å°±é€€å›ç¯å›ã€ï¼Œå°±æ°¸è¿œè½®ä¸åˆ°çº¯ Socket é€šé“æ¥æ‰‹ï¼Œ
+            // ç»“æœå°±æ˜¯æ—¥å¿—æ˜¾ç¤º"å¼€å¯æˆåŠŸ"ã€è€Œç©å®¶ä¸€ä¸ªéƒ½ä¸‹ä¸åˆ°èµ„æºã€‚
             if (mode != "socket" && TryHttpSys(tried, configured, loopbackIntent, false))
             {
                 _listenDone.Set();
@@ -107,7 +107,7 @@ namespace Server.Library.Utils
                 return;
             }
 
-            // ---------- Í¨µÀ 2£º´¿ Socket£¨²»ĞèÒª¹ÜÀíÔ±È¨ÏŞ£¬°ó¶¨ 0.0.0.0 Ò²ĞĞ£©----------
+            // ---------- é€šé“ 2ï¼šçº¯ Socketï¼ˆä¸éœ€è¦ç®¡ç†å‘˜æƒé™ï¼Œç»‘å®š 0.0.0.0 ä¹Ÿè¡Œï¼‰----------
             if (mode != "httpsys" && TrySocket(tried, configured, port))
             {
                 _listenDone.Set();
@@ -115,38 +115,38 @@ namespace Server.Library.Utils
                 return;
             }
 
-            // ---------- ¶µµ×£ºhttp.sys Ö»¼àÌı±¾»ú£¬ÖÁÉÙ·şÎñÆ÷±¾»ú»¹ÄÜ×Ô²â ----------
+            // ---------- å…œåº•ï¼šhttp.sys åªç›‘å¬æœ¬æœºï¼Œè‡³å°‘æœåŠ¡å™¨æœ¬æœºè¿˜èƒ½è‡ªæµ‹ ----------
             if (mode != "socket" && !loopbackIntent &&
                 TryHttpSys(tried, "http://127.0.0.1:" + port + "/", true, true))
             {
-                MessageQueue.Instance.Enqueue("Http·şÎñÆ÷ ¾¯¸æ£ºÖ»ÄÜ¼àÌı±¾»ú 127.0.0.1£¬¾ÖÓòÍø/ÍâÍøÍæ¼Ò½«ÎŞ·¨ÏÂÔØ×ÊÔ´£¡");
+                MessageQueue.Instance.Enqueue("HttpæœåŠ¡å™¨ è­¦å‘Šï¼šåªèƒ½ç›‘å¬æœ¬æœº 127.0.0.1ï¼Œå±€åŸŸç½‘/å¤–ç½‘ç©å®¶å°†æ— æ³•ä¸‹è½½èµ„æºï¼");
                 _listenDone.Set();
                 AcceptLoopHttpSys(token);
                 return;
             }
 
-            ListenReport = "Http·şÎñÆ÷ Æô¶¯Ê§°Ü£ºÃ»ÓĞÈÎºÎÒ»¸ö¼àÌıµØÖ·ÄÜ¹»Ê¹ÓÃ¡£" + Environment.NewLine +
+            ListenReport = "HttpæœåŠ¡å™¨ å¯åŠ¨å¤±è´¥ï¼šæ²¡æœ‰ä»»ä½•ä¸€ä¸ªç›‘å¬åœ°å€èƒ½å¤Ÿä½¿ç”¨ã€‚" + Environment.NewLine +
                            string.Join(Environment.NewLine, tried.ToArray()) + Environment.NewLine +
-                           "  ¡ú ÈÎÑ¡Ò»ÖÖ´¦Àí·½Ê½£º" + Environment.NewLine +
-                           "     1) ¶Ë¿Ú±»Õ¼ÓÃ£ºÏÈÈ·ÈÏÉÏÒ»¸ö Server.exe ÒÑ¾­ÍêÈ«ÍË³ö£»" + Environment.NewLine +
-                           "     2) ÏëÓÃ http.sys ÓÖ²»¸øÈ¨ÏŞ£ºÒÔ¹ÜÀíÔ±Éí·İÔËĞĞÒ»´Î" + Environment.NewLine +
+                           "  â†’ ä»»é€‰ä¸€ç§å¤„ç†æ–¹å¼ï¼š" + Environment.NewLine +
+                           "     1) ç«¯å£è¢«å ç”¨ï¼šå…ˆç¡®è®¤ä¸Šä¸€ä¸ª Server.exe å·²ç»å®Œå…¨é€€å‡ºï¼›" + Environment.NewLine +
+                           "     2) æƒ³ç”¨ http.sys åˆä¸ç»™æƒé™ï¼šä»¥ç®¡ç†å‘˜èº«ä»½è¿è¡Œä¸€æ¬¡" + Environment.NewLine +
                            "        netsh http add urlacl url=http://+:" + port + "/ user=Everyone" + Environment.NewLine +
-                           "     3) »òÕß°Ñ Configs\\Setup.ini ÀïµÄ HttpTransport ¸Ä³É socket£¬" + Environment.NewLine +
-                           "        ÓÃ´¿ Socket Ä£Ê½£¨²»ĞèÒª¹ÜÀíÔ±È¨ÏŞ£¬ºÍÓÎÏ·Ö÷¶Ë¿ÚÍ¬Ò»Ì×È¨ÏŞÄ£ĞÍ£©¡£";
+                           "     3) æˆ–è€…æŠŠ Configs\\Setup.ini é‡Œçš„ HttpTransport æ”¹æˆ socketï¼Œ" + Environment.NewLine +
+                           "        ç”¨çº¯ Socket æ¨¡å¼ï¼ˆä¸éœ€è¦ç®¡ç†å‘˜æƒé™ï¼Œå’Œæ¸¸æˆä¸»ç«¯å£åŒä¸€å¥—æƒé™æ¨¡å‹ï¼‰ã€‚";
 
             MessageQueue.Instance.Enqueue(ListenReport);
             _listenDone.Set();
         }
 
         /// <summary>
-        /// ³¢ÊÔÓÃ http.sys Æğ¼àÌı¡£
+        /// å°è¯•ç”¨ http.sys èµ·ç›‘å¬ã€‚
         ///
-        /// ×¢ÒâÊÂÏî£ºhttp.sys Ö»ÈÏ 127.0.0.1 / localhost ÃâµÇ¼Ç£»
-        /// ÆäËüµØÖ·£¨¾ßÌåÍø¿¨ IP¡¢http://+:¶Ë¿Ú/¡¢http://*:¶Ë¿Ú/£©¶¼ÒªÇó
-        /// ¡¸¹ÜÀíÔ±Éí·İÔËĞĞ¡¹»òÔ¤ÏÈµÇ¼Ç URL ±£ÁôÏî£¬·ñÔòÒ»ÂÉ¡¸¾Ü¾ø·ÃÎÊ¡¹(5)¡£
+        /// æ³¨æ„äº‹é¡¹ï¼šhttp.sys åªè®¤ 127.0.0.1 / localhost å…ç™»è®°ï¼›
+        /// å…¶å®ƒåœ°å€ï¼ˆå…·ä½“ç½‘å¡ IPã€http://+:ç«¯å£/ã€http://*:ç«¯å£/ï¼‰éƒ½è¦æ±‚
+        /// ã€Œç®¡ç†å‘˜èº«ä»½è¿è¡Œã€æˆ–é¢„å…ˆç™»è®° URL ä¿ç•™é¡¹ï¼Œå¦åˆ™ä¸€å¾‹ã€Œæ‹’ç»è®¿é—®ã€(5)ã€‚
         ///
-        /// loopbackOnly=true ±íÊ¾ÕâÒ»ÂÖÖ»ÊÔ±¾»úµØÖ·£»ÅäÖÃ³É¶ÔÍâµØÖ·Ê±µÚÒ»ÂÖ±ØĞë
-        /// ´« false£¬·ñÔò»á¡¸ÓÃ»·»ØµØÖ·¼Ù×°³É¹¦¡¹£¬°Ñ´¿ Socket Í¨µÀµ²ÔÚÃÅÍâ¡£
+        /// loopbackOnly=true è¡¨ç¤ºè¿™ä¸€è½®åªè¯•æœ¬æœºåœ°å€ï¼›é…ç½®æˆå¯¹å¤–åœ°å€æ—¶ç¬¬ä¸€è½®å¿…é¡»
+        /// ä¼  falseï¼Œå¦åˆ™ä¼šã€Œç”¨ç¯å›åœ°å€å‡è£…æˆåŠŸã€ï¼ŒæŠŠçº¯ Socket é€šé“æŒ¡åœ¨é—¨å¤–ã€‚
         /// </summary>
         private bool TryHttpSys(List<string> tried, string configured, bool loopbackIntent, bool loopbackOnly)
         {
@@ -165,15 +165,15 @@ namespace Server.Library.Utils
 
                     if (configured != null && !string.Equals(prefix, configured, StringComparison.OrdinalIgnoreCase))
                     {
-                        MessageQueue.Instance.Enqueue("Http·şÎñÆ÷ ÌáÊ¾£ºÅäÖÃµÄ¼àÌıµØÖ· " + Host + " ÓÃ²»ÁË£¬ÒÑ×Ô¶¯¸ÄÓÃ " + prefix);
+                        MessageQueue.Instance.Enqueue("HttpæœåŠ¡å™¨ æç¤ºï¼šé…ç½®çš„ç›‘å¬åœ°å€ " + Host + " ç”¨ä¸äº†ï¼Œå·²è‡ªåŠ¨æ”¹ç”¨ " + prefix);
                     }
 
-                    MessageQueue.Instance.Enqueue("Http·şÎñÆ÷ ³É¹¦¿ªÆô (http.sys): " + prefix);
+                    MessageQueue.Instance.Enqueue("HttpæœåŠ¡å™¨ æˆåŠŸå¼€å¯ (http.sys): " + prefix);
                     return true;
                 }
                 catch (Exception err)
                 {
-                    tried.Add("  ¡Á [http.sys] " + prefix + " ¡ú " + DescribeListenError(err));
+                    tried.Add("  Ã— [http.sys] " + prefix + " â†’ " + DescribeListenError(err));
                     try { listener.Close(); } catch { }
                 }
             }
@@ -182,14 +182,14 @@ namespace Server.Library.Utils
         }
 
         /// <summary>
-        /// ³¢ÊÔÓÃ´¿ Socket Æğ¼àÌı¡£°ó 0.0.0.0 ²»ĞèÒª¹ÜÀíÔ±È¨ÏŞ£¬
-        /// ËùÒÔÕâÌõÂ·ÔÚ¡¸·Ç¹ÜÀíÔ± + Ã»µÇ¼Ç urlacl¡¹µÄ»úÆ÷ÉÏÒ²ÄÜwork¡£
+        /// å°è¯•ç”¨çº¯ Socket èµ·ç›‘å¬ã€‚ç»‘ 0.0.0.0 ä¸éœ€è¦ç®¡ç†å‘˜æƒé™ï¼Œ
+        /// æ‰€ä»¥è¿™æ¡è·¯åœ¨ã€Œéç®¡ç†å‘˜ + æ²¡ç™»è®° urlaclã€çš„æœºå™¨ä¸Šä¹Ÿèƒ½workã€‚
         /// </summary>
         private bool TrySocket(List<string> tried, string configured, int port)
         {
             var attempts = new List<IPAddress> { ResolveBindAddress(configured) };
 
-            // Ö¸¶¨ÁË¾ßÌåÍø¿¨ IP µ«°ó²»ÉÏ£¨IP ÒÑ±ä¡¢Íø¿¨Ã»ÆôÓÃ£©Ê±£¬ÍË»Ø¼àÌıÈ«²¿Íø¿¨
+            // æŒ‡å®šäº†å…·ä½“ç½‘å¡ IP ä½†ç»‘ä¸ä¸Šï¼ˆIP å·²å˜ã€ç½‘å¡æ²¡å¯ç”¨ï¼‰æ—¶ï¼Œé€€å›ç›‘å¬å…¨éƒ¨ç½‘å¡
             var primary = attempts[0];
             if (!primary.Equals(IPAddress.Any) && !primary.Equals(IPAddress.Loopback) &&
                 !primary.Equals(IPAddress.IPv6Loopback))
@@ -203,7 +203,7 @@ namespace Server.Library.Utils
 
                 if (!server.Bind(address, port))
                 {
-                    tried.Add("  ¡Á [socket] " + address + ":" + port + " °ó¶¨Ê§°Ü");
+                    tried.Add("  Ã— [socket] " + address + ":" + port + " ç»‘å®šå¤±è´¥");
                     continue;
                 }
 
@@ -213,17 +213,17 @@ namespace Server.Library.Utils
 
                 if (configured != null && !string.Equals(ActivePrefix, configured, StringComparison.OrdinalIgnoreCase))
                 {
-                    MessageQueue.Instance.Enqueue("Http·şÎñÆ÷ ÌáÊ¾£ºÅäÖÃµÄ¼àÌıµØÖ· " + Host + " ÎŞ·¨ÉúĞ§£¬ÒÑ¸ÄÓÃ " + ActivePrefix);
+                    MessageQueue.Instance.Enqueue("HttpæœåŠ¡å™¨ æç¤ºï¼šé…ç½®çš„ç›‘å¬åœ°å€ " + Host + " æ— æ³•ç”Ÿæ•ˆï¼Œå·²æ”¹ç”¨ " + ActivePrefix);
                 }
 
-                MessageQueue.Instance.Enqueue("Http·şÎñÆ÷ ³É¹¦¿ªÆô (´¿SocketÄ£Ê½£¬ÎŞĞè¹ÜÀíÔ±È¨ÏŞ): " + ActivePrefix);
+                MessageQueue.Instance.Enqueue("HttpæœåŠ¡å™¨ æˆåŠŸå¼€å¯ (çº¯Socketæ¨¡å¼ï¼Œæ— éœ€ç®¡ç†å‘˜æƒé™): " + ActivePrefix);
 
-                // °Ñ http.sys ÄÇ±ßÊ§°ÜµÄÔ­ÒòÒ»²¢±¨µ½Æô¶¯ÈÕÖ¾Àï£º
-                // ¡¸ÎªÊ²Ã´¼àÌıµØÖ·ºÍÅäÖÃµÄ²»Ò»Ñù¡¹ÊÇ×î³£±»ÎÊµ½µÄÎÊÌâ£¬
-                // ÓëÆäÈÃÈË·­ÈÕÖ¾²Â£¬²»ÈçÖ±½Ó°ÑÔ­Òò°ÚÔÚÌ¨ÃæÉÏ¡£
+                // æŠŠ http.sys é‚£è¾¹å¤±è´¥çš„åŸå› ä¸€å¹¶æŠ¥åˆ°å¯åŠ¨æ—¥å¿—é‡Œï¼š
+                // ã€Œä¸ºä»€ä¹ˆç›‘å¬åœ°å€å’Œé…ç½®çš„ä¸ä¸€æ ·ã€æ˜¯æœ€å¸¸è¢«é—®åˆ°çš„é—®é¢˜ï¼Œ
+                // ä¸å…¶è®©äººç¿»æ—¥å¿—çŒœï¼Œä¸å¦‚ç›´æ¥æŠŠåŸå› æ‘†åœ¨å°é¢ä¸Šã€‚
                 if (tried.Count > 0)
                 {
-                    ListenReport = "http.sys Í¨µÀ²»¿ÉÓÃ£¬ÒÑ×Ô¶¯¸ÄÓÃ´¿ Socket Ä£Ê½£¬Ô­Òò£º" + Environment.NewLine +
+                    ListenReport = "http.sys é€šé“ä¸å¯ç”¨ï¼Œå·²è‡ªåŠ¨æ”¹ç”¨çº¯ Socket æ¨¡å¼ï¼ŒåŸå› ï¼š" + Environment.NewLine +
                                    string.Join(Environment.NewLine, tried.ToArray());
                     MessageQueue.Instance.Enqueue(ListenReport);
                 }
@@ -242,9 +242,9 @@ namespace Server.Library.Utils
 
                 try
                 {
-                    // GetContext ÊÇ×èÈûÈ¡Á¬½Ó£ºÈ¡µ½Ö®ºóÁ¢¿Ì¶ª¸øÏß³Ì³Ø²¢ĞĞ´¦Àí¡£
-                    // ¾ø²»ÄÜÔÚÕâÀï°ÑÇëÇó´¦ÀíÍêÔÙÈ¡ÏÂÒ»¸ö ¡ª¡ª ÄÇÕıÊÇ¡¸Ò»¸öÈËÏÂÔØ¡¢
-                    // È«·şÅÅ¶Ó¡¹µÄ¸ùÒò¡£
+                    // GetContext æ˜¯é˜»å¡å–è¿æ¥ï¼šå–åˆ°ä¹‹åç«‹åˆ»ä¸¢ç»™çº¿ç¨‹æ± å¹¶è¡Œå¤„ç†ã€‚
+                    // ç»ä¸èƒ½åœ¨è¿™é‡ŒæŠŠè¯·æ±‚å¤„ç†å®Œå†å–ä¸‹ä¸€ä¸ª â€”â€” é‚£æ­£æ˜¯ã€Œä¸€ä¸ªäººä¸‹è½½ã€
+                    // å…¨æœæ’é˜Ÿã€çš„æ ¹å› ã€‚
                     context = _listener.GetContext();
                 }
                 catch (Exception)
@@ -268,10 +268,10 @@ namespace Server.Library.Utils
         }
 
         /// <summary>
-        /// ÓëÍ¨µÀÎŞ¹ØµÄÇëÇó´¦Àí¡£
+        /// ä¸é€šé“æ— å…³çš„è¯·æ±‚å¤„ç†ã€‚
         ///
-        /// ´¦ÀíÁ÷³ÌÊÇÒì²½µÄ£ºÇëÇóÔÚµÈ²¢·¢Õ¢ÃÅÊ±»á°ÑÏß³Ì»¹¸øÏß³Ì³Ø£¬
-        /// ²»È»ÉÏ°ÙÈËÍ¬Ê±À´£¬¹â¡¸ÅÅ¶ÓµÈÕ¢ÃÅ¡¹¾ÍÒªÕ¼µôÉÏ°Ù¸öÏß³Ì¡£
+        /// å¤„ç†æµç¨‹æ˜¯å¼‚æ­¥çš„ï¼šè¯·æ±‚åœ¨ç­‰å¹¶å‘é—¸é—¨æ—¶ä¼šæŠŠçº¿ç¨‹è¿˜ç»™çº¿ç¨‹æ± ï¼Œ
+        /// ä¸ç„¶ä¸Šç™¾äººåŒæ—¶æ¥ï¼Œå…‰ã€Œæ’é˜Ÿç­‰é—¸é—¨ã€å°±è¦å æ‰ä¸Šç™¾ä¸ªçº¿ç¨‹ã€‚
         /// </summary>
         private async Task ProcessRequestAsync(IHttpRequestLite request, IHttpResponseLite response)
         {
@@ -288,7 +288,7 @@ namespace Server.Library.Utils
 
                 if (!string.IsNullOrEmpty(clientIp))
                 {
-                    //Î¢¶Ë×ÊÔ´ÇëÇóÔÚ¿ªÆô ResourceAllowAnyIP Ê±¶ÔÈÎÒâ IP ·ÅĞĞ£¨ÆäÓà¹ÜÀí½Ó¿ÚÈÔÏŞÖÆĞÅÈÎ IP£©
+                    //å¾®ç«¯èµ„æºè¯·æ±‚åœ¨å¼€å¯ ResourceAllowAnyIP æ—¶å¯¹ä»»æ„ IP æ”¾è¡Œï¼ˆå…¶ä½™ç®¡ç†æ¥å£ä»é™åˆ¶ä¿¡ä»» IPï¼‰
                     bool isResourceRequest = request.Path.StartsWith("/res", StringComparison.OrdinalIgnoreCase);
                     bool resourcePublic = isResourceRequest && Settings.ResourceAllowAnyIP;
 
@@ -299,8 +299,8 @@ namespace Server.Library.Utils
                     }
                 }
 
-                // Õ¢ÃÅÖ»ÊÇÏŞÁ÷£¬²»ÊÇÅÅ¶ÓµÈÒ»¸öÈËÏÂÍê£º¿í¶È×ã¹»Í¬Ê±ÈİÄÉÈ«·şÔÚÏßÍæ¼ÒµÄ
-                // ×ÊÔ´²¹ÏÂÔØ£¬Ö»ÓĞ¼«¶Ë²¢·¢²Å»áÕæÕıÅÅ¶Ó¡£
+                // é—¸é—¨åªæ˜¯é™æµï¼Œä¸æ˜¯æ’é˜Ÿç­‰ä¸€ä¸ªäººä¸‹å®Œï¼šå®½åº¦è¶³å¤ŸåŒæ—¶å®¹çº³å…¨æœåœ¨çº¿ç©å®¶çš„
+                // èµ„æºè¡¥ä¸‹è½½ï¼Œåªæœ‰æç«¯å¹¶å‘æ‰ä¼šçœŸæ­£æ’é˜Ÿã€‚
                 await TransferGate.WaitAsync().ConfigureAwait(false);
                 acquired = true;
 
@@ -324,8 +324,8 @@ namespace Server.Library.Utils
                     try { TransferGate.Release(); } catch { }
                 }
 
-                // WriteResponse / WriteFileStream ÄÚ²¿ÒÑ¹Ø±ÕÊä³öÁ÷£¬ÕâÀïÔÙ¶µµ×Ò»´Î£¬
-                // È·±£Òì³£Â·¾¶ÏÂÁ¬½Ó²»»áĞü×Å²»·Å¡£
+                // WriteResponse / WriteFileStream å†…éƒ¨å·²å…³é—­è¾“å‡ºæµï¼Œè¿™é‡Œå†å…œåº•ä¸€æ¬¡ï¼Œ
+                // ç¡®ä¿å¼‚å¸¸è·¯å¾„ä¸‹è¿æ¥ä¸ä¼šæ‚¬ç€ä¸æ”¾ã€‚
                 try { response.Close(); } catch { }
             }
         }
@@ -351,18 +351,18 @@ namespace Server.Library.Utils
         public abstract void OnPostRequest(IHttpRequestLite request, IHttpResponseLite response);
 
         // ------------------------------------------------------------------
-        // µØÖ·½âÎö
+        // åœ°å€è§£æ
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// °ÑÅäÖÃÀïµÄµØÖ·ÕûÀí³É±ê×¼Ğ´·¨¡£
+        /// æŠŠé…ç½®é‡Œçš„åœ°å€æ•´ç†æˆæ ‡å‡†å†™æ³•ã€‚
         ///
-        /// ²È¹ıµÄ¿Ó£º
-        ///  - IPAddress Ìî 0.0.0.0 ±íÊ¾¡¸ËùÓĞÍø¿¨¡¹£¬µ« HTTPIPAddress ÊÇ URL Ç°×º£¬
-        ///    http.sys ²»ÈÏ 0.0.0.0 ÕâÖÖÖ÷»úĞ´·¨£¬»áÖ±½ÓÅ×¡¸²»Ö§³Ö¸ÃÇëÇó¡¹(´íÎóÂë 50)¡£
-        ///    ÕâÀïÍ³Ò»·­Òë³ÉÍ¨Åä·û +¡£
-        ///  - Ç°×º±ØĞë´øÂ·¾¶²¿·Ö£¬Â©ÁËÎ²²¿Ğ±¸Ü»á±»ÅĞ·Ç·¨¡£
-        ///  - Â©Ğ´ http:// »ò¶Ë¿Ú¶¼Òª²¹Æë¡£
+        /// è¸©è¿‡çš„å‘ï¼š
+        ///  - IPAddress å¡« 0.0.0.0 è¡¨ç¤ºã€Œæ‰€æœ‰ç½‘å¡ã€ï¼Œä½† HTTPIPAddress æ˜¯ URL å‰ç¼€ï¼Œ
+        ///    http.sys ä¸è®¤ 0.0.0.0 è¿™ç§ä¸»æœºå†™æ³•ï¼Œä¼šç›´æ¥æŠ›ã€Œä¸æ”¯æŒè¯¥è¯·æ±‚ã€(é”™è¯¯ç  50)ã€‚
+        ///    è¿™é‡Œç»Ÿä¸€ç¿»è¯‘æˆé€šé…ç¬¦ +ã€‚
+        ///  - å‰ç¼€å¿…é¡»å¸¦è·¯å¾„éƒ¨åˆ†ï¼Œæ¼äº†å°¾éƒ¨æ–œæ ä¼šè¢«åˆ¤éæ³•ã€‚
+        ///  - æ¼å†™ http:// æˆ–ç«¯å£éƒ½è¦è¡¥é½ã€‚
         /// </summary>
         internal static string NormalizePrefix(string raw)
         {
@@ -426,11 +426,11 @@ namespace Server.Library.Utils
         }
 
         /// <summary>
-        /// È¡Ç°×ºÀïµÄ¶Ë¿Ú¡£
+        /// å–å‰ç¼€é‡Œçš„ç«¯å£ã€‚
         ///
-        /// ÕâÀï¿ÌÒâ²»ÓÃ Uri ½âÎö£ºhttp.sys µÄÍ¨Åä·ûĞ´·¨ http://+:5679/ ÀïµÄ "+"
-        /// ²»ÊÇºÏ·¨Ö÷»úÃû£¬Uri »áÖ±½ÓÅ×¸ñÊ½Òì³££¬½á¹û¾ÍÊÇ¶Ë¿ÚÇÄÇÄÍË»ØÄ¬ÈÏÖµ£¬
-        /// ¼àÌıÅÜµ½ÁËÍêÈ«²»Ïà¸ÉµÄ¶Ë¿ÚÉÏ£¨Õâ¸ö¿ÓÕæ²È¹ı£ºÅä 5681 Ìı³ÉÁË 5679£©¡£
+        /// è¿™é‡Œåˆ»æ„ä¸ç”¨ Uri è§£æï¼šhttp.sys çš„é€šé…ç¬¦å†™æ³• http://+:5679/ é‡Œçš„ "+"
+        /// ä¸æ˜¯åˆæ³•ä¸»æœºåï¼ŒUri ä¼šç›´æ¥æŠ›æ ¼å¼å¼‚å¸¸ï¼Œç»“æœå°±æ˜¯ç«¯å£æ‚„æ‚„é€€å›é»˜è®¤å€¼ï¼Œ
+        /// ç›‘å¬è·‘åˆ°äº†å®Œå…¨ä¸ç›¸å¹²çš„ç«¯å£ä¸Šï¼ˆè¿™ä¸ªå‘çœŸè¸©è¿‡ï¼šé… 5681 å¬æˆäº† 5679ï¼‰ã€‚
         /// </summary>
         internal static int GetPortFromPrefix(string prefix)
         {
@@ -452,11 +452,11 @@ namespace Server.Library.Utils
                     return port;
             }
 
-            // Ã»Ğ´¶Ë¿Ú¾ÍÊÇ http Ä¬ÈÏµÄ 80
+            // æ²¡å†™ç«¯å£å°±æ˜¯ http é»˜è®¤çš„ 80
             return 80;
         }
 
-        /// <summary>È¡Ç°×ºÀïµÄÖ÷»ú²¿·Ö£¨Í¨Åä·ûÔ­Ñù·µ»Ø£¬ÀıÈç + / * / ¾ßÌå IP / localhost£©</summary>
+        /// <summary>å–å‰ç¼€é‡Œçš„ä¸»æœºéƒ¨åˆ†ï¼ˆé€šé…ç¬¦åŸæ ·è¿”å›ï¼Œä¾‹å¦‚ + / * / å…·ä½“ IP / localhostï¼‰</summary>
         internal static string GetHostFromPrefix(string prefix)
         {
             if (string.IsNullOrEmpty(prefix)) return string.Empty;
@@ -492,13 +492,13 @@ namespace Server.Library.Utils
         }
 
         /// <summary>
-        /// http.sys µÄºòÑ¡Ç°×º¡£
+        /// http.sys çš„å€™é€‰å‰ç¼€ã€‚
         ///
-        /// Ö»ÊÔ¡¸ÅäÖÃÀïÖ¸¶¨µÄ¡¹ºÍ¡¸ÅäÖÃÏëÒªµÄ¡¹µØÖ·£¬¾ø²»ÉÃ×ÔÍË»Ø»·»Ø£º
-        /// 127.0.0.1 ÉÏ http.sys ÓÀÔ¶ÄÜÆğÀ´£¬Ò»µ©°ÑËü·Å½øÕâÒ»ÂÖ£¬
-        /// ÈÕÖ¾¾Í»áÏÔÊ¾¡¸¿ªÆô³É¹¦¡¹¶ø¾ÖÓòÍøÍæ¼ÒÒ»¸ö¶¼Á¬²»ÉÏ£¬
-        /// Í¬Ê±Ò²°Ñ²»ĞèÒªÈ¨ÏŞµÄ´¿ Socket Í¨µÀµ²ÔÚÃÅÍâÁË¡£
-        /// ÕæµÄÒªÍË»Ø»·»Ø£¬ÓÉµ÷ÓÃ·½ÔÚ×îºóµ¥¶ÀÔÙÊÔÒ»´Î£¬²¢ÇÒ»á´øÉÏĞÑÄ¿¾¯¸æ¡£
+        /// åªè¯•ã€Œé…ç½®é‡ŒæŒ‡å®šçš„ã€å’Œã€Œé…ç½®æƒ³è¦çš„ã€åœ°å€ï¼Œç»ä¸æ“…è‡ªé€€å›ç¯å›ï¼š
+        /// 127.0.0.1 ä¸Š http.sys æ°¸è¿œèƒ½èµ·æ¥ï¼Œä¸€æ—¦æŠŠå®ƒæ”¾è¿›è¿™ä¸€è½®ï¼Œ
+        /// æ—¥å¿—å°±ä¼šæ˜¾ç¤ºã€Œå¼€å¯æˆåŠŸã€è€Œå±€åŸŸç½‘ç©å®¶ä¸€ä¸ªéƒ½è¿ä¸ä¸Šï¼Œ
+        /// åŒæ—¶ä¹ŸæŠŠä¸éœ€è¦æƒé™çš„çº¯ Socket é€šé“æŒ¡åœ¨é—¨å¤–äº†ã€‚
+        /// çœŸçš„è¦é€€å›ç¯å›ï¼Œç”±è°ƒç”¨æ–¹åœ¨æœ€åå•ç‹¬å†è¯•ä¸€æ¬¡ï¼Œå¹¶ä¸”ä¼šå¸¦ä¸Šé†’ç›®è­¦å‘Šã€‚
         /// </summary>
         private static List<string> BuildHttpSysCandidates(string configured, bool onlyLoopback)
         {
@@ -536,8 +536,8 @@ namespace Server.Library.Utils
         }
 
         /// <summary>
-        /// ´¿ Socket Í¨µÀÒª°óÄÄ¸ö±¾µØµØÖ·¡£Í¨Åä·û ¡ú È«²¿Íø¿¨£»
-        /// ¾ßÌå IP ¡ú ¸Ã IP£»localhost / 127.x ¡ú »·»Ø¡£
+        /// çº¯ Socket é€šé“è¦ç»‘å“ªä¸ªæœ¬åœ°åœ°å€ã€‚é€šé…ç¬¦ â†’ å…¨éƒ¨ç½‘å¡ï¼›
+        /// å…·ä½“ IP â†’ è¯¥ IPï¼›localhost / 127.x â†’ ç¯å›ã€‚
         /// </summary>
         private static IPAddress ResolveBindAddress(string prefix)
         {
@@ -566,7 +566,7 @@ namespace Server.Library.Utils
             return address.ToString();
         }
 
-        /// <summary>ÁĞ³ö±¾»ú¿ÉÓÃÍø¿¨µÄ IPv4 µØÖ·£¬ÓĞÄ¬ÈÏÍø¹ØµÄ£¨ÕæÊµ¾ÖÓòÍø/¹«Íø³ö¿Ú£©ÅÅÇ°Ãæ¡£</summary>
+        /// <summary>åˆ—å‡ºæœ¬æœºå¯ç”¨ç½‘å¡çš„ IPv4 åœ°å€ï¼Œæœ‰é»˜è®¤ç½‘å…³çš„ï¼ˆçœŸå®å±€åŸŸç½‘/å…¬ç½‘å‡ºå£ï¼‰æ’å‰é¢ã€‚</summary>
         internal static List<string> GetLanIPv4()
         {
             var primary = new List<string>();
@@ -604,7 +604,7 @@ namespace Server.Library.Utils
                             if (unicast.Address.AddressFamily != AddressFamily.InterNetwork) continue;
 
                             string ip = unicast.Address.ToString();
-                            if (ip.StartsWith("169.254.")) continue;   // APIPA£¬Ã»ÒâÒå
+                            if (ip.StartsWith("169.254.")) continue;   // APIPAï¼Œæ²¡æ„ä¹‰
                             if (!target.Contains(ip)) target.Add(ip);
                         }
                     }
@@ -625,7 +625,7 @@ namespace Server.Library.Utils
             return primary;
         }
 
-        /// <summary>°Ñ¼àÌıÊ§°ÜµÄÒì³£·­Òë³ÉÄÜÖ±½ÓÕÕ×öµÄËµÃ÷¡£</summary>
+        /// <summary>æŠŠç›‘å¬å¤±è´¥çš„å¼‚å¸¸ç¿»è¯‘æˆèƒ½ç›´æ¥ç…§åšçš„è¯´æ˜ã€‚</summary>
         internal static string DescribeListenError(Exception err)
         {
             var listenerError = err as HttpListenerException;
@@ -635,21 +635,21 @@ namespace Server.Library.Utils
                 switch (listenerError.ErrorCode)
                 {
                     case 5:     // ERROR_ACCESS_DENIED
-                        return "¾Ü¾ø·ÃÎÊ(5)£º¸ÃµØÖ·ĞèÒª¹ÜÀíÔ±È¨ÏŞ£¬»òÏÈÓÃ¹ÜÀíÔ±µÇ¼Ç URL ±£ÁôÏî";
+                        return "æ‹’ç»è®¿é—®(5)ï¼šè¯¥åœ°å€éœ€è¦ç®¡ç†å‘˜æƒé™ï¼Œæˆ–å…ˆç”¨ç®¡ç†å‘˜ç™»è®° URL ä¿ç•™é¡¹";
 
                     case 50:    // ERROR_NOT_SUPPORTED
-                        return "²»Ö§³Ö¸ÃÇëÇó(50)£ºµØÖ·Ğ´·¨ http.sys ²»ÈÏ£¨±ÈÈçÖ÷»úĞ´³É 0.0.0.0£¬" +
-                               "Ó¦Ğ´ + »ò * »ò¾ßÌåÍø¿¨ IP£©";
+                        return "ä¸æ”¯æŒè¯¥è¯·æ±‚(50)ï¼šåœ°å€å†™æ³• http.sys ä¸è®¤ï¼ˆæ¯”å¦‚ä¸»æœºå†™æˆ 0.0.0.0ï¼Œ" +
+                               "åº”å†™ + æˆ– * æˆ–å…·ä½“ç½‘å¡ IPï¼‰";
 
                     case 183:   // ERROR_ALREADY_EXISTS
                     case 32:    // ERROR_SHARING_VIOLATION
-                        return "¶Ë¿ÚÒÑ±»Õ¼ÓÃ(" + listenerError.ErrorCode + ")£º¶à°ëÊÇÉÏÒ»¸ö Server.exe »¹Ã»ÍË³ö¸É¾»";
+                        return "ç«¯å£å·²è¢«å ç”¨(" + listenerError.ErrorCode + ")ï¼šå¤šåŠæ˜¯ä¸Šä¸€ä¸ª Server.exe è¿˜æ²¡é€€å‡ºå¹²å‡€";
 
                     case 1312:  // ERROR_NO_SUCH_LOGON_SESSION
-                        return "https ĞèÒªÏÈ¸ø¸Ã¶Ë¿Ú°ó¶¨Ö¤Êé(1312)";
+                        return "https éœ€è¦å…ˆç»™è¯¥ç«¯å£ç»‘å®šè¯ä¹¦(1312)";
 
                     default:
-                        return "´íÎóÂë " + listenerError.ErrorCode + "£º" + listenerError.Message;
+                        return "é”™è¯¯ç  " + listenerError.ErrorCode + "ï¼š" + listenerError.Message;
                 }
             }
 
@@ -659,16 +659,16 @@ namespace Server.Library.Utils
                 switch (socketError.SocketErrorCode)
                 {
                     case SocketError.AddressAlreadyInUse:
-                        return "¶Ë¿ÚÒÑ±»Õ¼ÓÃ(10048)£º¶à°ëÊÇÉÏÒ»¸ö Server.exe »¹Ã»ÍË³ö¸É¾»";
+                        return "ç«¯å£å·²è¢«å ç”¨(10048)ï¼šå¤šåŠæ˜¯ä¸Šä¸€ä¸ª Server.exe è¿˜æ²¡é€€å‡ºå¹²å‡€";
 
                     case SocketError.AddressNotAvailable:
-                        return "¸ÃµØÖ·ÔÚ±¾»ú²»´æÔÚ(10049)£ºÌîµÄ IP ²»ÊÇ±¾»úÍø¿¨µØÖ·";
+                        return "è¯¥åœ°å€åœ¨æœ¬æœºä¸å­˜åœ¨(10049)ï¼šå¡«çš„ IP ä¸æ˜¯æœ¬æœºç½‘å¡åœ°å€";
 
                     case SocketError.AccessDenied:
-                        return "¾Ü¾ø·ÃÎÊ(10013)£º¸Ã¶Ë¿Ú±»ÏµÍ³±£Áô£¬»òĞèÒª¹ÜÀíÔ±È¨ÏŞ";
+                        return "æ‹’ç»è®¿é—®(10013)ï¼šè¯¥ç«¯å£è¢«ç³»ç»Ÿä¿ç•™ï¼Œæˆ–éœ€è¦ç®¡ç†å‘˜æƒé™";
 
                     default:
-                        return "Socket ´íÎó " + socketError.SocketErrorCode + "£º" + socketError.Message;
+                        return "Socket é”™è¯¯ " + socketError.SocketErrorCode + "ï¼š" + socketError.Message;
                 }
             }
 
@@ -692,7 +692,7 @@ namespace Server.Library.Utils
         }
 
         /// <summary>
-        /// ÒÔ¶ş½øÖÆĞÎÊ½·µ»ØÄÚ´æÖĞµÄÊı¾İ£¨Ğ¡ÎÄ¼ş¡¢Çåµ¥µÈ£©
+        /// ä»¥äºŒè¿›åˆ¶å½¢å¼è¿”å›å†…å­˜ä¸­çš„æ•°æ®ï¼ˆå°æ–‡ä»¶ã€æ¸…å•ç­‰ï¼‰
         /// </summary>
         public void WriteBinary(IHttpResponseLite response, byte[] data, string contentType = "application/octet-stream")
         {
@@ -708,42 +708,98 @@ namespace Server.Library.Utils
             }
             catch
             {
-                // ¿Í»§¶ËÌáÇ°¶Ï¿ªµÈÒì³£ÎŞĞè´¦Àí
+                // å®¢æˆ·ç«¯æå‰æ–­å¼€ç­‰å¼‚å¸¸æ— éœ€å¤„ç†
             }
         }
 
         /// <summary>
-        /// Á÷Ê½·¢ËÍ´ÅÅÌÎÄ¼ş¡£
+        /// æµå¼å‘é€ç£ç›˜æ–‡ä»¶ï¼ˆæ”¯æŒæ–­ç‚¹ç»­ä¼ ï¼šoffset &gt; 0 æ—¶åªå‘ offset ä¹‹åçš„éƒ¨åˆ†å¹¶å› 206ï¼‰ã€‚
         ///
-        /// ºÍÔ­À´µÄ File.ReadAllBytes + WriteBinary Ïà±ÈÓĞÁ½µã¹Ø¼ü²î±ğ£º
-        /// 1) ²»°ÑÕû¸öÎÄ¼ş¶Á½øÄÚ´æ¡£×î´óµÄÍ¼¿âÓĞ 47MB£¬ÉÏ°ÙÈË²¢·¢Ê±Èç¹û¸÷Õ¼Ò»·İ
-        ///    ÄÚ´æ¸±±¾£¬¹âÄÚ´æ¾Í¿¸²»×¡£»Á÷Ê½·¢ËÍµÄÄÚ´æÕ¼ÓÃºã¶¨Îª»º³åÇø´óĞ¡¡£
-        /// 2) ´ø´«ÊäÊ±³¤ÉÏÏŞ¡£¿Í»§¶Ë¿¨ËÀ£¨¶ÏÍø¡¢°ÎÍøÏß£©Ê± socket Ğ´»áÒ»Ö±×èÈû£¬
-        ///    ÕâÌõÁ¬½Ó»áÓÀ¾ÃÕ¼×Å²¢·¢Õ¢ÃÅ£¬³¬Ê±ºóÖ÷¶¯¶Ï¿ª°ÑÃû¶î·Å³öÀ´¡£
+        /// å’ŒåŸæ¥çš„ File.ReadAllBytes + WriteBinary ç›¸æ¯”æœ‰ä¸¤ç‚¹å…³é”®å·®åˆ«ï¼š
+        /// 1) ä¸æŠŠæ•´ä¸ªæ–‡ä»¶è¯»è¿›å†…å­˜ã€‚æœ€å¤§çš„å›¾åº“æœ‰ 47MBï¼Œä¸Šç™¾äººå¹¶å‘æ—¶å¦‚æœå„å ä¸€ä»½
+        ///    å†…å­˜å‰¯æœ¬ï¼Œå…‰å†…å­˜å°±æ‰›ä¸ä½ï¼›æµå¼å‘é€çš„å†…å­˜å ç”¨æ’å®šä¸ºç¼“å†²åŒºå¤§å°ã€‚
+        /// 2) å¸¦ä¼ è¾“æ—¶é•¿ä¸Šé™ã€‚å®¢æˆ·ç«¯å¡æ­»ï¼ˆæ–­ç½‘ã€æ‹”ç½‘çº¿ï¼‰æ—¶ socket å†™ä¼šä¸€ç›´é˜»å¡ï¼Œ
+        ///    è¿™æ¡è¿æ¥ä¼šæ°¸ä¹…å ç€å¹¶å‘é—¸é—¨ï¼Œè¶…æ—¶åä¸»åŠ¨æ–­å¼€æŠŠåé¢æ”¾å‡ºæ¥ã€‚
         ///
-        /// ·µ»ØÊÇ·ñÍêÕû·¢ËÍ³É¹¦¡£
+        /// è¿”å›æ˜¯å¦å®Œæ•´å‘é€æˆåŠŸã€‚
         /// </summary>
-        public bool WriteFileStream(IHttpResponseLite response, string fullPath, long length)
+        // ---- å…¨å±€ä¸‹è½½é™é€Ÿï¼ˆä»¤ç‰Œæ¡¶ï¼‰----
+        // å¸¦å®½æ˜¯æœåŠ¡ç«¯èµ„æºï¼šä¸è®¾æ€»é‡ä¸Šé™æ—¶ï¼ŒHTTP ä¸‹è½½ä¼šåœ¨çª„å¸¦å®½ï¼ˆå¦‚ 1Mbps ä¸Šè¡Œï¼‰
+        // ä¸ŠæŠŠæ¸¸æˆ TCP æ•°æ®æŒ¤æ‰ï¼Œè¡¨ç°ä¸ºèµ°ä¸€æ­¥å¡ä¸€ä¸‹ï¼Œæœ€ç»ˆå¿ƒè·³è¶…æ—¶æ‰çº¿ã€‚
+        // ResourceMaxKBps <= 0 æ—¶å®Œå…¨ä¸é™é€Ÿï¼ˆä¸æ—§è¡Œä¸ºä¸€è‡´ï¼‰ã€‚
+        private static readonly object RateSync = new object();
+        private static double _rateTokens;
+        private static long _rateLastStamp;
+
+        /// <summary>
+        /// ä»å…±äº«ä»¤ç‰Œæ¡¶å–èµ° bytes å­—èŠ‚é¢åº¦ã€‚ä»¤ç‰ŒæŒ‰ ResourceMaxKBps çš„é€Ÿç‡è¡¥å……ï¼Œ
+        /// æœ€å¤šç§¯æ”’ 1 ç§’é¢åº¦ï¼Œé¿å…é•¿æ—¶é—´ç©ºé—²åä¸€æ¬¡æ€§å€¾æ³»æŠŠé“¾è·¯å†²å®ã€‚
+        /// </summary>
+        private static void AcquireRate(long bytes)
+        {
+            int kbps = Settings.ResourceMaxKBps;
+            if (kbps <= 0) return;
+
+            double bytesPerSec = kbps * 1024.0;
+
+            lock (RateSync)
+            {
+                long now = Stopwatch.GetTimestamp();
+                if (_rateLastStamp == 0) _rateLastStamp = now;
+                double elapsed = (now - _rateLastStamp) / (double)Stopwatch.Frequency;
+                if (elapsed > 0)
+                {
+                    _rateTokens = Math.Min(bytesPerSec, _rateTokens + elapsed * bytesPerSec);
+                    _rateLastStamp = now;
+                }
+
+                while (_rateTokens < bytes)
+                {
+                    double needMs = (bytes - _rateTokens) * 1000.0 / bytesPerSec;
+                    Monitor.Wait(RateSync, Math.Max(1, (int)Math.Min(needMs, 250)));
+
+                    long now2 = Stopwatch.GetTimestamp();
+                    double el2 = (now2 - _rateLastStamp) / (double)Stopwatch.Frequency;
+                    if (el2 > 0)
+                    {
+                        _rateTokens = Math.Min(bytesPerSec, _rateTokens + el2 * bytesPerSec);
+                        _rateLastStamp = now2;
+                    }
+                }
+
+                _rateTokens -= bytes;
+            }
+        }
+
+        public bool WriteFileStream(IHttpResponseLite response, string fullPath, long length, long offset = 0, long count = -1)
         {
             int bufferSize = Settings.ResourceBufferKB * 1024;
             if (bufferSize < 16384) bufferSize = 65536;
 
-            // ³¬Ê±Òª°´ÎÄ¼şÌå»ı·Å¿í£¬²»ÄÜÖ»ÓÃÒ»¸ö¹Ì¶¨Öµ£º
-            // ×î´óµÄµØ×©Í¼¿âÓĞ 588MB£¬ÍâÍøÍæ¼ÒÒÔ 256KB/s ÏÂÔØÒª½«½ü 40 ·ÖÖÓ£¬
-            // ÓÃ¹Ì¶¨µÄ 300 Ãë»á°ÑÕâÖÖÕıµ±µÄÂıËÙÏÂÔØÎóÅĞ³É¿¨ËÀ¶øÆş¶Ï¡£
-            // ÕâÀï°´¡¸×îµÍ¿É½ÓÊÜËÙ¶È 256KB/s¡¹ÍÆËãĞèÒª¶à¾Ã£¬ÔÙÈ¡Ò»¸öÉÏÏŞ¶µµ×¡£
+            long remaining = length - offset;
+            if (remaining < 0) remaining = 0;
+            if (count >= 0 && count < remaining) remaining = count;
+
+            // è¶…æ—¶è¦æŒ‰æ–‡ä»¶ä½“ç§¯æ”¾å®½ï¼Œä¸èƒ½åªç”¨ä¸€ä¸ªå›ºå®šå€¼ï¼š
+            // æœ€å¤§çš„åœ°ç –å›¾åº“æœ‰ 588MBï¼Œå¤–ç½‘ç©å®¶ä»¥ 256KB/s ä¸‹è½½è¦å°†è¿‘ 40 åˆ†é’Ÿï¼Œ
+            // ç”¨å›ºå®šçš„ 300 ç§’ä¼šæŠŠè¿™ç§æ­£å½“çš„æ…¢é€Ÿä¸‹è½½è¯¯åˆ¤æˆå¡æ­»è€Œææ–­ã€‚
+            // è¿™é‡ŒæŒ‰ã€Œæœ€ä½å¯æ¥å—é€Ÿåº¦ 256KB/sã€æ¨ç®—éœ€è¦å¤šä¹…ï¼Œå†å–ä¸€ä¸ªä¸Šé™å…œåº•ã€‚
             int timeoutSeconds = Settings.ResourceWriteTimeout;
             if (timeoutSeconds < 30) timeoutSeconds = 300;
 
-            const long minAcceptSpeed = 256 * 1024;
-            long needed = length / minAcceptSpeed;
-            if (needed > timeoutSeconds) timeoutSeconds = (int)Math.Min(needed, 7200);
+            // æŒ‰ã€Œå®é™…ç”Ÿæ•ˆé€Ÿåº¦ã€ï¼ˆå«é™é€Ÿï¼‰æ¨ç®—ä¼ è¾“æ—¶é•¿ï¼Œ
+            // å¦åˆ™é™é€Ÿåçš„å¤§æ–‡ä»¶ä¼šè¢«è¿™ä¸ªè¶…æ—¶è¯¯æ€ã€‚
+            long speedBps = 256 * 1024;
+            if (Settings.ResourceMaxKBps > 0)
+                speedBps = Math.Min(speedBps, Settings.ResourceMaxKBps * 1024L);
+            long needed = remaining / speedBps + 30;
+            if (needed > timeoutSeconds) timeoutSeconds = (int)Math.Min(needed, 86400);
 
             try
             {
-                response.StatusCode = 200;
+                response.StatusCode = offset > 0 ? 206 : 200;
                 response.ContentType = "application/octet-stream";
-                response.ContentLength64 = length;
+                response.ContentLength64 = remaining;
 
                 var watch = Stopwatch.StartNew();
                 var output = response.OutputStream;
@@ -752,9 +808,21 @@ namespace Server.Library.Utils
                 using (var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read,
                                                bufferSize, FileOptions.SequentialScan))
                 {
+                    if (offset > 0)
+                    {
+                        try { fs.Seek(offset, SeekOrigin.Begin); }
+                        catch
+                        {
+                            // æ–‡ä»¶æ¯”å®¢æˆ·ç«¯è®°å½•çš„ç»­ä¼ èµ·ç‚¹çŸ­ï¼ˆæœåŠ¡ç«¯æ¢è¿‡æ–‡ä»¶ç­‰ï¼‰ï¼šææ‰ï¼Œå®¢æˆ·ç«¯ä¼šé‡å¤´ä¸‹
+                            response.Abort();
+                            return false;
+                        }
+                    }
+
                     int read;
                     while ((read = fs.Read(buffer, 0, buffer.Length)) > 0)
                     {
+                        AcquireRate(read);
                         output.Write(buffer, 0, read);
 
                         if (watch.Elapsed.TotalSeconds > timeoutSeconds)
@@ -771,15 +839,15 @@ namespace Server.Library.Utils
             }
             catch
             {
-                // ¿Í»§¶ËÖĞÍ¾¶Ï¿ª¡¢Ğ´³¬Ê±µÈ£ºÖ±½ÓÆşµôÁ¬½Ó£¬Òì³£²»ÍâÅ×
+                // å®¢æˆ·ç«¯ä¸­é€”æ–­å¼€ã€å†™è¶…æ—¶ç­‰ï¼šç›´æ¥ææ‰è¿æ¥ï¼Œå¼‚å¸¸ä¸å¤–æŠ›
                 response.Abort();
                 return false;
             }
         }
 
         /// <summary>
-        /// ·şÎñ¹ıÔØÊ±·µ»Ø 503¡£
-        /// ¿Í»§¶Ë¶ÔÕâ¸ö×´Ì¬Âë²»×ö¡¸×ÊÔ´²»´æÔÚ¡¹µÄ¸º»º´æ£¬ÉÔºó»¹»áÔÙÊÔ¡£
+        /// æœåŠ¡è¿‡è½½æ—¶è¿”å› 503ã€‚
+        /// å®¢æˆ·ç«¯å¯¹è¿™ä¸ªçŠ¶æ€ç ä¸åšã€Œèµ„æºä¸å­˜åœ¨ã€çš„è´Ÿç¼“å­˜ï¼Œç¨åè¿˜ä¼šå†è¯•ã€‚
         /// </summary>
         public void WriteBusy(IHttpResponseLite response, string message = "server busy")
         {

@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 ﻿using Server.MirDatabase;
 using Server.MirEnvir;
 using Server.MirNetwork;
@@ -68,8 +68,8 @@ namespace Server.MirObjects
             }
         }
 
-        public const int SearchDelay = 3000, ViewRange = 8, RoamDelay = 1000, RevivalDelay = 2000, AutoPotDelay = 1000, HeroRecallDelay = 180000;
-        public long RoamTime, AutoPotTime, HeroRecallTime;
+        public const int SearchDelay = 3000, ViewRange = 8, RoamDelay = 1000, RevivalDelay = 2000, AutoPotDelay = 1000, HeroRecallDelay = 180000, SupplySearchDelay = 2000;
+        public long RoamTime, AutoPotTime, HeroRecallTime, SupplyTime;
 
         public override long BrownTime
         {
@@ -806,6 +806,7 @@ namespace Server.MirObjects
             };
 
             ProcessAutoPot();
+            ProcessSupply();
             ProcessStacking();
             ProcessSearch();
             ProcessAI();            
@@ -837,6 +838,148 @@ namespace Server.MirObjects
                 UseItem(item.UniqueID);
                 return;
             }
+        }
+
+        /// <summary>
+        /// 补给意识：开启自动喝药且对应药水已耗尽时，主动寻找视野内地面上的同类药水跑去拾取，补充进英雄背包。
+        /// 走 A* 寻路绕过障碍（PathFinder，失败退回直线移动）；仅在无战斗目标时执行，不打断战斗；金币与不匹配的药水不捡。
+        /// </summary>
+        protected void ProcessSupply()
+        {
+            if (!AutoPot || Target != null) { SupplyPath.Clear(); SupplyGoal = Point.Empty; return; }
+            if (HPItemIndex <= 0 && MPItemIndex <= 0) { SupplyGoal = Point.Empty; return; }
+
+            bool needHP = HPItemIndex > 0 && FindInventoryItem(HPItemIndex) == null;
+            bool needMP = MPItemIndex > 0 && FindInventoryItem(MPItemIndex) == null;
+            if (!needHP && !needMP) { SupplyPath.Clear(); SupplyGoal = Point.Empty; return; }
+
+            // 每 2 秒重新搜索目标并规划路径
+            if (Envir.Time >= SupplyTime)
+            {
+                SupplyTime = Envir.Time + SupplySearchDelay;
+                SupplyPath.Clear();
+                SupplyGoal = Point.Empty;   // 先清旧目标，防止药被人捡走后还朝失效点走
+
+                ItemObject supply = FindSupplyItem(needHP, needMP);
+                if (supply == null) return;
+
+                if (supply.CurrentLocation == CurrentLocation)
+                {
+                    if (CanGainItem(supply.Item))
+                    {
+                        GainItem(supply.Item);
+                        CurrentMap.RemoveObject(supply);
+                        supply.Despawn();
+
+                        Owner.ReceiveChat(string.Format("{0} 拾取了 {1}", Name, supply.Item.FriendlyName), ChatType.Hint);
+                    }
+                    return;
+                }
+
+                SupplyGoal = supply.CurrentLocation;
+                List<Point> path = PathFinder.FindPath(CurrentMap, CurrentLocation, SupplyGoal);
+                if (path != null)
+                    for (int i = 0; i < path.Count; i++) SupplyPath.Enqueue(path[i]);
+            }
+
+            // 每 tick 沿路径走一步；路径走完还没到（半路被堵）就直线走，等下轮重算
+            if (SupplyPath.Count > 0)
+            {
+                Point next = SupplyPath.Dequeue();
+                if (next != CurrentLocation) MoveTo(next);
+            }
+            else if (SupplyGoal != Point.Empty && SupplyGoal != CurrentLocation)
+                MoveTo(SupplyGoal);
+        }
+
+        private readonly Queue<Point> SupplyPath = new Queue<Point>();
+        private Point SupplyGoal;
+
+        private UserItem FindInventoryItem(int itemIndex)
+        {
+            if (itemIndex <= 0) return null;
+            for (int i = 0; i < Info.Inventory.Length; i++)
+            {
+                UserItem item = Info.Inventory[i];
+                if (item != null && item.Info.Index == itemIndex) return item;
+            }
+            return null;
+        }
+
+        /// <summary>视野内由近及远寻找可拾取的药水（无归属或归属主人/队伍成员，且是当前缺的那种）。</summary>
+        private ItemObject FindSupplyItem(bool needHP, bool needMP)
+        {
+            for (int d = 0; d <= ViewRange; d++)
+            {
+                for (int y = CurrentLocation.Y - d; y <= CurrentLocation.Y + d; y++)
+                {
+                    if (y < 0) continue;
+                    if (y >= CurrentMap.Height) break;
+
+                    for (int x = CurrentLocation.X - d; x <= CurrentLocation.X + d; x += Math.Abs(y - CurrentLocation.Y) == d ? 1 : d * 2)
+                    {
+                        if (x < 0) continue;
+                        if (x >= CurrentMap.Width) break;
+
+                        Cell cell = CurrentMap.GetCell(x, y);
+                        if (!cell.Valid || cell.Objects == null) continue;
+
+                        for (int i = 0; i < cell.Objects.Count; i++)
+                        {
+                            if (cell.Objects[i].Race != ObjectType.Item) continue;
+                            ItemObject ob = (ItemObject)cell.Objects[i];
+                            if (ob.Item == null) continue; // 金币不处理
+                            if (ob.Owner != null && ob.Owner != Owner &&
+                                (Owner.GroupMembers == null || !Owner.GroupMembers.Contains(ob.Owner))) continue;
+                            if (ob.Item.Info.Type != ItemType.药水) continue;
+
+                            int index = ob.Item.Info.Index;
+                            if ((needHP && index == HPItemIndex) || (needMP && index == MPItemIndex)) return ob;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        /// <summary>贴身（相邻1格内）的敌人数量，用于被围判断与群攻决策。</summary>
+        protected int SurroundedCount => FindAllTargets(1, CurrentLocation).Count;
+
+        /// <summary>
+        /// 向远离威胁的方向移动（风筝/脱围走位用）。
+        /// 8 个方向逐一评分：离威胁越远越好、候选落点周围敌人越少越好、可走优先，选最高分——
+        /// 从「背对目标蒙眼后退」变成「看着退」，避开墙角和怪堆。全被堵时退回背向直线。
+        /// </summary>
+        protected void MoveAwayFrom(MapObject threat)
+        {
+            if (threat == null || threat.CurrentMap != CurrentMap) return;
+
+            MirDirection awayDir = Functions.DirectionFromPoint(threat.CurrentLocation, CurrentLocation);
+            Point best = Point.Empty;
+            int bestScore = int.MinValue;
+
+            for (int i = 0; i < 8; i++)
+            {
+                MirDirection dir = (MirDirection)i;
+                Point dest = Functions.PointMove(CurrentLocation, dir, 2);
+
+                if (!CurrentMap.ValidPoint(dest)) continue;
+
+                int score = Functions.MaxDistance(dest, threat.CurrentLocation) * 10   // 离威胁越远越好
+                          - FindAllTargets(1, dest).Count * 20;                        // 退进怪堆重罚
+
+                if (dir == awayDir) score += 5;                                        // 与背向一致小幅加成
+
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = dest;
+                }
+            }
+
+            MoveTo(best == Point.Empty
+                ? Functions.PointMove(CurrentLocation, awayDir, 2)   // 8 个方向全被地形挡死：按原背向退
+                : best);
         }
 
         protected void ProcessAI() 
@@ -899,6 +1042,9 @@ namespace Server.MirObjects
         protected virtual void ProcessRoam()
         {
             if (Target != null || Envir.Time < RoamTime) return;
+
+            // 正在前往拾取补给时不拉回主人背后，避免两个移动指令互相拉扯
+            if (SupplyPath.Count > 0 || SupplyGoal != Point.Empty) return;
 
             if (Owner != null)
             {
@@ -1072,6 +1218,19 @@ namespace Server.MirObjects
 
         protected virtual void FindTarget()
         {
+            // 配合主人：主人正在攻击的目标就是英雄的首要目标（视野内且可攻击）
+            MapObject ownerTarget = Owner.Target;
+            if (ownerTarget != null && ownerTarget != Target && !ownerTarget.Dead &&
+                ownerTarget.CurrentMap == CurrentMap &&
+                Functions.InRange(CurrentLocation, ownerTarget.CurrentLocation, ViewRange) &&
+                !(ownerTarget is TownArcher) &&
+                ownerTarget.IsAttackTarget(this) &&
+                !(ownerTarget.Race == ObjectType.Player && ((PlayerObject)ownerTarget).GMGameMaster))
+            {
+                Target = ownerTarget;
+                return;
+            }
+
             Map Current = CurrentMap;
 
             for (int d = 0; d <= ViewRange; d++)
@@ -1290,6 +1449,10 @@ namespace Server.MirObjects
                 Weapon = Looks_Weapon,
                 WeaponEffect = Looks_WeaponEffect,
                 Armour = Looks_Armour,
+
+                // 装备品质：客户端据此给英雄的衣服/武器画品质轮廓光
+                ArmourGrade = Info.Equipment[(int)EquipmentSlot.盔甲] != null ? (byte)Info.Equipment[(int)EquipmentSlot.盔甲].Info.Grade : (byte)0,
+                WeaponGrade = Info.Equipment[(int)EquipmentSlot.武器] != null ? (byte)Info.Equipment[(int)EquipmentSlot.武器].Info.Grade : (byte)0,
                 Light = Light,
                 Poison = CurrentPoison,
                 Dead = Dead,

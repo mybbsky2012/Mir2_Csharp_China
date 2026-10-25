@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 ﻿using C = ClientPackets;
 using Server.MirDatabase;
 using Server.MirEnvir;
@@ -134,6 +134,11 @@ namespace Server.MirObjects
         public bool NPCDelayed;
         public List<string> NPCSpeech = new List<string>();
         public Dictionary<string, object> NPCData = new Dictionary<string, object>();
+        /// <summary>
+        /// 静默脚本上下文（泡点循环定时器/登录触发等后台执行）标记：
+        /// 期间 NPCScript.Response 不向客户端发送 NPCResponse 包，避免每秒弹空对话框。
+        /// </summary>
+        public bool NPCSilent;
 
         public bool UserMatch;
         public string MatchName;
@@ -532,7 +537,77 @@ namespace Server.MirObjects
                 // 先排下一次，避免脚本内容里再次 SETLOOPTIMER 时被覆盖
                 timer.Reset();
 
-                script.CallSilent(this, timer.ObjectID, timer.Label);
+                // ★静默上下文：CallSilent 里脚本页的 GOTO 只是入队 DelayedAction，
+                //   常规消费点 CallNPCNextPage 只在玩家点击 NPC 的 CallNPC 末尾被调用，
+                //   定时器链路不走那里 → GOTO 永远不执行（泡点整条经验链因此断掉）。
+                //   所以静默页跑完后必须由这里接管：NPCSilent 期间不向客户端发对话框包，
+                //   再同步排空 GOTO 队列（链式 GOTO 一并处理），最后还原玩家的对话状态。
+                NPCSilent = true;
+                try
+                {
+                    script.CallSilent(this, timer.ObjectID, timer.Label);
+
+                    DrainLoopGoto();
+                }
+                finally
+                {
+                    NPCSilent = false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 排空静默脚本（泡点循环等）产生的 GOTO 延迟动作（DelayedType.NPC 且 Time==-1）。
+        /// 与 CallNPCNextPage 的区别：这里保存/还原玩家的 NPC 交互状态（页/待发文本/段结果），
+        /// 决不能污染玩家当前打开着的 NPC 对话框；加保险丝防脚本页互相死循环。
+        /// </summary>
+        private void DrainLoopGoto()
+        {
+            uint oldObjectID = NPCObjectID;
+            int oldScriptID = NPCScriptID;
+            NPCPage oldPage = NPCPage;
+            List<string> oldSpeech = NPCSpeech;
+            Dictionary<NPCSegment, bool> oldSuccess = NPCSuccess;
+            bool oldDelayed = NPCDelayed;
+
+            // Call 会 Clear/覆写这些字段，先换上临时的，结束后还原
+            NPCSpeech = new List<string>();
+            NPCSuccess = new Dictionary<NPCSegment, bool>();
+
+            int guard = 0;
+
+            try
+            {
+                while (guard++ < 100)
+                {
+                    DelayedAction found = null;
+
+                    for (int i = 0; i < ActionList.Count; i++)
+                    {
+                        if (ActionList[i].Type != DelayedType.NPC || ActionList[i].Time != -1) continue;
+
+                        found = ActionList[i];
+                        ActionList.RemoveAt(i);
+                        break;
+                    }
+
+                    if (found == null) break;
+
+                    CompleteNPC(found.Params);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format("[NPC脚本执行错误] {0} 静默 GOTO 链处理异常—— {1}", Name, ex));
+            }
+            finally
+            {
+                NPCObjectID = oldObjectID;
+                NPCScriptID = oldScriptID;
+                NPCPage = oldPage;
+                NPCSpeech = oldSpeech;
+                NPCSuccess = oldSuccess;
+                NPCDelayed = oldDelayed;
             }
         }
         public override void Process(DelayedAction action)
@@ -3081,6 +3156,24 @@ namespace Server.MirObjects
                         ReceiveChat("NPC脚本已重新加载", ChatType.Hint);
                         break;
 
+                    //★ NPC 全量重载：已有脚本容错重载 + 撤下已删除的 NPC + 上线新增的 NPC（含 00Default 新脚本）
+                    case "RELOADALLNPC":
+                        if (!IsGM) return;
+
+                        Envir.ReloadAllNPCs();
+
+                        ReceiveChat("NPC 已全量重新加载（脚本+增删）", ChatType.Hint);
+                        break;
+
+                    //★ 从数据库文件重新加载商城列表
+                    case "RELOADGAMESHOP":
+                        if (!IsGM) return;
+
+                        Envir.ReloadGameShop();
+
+                        ReceiveChat(string.Format("商城已重新加载，共 {0} 条商品", Envir.GameShopList.Count), ChatType.Hint);
+                        break;
+
                     //★ 重载自定义 BUFF 配置（Configs\BuffSystem.ini），对应 GM 工具的「自定义BUFF属性」编辑器
                     case "RELOADBUFF":
                         if (!IsGM) return;
@@ -4907,6 +5000,10 @@ namespace Server.MirObjects
                 Weapon = Looks_Weapon,
 				WeaponEffect = Looks_WeaponEffect,
 				Armour = Looks_Armour,
+
+                // 装备品质：客户端据此给衣服/武器画品质轮廓光（别人也看得见）
+                ArmourGrade = Info.Equipment[(int)EquipmentSlot.盔甲] != null ? (byte)Info.Equipment[(int)EquipmentSlot.盔甲].Info.Grade : (byte)0,
+                WeaponGrade = Info.Equipment[(int)EquipmentSlot.武器] != null ? (byte)Info.Equipment[(int)EquipmentSlot.武器].Info.Grade : (byte)0,
                 Light = Light,
                 Poison = CurrentPoison,
                 Dead = Dead,
@@ -5894,139 +5991,6 @@ namespace Server.MirObjects
             }
             Enqueue(p);
         }
-        /// <summary>
-        /// 生命魔法石（气血石 / 魔血石）：装备在「石头」格（EquipmentSlot.守护石）时自动生效。
-        /// 全部参数在服务端「系统配置 → 游戏系统 → 守护石」选项卡里设置（存 Configs\GemSystem.ini [Stone] 节）：
-        ///   触发阈值：HP / MP 低于总量的百分之多少时开启（HP、MP 各自可调）；
-        ///   回复间隔：HP、MP 各自可调（秒）；
-        ///   每跳增加值 = 石头总持久（Durability）的百分之多少（HP、MP 各自可调），固定值不随电量消耗衰减；
-        ///   每跳消耗持久：HP、MP 各自可调（点）。
-        /// 加什么仍由物品的「外观值 Shape」决定：1 = 只加体力，2 = 只加魔力，3 = 体力魔力一起加，其它值不生效。
-        /// 触发后中途回到阈值以上也继续加，直到补满才停（满后复位，等下次再掉到阈值以下）。
-        /// Shape=3 时 HP、MP 各按自己的节奏跳、各扣各的持久。
-        /// </summary>
-        private bool StoneHPActive, StoneMPActive;
-        private long StoneHPNextTime, StoneMPNextTime;
-
-        protected override void ProcessStones(ref int healthRegen, ref int manaRegen)
-        {
-            if (Dead) return;
-
-            UserItem item = Info.Equipment[(int)EquipmentSlot.守护石];
-            if (item == null || (item.Info.Type != ItemType.气血石 && item.Info.Type != ItemType.魔血石))
-            {
-                // 装备槽没有生命魔法石：开启「允许背包内使用」时，取背包里第一块有电量的气血石/魔血石
-                item = null;
-                if (Settings.StoneAllowBagUse)
-                {
-                    for (int i = 0; i < Info.Inventory.Length; i++)
-                    {
-                        UserItem bagItem = Info.Inventory[i];
-                        if (bagItem == null || bagItem.CurrentDura == 0) continue;
-                        if (bagItem.Info.Type != ItemType.气血石 && bagItem.Info.Type != ItemType.魔血石) continue;
-                        item = bagItem;
-                        break;
-                    }
-                }
-
-                if (item == null)
-                {
-                    StoneHPActive = false;
-                    StoneMPActive = false;
-                    StoneHPNextTime = 0;
-                    StoneMPNextTime = 0;
-                    return; // 普通守护石不处理
-                }
-            }
-
-            long now = Envir.Time;
-
-            // ---- HP（气血石）----
-            if ((item.Info.Shape == 1 || item.Info.Shape == 3) && Settings.StoneHPGainPercent > 0)
-            {
-                if (now >= StoneHPNextTime)
-                {
-                    if (NeedStoneHeal(ref StoneHPActive, HP, Stats[Stat.HP], Settings.StoneHPTriggerPercent))
-                    {
-                        if (item.CurrentDura == 0) { RemoveStone(item); return; }
-
-                        healthRegen += Math.Max(1, item.Info.Durability * Settings.StoneHPGainPercent / 100);
-                        if (ConsumeStoneDura(item, Settings.StoneHPDuraCost)) { RemoveStone(item); return; }
-
-                        StoneHPNextTime = now + Math.Max(1, Settings.StoneHPDelay) * 1000;
-                    }
-                    else StoneHPNextTime = now + 1000; // 未触发：1 秒后再查
-                }
-            }
-            else { StoneHPActive = false; StoneHPNextTime = 0; }
-
-            // ---- MP（魔血石）----
-            if ((item.Info.Shape == 2 || item.Info.Shape == 3) && Settings.StoneMPGainPercent > 0)
-            {
-                if (now >= StoneMPNextTime)
-                {
-                    if (NeedStoneHeal(ref StoneMPActive, MP, Stats[Stat.MP], Settings.StoneMPTriggerPercent))
-                    {
-                        if (item.CurrentDura == 0) { RemoveStone(item); return; }
-
-                        manaRegen += Math.Max(1, item.Info.Durability * Settings.StoneMPGainPercent / 100);
-                        if (ConsumeStoneDura(item, Settings.StoneMPDuraCost)) { RemoveStone(item); return; }
-
-                        StoneMPNextTime = now + Math.Max(1, Settings.StoneMPDelay) * 1000;
-                    }
-                    else StoneMPNextTime = now + 1000;
-                }
-            }
-            else { StoneMPActive = false; StoneMPNextTime = 0; }
-        }
-
-        /// <summary>扣一次持久；返回 true 表示电量已归零（调用方应移除石头）。</summary>
-        private static bool ConsumeStoneDura(UserItem item, int cost)
-        {
-            if (cost <= 0) return false;
-            item.CurrentDura = (ushort)Math.Max(0, item.CurrentDura - cost);
-            item.DuraChanged = true;
-            return item.CurrentDura == 0;
-        }
-
-        /// <summary>
-        /// 生命魔法石的「补到满」状态机：
-        /// 满 → 停止并复位；掉到「触发阈值」以下 → 启动；启动后只要没满就一直保持。
-        /// </summary>
-        private static bool NeedStoneHeal(ref bool active, int current, int max, int triggerPercent)
-        {
-            if (max <= 0) { active = false; return false; }
-            if (current >= max) { active = false; return false; }                 // 已满：停止
-            int threshold = max * Math.Max(0, triggerPercent) / 100;
-            if (!active && current < threshold) active = true;                    // 掉到阈值以下：启动
-            return active;                                                        // 启动后一直补到满
-        }
-
-        private void RemoveStone(UserItem item)
-        {
-            StoneHPActive = false;
-            StoneMPActive = false;
-
-            // 石头可能在装备槽，也可能在背包里（「允许背包内使用」模式），按引用找到实际位置清除
-            if (ReferenceEquals(Info.Equipment[(int)EquipmentSlot.守护石], item))
-            {
-                Info.Equipment[(int)EquipmentSlot.守护石] = null;
-            }
-            else
-            {
-                for (int i = 0; i < Info.Inventory.Length; i++)
-                {
-                    if (!ReferenceEquals(Info.Inventory[i], item)) continue;
-                    Info.Inventory[i] = null;
-                    break;
-                }
-            }
-
-            Enqueue(new S.DeleteItem { UniqueID = item.UniqueID, Count = item.Count });
-            RefreshStats();
-            ReceiveChat(string.Format("{0} 的能量已经耗尽", item.Info.Name), ChatType.Hint);
-        }
-
         public override void UseItem(ulong id)
         {
             S.UseItem p = new S.UseItem { UniqueID = id, Grid = MirGridType.Inventory, Success = false };

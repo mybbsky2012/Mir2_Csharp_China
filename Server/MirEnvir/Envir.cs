@@ -3920,6 +3920,158 @@ namespace Server.MirEnvir
         }
 
         /// <summary>
+        /// 全量重载 NPC（GM 在线命令 @RELOADALLNPC / 菜单「重新加载 → NPC全量」用它）。
+        /// 在 ReloadNPCs（容错重载全部已有脚本，含 #INCLUDE 展开后的新内容）基础上，额外：
+        ///   1) 撤下「NPC信息列表里已被删除」的普通 NPC（攻城旗等 Conquest 附属 NPC 不动）；
+        ///   2) 把「启动后新加进 NPC 信息列表」的 NPC 现场生成上线（其脚本文件在 NPCObject
+        ///      构造时按 FileName 自动加载 —— 所以 00Default 等目录里新加的脚本同样生效）。
+        /// 新 NPC 同时写回所属地图的 MapInfo.NPCs 列表，保证下次重启后仍然存在。
+        /// </summary>
+        public void ReloadAllNPCs()
+        {
+            ReloadNPCs();
+
+            // ---- 1) 撤下已删除的 NPC ----
+            List<NPCObject> removed = new List<NPCObject>();
+
+            for (int i = NPCs.Count - 1; i >= 0; i--)
+            {
+                NPCObject npc = NPCs[i];
+
+                if (npc == null || npc.Conq != null) continue; // 攻城旗等由攻城系统管理，不在此处理
+                if (npc.Info.Index == 0) continue;             // 运行时临时创建的 NPCInfo（如攻城旗），不在信息列表里属正常
+                if (NPCInfoList.Contains(npc.Info)) continue;  // 信息还在，正常保留
+
+                removed.Add(npc);
+            }
+
+            foreach (NPCObject npc in removed)
+            {
+                npc.CurrentMap?.RemoveObject(npc);
+                npc.Despawn();
+                NPCs.Remove(npc);
+            }
+
+            if (removed.Count > 0)
+                MessageQueue.Enqueue(string.Format("NPC全量重载：撤下 {0} 个已删除的 NPC", removed.Count));
+
+            // ---- 2) 上线新加的 NPC ----
+            int added = 0;
+
+            for (int i = 0; i < NPCInfoList.Count; i++)
+            {
+                NPCInfo info = NPCInfoList[i];
+
+                if (NPCs.Any(x => x.Info == info)) continue; // 已有对象，跳过
+
+                Map map = GetMap(info.MapIndex);
+                if (map == null)
+                {
+                    MessageQueue.Enqueue(string.Format("NPC全量重载：{0} 所属地图不存在，已跳过", info.Name));
+                    continue;
+                }
+
+                if (!map.ValidPoint(info.Location))
+                {
+                    MessageQueue.Enqueue(string.Format("NPC全量重载：{0} 坐标不可站立（{1}），已跳过", info.Name, info.Location));
+                    continue;
+                }
+
+                // 写回地图的 NPC 列表，保证下次重启后仍会生成
+                if (!map.Info.NPCs.Contains(info)) map.Info.NPCs.Add(info);
+
+                // 与 Map.Load 相同的生成方式：构造时按 FileName 自动加载脚本（新脚本文件由此生效）
+                map.AddObject(new NPCObject(info) { CurrentMap = map });
+                added++;
+            }
+
+            MessageQueue.Enqueue(string.Format("NPC全量重载完成：新上线 {0} 个 NPC", added));
+        }
+
+        /// <summary>
+        /// 重新从数据库文件加载商城列表（GM 在线命令 @RELOADGAMESHOP / 菜单用它）。
+        /// 按启动时相同的二进制顺序读到 GameShop 段为止（前面的段只用于推进读取位置，
+        /// 构造出的对象全部丢弃），重建 GameShopList 并绑定到当前物品表。
+        /// 读取失败时保留原列表不动。
+        /// </summary>
+        public void ReloadGameShop()
+        {
+            var newList = new List<GameShopItem>();
+            int gameshopIndex = GameshopIndex;
+
+            try
+            {
+                using (var stream = File.OpenRead(DatabasePath))
+                using (var reader = new BinaryReader(stream))
+                {
+                    int loadVersion = reader.ReadInt32();
+                    int loadCustomVersion = reader.ReadInt32();
+
+                    reader.ReadInt32(); // MapIndex
+                    reader.ReadInt32(); // ItemIndex
+                    reader.ReadInt32(); // MonsterIndex
+                    reader.ReadInt32(); // NPCIndex
+                    reader.ReadInt32(); // QuestIndex
+                    if (loadVersion >= 63) gameshopIndex = reader.ReadInt32();
+                    if (loadVersion >= 66) reader.ReadInt32(); // ConquestIndex
+                    if (loadVersion >= 68) reader.ReadInt32(); // RespawnIndex
+
+                    int count = reader.ReadInt32();
+                    for (int i = 0; i < count; i++) new MapInfo(reader);               // 地图段：跳过
+
+                    count = reader.ReadInt32();
+                    for (int i = 0; i < count; i++) new ItemInfo(reader, loadVersion, loadCustomVersion); // 物品段：跳过
+
+                    count = reader.ReadInt32();
+                    for (int i = 0; i < count; i++) new MonsterInfo(reader);           // 怪物段：跳过
+
+                    count = reader.ReadInt32();
+                    for (int i = 0; i < count; i++) new NPCInfo(reader);               // NPC段：跳过
+
+                    count = reader.ReadInt32();
+                    for (int i = 0; i < count; i++) new QuestInfo(reader);             // 任务段：跳过
+
+                    new DragonInfo(reader);                                            // 魔龙段：跳过
+
+                    count = reader.ReadInt32();
+                    for (int i = 0; i < count; i++) new MagicInfo(reader, loadVersion, loadCustomVersion); // 技能段：跳过
+
+                    if (loadVersion >= 63)
+                    {
+                        count = reader.ReadInt32();
+                        for (int i = 0; i < count; i++)
+                        {
+                            var item = new GameShopItem(reader, loadVersion, loadCustomVersion);
+
+                            // 绑定到当前（运行中）物品表：编辑器运行时新加的物品也能绑上
+                            bool bound = false;
+                            for (int j = 0; j < ItemInfoList.Count; j++)
+                            {
+                                if (ItemInfoList[j].Index != item.ItemIndex) continue;
+                                item.Info = ItemInfoList[j];
+                                bound = true;
+                                break;
+                            }
+
+                            if (bound) newList.Add(item);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format("商城重载失败（保留原列表）：{0}", ex.Message));
+                return;
+            }
+
+            GameShopList.Clear();
+            GameShopList.AddRange(newList);
+            GameshopIndex = gameshopIndex;
+
+            MessageQueue.Enqueue(string.Format("商城已重新加载，共 {0} 条商品", GameShopList.Count));
+        }
+
+        /// <summary>
         /// 重新加载 Configs\BuffSystem.ini（GM 在线命令 @RELOADBUFF 用它）。
         ///
         /// 语义：配置里的「自定义槽位 BUFF」内容完全来自配置文件，配置一变就必须重挂，

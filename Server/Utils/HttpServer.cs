@@ -239,10 +239,14 @@ namespace Server.Library.Utils
         /// 请求示例：GET /resource?f=Data/Monsters/000.Lib
         /// 相对路径以客户端根目录为基准，因此 Data 与 Map 目录都能覆盖。
         ///
+        /// 支持断点续传（10-23）：客户端带 Range: bytes=start- 请求头时，
+        /// 从 start 处继续发送并回 206 + Content-Range；起点越界回 416；
+        /// 不带 Range 或解析失败按全量 200 发送（兼容不支持续传的旧客户端）。
+        ///
         /// 大文件走流式发送，不整块读进内存：单人下载时无所谓，
         /// 上百人同时下 47MB 的图库时，整块读会直接把内存吃光。
         /// </summary>
-        void HandleResourceRequest(IHttpRequestLite request, IHttpResponseLite response)
+        internal void HandleResourceRequest(IHttpRequestLite request, IHttpResponseLite response)
         {
             if (!Settings.EnableResourceService)
             {
@@ -278,6 +282,66 @@ namespace Server.Library.Utils
             catch (Exception ex)
             {
                 WriteNotFound(response, "read error: " + ex.Message);
+                return;
+            }
+
+            // ---- 断点续传：解析 Range: bytes=start- / bytes=start-end ----
+            long rangeStart = -1;
+            long rangeEnd = -1;
+            string rangeHeader = request.Header("Range");
+
+            if (!string.IsNullOrEmpty(rangeHeader) && rangeHeader.StartsWith("bytes=", StringComparison.OrdinalIgnoreCase))
+            {
+                string spec = rangeHeader.Substring(6).Trim();
+                int dash = spec.IndexOf('-');
+                if (dash > 0)
+                {
+                    string startPart = spec.Substring(0, dash).Trim();
+                    string endPart = spec.Substring(dash + 1).Trim();
+                    long start;
+                    if (long.TryParse(startPart, out start) && start >= 0)
+                    {
+                        rangeStart = start;
+                        if (endPart.Length > 0)
+                        {
+                            long end;
+                            if (long.TryParse(endPart, out end) && end >= start) rangeEnd = end;
+                        }
+                    }
+                }
+            }
+
+            response.AddHeader("Accept-Ranges", "bytes");
+
+            if (rangeStart >= 0)
+            {
+                if (rangeStart >= length)
+                {
+                    // 续传起点越界：多半是客户端 .tmp 已经下完整（写完还没改名就断了）。
+                    // 按规范回 416，客户端收到后直接把本地半截文件转正。
+                    try
+                    {
+                        response.StatusCode = 416;
+                        response.AddHeader("Content-Range", "bytes */" + length);
+                        var output = response.OutputStream;
+                        output.Flush();
+                        output.Close();
+                    }
+                    catch
+                    {
+                    }
+                    return;
+                }
+
+                // start-end 形式：end 超过文件尾就按文件尾算
+                long end = rangeEnd >= 0 ? Math.Min(rangeEnd, length - 1) : length - 1;
+                long count = end - rangeStart + 1;
+
+                response.AddHeader("Content-Range", "bytes " + rangeStart + "-" + end + "/" + length);
+                WriteFileStream(response, fullPath, length, rangeStart, count);
+
+                if (Settings.ResourceVerboseLog)
+                    MessageQueue.Instance.Enqueue(string.Format("微端续传资源 {0}（从 {1}/{2} 字节继续）", relative, rangeStart, length));
                 return;
             }
 

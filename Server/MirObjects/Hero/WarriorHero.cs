@@ -50,6 +50,46 @@ namespace Server.MirObjects
 
             if (HasMagic(Spell.FlamingSword) && Envir.Time > FlamingSwordTime)
                 SpellToggle(Spell.FlamingSword, SpellToggleState.True);
+
+            int surrounded = SurroundedCount;
+
+            // 主动群攻优先：被围（2 个以上敌人贴身）时先放剑刃雪崩（正面三向横扫）
+            if (surrounded >= 2 && CanCast)
+            {
+                UserMagic aoe = GetMagic(Spell.BladeAvalanche);
+                if (CanUseMagic(aoe))
+                {
+                    Direction = Functions.DirectionFromPoint(CurrentLocation, Target.CurrentLocation);
+                    BeginMagic(aoe.Spell, Direction, ObjectID, CurrentLocation);
+                    return;
+                }
+            }
+
+            // 没有主动群攻时自动切换被动群攻姿态：2 个以上贴身用圆月（全月），单个贴身用半月，脱围后关闭
+            if (HasMagic(Spell.CrossHalfMoon))
+                SpellToggle(Spell.CrossHalfMoon, surrounded >= 2 ? SpellToggleState.True : SpellToggleState.False);
+            if (HasMagic(Spell.HalfMoon) && !Info.CrossHalfMoon)
+                SpellToggle(Spell.HalfMoon, surrounded == 1 ? SpellToggleState.True : SpellToggleState.False);
+        }
+
+        private bool HasAnySurroundedAoE => HasMagic(Spell.BladeAvalanche) || HasMagic(Spell.CrossHalfMoon) || HasMagic(Spell.HalfMoon);
+
+        protected override void ProcessTarget()
+        {
+            if (CanCast && NextMagicSpell != Spell.None)
+            {
+                Magic(NextMagicSpell, NextMagicDirection, NextMagicTargetID, NextMagicLocation);
+                NextMagicSpell = Spell.None;
+            }
+
+            // 完全没有群攻手段还被 3 个以上敌人围死：先脱围再打
+            if (Target != null && !Target.Dead && CanMove && !HasAnySurroundedAoE && SurroundedCount >= 3)
+            {
+                MoveAwayFrom(Target);
+                return;
+            }
+
+            base.ProcessTarget();
         }
         protected override void Attack()
         {

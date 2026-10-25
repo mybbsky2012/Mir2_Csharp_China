@@ -842,6 +842,14 @@ namespace ServerPackets
         public byte Hair;
         public byte Light;
 		public short Weapon, WeaponEffect, Armour;
+
+        /// <summary>
+        /// 装备品质（ItemGrade：0 普通 / 2 宝物 / 3 圣物 / 4 神物）。
+        /// 客户端据此给人物衣服/武器画品质轮廓光 —— 品质只存在装备实例里，
+        /// 不下发的话别人客户端根本不知道你穿的是什么档次的装备。
+        /// </summary>
+        public byte ArmourGrade, WeaponGrade;
+
 		public PoisonType Poison;
         public bool Dead, Hidden;
         public SpellEffect Effect;
@@ -879,6 +887,8 @@ namespace ServerPackets
             Weapon = reader.ReadInt16();
 			WeaponEffect = reader.ReadInt16();
 			Armour = reader.ReadInt16();
+            ArmourGrade = reader.ReadByte();
+            WeaponGrade = reader.ReadByte();
             Poison = (PoisonType)reader.ReadUInt16();
             Dead = reader.ReadBoolean();
             Hidden = reader.ReadBoolean();
@@ -922,6 +932,8 @@ namespace ServerPackets
             writer.Write(Weapon);
 			writer.Write(WeaponEffect);
 			writer.Write(Armour);
+            writer.Write(ArmourGrade);
+            writer.Write(WeaponGrade);
             writer.Write((ushort)Poison);
             writer.Write(Dead);
             writer.Write(Hidden);
@@ -1678,6 +1690,9 @@ namespace ServerPackets
 		public short Weapon, WeaponEffect, Armour;
 		public byte WingEffect;
 
+        /// <summary>装备品质（换装备后随外观一起更新，客户端据此重画轮廓光）</summary>
+        public byte ArmourGrade, WeaponGrade;
+
         protected override void ReadPacket(BinaryReader reader)
         {
             ObjectID = reader.ReadUInt32();
@@ -1687,6 +1702,8 @@ namespace ServerPackets
 			WeaponEffect = reader.ReadInt16();
 			Armour = reader.ReadInt16();
             WingEffect = reader.ReadByte();
+            ArmourGrade = reader.ReadByte();
+            WeaponGrade = reader.ReadByte();
         }
 
         protected override void WritePacket(BinaryWriter writer)
@@ -1698,6 +1715,8 @@ namespace ServerPackets
 			writer.Write(WeaponEffect);
 			writer.Write(Armour);
             writer.Write(WingEffect);
+            writer.Write(ArmourGrade);
+            writer.Write(WeaponGrade);
         }
     }
     public sealed class PlayerInspect : Packet

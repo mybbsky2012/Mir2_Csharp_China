@@ -114,6 +114,7 @@ namespace Server.MirObjects
             switch (parts[0].ToUpper())
             {
                 case "LEVEL":
+                case "HEROLEVEL":
                 case "CHECKGOLD":
                 case "CHECKGUILDGOLD":
                 case "CHECKCREDIT":
@@ -220,6 +221,43 @@ namespace Server.MirObjects
                     if (parts.Length < 3) return;
 
                     CheckList.Add(new NPCChecks(CheckType.Level, parts[1], parts[2]));
+                    break;
+
+                // 英雄等级条件：HEROLEVEL < 50。英雄未召唤/已死亡时一律按「不成立」处理
+                case "HEROLEVEL":
+                    if (parts.Length < 3) return;
+
+                    CheckList.Add(new NPCChecks(CheckType.HeroLevel, parts[1], parts[2]));
+                    break;
+
+                // 检测英雄是否已召唤：CHECKHERO [1|0]。参数可省略，省略=1。
+                // 1 = 英雄当前已召唤且未死亡；0 = 未召唤或已死亡
+                case "CHECKHERO":
+                    CheckList.Add(new NPCChecks(CheckType.CheckHero, parts.Length < 2 ? "1" : parts[1]));
+                    break;
+
+                // 英雄职业：CHECKHEROCLASS 战士。英雄未召唤/已死亡时按「不成立」处理
+                case "CHECKHEROCLASS":
+                    if (parts.Length < 2) return;
+
+                    CheckList.Add(new NPCChecks(CheckType.CheckHeroClass, parts[1]));
+                    break;
+
+                // 英雄性别：CHECKHEROGENDER 男。英雄未召唤/已死亡时按「不成立」处理
+                case "CHECKHEROGENDER":
+                    if (parts.Length < 2) return;
+
+                    CheckList.Add(new NPCChecks(CheckType.CheckHeroGender, parts[1]));
+                    break;
+
+                // 英雄物品：CHECKHEROITEM 物品名 [数量] [持久]。英雄未召唤/已死亡时按「不成立」处理
+                case "CHECKHEROITEM":
+                    if (parts.Length < 2) return;
+
+                    tempString = parts.Length < 3 ? "1" : parts[2];
+                    tempString2 = parts.Length > 3 ? parts[3] : "";
+
+                    CheckList.Add(new NPCChecks(CheckType.CheckHeroItem, parts[1], tempString, tempString2));
                     break;
 
                 case "CHECKGOLD":
@@ -597,6 +635,12 @@ namespace Server.MirObjects
                     if (parts.Length < 2) return;
 
                     acts.Add(new NPCActions(ActionType.GiveExp, parts[1]));
+                    break;
+
+                case "GIVEHEROEXP":
+                    if (parts.Length < 2) return;
+
+                    acts.Add(new NPCActions(ActionType.GiveHeroExp, parts[1]));
                     break;
 
                 case "GIVEPET":
@@ -1283,6 +1327,125 @@ namespace Server.MirObjects
 
                     acts.Add(new NPCActions(ActionType.Repair, parts[1], parts.Length > 2 ? parts[2] : string.Empty));
                     break;
+
+                // 直接把物品穿到玩家身上（不进背包）：EQUIPITEM <物品名> [部位]
+                // 部位：EquipmentSlot 的名字或 0~13 数字；省略时按物品类型自动挑第一个合法且空闲的部位
+                case "EQUIPITEM":
+                    if (parts.Length < 2) return;
+
+                    acts.Add(new NPCActions(ActionType.EquipItem, parts[1], parts.Length > 2 ? parts[2] : string.Empty));
+                    break;
+
+                // 直接把物品穿到英雄身上（不经过英雄背包）：HEROEQUIPITEM <物品名> [部位]
+                case "HEROEQUIPITEM":
+                    if (parts.Length < 2) return;
+
+                    acts.Add(new NPCActions(ActionType.HeroEquipItem, parts[1], parts.Length > 2 ? parts[2] : string.Empty));
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// NPC 命令 EQUIPITEM / HEROEQUIPITEM 的共用实现：
+        /// 凭空创建物品并直接穿到目标（玩家或英雄）装备栏，不经过背包。
+        /// 部位被占用 / 类型或职业性别等级不符时拒绝执行并提示，不做覆盖。
+        /// </summary>
+        private void NpcEquip(HumanObject target, PlayerObject player, string itemName, string slotParam, bool forHero)
+        {
+            ItemInfo info = Envir.GetItemInfo(itemName);
+            if (info == null)
+            {
+                MessageQueue.Enqueue(string.Format("EQUIPITEM/HEROEQUIPITEM 无法获取物品信息: {0}, 页码: {1}", itemName, Key));
+                player.ReceiveChat(string.Format("找不到物品: {0}", itemName), ChatType.System);
+                return;
+            }
+
+            UserItem item = Envir.CreateFreshItem(info);
+            if (item == null)
+            {
+                MessageQueue.Enqueue(string.Format("EQUIPITEM/HEROEQUIPITEM 无法创建物品: {0}, 页码: {1}", itemName, Key));
+                return;
+            }
+
+            // 解析部位：空 = 按物品类型自动挑第一个合法且空闲的部位；数字 0~13 或 EquipmentSlot 名称
+            int slot = -1;
+            if (!string.IsNullOrWhiteSpace(slotParam))
+            {
+                if (!int.TryParse(slotParam, out slot))
+                {
+                    if (!Enum.TryParse(slotParam, true, out EquipmentSlot parsedSlot))
+                    {
+                        player.ReceiveChat(string.Format("无效的部位: {0}", slotParam), ChatType.System);
+                        return;
+                    }
+                    slot = (int)parsedSlot;
+                }
+
+                if (slot < 0 || slot >= target.Info.Equipment.Length)
+                {
+                    player.ReceiveChat(string.Format("无效的部位: {0}", slotParam), ChatType.System);
+                    return;
+                }
+                if (target.Info.Equipment[slot] != null)
+                {
+                    player.ReceiveChat(string.Format("{0} 部位已有装备，命令未执行", (EquipmentSlot)slot), ChatType.System);
+                    return;
+                }
+                if (!target.CanEquipItem(item, slot))
+                {
+                    player.ReceiveChat(string.Format("{0} 无法穿到 {1}（类型/职业/性别/等级不符）", item.FriendlyName, (EquipmentSlot)slot), ChatType.System);
+                    return;
+                }
+            }
+            else
+            {
+                for (int e = 0; e < target.Info.Equipment.Length; e++)
+                {
+                    if (target.Info.Equipment[e] != null) continue;
+                    if (!target.CanEquipItem(item, e)) continue;
+                    slot = e;
+                    break;
+                }
+
+                if (slot == -1)
+                {
+                    player.ReceiveChat(string.Format("{0} 没有可穿的部位（部位被占或条件不符）", item.FriendlyName), ChatType.System);
+                    return;
+                }
+            }
+
+            // 与玩家正常穿戴相同的附加处理
+            if (item.Info.NeedIdentify) item.Identified = true;
+            if (item.Info.Bind.HasFlag(BindMode.BindOnEquip) && item.SoulBoundId == -1)
+                item.SoulBoundId = player.Info.Index;
+
+            target.Info.Equipment[slot] = item;
+
+            string slotName = ((EquipmentSlot)slot).ToString();
+
+            if (forHero)
+            {
+                player.Hero.RefreshStats();
+
+                // 英雄装备没有增量同步协议，推一次全量英雄信息（英雄存储/管理列表更新；
+                // 已召唤英雄身上的装备面板需要重新召唤英雄或重新登录后显示，功能本身已生效）
+                player.Enqueue(new S.NewHeroInfo { Info = ((HeroInfo)player.Hero.Info).ClientInformation });
+                player.ReceiveChat(string.Format("英雄已穿上 {0}（{1}）", item.FriendlyName, slotName), ChatType.Hint);
+            }
+            else
+            {
+                S.UserSlotsRefresh packet = new S.UserSlotsRefresh
+                {
+                    Inventory = new UserItem[player.Info.Inventory.Length],
+                    Equipment = new UserItem[player.Info.Equipment.Length],
+                };
+
+                player.Info.Inventory.CopyTo(packet.Inventory, 0);
+                player.Info.Equipment.CopyTo(packet.Equipment, 0);
+
+                player.Enqueue(packet);
+                player.RefreshStats();
+                player.ReceiveChat(string.Format("已穿上 {0}（{1}）", item.FriendlyName, slotName), ChatType.Hint);
             }
         }
 
@@ -2114,6 +2277,134 @@ namespace Server.MirObjects
                                 MessageQueue.Enqueue(string.Format("以玩家为对象的NPC命令LEVEL中错误使用 {0} 操作符, 页码: {1}", param[0], Key));
                                 return true;
                             }
+                        }
+                        break;
+
+                    // 英雄等级：HEROLEVEL < 50。英雄未召唤或已死亡时一律按「不成立」处理
+                    case CheckType.HeroLevel:
+                        {
+                            if (!ushort.TryParse(param[1], out ushort heroLevel))
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            if (player.Hero == null || player.Hero.Dead)
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            try
+                            {
+                                failed = !Compare(param[0], player.Hero.Level, heroLevel);
+                            }
+                            catch (ArgumentException)
+                            {
+                                MessageQueue.Enqueue(string.Format("NPC命令HEROLEVEL中错误使用 {0} 操作符, 页码: {1}", param[0], Key));
+                                return true;
+                            }
+                        }
+                        break;
+
+                    // 英雄是否已召唤：CHECKHERO 1 → 已召唤且未死亡；CHECKHERO 0 → 未召唤或已死亡
+                    case CheckType.CheckHero:
+                        {
+                            bool wantSummoned = param[0] != "0";
+
+                            bool summoned = player.Hero != null && !player.Hero.Dead;
+
+                            failed = summoned != wantSummoned;
+                        }
+                        break;
+
+                    // 英雄职业：CHECKHEROCLASS 战士。英雄未召唤/已死亡时按「不成立」处理
+                    case CheckType.CheckHeroClass:
+                        {
+                            MirClass heroClass;
+
+                            if (player.Hero == null || player.Hero.Dead)
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            if (!MirClass.TryParse(param[0], true, out heroClass))
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            failed = player.Hero.Class != heroClass;
+                        }
+                        break;
+
+                    // 英雄性别：CHECKHEROGENDER 男。英雄未召唤/已死亡时按「不成立」处理
+                    case CheckType.CheckHeroGender:
+                        {
+                            MirGender heroGender;
+
+                            if (player.Hero == null || player.Hero.Dead)
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            if (!MirGender.TryParse(param[0], false, out heroGender))
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            failed = player.Hero.Gender != heroGender;
+                        }
+                        break;
+
+                    // 英雄物品：CHECKHEROITEM 物品名 [数量] [持久]。
+                    // 与 CHECKITEM 同规则，但查的是英雄的背包+装备（CHECKITEM 只查玩家背包）。
+                    // 英雄未召唤/已死亡时按「不成立」处理
+                    case CheckType.CheckHeroItem:
+                        {
+                            ushort heroItemCount;
+                            ushort heroItemDura;
+
+                            if (player.Hero == null || player.Hero.Dead)
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            if (!ushort.TryParse(param[1], out heroItemCount))
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            bool checkHeroDura = ushort.TryParse(param[2], out heroItemDura);
+
+                            var heroItemInfo = Envir.GetItemInfo(param[0]);
+
+                            // 背包 + 装备一起查（英雄身上穿的也算）
+                            var heroItems = player.Hero.Info.Inventory.Concat(player.Hero.Info.Equipment)
+                                .Where(item => item != null && item.Info == heroItemInfo);
+
+                            foreach (var item in heroItems)
+                            {
+                                if (checkHeroDura)
+                                    if (item.CurrentDura < (heroItemDura * 1000)) continue;
+
+                                if (heroItemCount > item.Count)
+                                {
+                                    heroItemCount -= item.Count;
+                                    continue;
+                                }
+
+                                heroItemCount = 0;
+                                break;
+                            }
+
+                            if (heroItemCount > 0)
+                                failed = true;
                         }
                         break;
 
@@ -3205,6 +3496,15 @@ namespace Server.MirObjects
                             uint tempUint;
                             if (!uint.TryParse(param[0], out tempUint)) return;
                             player.GainExp(tempUint);
+                        }
+                        break;
+
+                    case ActionType.GiveHeroExp:
+                        {
+                            uint tempUint;
+                            if (!uint.TryParse(param[0], out tempUint)) return;
+                            if (!player.HeroSpawned || player.Hero == null || player.Hero.Dead) break;
+                            player.Hero.GainExp(tempUint);
                         }
                         break;
 
@@ -4541,6 +4841,30 @@ namespace Server.MirObjects
                             item.CurrentDura = item.MaxDura;
                             item.DuraChanged = false;
                             player.Enqueue(new S.ItemRepaired { UniqueID = item.UniqueID, MaxDura = item.MaxDura, CurrentDura = item.CurrentDura });
+                        }
+                        break;
+
+                    // EQUIPITEM <物品名> [部位]：直接把物品穿到玩家身上（不进背包，部位被占则拒绝）
+                    case ActionType.EquipItem:
+                        {
+                            if (param == null || param.Count == 0 || string.IsNullOrWhiteSpace(param[0])) break;
+
+                            NpcEquip(player, player, param[0], param.Count > 1 ? param[1] : string.Empty, false);
+                        }
+                        break;
+
+                    // HEROEQUIPITEM <物品名> [部位]：直接把物品穿到英雄身上（不经过英雄背包）
+                    case ActionType.HeroEquipItem:
+                        {
+                            if (param == null || param.Count == 0 || string.IsNullOrWhiteSpace(param[0])) break;
+
+                            if (!player.HasHero || !player.HeroSpawned || player.Hero.Dead)
+                            {
+                                player.ReceiveChat("英雄未召唤，命令未执行", ChatType.System);
+                                break;
+                            }
+
+                            NpcEquip(player.Hero, player, param[0], param.Count > 1 ? param[1] : string.Empty, true);
                         }
                         break;
 

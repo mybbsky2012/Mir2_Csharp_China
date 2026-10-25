@@ -162,18 +162,8 @@ namespace Launcher
                 using MemoryStream stream = new MemoryStream(data);
                 using BinaryReader reader = new BinaryReader(stream);
 
-                if (reader.ReadByte() == 60)
-                {
-                    //assume we got a html page back with an error code so it's not a patchlist
-                    return;
-                }
-                reader.BaseStream.Seek(0,SeekOrigin.Begin);
-                int count = reader.ReadInt32();
-
-                for (int i = 0; i < count; i++)
-                {
-                    OldList.Add(new FileInformation(reader));
-                }
+                //清单可能带 MD5 追加段（v2）；旧清单无哈希段也能正常读取
+                OldList = FileInformation.ReadList(reader);
             }
         }
 
@@ -195,6 +185,22 @@ namespace Launcher
             {
                 DownloadList.Enqueue(old);
                 _totalBytes += old.Length;
+                return;
+            }
+
+            //大小和时间都一致时，若清单带 MD5 则校验本地文件内容，
+            //内容损坏（如被 404 页面覆盖但时间被刷新）也能检出并重新下载
+            if (old.MD5 != null && old.MD5.Length == 16)
+            {
+                byte[] local;
+                try { local = FileInformation.ComputeMD5File(Settings.P_Client + old.FileName); }
+                catch { local = null; }
+
+                if (local == null || !FileInformation.Md5Equal(local, old.MD5))
+                {
+                    DownloadList.Enqueue(old);
+                    _totalBytes += old.Length;
+                }
             }
         }
 
@@ -205,7 +211,11 @@ namespace Launcher
             var info = dl.Info;
             string fileName = info.FileName.Replace(@"\", "/");
 
-            if (fileName != "PList.gz" && (info.Compressed != info.Length || info.Compressed == 0))
+            //只有清单明确标记“已压缩且与原始大小不同”时才请求 .gz。
+            //Compressed == 0 表示清单没记录压缩信息（文件是原样上传的），
+            //以前这里把 0 也当成“需要 .gz”，结果去拉不存在的 xxx.gz 拿到 404 错误页并写盘。
+            bool isGzip = fileName != "PList.gz" && info.Compressed > 0 && info.Compressed != info.Length;
+            if (isGzip)
             {
                 fileName += ".gz";
             }
@@ -243,19 +253,79 @@ namespace Launcher
 
                     var response = task.Result;
 
+                    //清单说压缩、服务端却没有 .gz（老清单 Compressed 记错、或压缩文件没上传）时，
+                    //自动退回原始文件名再试一次，避免整个文件更新失败
+                    if (!response.IsSuccessStatusCode && isGzip)
+                    {
+                        File.AppendAllText(@".\Error.txt",
+                            $"[{DateTime.Now}] {fileName} 返回 {response.StatusCode}，退回未压缩文件重试{Environment.NewLine}");
+
+                        string plain = fileName.Substring(0, fileName.Length - 3);
+                        var task2 = Task.Run(() => client
+                                        .GetAsync(new Uri($"{Settings.P_Host}{plain}"), HttpCompletionOption.ResponseHeadersRead));
+                        var response2 = task2.Result;
+
+                        if (response2.IsSuccessStatusCode)
+                        {
+                            response = response2;
+                            fileName = plain;
+                            isGzip = false;
+                        }
+                    }
+
+                    //关键修复：不检查状态码时，404 的 HTML 错误页会被当成文件内容写盘，
+                    //导致地图等文件被 153 字节的 nginx 404 页面覆盖、进图黑屏。
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        File.AppendAllText(@".\Error.txt",
+                            $"[{DateTime.Now}] {info.FileName} 下载失败 HTTP {(int)response.StatusCode} {response.StatusCode} ({Settings.P_Host}{fileName}){Environment.NewLine}");
+                        ErrorFound = true;
+                        _currentCount++;
+                        _completedBytes += dl.CurrentBytes;
+                        dl.CurrentBytes = 0;
+                        dl.Completed = true;
+                        return;
+                    }
+
+                    //响应体长度与清单不符也拒绝写盘（反代错误页常见 200 + HTML）
+                    long contentLen = response.Content.Headers.ContentLength ?? -1;
+                    long expectLen = isGzip ? info.Compressed : info.Length;
+
                     using Stream sm = response.Content.ReadAsStream();
                     using MemoryStream ms = new();
                     sm.CopyTo(ms);
                     byte[] data = ms.ToArray();
+
+                    if (info.FileName != "PList.gz" && expectLen > 0 && contentLen >= 0 && contentLen != data.Length)
+                    {
+                        File.AppendAllText(@".\Error.txt",
+                            $"[{DateTime.Now}] {info.FileName} 响应不完整: 预期 {contentLen} 字节, 实际 {data.Length} 字节{Environment.NewLine}");
+                        ErrorFound = true;
+                        _currentCount++;
+                        _completedBytes += dl.CurrentBytes;
+                        dl.CurrentBytes = 0;
+                        dl.Completed = true;
+                        return;
+                    }
 
                     _currentCount++;
                     _completedBytes += dl.CurrentBytes;
                     dl.CurrentBytes = 0;
                     dl.Completed = true;
 
-                    if (info.Compressed > 0 && info.Compressed != info.Length)
+                    if (isGzip)
                     {
                         data = Decompress(data);
+                    }
+
+                    //MD5 校验：清单里带哈希时，下载内容与清单不符直接丢弃，不落盘
+                    if (info.MD5 != null && info.MD5.Length == 16 &&
+                        !FileInformation.Md5Equal(FileInformation.ComputeMD5(data), info.MD5))
+                    {
+                        File.AppendAllText(@".\Error.txt",
+                            $"[{DateTime.Now}] {info.FileName} MD5 校验失败 (服务端内容与清单不一致), 已放弃写入{Environment.NewLine}");
+                        ErrorFound = true;
+                        return;
                     }
 
                     var fileNameOut = Settings.P_Client + info.FileName;
@@ -357,6 +427,14 @@ namespace Launcher
                     .GetAsync(new Uri(Settings.P_Host + Path.ChangeExtension(fileName, ".gz")), HttpCompletionOption.ResponseHeadersRead));
 
                 var response = task.Result;
+
+                //清单请求同样必须检查状态码，防止 404 HTML 被当成清单解析
+                if (!response.IsSuccessStatusCode)
+                {
+                    File.AppendAllText(@".\Error.txt",
+                        $"[{DateTime.Now}] {fileName} 获取清单失败 HTTP {(int)response.StatusCode} {response.StatusCode}{Environment.NewLine}");
+                    return null;
+                }
 
                 using Stream sm = response.Content.ReadAsStream();
                 using MemoryStream ms = new();
