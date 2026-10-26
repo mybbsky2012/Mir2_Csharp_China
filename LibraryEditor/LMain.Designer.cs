@@ -910,17 +910,17 @@ namespace LibraryEditor
             // 
             // OpenLibraryDialog
             // 
-            OpenLibraryDialog.Filter = "资源库 (*.Lib;*.Elite;*.ALib;*.MIX;*.MIZ;*.WTL)|*.Lib;*.Elite;*.ALib;*.MIX;*.MIZ;*.WTL|Lib 库 (*.Lib)|*.Lib|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|WTL 库 (*.WTL)|*.WTL|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WeMade/Shanda 格式（打开时自动转换为 Lib） (*.WIL;*.WZL;*.MIZ;*.WTL)|*.WIL;*.WZL;*.MIZ;*.WTL|所有文件 (*.*)|*.*";
+            OpenLibraryDialog.Filter = "资源库 (*.Lib;*.Elite;*.ALib;*.EuRe;*.MIX;*.MIZ;*.WTL)|*.Lib;*.Elite;*.ALib;*.EuRe;*.MIX;*.MIZ;*.WTL|Lib 库 (*.Lib)|*.Lib|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|WTL 库 (*.WTL)|*.WTL|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WeMade/Shanda 格式（打开时自动转换为 Lib） (*.WIL;*.WZL;*.MIZ;*.WTL)|*.WIL;*.WZL;*.MIZ;*.WTL|EuRe 库 (*.EuRe)|*.EuRe|所有文件 (*.*)|*.*";
             OpenLibraryDialog.Title = "打开资源库";
             // 
             // OpenDirectDialog
             // 
-            OpenDirectDialog.Filter = "可直接编辑的原格式 (*.WIL;*.WZL;*.MIZ;*.WTL)|*.WIL;*.WZL;*.MIZ;*.WTL|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WTL 库 (*.WTL)|*.WTL|所有文件 (*.*)|*.*";
+            OpenDirectDialog.Filter = "可直接编辑的原格式 (*.WIL;*.WZL;*.MIZ;*.WTL;*.EuRe)|*.WIL;*.WZL;*.MIZ;*.WTL;*.EuRe|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WTL 库 (*.WTL)|*.WTL|EuRe 库 (*.EuRe)|*.EuRe|所有文件 (*.*)|*.*";
             OpenDirectDialog.Title = "直接打开（不转换）";
             // 
             // SaveLibraryDialog
             // 
-            SaveLibraryDialog.Filter = "资源库 (*.Lib;*.Elite;*.ALib;*.MIX;*.MIZ)|*.Lib;*.Elite;*.ALib;*.MIX;*.MIZ|Lib 库 (*.Lib)|*.Lib|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|所有文件 (*.*)|*.*";
+            SaveLibraryDialog.Filter = "资源库 (*.Lib;*.Elite;*.ALib;*.EuRe;*.MIX;*.MIZ)|*.Lib;*.Elite;*.ALib;*.EuRe;*.MIX;*.MIZ|Lib 库 (*.Lib)|*.Lib|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|EuRe 库 (*.EuRe)|*.EuRe|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|所有文件 (*.*)|*.*";
             SaveLibraryDialog.Title = "保存资源库";
             // 
             // ImportImageDialog

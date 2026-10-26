@@ -113,6 +113,7 @@ namespace LibraryEditor
             else if (dropExt == ".LIB" ||
                      dropExt == ".ELITE" ||
                      dropExt == ".ALIB" ||
+                     dropExt == ".EURE" ||
                      dropExt == ".WIL" ||
                      dropExt == ".WZL" ||
                      dropExt == ".MIZ" ||
@@ -444,6 +445,8 @@ namespace LibraryEditor
                 return new EliteLibrary(filename);
             if (ext != null && ext.Equals(".ALib", StringComparison.OrdinalIgnoreCase))
                 return new ALibLibrary(filename);
+            if (ext != null && ext.Equals(".EuRe", StringComparison.OrdinalIgnoreCase))
+                return new EuReLibrary(filename);
 
             // Mir3（传奇3）用 .MIX/.MIZ，扩展名与 Mir2 盛大 .MIZ 冲突 —— 必须按魔数嗅探
             if (IsMir3IndexedName(ext) && File.Exists(filename) && IsMir3File(filename))
@@ -510,7 +513,7 @@ namespace LibraryEditor
                 throw new InvalidDataException(
                     "无法识别的资源库格式：" + filename + Environment.NewLine +
                     "文件头 8 字节：" + headHex + Environment.NewLine + Environment.NewLine +
-                    "本编辑器支持：.Lib（Mir2 Library V2/V3）、.Elite、.ALib、Mir3 .MIX/.MIZ。" + Environment.NewLine +
+                    "本编辑器支持：.Lib（Mir2 Library V2/V3）、.Elite、.ALib、.EuRe、Mir3 .MIX/.MIZ。" + Environment.NewLine +
                     "WeMade / Shanda 的 .WIL / .WZL / .MIZ / .WTL 默认按原格式就地查看/编辑（保存写回原文件）；" + Environment.NewLine +
                     "需要 .Lib 副本时，在「打开」对话框里选「WeMade/Shanda 格式（打开时自动转换为 Lib）」，或用「功能 → 转换为LIB」。",
                     ex);
@@ -614,7 +617,7 @@ namespace LibraryEditor
                                 if (direct != null) direct.Close();
                                 throw new InvalidDataException(
                                     "「" + Path.GetFileName(filename) + "」不支持直接打开（不转换）。" + Environment.NewLine +
-                                    "可直接打开的原格式：WeMade .WIL / .WZL / .MIZ（需配套 .wix / .wzx / .mix），以及 .WTL。" + Environment.NewLine +
+                                    "可直接打开的原格式：WeMade .WIL / .WZL / .MIZ（需配套 .wix / .wzx / .mix）、.WTL、.EuRe。" + Environment.NewLine +
                                     "其它格式请用「文件 → 打开」并转换为 .Lib。");
                             }
                             return new KeyValuePair<string, ILibrary>(target, direct);
@@ -765,7 +768,8 @@ namespace LibraryEditor
         private static bool IsOriginalFormatLibrary(ILibrary library)
         {
             return library != null &&
-                   (library is Mir3Library || library is WeMadeDirectLibrary || library is WtlDirectLibrary);
+                   (library is Mir3Library || library is WeMadeDirectLibrary || library is WtlDirectLibrary ||
+                    library is EuReLibrary);
         }
 
         /// <summary>
@@ -775,6 +779,7 @@ namespace LibraryEditor
         {
             if (library is Mir3Library) return ".MIZ";
             if (library is WtlDirectLibrary) return ".WTL";
+            if (library is EuReLibrary) return ".EuRe";
             if (library is WeMadeDirectLibrary)
             {
                 string e = Path.GetExtension(library.FileName ?? string.Empty);
