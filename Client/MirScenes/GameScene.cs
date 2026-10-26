@@ -11126,6 +11126,19 @@ namespace Client.MirScenes
 
             ProcessAutoPlay();
 
+            // ★保护类（10-26 定稿）：勾选即生效，不依赖内挂总开关
+            //   · 传送保护 / 装备保护：手动打怪、站着不动都生效
+            //   · 喝药：自动打怪时由「自动喝红药 / 自动喝蓝药」两个总闸控制；
+            //     不开自动打怪时按明细行勾选做保命喝药（见 AutoPlayUsePotionIfDue）
+            AutoPlayUsePotionIfDue();
+            AutoPlayCheckScrollOut();
+
+            // ★装备保护（10-26）：勾选即生效，不依赖内挂总开关——装备持久快掉到 0 时手动打怪也得保
+            AutoPlayRepairEquipment();
+
+            // ★自动续气血石（10-26）：宝石位（守护石槽）电量用完 → 从背包换一块新的穿上，勾选即生效
+            AutoPlayRenewStone();
+
             // 未开内挂总开关时的自动捡物：人走到掉落物所在格子才自动捡，不主动跑过去
             if (!Settings.AutoPlay && Settings.AutoPickup) ProcessAutoPickupOnTile();
 
@@ -12151,6 +12164,12 @@ namespace Client.MirScenes
 
         private static long _autoPlayNextPot;
         private static long _autoPlayNextHeal;
+        // ★药水明细四行各自的使用冷却（10-26）
+        private static readonly long[] _autoPlayPotRowNext = new long[4];
+        // ★装备保护：最小修理间隔（避免连续发包）。[0]=玩家 [1]=英雄（10-26 英雄也受内挂保护）
+        private static readonly long[] _autoPlayNextRepair = new long[2];
+        // ★传送保护：本局是否已触发过（一次性）
+        private static bool _autoPlayScrollFired;
         private static long _autoRoamNextTime;
         private static Point _autoRoamLastPos;          // 跑图时的上次位置（卡住检测）
         private static long _autoRoamLastPosTime;       // 上次位置变化的时间
@@ -12183,6 +12202,13 @@ namespace Client.MirScenes
         private static uint _autoPoisonSwapUserID;      // 毒符交替状态所属的角色
         private static ulong _autoSwapLastID;           // 上次换装请求的物品（防止本地状态没同步时反复发包）
         private static long _autoSwapLastTime;
+        // ★自动续气血石（10-26）：宝石位（守护石槽）电量耗尽后从背包换新的。
+        //   下标 [0]=玩家 [1]=英雄——两套状态完全独立，互不干扰（同一块石头的 UniqueID 不重复）
+        private static readonly long[] _autoPlayNextStone = new long[2];
+        private static readonly short[] _autoStoneWantShape = new short[2];   // 宝石位上次装的是哪种石头（1=气血 2=魔血 3=幻血，0=未知）
+        private static readonly long[] _autoStoneZeroSince = new long[2];     // 宝石位出现 0 电石头的时间（0=当前没有）
+        private static readonly ulong[] _autoStoneLastID = new ulong[2];      // 上次换上的石头（防止本地状态未同步时重复发包）
+        private static readonly long[] _autoStoneLastTime = new long[2];
         private static int _manualSpellKey;             // 手动施法因换装被推迟的技能（技能栏键位，0=无）
         private static int _manualSpellWant = -1;       // 该技能需要槽里装什么：0=符纸 1=灰毒粉(绿毒) 2=黄毒粉(红毒) 3=苏生符
         private static int _manualSpellNeed = 1;        // 该技能要几个（毒雾 5 个黄毒粉、苏生术 1 张苏生符…）
@@ -12212,11 +12238,17 @@ namespace Client.MirScenes
 
             long now = CMain.Time;
 
+            // ★传送保护 / 装备保护已在 Process() 里独立执行（勾选即生效，不看总开关），
+            //   这里只保留一个短路：
+            if (_autoPlayScrollFired) return;   // 已触发传送保护（正在小退），别再继续打怪
+
+            // ★喝药（自动打怪）：由保护页的两个总闸「自动喝红药 / 自动喝蓝药（自动打怪）」控制。
+            //   总开关没开时不会走到这里，改由 Process() 里的 AutoPlayUsePotionIfDue 做保命喝药。
             if (Settings.AutoPotHP || Settings.AutoPotMP)
             {
                 if (now >= _autoPlayNextPot)
                 {
-                    _autoPlayNextPot = now + 300;
+                    _autoPlayNextPot = now + 250;
                     AutoPlayUsePotion();
                 }
             }
@@ -14632,43 +14664,387 @@ namespace Client.MirScenes
             }
         }
 
-        /// <summary>自动喝药：只使用普通药水(Shape 0)与太阳水(Shape 1)</summary>
+        /// <summary>
+        /// 自动喝药（10-26 改版）：按面板上的 4 行明细逐条判断——
+        /// 每行有独立的「启用 / 阈值百分比 / 使用物品 / 间隔毫秒」，
+        /// 行 1、3 看血量，行 2、4 看魔法。自动打怪时由两个总闸（自动喝红药 / 自动喝蓝药）放行；
+        /// 不开自动打怪时，明细行勾选即生效，做保命喝药。
+        /// 物品名留空或写错时，回退到背包里任意对应属性的药水（保证不会因为填错名字就不喝药）。
+        /// </summary>
+        /// <summary>
+        /// 喝药入口（10-26 定稿）：Process() 每帧调用，250ms 自节流。
+        /// 只在「没开内挂总开关」时执行——开自动打怪时喝药走 ProcessAutoPlay 里的总闸分支。
+        /// </summary>
+        private void AutoPlayUsePotionIfDue()
+        {
+            // 自动打怪中：喝药完全交给 ProcessAutoPlay 里的两个总闸处理，这里不重复喝
+            if (Settings.AutoPlay) return;
+
+            // 不开自动打怪时：明细行「启用」勾了就是保命喝药，不需要开总开关、也不需要开总闸
+            if (!Settings.PotRowOn[0] && !Settings.PotRowOn[1] && !Settings.PotRowOn[2] && !Settings.PotRowOn[3]) return;
+            if (User == null || User.Dead || GameScene.Observing) return;
+
+            long now = CMain.Time;
+            if (now < _autoPlayNextPot) return;
+
+            _autoPlayNextPot = now + 250;
+            AutoPlayUsePotion();
+        }
+
         private void AutoPlayUsePotion()
         {
             int maxHP = User.Stats[Stat.HP];
             int maxMP = User.Stats[Stat.MP];
 
-            bool needHP = Settings.AutoPotHP && maxHP > 0 && User.HP * 100 / maxHP <= Settings.AutoPotHPPercent;
-            bool needMP = Settings.AutoPotMP && maxMP > 0 && User.MP * 100 / maxMP <= Settings.AutoPotMPPercent;
+            if (maxHP <= 0) maxHP = 1;
+            if (maxMP <= 0) maxMP = 1;
 
-            if (!needHP && !needMP) return;
+            int hpPct = User.HP * 100 / maxHP;
+            int mpPct = User.MP * 100 / maxMP;
 
-            UserItem hpItem = null, mpItem = null;
+            for (int row = 0; row < 4; row++)
+            {
+                if (!Settings.PotRowOn[row]) continue;
+
+                bool isHP = (row == 0 || row == 2);
+
+                // 自动打怪时才受总闸（自动喝红药 / 自动喝蓝药）限制；
+                // 没开自动打怪时，这一行「启用」勾了就按百分比保命喝
+                bool gatedBySwitch = Settings.AutoPlay;
+
+                if (isHP)
+                {
+                    if (gatedBySwitch && !Settings.AutoPotHP) continue;     // 打怪中但血药总闸关着
+                    if (hpPct > Settings.PotRowPercent[row]) continue;
+                }
+                else
+                {
+                    if (gatedBySwitch && !Settings.AutoPotMP) continue;
+                    if (mpPct > Settings.PotRowPercent[row]) continue;
+                }
+
+                if (CMain.Time < _autoPlayPotRowNext[row]) continue;   // 这一行自己的冷却
+                if (CMain.Time < GameScene.UseItemTime) return;        // 全局发包节流
+
+                UserItem use = AutoPlayFindPotion(Settings.PotRowItem[row], isHP);
+                if (use == null) continue;
+
+                GameScene.UseItemTime = CMain.Time + 300;
+                _autoPlayPotRowNext[row] = CMain.Time + Math.Max(100, Settings.PotRowInterval[row]);
+
+                Network.Enqueue(new C.UseItem { UniqueID = use.UniqueID, Grid = MirGridType.Inventory });
+                return;                                                // 一帧只发一个
+            }
+        }
+
+        /// <summary>按名字找背包里的药水；名字空/找不到 → 回退到任意对应属性的药水</summary>
+        private UserItem AutoPlayFindPotion(string name, bool forHP)
+        {
+            if (User == null || User.Inventory == null) return null;
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                string want = name.Trim();
+                for (int i = 0; i < User.Inventory.Length; i++)
+                {
+                    UserItem it = User.Inventory[i];
+                    if (it == null || it.Info == null) continue;
+                    if (string.Equals(it.Info.Name, want, StringComparison.OrdinalIgnoreCase)) return it;
+                }
+            }
 
             for (int i = 0; i < User.Inventory.Length; i++)
             {
-                UserItem item = User.Inventory[i];
+                UserItem it = User.Inventory[i];
+                if (it == null || it.Info == null) continue;
+                if (it.Info.Type != ItemType.药水) continue;
+                if (it.Info.Shape != 0 && it.Info.Shape != 1) continue;
 
-                if (item == null || item.Info == null) continue;
-                if (item.Info.Type != ItemType.药水) continue;
-                if (item.Info.Shape != 0 && item.Info.Shape != 1) continue;
-
-                if (hpItem == null && item.Info.Stats[Stat.HP] > 0) hpItem = item;
-                if (mpItem == null && item.Info.Stats[Stat.MP] > 0) mpItem = item;
-
-                if (hpItem != null && mpItem != null) break;
+                if (forHP && it.Info.Stats[Stat.HP] > 0) return it;
+                if (!forHP && it.Info.Stats[Stat.MP] > 0) return it;
             }
 
-            UserItem use = needHP ? hpItem : null;
+            return null;
+        }
 
-            if (use == null && needMP) use = mpItem;
-            if (use == null) return;
+        /// <summary>按物品名精确找某个背包里的物品（修复物品用；玩家背包、英雄背包都走这里）</summary>
+        private static UserItem AutoPlayFindItemByName(UserItem[] inventory, string name)
+        {
+            if (inventory == null) return null;
+            if (string.IsNullOrWhiteSpace(name)) return null;
 
-            if (CMain.Time < GameScene.UseItemTime) return;
+            string want = name.Trim();
+            for (int i = 0; i < inventory.Length; i++)
+            {
+                UserItem it = inventory[i];
+                if (it == null || it.Info == null) continue;
+                if (string.Equals(it.Info.Name, want, StringComparison.OrdinalIgnoreCase)) return it;
+            }
+
+            return null;
+        }
+
+        /// <summary>背包里任意一种修复类物品：修复油/战神油/全身修复神水/修复神水</summary>
+        private static UserItem AutoPlayFindAnyRepairItem(UserItem[] inventory)
+        {
+            if (inventory == null) return null;
+
+            for (int i = 0; i < inventory.Length; i++)
+            {
+                UserItem it = inventory[i];
+                if (it == null || it.Info == null) continue;
+
+                if (it.Info.Type == ItemType.卷轴)
+                {
+                    short s = it.Info.Shape;
+                    if (s == 4 || s == 5 || s == 23) return it;
+                }
+
+                if (it.Info.Type == ItemType.特殊消耗品 && it.Info.Shape == 84) return it;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 装备保护（10-26）：任一装备持久低于设定百分比 → 自动使用修复物品；
+        /// 兜底——任一装备持久 ≤1 时无视阈值立即修（快碎的必须马上保）。
+        /// 勾选即生效，不需要内挂总开关。物品名留空时自动挑背包里任意修复类物品。
+        /// ★10-26 扩容：玩家、英雄各查一遍，各用自己背包里的修复物品
+        ///   （英雄发 <see cref="MirGridType.HeroInventory"/> 的使用包，服务端 <c>HeroUseItem</c> 认这个 Grid）。
+        /// </summary>
+        private void AutoPlayRepairEquipment()
+        {
+            if (!Settings.AutoRepairOn) return;
+            if (GameScene.Observing) return;
+
+            if (User != null && !User.Dead)
+                AutoPlayRepairActor(User.Equipment, User.Inventory, MirGridType.Inventory, 0);
+
+            UserHeroObject hero = AutoPlayReadyHero();
+            if (hero == null || hero.Dead) return;
+
+            AutoPlayRepairActor(hero.Equipment, hero.Inventory, MirGridType.HeroInventory, 1);
+        }
+
+        /// <summary>对某一个角色（玩家 / 英雄）做装备保护判定与发包</summary>
+        private void AutoPlayRepairActor(UserItem[] equipment, UserItem[] inventory, MirGridType grid, int who)
+        {
+            if (equipment == null || inventory == null) return;
+            if (!AutoPlayEquipmentNeedRepair(equipment)) return;
+
+            long now = CMain.Time;
+            if (now < _autoPlayNextRepair[who]) return;
+            if (now < GameScene.UseItemTime) return;
+
+            UserItem item = AutoPlayFindItemByName(inventory, Settings.AutoRepairItem);
+            if (item == null) item = AutoPlayFindAnyRepairItem(inventory);
+            if (item == null) return;                              // 包里没有修复物品，静默跳过
+
+            _autoPlayNextRepair[who] = now + 2000;                 // 修一次后 2 秒内不再发
+            GameScene.UseItemTime = now + 300;
+
+            Network.Enqueue(new C.UseItem { UniqueID = item.UniqueID, Grid = grid });
+        }
+
+        /// <summary>身上有没有需要修的装备（宝石位跳过：那里的「持久」是气血石电量，归自动续石管）</summary>
+        private static bool AutoPlayEquipmentNeedRepair(UserItem[] equipment)
+        {
+            bool need = false;
+
+            for (int i = 0; i < equipment.Length; i++)
+            {
+                if (i == (int)EquipmentSlot.守护石) continue;
+
+                UserItem eq = equipment[i];
+                if (eq == null || eq.Info == null) continue;
+                if (eq.MaxDura == 0) continue;                     // 无持久概念的部位（首饰等）
+                if (eq.CurrentDura >= eq.MaxDura) continue;
+
+                if (eq.CurrentDura <= 1) return true;              // 快碎了，无视阈值
+                if (eq.CurrentDura * 100 / eq.MaxDura <= Settings.AutoRepairPercent) need = true;
+            }
+
+            return need;
+        }
+
+        /// <summary>
+        /// 英雄是否可被内挂照顾：必须「已召唤」（地图上没有英雄对象时，背包/装备都是上次召唤残留的旧数据）。
+        /// 返回可用的英雄数据对象，不可用返回 null。
+        /// </summary>
+        private static UserHeroObject AutoPlayReadyHero()
+        {
+            if (GameScene.Observing) return null;
+            if (GameScene.HeroObject == null) return null;         // 未召唤：不管
+            if (GameScene.HeroObject.Dead) return null;
+
+            UserHeroObject hero = Hero;
+            if (hero == null) return null;
+            if (hero.Inventory == null || hero.Equipment == null) return null;
+            if (hero.Equipment.Length <= (int)EquipmentSlot.守护石) return null;   // 装备槽不够，没有宝石位
+
+            return hero;
+        }
+
+        /// <summary>
+        /// 自动续气血石（10-26）：<b>只认宝石位</b>——只有穿戴在「守护石」槽（宝石位）才生效。
+        /// 宝石位的气血石类电量消耗完（服务端 RemoveStone 删掉后槽空，或本地还看到 0 电残留）时，
+        /// 从背包挑一块新的穿上去，续的范围＝气血石 / 魔血石 / 幻血石。
+        /// 挑法：优先和宝石位原来同一款（同 Shape），其次幻血石（气血魔血双修），再其次任意一款；
+        ///       同档里挑电量最大的。槽里装的是别的守护石（芷心石一类）时一律不动。
+        /// 勾选即生效，不需要内挂总开关。
+        /// ★10-26 扩容：玩家、英雄各管各的宝石位，各用自己背包里的石头
+        ///   （英雄发 <see cref="MirGridType.HeroInventory"/> 的装备包，服务端 <c>EquipItem</c> 认这个 Grid）。
+        /// </summary>
+        private void AutoPlayRenewStone()
+        {
+            if (!Settings.AutoRenewStone) return;
+            if (GameScene.Observing) return;
+
+            if (User != null && !User.Dead)
+                AutoPlayRenewStoneActor(User.Equipment, User.Inventory, MirGridType.Inventory, 0);
+
+            UserHeroObject hero = AutoPlayReadyHero();
+            if (hero == null || hero.Dead) return;
+
+            AutoPlayRenewStoneActor(hero.Equipment, hero.Inventory, MirGridType.HeroInventory, 1);
+        }
+
+        /// <summary>对某一个角色（玩家 / 英雄）做续石判定与换装发包</summary>
+        private void AutoPlayRenewStoneActor(UserItem[] equipment, UserItem[] inventory, MirGridType grid, int who)
+        {
+            if (equipment == null || inventory == null) return;
+            if (equipment.Length <= (int)EquipmentSlot.守护石) return;   // 没有宝石位（理论上都有）
+
+            long now = CMain.Time;
+            if (now < _autoPlayNextStone[who]) return;
+
+            UserItem cur = equipment[(int)EquipmentSlot.守护石];
+
+            // 宝石位装的是普通守护石（芷心石一类）：不是气血石类，不归这个功能管
+            if (cur != null && !AutoPlayIsLifeStone(cur)) return;
+
+            if (cur != null && cur.CurrentDura > 0)
+            {
+                // 还有电：记下他用的是哪一款，下一次续石优先续同款
+                _autoStoneWantShape[who] = cur.Info.Shape;
+                _autoStoneZeroSince[who] = 0;
+                return;
+            }
+
+            if (cur != null)
+            {
+                // 槽里是 0 电的石头：服务端下一拍就会把它删掉，先等它删（不抢着交换，免得废石被换回背包）；
+                // 等 3 秒还没删（异常情况）才强行换，避免宝石位一直空着不续
+                if (_autoStoneZeroSince[who] == 0) { _autoStoneZeroSince[who] = now; return; }
+                if (now - _autoStoneZeroSince[who] < 3000) return;
+            }
+            else _autoStoneZeroSince[who] = 0;
+
+            UserItem next = AutoPlayPickLifeStone(inventory, _autoStoneWantShape[who]);
+            if (next == null) return;                                  // 背包里没有可续的石头，静默跳过
+
+            // 同一块石头刚换上、本地还没同步回来 → 不再重复发包
+            if (next.UniqueID == _autoStoneLastID[who] && now - _autoStoneLastTime[who] < 3000) return;
+
+            _autoPlayNextStone[who] = now + 1000;
+            _autoStoneLastID[who] = next.UniqueID;
+            _autoStoneLastTime[who] = now;
+            _autoStoneZeroSince[who] = 0;
+
+            Network.Enqueue(new C.EquipItem
+            {
+                Grid = grid,
+                UniqueID = next.UniqueID,
+                To = (int)EquipmentSlot.守护石
+            });
+        }
+
+        /// <summary>是不是气血石类（气血石 / 魔血石 / 幻血石）：靠 Shape 1/2/3 判定，Shape=0 的不算</summary>
+        private static bool AutoPlayIsLifeStone(UserItem item)
+        {
+            if (item == null || item.Info == null) return false;
+            if (item.Info.Type != ItemType.气血石 && item.Info.Type != ItemType.魔血石) return false;
+            return item.Info.Shape == 1 || item.Info.Shape == 2 || item.Info.Shape == 3;
+        }
+
+        /// <summary>纯挑选逻辑（不碰任何界面状态，便于单测）：玩家背包、英雄背包共用这一份</summary>
+        internal static UserItem AutoPlayPickLifeStone(UserItem[] inventory, short want)
+        {
+            if (inventory == null) return null;
+
+            UserItem best = null;
+            int bestScore = 0;
+
+            for (int i = 0; i < inventory.Length; i++)
+            {
+                UserItem it = inventory[i];
+
+                if (!AutoPlayIsLifeStone(it)) continue;
+                if (it.CurrentDura == 0) continue;
+
+                int score;
+                if (want == 0)
+                {
+                    // 不知道玩家原来用哪款（第一次自动装）：优先回血的，幻血石双修也能顶
+                    score = (it.Info.Shape == 1 || it.Info.Shape == 3) ? 2 : 1;
+                }
+                else if (it.Info.Shape == want) score = 3;                       // 同款
+                else if (it.Info.Shape == 3) score = 2;                          // 幻血石：气血魔血双修，能顶
+                else score = 1;                                                  // 另一款：兜底
+
+                if (score < bestScore) continue;
+                if (score == bestScore && best != null && it.CurrentDura <= best.CurrentDura) continue;
+
+                best = it;
+                bestScore = score;
+            }
+
+            return best;
+        }
+
+        /// <summary>传送保护：血量低于阈值 → 自动小退（一局只触发一次，血量恢复后重新武装）</summary>
+        private bool AutoPlayCheckScrollOut()
+        {
+            if (!Settings.AutoScrollOn) return false;
+            if (User == null || User.Dead) return false;
+
+            int maxHP = User.Stats[Stat.HP];
+            if (maxHP <= 0) return false;
+
+            int pct = User.HP * 100 / maxHP;
+
+            if (pct > Settings.AutoScrollPercent + 10) _autoPlayScrollFired = false;   // 血回来了，重新武装
+            if (pct > Settings.AutoScrollPercent) return false;
+            if (_autoPlayScrollFired) return false;
+
+            _autoPlayScrollFired = true;
+
+            string want = (Settings.AutoScrollItem ?? string.Empty).Trim();
+
+            if (want.Length == 0 || want == "小退")
+            {
+                GameScene.Scene.OutputMessage(string.Format("血量低于 {0}%：传送保护触发，自动小退", Settings.AutoScrollPercent));
+                Network.Enqueue(new C.LogOut());
+                return true;
+            }
+
+            UserItem scroll = User == null ? null : AutoPlayFindItemByName(User.Inventory, want);
+
+            if (scroll == null)
+            {
+                // 填了物品但包里没有 → 退化为小退，别让角色白死
+                GameScene.Scene.OutputMessage(string.Format("血量低于 {0}%：包里没有「{1}」，改为自动小退", Settings.AutoScrollPercent, want));
+                Network.Enqueue(new C.LogOut());
+                return true;
+            }
+
+            if (CMain.Time < GameScene.UseItemTime) return false;
 
             GameScene.UseItemTime = CMain.Time + 300;
-
-            Network.Enqueue(new C.UseItem { UniqueID = use.UniqueID, Grid = MirGridType.Inventory });
+            GameScene.Scene.OutputMessage(string.Format("血量低于 {0}%：传送保护触发，使用「{1}」", Settings.AutoScrollPercent, want));
+            Network.Enqueue(new C.UseItem { UniqueID = scroll.UniqueID, Grid = MirGridType.Inventory });
+            return true;
         }
 
         #endregion

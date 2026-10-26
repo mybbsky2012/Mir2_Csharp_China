@@ -2097,7 +2097,10 @@ public enum ClientPacketIds : short
     ItemRentalLockItem,
     ConfirmItemRental,
     SetPlayerOption,
-    SortBag
+    SortBag,
+
+    // ★新包一律加在最后：中间插入会让后面所有包的序号整体平移，旧端二进制会立刻错位断线
+    DeleteAllMail
 }
 
 public enum ConquestType : byte

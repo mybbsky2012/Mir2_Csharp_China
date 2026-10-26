@@ -94,6 +94,13 @@ namespace Server.MirObjects
         // ---------------- 对外状态 ----------------
         public static bool Enabled { get; private set; }
         public static bool ChatEnabled { get; private set; }
+
+        /// <summary>
+        /// 后台「启用假人系统」开关被改动后置位（10-26）。
+        /// 假人启停会创建/销毁角色、往地图里撒对象，只能在游戏主线程做，
+        /// 所以 GUI 只置标记，由 Process() 在下一帧执行真正的启停。
+        /// </summary>
+        public static bool RestartPending;
         public static int ConfigCount { get; private set; }
         public static int EquipSetCount => EquipSets.Count;
         public static int OnlineCount
@@ -177,6 +184,27 @@ namespace Server.MirObjects
         /// <summary>由 Envir.Process() 每帧调用（内部自带 1 秒节流）</summary>
         public static void Process()
         {
+            // ★后台开关同步（10-26）：必须放在 Enabled 判断之前。
+            //   否则从「关闭」切到「开启」时这里会被 !Enabled 直接挡掉，永远开不起来。
+            if (RestartPending)
+            {
+                RestartPending = false;
+
+                if (Settings.FakePlayerEnabled != Enabled)
+                {
+                    bool wanted = Settings.FakePlayerEnabled;
+
+                    Init();    // 内部先 Close() 清掉在线假人，再按新配置重新生成
+
+                    if (Enabled)
+                        MessageQueue.Instance.Enqueue("[假人] 已按后台开关启用假人系统");
+                    else if (wanted)
+                        MessageQueue.Instance.Enqueue("[假人] 启用失败（无可用地图或数量为 0），详见启动日志");
+                    else
+                        MessageQueue.Instance.Enqueue("[假人] 已按后台开关关闭假人系统，在线假人全部下线");
+                }
+            }
+
             if (!Enabled || !_started) return;
             if (Envir.Time < _nextTick) return;
 

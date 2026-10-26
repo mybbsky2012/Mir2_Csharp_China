@@ -358,7 +358,8 @@ namespace Server.MirObjects
                 item = Info.Equipment[(int)EquipmentSlot.照明物];
                 if (item != null)
                 {
-                    DamageItem(item, 5);
+                    // 离线挂机免损耗：火把/蜡烛不烧（照明物也是「消耗类物品」，挂一晚不该烧光）
+                    if (!AfkFreeConsumableDura) DamageItem(item, 5);
 
                     if (item.CurrentDura == 0)
                     {
@@ -598,6 +599,18 @@ namespace Server.MirObjects
         protected bool StoneHPActive, StoneMPActive;
         protected long StoneHPNextTime, StoneMPNextTime;
 
+        /// <summary>
+        /// 离线挂机免扣消耗类物品持久（10-26）：PlayerObject / HeroObject 按「自己或主人是否在离线挂机」覆盖。
+        /// 为 true 时：气血石/魔血石照常回血回蓝但不掉电量；照明物（火把/蜡烛）不再被烧。
+        /// </summary>
+        public virtual bool AfkFreeConsumableDura => false;
+
+        /// <summary>
+        /// 离线挂机免扣装备持久（10-26）：为 true 时被击不再磨损身上装备（含武器、坐骑忠诚）。
+        /// 只拦战斗磨损（DamageDura / DamageWeapon / 坐骑忠诚），脚本、精炼等显式扣持久照旧生效。
+        /// </summary>
+        public virtual bool AfkFreeEquipDura => false;
+
         protected virtual void ProcessStones(ref int healthRegen, ref int manaRegen)
         {
             if (Dead) return;
@@ -641,7 +654,9 @@ namespace Server.MirObjects
                         if (item.CurrentDura == 0) { RemoveStone(item); return; }
 
                         healthRegen += Math.Max(1, item.Info.Durability * Settings.StoneHPGainPercent / 100);
-                        if (ConsumeStoneDura(item, Settings.StoneHPDuraCost)) { RemoveStone(item); return; }
+
+                        // 离线挂机免损耗：回血照给，电量不扣（否则挂一晚上石头就被烧干）
+                        if (!AfkFreeConsumableDura && ConsumeStoneDura(item, Settings.StoneHPDuraCost)) { RemoveStone(item); return; }
 
                         StoneHPNextTime = now + Math.Max(1, Settings.StoneHPDelay) * 1000;
                     }
@@ -660,7 +675,9 @@ namespace Server.MirObjects
                         if (item.CurrentDura == 0) { RemoveStone(item); return; }
 
                         manaRegen += Math.Max(1, item.Info.Durability * Settings.StoneMPGainPercent / 100);
-                        if (ConsumeStoneDura(item, Settings.StoneMPDuraCost)) { RemoveStone(item); return; }
+
+                        // 离线挂机免损耗：回蓝照给，电量不扣
+                        if (!AfkFreeConsumableDura && ConsumeStoneDura(item, Settings.StoneMPDuraCost)) { RemoveStone(item); return; }
 
                         StoneMPNextTime = now + Math.Max(1, Settings.StoneMPDelay) * 1000;
                     }
@@ -1592,6 +1609,14 @@ namespace Server.MirObjects
             //假人不爆装：AI 玩家没有真人那种「回来捡尸体」的能力，一旦爆光装备就会变成
             //光着身子的怪人，严重影响观感。它们本来也不产出任何收益，禁掉不影响平衡。
             if (this is FakePlayerObject) return;
+
+            //★离线挂机不爆装（10-26）：挂机时人不在电脑前，死了掉的装备/背包物品根本捡不回来，
+            //  等于「挂机在消耗物品」。地图配置 NoDropPlayer 之类照旧在前面判断，这里只是额外兜住挂机角色。
+            PlayerObject afkPlayer = this as PlayerObject;
+            if (afkPlayer != null && afkPlayer.OfflineAFK) return;
+
+            HeroObject afkHero = this as HeroObject;
+            if (afkHero != null && afkHero.Owner != null && afkHero.Owner.OfflineAFK) return;
 
             var pkbodydrop = true;
 
@@ -9079,6 +9104,39 @@ namespace Server.MirObjects
 
             ApplyBuffConfigStats(b, owner, existed, stats);
 
+            FinishAddBuff(b, refreshStats);
+
+            return b;
+        }
+
+        /// <summary>
+        /// 重放一条「已经存在于列表里的」持久化 BUFF（登录、英雄召唤/复活时用）。
+        ///
+        /// 只把存下来的剩余时长 / 属性 / Values 灌回去，**刻意不走 ApplyBuffConfigStats**：
+        /// 配置里那部分属性在第一次挂上时就已经并进 buff.Stats 了，重放时再来一遍会越登录越强
+        /// （自定义槽位最明显：它以传进来的 stats 为底再叠一层配置值，登录 N 次就叠 N 层）。
+        ///
+        /// 时长语义与登录一致：存的是「剩余毫秒」，重放时把 LastTime 拉到当前时刻，
+        /// 所以下线/收起英雄的那段时间不掉 BUFF（和药剂写着 5 小时就该给满 5 小时的设计一致）。
+        /// </summary>
+        public void ReplayBuff(Buff buff)
+        {
+            if (buff == null || buff.Info == null) return;
+            if (Info == null) return;                        // 被 CleanUp 过的对象没有 Buffs 列表，别碰
+
+            buff.LastTime = Envir.Time;
+            buff.ObjectID = ObjectID;
+
+            Buff b = base.AddBuff(buff.Type, null, (int)buff.ExpireTime, buff.Stats, true, true, buff.Values);
+
+            FinishAddBuff(b, true);
+        }
+
+        /// <summary>BUFF 落地后的统一收尾：特效广播 + 下发客户端 + 刷属性。AddBuff / ReplayBuff 共用。</summary>
+        private void FinishAddBuff(Buff b, bool refreshStats)
+        {
+            if (b == null) return;
+
             switch (b.Type)
             {
                 case BuffType.魔法盾:
@@ -9110,8 +9168,6 @@ namespace Server.MirObjects
             {
                 RefreshStats();
             }
-
-            return b;
         }
 
         /// <summary>
@@ -9502,6 +9558,12 @@ namespace Server.MirObjects
 
         private void DamageDura()
         {
+            // 离线挂机免损耗：挂机期间被怪打不掉装备持久
+            if (AfkFreeEquipDura) return;
+
+            // 战斗磨损倍率：按概率触发（30 即 30% 的被击次数才掉身上装备持久）
+            if (Settings.DuraLossRate < 100 && Envir.Random.Next(100) >= Settings.DuraLossRate) return;
+
             if (!SpecialMode.HasFlag(SpecialItemMode.NoDuraLoss))
                 for (int i = 0; i < Info.Equipment.Length; i++)
                     // 石头格的耐力就是气血石 / 魔血石的电量，由 ProcessStones 按秒扣，战斗不能再扣一次
@@ -9510,8 +9572,15 @@ namespace Server.MirObjects
         }
         public void DamageWeapon()
         {
+            // 离线挂机免损耗：挂机期间不磨损武器
+            if (AfkFreeEquipDura) return;
+
             if (!SpecialMode.HasFlag(SpecialItemMode.NoDuraLoss))
+            {
+                // 战斗磨损倍率：按概率触发（30 即 30% 的攻击才掉武器持久），1 点的消耗也能按比例放缓
+                if (Settings.DuraLossRate < 100 && Envir.Random.Next(100) >= Settings.DuraLossRate) return;
                 DamageItem(Info.Equipment[(int)EquipmentSlot.武器], Envir.Random.Next(4) + 1);
+            }
         }
         public void DamageItem(UserItem item, int amount, bool isChanged = false)
         {
@@ -10310,6 +10379,9 @@ namespace Server.MirObjects
         }
         public void DecreaseMountLoyalty(int amount)
         {
+            // 离线挂机免损耗：坐骑忠诚不掉（坐骑耐久也是装备持久）
+            if (AfkFreeEquipDura) return;
+
             if (Envir.Time > DecreaseLoyaltyTime)
             {
                 DecreaseLoyaltyTime = Envir.Time + (Mount.SlowLoyalty ? (LoyaltyDelay * 2) : LoyaltyDelay);

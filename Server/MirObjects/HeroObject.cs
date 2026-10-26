@@ -31,6 +31,12 @@ namespace Server.MirObjects
         /// <summary>英雄跟随主人的超负重开关：主人开启后英雄同样不受负重限制</summary>
         public override bool IgnoreWeight => OverWeight || (Owner != null && Owner.OverWeight);
 
+        /// <summary>离线挂机免扣守护石电量（10-26）：主人离线挂机时，英雄也一起免损耗。</summary>
+        public override bool AfkFreeConsumableDura => Owner != null && Owner.OfflineAFK && Settings.OfflineAfkEnabled && Settings.OfflineAfkNoConsumableDura;
+
+        /// <summary>离线挂机免扣装备持久（10-26）：主人离线挂机时，英雄装备也不磨损。</summary>
+        public override bool AfkFreeEquipDura => Owner != null && Owner.OfflineAFK && Settings.OfflineAfkEnabled && Settings.OfflineAfkNoEquipDura;
+
         public override bool CanMove
         {
             get
@@ -508,6 +514,13 @@ namespace Server.MirObjects
                             ReceiveChat("英雄的武器得到完全修复", ChatType.Hint);
                             Owner.Enqueue(new S.ItemRepaired { UniqueID = temp.UniqueID, MaxDura = temp.MaxDura, CurrentDura = temp.CurrentDura });
                             break;
+                        case 23: //RepairAllOil 全身修复神水：修满英雄全身已装备物品，不损持久上限
+                            if (!RepairAllEquipment())
+                            {
+                                Owner.Enqueue(p);
+                                return;
+                            }
+                            break;
                         case 6: //ResurrectionScroll
                             if (CurrentMap.Info.NoReincarnation)
                             {
@@ -630,6 +643,18 @@ namespace Server.MirObjects
                     //TODO;
                     break;
                 case ItemType.特殊消耗品:
+                    //★10-26：修复神水（Shape=84）在英雄侧也必须修「英雄自己的装备」。
+                    //原先直接落到 CallDefaultNPC(UseItem,84)，本服没有 84 号脚本页 → 白扣物品、什么都不修。
+                    if (item.Info.Shape == 84)
+                    {
+                        if (!RepairAllEquipment())
+                        {
+                            Owner.Enqueue(p);
+                            return;
+                        }
+                        break;
+                    }
+
                     //★10-25 补：特殊消耗品 = 脚本触发类道具（对应 NPC 脚本 UseItem(Shape) 页）。
                     //原实现英雄侧没这个分支 → 落 default: return，静默失败且连失败包都不回（客户端格子卡住）。
                     //英雄没有自己的 NPC 脚本上下文，统一由主人触发，与玩家使用同一行为；
@@ -656,6 +681,32 @@ namespace Server.MirObjects
             p.Success = true;
             Owner.Enqueue(p);
         }
+
+        /// <summary>
+        /// ★全身修复（10-26）：把英雄身上所有「持久有损」的装备直接修满，不损耗持久上限。
+        /// 供「卷轴 Shape=23（全身修复神水）」和「特殊消耗品 Shape=84（修复神水）」在英雄侧共用。
+        /// 与玩家侧同规则：DontRepair 一律不修，NoSRepair 只能用普通修理（这里按特修处理，故也不修）。
+        /// 返回 false 表示一件可修装备都没有（调用方据此不消耗物品）。
+        /// </summary>
+        public bool RepairAllEquipment()
+        {
+            List<UserItem> fixedItems = new List<UserItem>();
+
+            PlayerObject.RepairAllEquipmentCore(Info.Equipment, fixedItems);
+
+            if (fixedItems.Count == 0)
+            {
+                ReceiveChat("英雄身上没有需要修复的装备", ChatType.Hint);
+                return false;
+            }
+
+            foreach (UserItem eq in fixedItems)
+                Owner.Enqueue(new S.ItemRepaired { UniqueID = eq.UniqueID, MaxDura = eq.MaxDura, CurrentDura = eq.CurrentDura });
+
+            ReceiveChat("英雄的全身装备已完全修复", ChatType.Hint);
+            return true;
+        }
+
         public override void Die()
         {
             if (SpecialMode.HasFlag(SpecialItemMode.Revival) && Envir.Time > LastRevivalTime)

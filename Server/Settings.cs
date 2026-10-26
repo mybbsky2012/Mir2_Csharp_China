@@ -59,6 +59,8 @@ namespace Server
         //Network
         public static string IPAddress = "127.0.0.1";
 
+        public static int DuraLossRate = 30;   // 装备持久消耗倍率（百分比）：100=原版速度，30=约1/3速度，0=完全不消耗
+
         public static ushort Port = 7000,
                              TimeOut = 60000,   // 连接超时（毫秒）：放宽到 60 秒，网络短时抖动不再被误踢
                              MaxUser = 500,
@@ -315,6 +317,14 @@ namespace Server
         public static int StoneMPDuraCost = 100;      // 魔血石每跳消耗的持久点数
         public static bool StoneAllowBagUse = false;  // 允许背包内使用：不佩戴守护石时，自动用背包里第一块有电量的气血石/魔血石
 
+        //Offline AFK Settings（离线挂机，10-26）
+        //  离线挂机时角色仍留在场上，会被怪打、被 DOT 烧，于是气血石/魔血石照常跳电、装备照常磨损。
+        //  ★Enabled 是功能总开关：关掉后 [@_LOGOUT] 里的 OFFLINEAFK 不再生效，下线就是正常下线；
+        //    已经在挂机的角色也会在下一帧被收回（见 Envir.Process 里的巡检）。
+        public static bool OfflineAfkEnabled = true;            // 允许离线挂机
+        public static bool OfflineAfkNoConsumableDura = true;   // 不扣消耗类物品持久：气血石/魔血石电量、照明物（回血照常给）
+        public static bool OfflineAfkNoEquipDura = true;   // 不扣装备持久（含武器，被怪打不磨损）
+
 
         //Goods Settings
         public static bool GoodsOn = true;
@@ -420,6 +430,7 @@ namespace Server
             TestServer = Reader.ReadBoolean("General", "TestServer", TestServer);
             EnforceDBChecks = Reader.ReadBoolean("General", "EnforceDBChecks", EnforceDBChecks);
             MonsterProcessWhenAlone = Reader.ReadBoolean("General", "MonsterProcessWhenAlone", MonsterProcessWhenAlone);
+            DuraLossRate = Reader.ReadInt32("General", "DuraLossRate", DuraLossRate);
 
             //Paths
             IPAddress = Reader.ReadString("Network", "IPAddress", IPAddress);
@@ -496,6 +507,11 @@ namespace Server
             EnableWalkThroughWall = Reader.ReadBoolean("Optional", "EnableWalkThroughWall", EnableWalkThroughWall);
             EnableOverWeight = Reader.ReadBoolean("Optional", "EnableOverWeight", EnableOverWeight);
             EnableMountTai = Reader.ReadBoolean("Optional", "EnableMountTai", EnableMountTai);
+
+            //离线挂机（10-26）：挂机期间不扣消耗类物品持久
+            OfflineAfkEnabled = Reader.ReadBoolean("OfflineAFK", "Enabled", OfflineAfkEnabled);
+            OfflineAfkNoConsumableDura = Reader.ReadBoolean("OfflineAFK", "NoConsumableDura", OfflineAfkNoConsumableDura);
+            OfflineAfkNoEquipDura = Reader.ReadBoolean("OfflineAFK", "NoEquipDura", OfflineAfkNoEquipDura);
 
             //假人（AI 玩家）
             FakePlayerEnabled = Reader.ReadBoolean("FakePlayer", "Enabled", FakePlayerEnabled);
@@ -832,6 +848,11 @@ namespace Server
             Reader.Write("Optional", "EnableWalkThroughWall", EnableWalkThroughWall);
             Reader.Write("Optional", "EnableOverWeight", EnableOverWeight);
             Reader.Write("Optional", "EnableMountTai", EnableMountTai);
+
+            //离线挂机（10-26）
+            Reader.Write("OfflineAFK", "Enabled", OfflineAfkEnabled);
+            Reader.Write("OfflineAFK", "NoConsumableDura", OfflineAfkNoConsumableDura);
+            Reader.Write("OfflineAFK", "NoEquipDura", OfflineAfkNoEquipDura);
 
             //假人（AI 玩家）
             Reader.Write("FakePlayer", "Enabled", FakePlayerEnabled);

@@ -22,6 +22,11 @@ namespace Server
             InitializeComponent();
 
             AutoResize();
+
+            // ★状态列（10-25）：按单元格上色需要 OwnerDraw（WinForms ListView 不支持单独给某一列变色）
+            PlayersOnlineListView.OwnerDraw = true;
+            PlayersOnlineListView.DrawColumnHeader += PlayersOnlineListView_DrawColumnHeader;
+            PlayersOnlineListView.DrawSubItem += PlayersOnlineListView_DrawSubItem;
         }
 
         private void AutoResize()
@@ -121,16 +126,69 @@ namespace Server
             }
         }
 
-        private ListViewItem CreateListView(CharacterInfo character)
+        /// <summary>在线状态文本：假人 → 挂机 → 在线（顺序即优先级，假人永不误判为挂机）</summary>
+        private static string GetStatusText(PlayerObject player)
         {
+            if (player is FakePlayerObject) return "假人";
+            if (player.OfflineAFK) return "挂机";
+            return "在线";
+        }
+
+        private ListViewItem CreateListView(PlayerObject player)
+        {
+            CharacterInfo character = player.Info;
+
             ListViewItem ListItem = new ListViewItem(character.Index.ToString()) { Tag = character };
 
             ListItem.SubItems.Add(character.Name);
             ListItem.SubItems.Add(character.Level.ToString());
             ListItem.SubItems.Add(character.Class.ToString());
             ListItem.SubItems.Add(character.Gender.ToString());
+            ListItem.SubItems.Add(GetStatusText(player));
 
             return ListItem;
+        }
+
+        private void PlayersOnlineListView_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
+        {
+            e.DrawDefault = true;   // 表头走系统默认绘制
+        }
+
+        private void PlayersOnlineListView_DrawSubItem(object sender, DrawListViewSubItemEventArgs e)
+        {
+            const int StatusColumn = 5;   // 状态列下标（序号/名称/等级/职业/性别/状态）
+
+            // 背景：选中行高亮，其余白底
+            Color back = e.Item.Selected ? SystemColors.Highlight : SystemColors.Window;
+            using (var b = new SolidBrush(back))
+                e.Graphics.FillRectangle(b, e.Bounds);
+
+            // 文字颜色：状态列按内容上色，其他列选中行用高亮白字
+            string text = e.SubItem?.Text ?? string.Empty;
+            Color fore;
+            if (e.ColumnIndex == StatusColumn)
+            {
+                switch (text)
+                {
+                    case "挂机": fore = Color.FromArgb(200, 110, 0); break;   // 橙
+                    case "假人": fore = Color.FromArgb(120, 120, 120); break; // 灰
+                    case "在线": fore = Color.FromArgb(0, 128, 0); break;     // 绿
+                    default: fore = SystemColors.WindowText; break;
+                }
+            }
+            else
+                fore = e.Item.Selected ? SystemColors.HighlightText : SystemColors.WindowText;
+
+            var rect = new Rectangle(e.Bounds.X + 4, e.Bounds.Y, Math.Max(e.Bounds.Width - 6, 0), e.Bounds.Height);
+            TextRenderer.DrawText(e.Graphics, text, Font, rect, fore,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+            // 网格线（OwnerDraw 下自绘，保证与原样式一致）
+            using (var pen = new Pen(Color.FromArgb(240, 240, 240)))
+            {
+                e.Graphics.DrawLine(pen, e.Bounds.Right - 1, e.Bounds.Top, e.Bounds.Right - 1, e.Bounds.Bottom - 1);
+                e.Graphics.DrawLine(pen, e.Bounds.Left, e.Bounds.Bottom - 1, e.Bounds.Right - 1, e.Bounds.Bottom - 1);
+            }
         }
 
         private void AppendLog(TextBox box, string message)
@@ -151,16 +209,30 @@ namespace Server
         {
             if (PlayersOnlineListView.Items.Count != Envir.Players.Count || forced == true)
             {
+                PlayersOnlineListView.BeginUpdate();
                 PlayersOnlineListView.Items.Clear();
 
-                for (int i = PlayersOnlineListView.Items.Count; i < Envir.Players.Count; i++)
+                for (int i = 0; i < Envir.Players.Count; i++)
+                    PlayersOnlineListView.Items.Add(CreateListView(Envir.Players[i]));
+
+                PlayersOnlineListView.EndUpdate();
+            }
+            else
+            {
+                // ★数量没变也要刷新状态列：真人→挂机、挂机→真人重登 等切换不会触发重建
+                bool changed = false;
+                for (int i = 0; i < Envir.Players.Count && i < PlayersOnlineListView.Items.Count; i++)
                 {
-                    CharacterInfo character = Envir.Players[i].Info;
-
-                    ListViewItem tempItem = CreateListView(character);
-
-                    PlayersOnlineListView.Items.Add(tempItem);
+                    string status = GetStatusText(Envir.Players[i]);
+                    var sub = PlayersOnlineListView.Items[i].SubItems[5];
+                    if (sub == null || sub.Text != status)
+                    {
+                        if (sub != null) sub.Text = status;
+                        changed = true;
+                    }
                 }
+
+                if (changed) PlayersOnlineListView.Invalidate();
             }
         }
 
@@ -508,6 +580,11 @@ namespace Server
             Envir.ReloadMagics();
         }
 
+        private void reloadRespawnsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Envir.ReloadRespawns();
+        }
+
         private void dropsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Envir.ReloadDrops();
@@ -516,6 +593,12 @@ namespace Server
         private void lineMessageToolStripMenuItem_Click(object sender, EventArgs e)
         {
             Envir.ReloadLineMessages();
+        }
+
+        private void reloadMapsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            // 新图免重启上线 + 老图（安全区/传送点/矿区/开关/显示参数）配置刷新
+            Envir.ReloadMaps();
         }
 
         #region Guild View Tab

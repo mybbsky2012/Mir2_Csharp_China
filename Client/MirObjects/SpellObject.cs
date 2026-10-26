@@ -211,20 +211,28 @@ namespace Client.MirObjects
                     Blend = true;
                     break;
                 case Spell.MapLightning:
-                    MapControl.Effects.Add(new Effect(Libraries.Dragon, 400 + (CMain.Random.Next(3) * 10), 5, 600, CurrentLocation));
+                    //★怪物特效开关：这几招的满屏画面是额外挂的 MapControl.Effects（不是本体帧），
+                    //  单独判一遍；音效保留（听声走位还算有个提示）。
+                    if (Settings.MonsterEffectOn)
+                        MapControl.Effects.Add(new Effect(Libraries.Dragon, 400 + (CMain.Random.Next(3) * 10), 5, 600, CurrentLocation));
                     SoundManager.PlaySound(8301);
                     break;
                 case Spell.MapLava:
-                    MapControl.Effects.Add(new Effect(Libraries.Dragon, 440, 20, 1600, CurrentLocation) { Blend = false });
-                    MapControl.Effects.Add(new Effect(Libraries.Dragon, 470, 10, 800, CurrentLocation));
+                    if (Settings.MonsterEffectOn)
+                    {
+                        MapControl.Effects.Add(new Effect(Libraries.Dragon, 440, 20, 1600, CurrentLocation) { Blend = false });
+                        MapControl.Effects.Add(new Effect(Libraries.Dragon, 470, 10, 800, CurrentLocation));
+                    }
                     SoundManager.PlaySound(8302);
                     break;
                 case Spell.MapQuake1:
-                    MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 27, 12, 1200, CurrentLocation) { Blend = false });
+                    if (Settings.MonsterEffectOn)
+                        MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 27, 12, 1200, CurrentLocation) { Blend = false });
                     SoundManager.PlaySound(8304);
                     break;
                 case Spell.MapQuake2:
-                    MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 39, 13, 1300, CurrentLocation) { Blend = false });
+                    if (Settings.MonsterEffectOn)
+                        MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 39, 13, 1300, CurrentLocation) { Blend = false });
                     SoundManager.PlaySound(8304);
                     break;
                 case Spell.DigOutArmadillo:
@@ -668,6 +676,10 @@ namespace Client.MirObjects
             if (FrameIndex >= FrameCount && !Repeat) return;
             if (BodyLibrary == null) return;
 
+            //★怪物特效开关（10-25，F12「怪物特效」）：怪物专属法术（MonXXX）和全场大招
+            //  （地震/岩浆/落雷，阎魔太子那类满屏光）不绘制。伤害在服务端结算，纯表现层。
+            if (!Settings.MonsterEffectOn && IsMonsterVisual(Spell)) return;
+
             int frame = FrameList != null && FrameIndex >= 0 && FrameIndex < FrameList.Length
                 ? FrameList[FrameIndex]
                 : DrawFrame + FrameIndex;
@@ -692,6 +704,23 @@ namespace Client.MirObjects
         public override bool MouseOver(Point p)
         {
             return false;
+        }
+
+        /// <summary>是否属于「怪物魔法特效」：怪物专有法术（Mon5xx/Mon6xx 等）与全场大招。
+        /// 这些法术玩家学不到，关掉不会误伤玩家自己的技能视觉。</summary>
+        public static bool IsMonsterVisual(Spell spell)
+        {
+            switch (spell)
+            {
+                case Spell.MapQuake1:      // 阎魔太子·地震
+                case Spell.MapQuake2:
+                case Spell.MapLava:        // 岩浆
+                case Spell.MapLightning:   // 落雷
+                    return true;
+            }
+
+            // 怪物专有法术统一以 Mon 开头（Mon304xxx / Mon570N / Mon609N ...）
+            return spell.ToString().StartsWith("Mon", StringComparison.Ordinal);
         }
 
         public override void DrawBehindEffects(bool effectsEnabled)

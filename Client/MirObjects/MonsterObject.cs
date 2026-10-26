@@ -125,16 +125,21 @@ namespace Client.MirObjects
                             foreach (var effect in effects)
                                 effect.Repeat = false;
 
-                            if (info.ExtraByte > 3)
-                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 21, 6, 600, this) { Repeat = true });
-                            else
+                            //★怪物特效开关（10-25）：阎魔太子（HellLord）身上这几层常驻地火
+                            //  是站着不动也一直循环的「满屏闪」，关掉开关时不再新增。
+                            if (Settings.MonsterEffectOn)
                             {
-                                if (info.ExtraByte > 2)
-                                    MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 105, 6, 600, new Point(100, 84)) { Repeat = true });
-                                if (info.ExtraByte > 1)
-                                    MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 111, 6, 600, new Point(96, 81)) { Repeat = true });
-                                if (info.ExtraByte > 0)
-                                    MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 123, 6, 600, new Point(93, 84)) { Repeat = true });
+                                if (info.ExtraByte > 3)
+                                    Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 21, 6, 600, this) { Repeat = true });
+                                else
+                                {
+                                    if (info.ExtraByte > 2)
+                                        MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 105, 6, 600, new Point(100, 84)) { Repeat = true });
+                                    if (info.ExtraByte > 1)
+                                        MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 111, 6, 600, new Point(96, 81)) { Repeat = true });
+                                    if (info.ExtraByte > 0)
+                                        MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 123, 6, 600, new Point(93, 84)) { Repeat = true });
+                                }
                             }
 
                             SoundManager.PlaySound(BaseSound + 9);
@@ -870,13 +875,16 @@ namespace Client.MirObjects
                                 SoundManager.PlaySound(BaseSound + 6);
                                 break;
                             case Monster.HellBomb1:
-                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 61, 7, 7 * Frame.Interval, this));
+                                if (Settings.MonsterEffectOn)
+                                    Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 61, 7, 7 * Frame.Interval, this));
                                 break;
                             case Monster.HellBomb2:
-                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 79, 9, 9 * Frame.Interval, this));
+                                if (Settings.MonsterEffectOn)
+                                    Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 79, 9, 9 * Frame.Interval, this));
                                 break;
                             case Monster.HellBomb3:
-                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 97, 8, 8 * Frame.Interval, this));
+                                if (Settings.MonsterEffectOn)
+                                    Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.HellLord], 97, 8, 8 * Frame.Interval, this));
                                 break;
                             case Monster.SeedingsGeneral:
                                 MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.SeedingsGeneral], 1072 + (int)Direction * 9, 9, 9 * Frame.Interval, front, CMain.Time));

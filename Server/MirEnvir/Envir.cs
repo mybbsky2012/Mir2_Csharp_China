@@ -53,7 +53,7 @@ namespace Server.MirEnvir
         public static object LoadLock = new object();
 
         public const int MinVersion = 60;
-        public const int Version = 110;
+        public const int Version = 111;   // 111：英雄存档加 Buffs 段（HeroInfo.Save/Load，见 version > 110）
         public const int CustomVersion = 0;
         public static readonly string DatabasePath = Path.Combine(".", "Server.MirDB");
         public static readonly string AccountPath = Path.Combine(".", "Server.MirADB");
@@ -88,6 +88,12 @@ namespace Server.MirEnvir
 
 
         private static uint _objectID;
+
+        /// <summary>
+        /// 离线挂机总开关的上一次取值（10-26）：只在「开 → 关」那一刻扫一次在线挂机角色，
+        /// 平时每帧只做一次 bool 比较，没有额外开销。
+        /// </summary>
+        private bool _offlineAfkWasEnabled = true;
         public uint ObjectID => ++_objectID;
 
         public static int _playerCount;
@@ -105,6 +111,13 @@ namespace Server.MirEnvir
         private TcpListener _StatusPort;
         private int _sessionID;
         public List<MirConnection> Connections = new List<MirConnection>();
+
+        // 非工作线程（编辑器窗体/菜单按钮）想改运行服数据时，统一排队到工作线程执行，
+        // 避免 MapList / Cells / NPCs 等运行时集合被并发修改（地图重载会新增 Map 对象，尤其危险）。
+        private readonly List<Action> _mainThreadQueue = new List<Action>();
+        private readonly object _mainThreadQueueLock = new object();
+        private volatile bool _hasMainThreadWork;
+        private bool _executingMainThreadTask;
 
         //Server DB
         public int MapIndex, ItemIndex, MonsterIndex, NPCIndex, QuestIndex, GameshopIndex, ConquestIndex, RespawnIndex, ScriptIndex;
@@ -543,6 +556,75 @@ namespace Server.MirEnvir
             MessageQueue.Enqueue($"[{tag} 线程 {line}]" + ex);
         }
 
+        /// <summary>
+        /// 把一段操作交给工作线程执行。已经在工作线程（GM 命令、脚本）时立即执行；
+        /// 在 UI 线程（菜单按钮）时排队，等下一拍工作循环执行 —— 这样改 MapList/Objects 不会和主循环打架。
+        /// </summary>
+        public void RunOnMainThread(Action action)
+        {
+            if (action == null) return;
+
+            if (_thread == null || Thread.CurrentThread == _thread)
+            {
+                action();
+                return;
+            }
+
+            EnqueueMainThreadTask(action);
+        }
+
+        /// <summary>
+        /// 无条件排队（哪怕自己就在工作线程）：用于"必须等到对象遍历之外再执行"的操作。
+        /// </summary>
+        private void EnqueueMainThreadTask(Action action)
+        {
+            if (action == null) return;
+
+            lock (_mainThreadQueueLock)
+            {
+                _mainThreadQueue.Add(action);
+                _hasMainThreadWork = true;
+            }
+        }
+
+        private void DrainMainThreadQueue()
+        {
+            if (!_hasMainThreadWork) return;
+
+            List<Action> pending;
+
+            lock (_mainThreadQueueLock)
+            {
+                if (_mainThreadQueue.Count == 0)
+                {
+                    _hasMainThreadWork = false;
+                    return;
+                }
+
+                pending = new List<Action>(_mainThreadQueue);
+                _mainThreadQueue.Clear();
+                _hasMainThreadWork = false;
+            }
+
+            for (int i = 0; i < pending.Count; i++)
+            {
+                _executingMainThreadTask = true;
+
+                try
+                {
+                    pending[i]();
+                }
+                catch (Exception ex)
+                {
+                    LogInnerError("主线程任务错误", ex);
+                }
+                finally
+                {
+                    _executingMainThreadTask = false;
+                }
+            }
+        }
+
         private void WorkLoop()
         {
             try
@@ -655,6 +737,9 @@ namespace Server.MirEnvir
                     while (Running)
                     {
                         Time = Stopwatch.ElapsedMilliseconds;
+
+                        // 处理 UI 线程投递过来的任务（如「重载地图」）：必须在工作线程里改 MapList
+                        DrainMainThreadQueue();
 
                         if (Time >= processTime)
                         {
@@ -1021,8 +1106,43 @@ namespace Server.MirEnvir
                 }
             }
 
+            //离线挂机总开关（10-26）：后台把「允许离线挂机」关掉的那一刻，
+            //  已经在挂机的角色立刻走完整下线。放在这里而不是 PlayerObject.Process 里——
+            //  此时已脱离地图对象遍历，StopGame 拆对象是安全的（与假人巡检同一位置）。
+            if (_offlineAfkWasEnabled != Settings.OfflineAfkEnabled)
+            {
+                _offlineAfkWasEnabled = Settings.OfflineAfkEnabled;
+
+                if (!Settings.OfflineAfkEnabled)
+                    ProcessOfflineAfkShutdown();
+            }
+
             //假人系统：随机上下线巡检（内部自带 1 秒节流）
             FakePlayerManager.Process();
+        }
+
+        /// <summary>
+        /// 关掉「允许离线挂机」后收回所有挂机中的角色（10-26）。
+        /// 只在 Envir.Process 里调用——此处已脱离地图对象遍历，StopGame 拆对象是安全的。
+        /// 倒序遍历：TerminateOfflineAFK → StopGame 可能把角色从 Players 里移除。
+        /// </summary>
+        public void ProcessOfflineAfkShutdown()
+        {
+            int cutoff = 0;
+
+            for (int i = Players.Count - 1; i >= 0; i--)
+            {
+                if (i >= Players.Count) continue;
+
+                PlayerObject player = Players[i];
+                if (player == null || !player.OfflineAFK) continue;
+
+                player.TerminateOfflineAFK();
+                cutoff++;
+            }
+
+            if (cutoff > 0)
+                MessageQueue.Enqueue($"[离线挂机] 服务端已禁用离线挂机，收回 {cutoff} 个挂机中的角色");
         }
 
         private void ProcessAuction()
@@ -2012,6 +2132,14 @@ namespace Server.MirEnvir
             FakePlayerManager.Close();
 
             SaveGoods(true);
+
+            // 停服前丢掉还没执行的主线程任务（例如排队中的"重载地图"），
+            // 免得下次开服时被一个针对旧运行态的操作打到新环境上
+            lock (_mainThreadQueueLock)
+            {
+                _mainThreadQueue.Clear();
+                _hasMainThreadWork = false;
+            }
 
             MapList.Clear();
             StartPoints.Clear();
@@ -3987,9 +4115,58 @@ namespace Server.MirEnvir
             // 数据源用编辑器实例（Envir.Edit）的列表：编辑器里新增/删除/修改 NPC 后
             // （即使编辑器窗体还没关），这里能立即同步到运行服，不用重启。
             // Main 的 NPCInfoList 只在启动时从 DB 读一次，是"新增 NPC 不重启不上线"的根因。
-            List<NPCInfo> editInfos = Edit.NPCInfoList;
+            //
+            // 除全局 NPCInfoList 外，还兼容只存在于 MapInfo.NPCs 里的"地图级 NPC"
+            //（用别的工具改地图段、或历史遗留数据时会出现），这类条目 Index 可能为 0，
+            // 只能按对象引用识别，因此单独记录。
+            List<NPCInfo> editInfos = new List<NPCInfo>(Edit.NPCInfoList);
+            HashSet<NPCInfo> mapOnly = new HashSet<NPCInfo>();
+
+            for (int m = 0; m < Edit.MapInfoList.Count; m++)
+            {
+                MapInfo mi = Edit.MapInfoList[m];
+                if (mi?.NPCs == null) continue;
+
+                for (int n = 0; n < mi.NPCs.Count; n++)
+                {
+                    NPCInfo info = mi.NPCs[n];
+                    if (info == null) continue;
+                    if (editInfos.Contains(info)) continue;
+                    if (info.Index != 0 && editInfos.Exists(x => x.Index == info.Index)) continue;
+
+                    editInfos.Add(info);
+                    mapOnly.Add(info);
+                }
+            }
+
             HashSet<int> editIds = new HashSet<int>();
-            foreach (NPCInfo e in editInfos) editIds.Add(e.Index);
+            HashSet<NPCInfo> editRefs = new HashSet<NPCInfo>();
+            for (int i = 0; i < editInfos.Count; i++)
+            {
+                if (editInfos[i].Index != 0) editIds.Add(editInfos[i].Index);
+                editRefs.Add(editInfos[i]);
+            }
+
+            // 攻城旗 / 争夺旗由攻城系统托管：它们用的是运行时临时 NPCInfo、不在任何编辑器数据里，
+            // 且创建时 Conq 并未赋值（ConquestGuildFlagInfo.Spawn 只造对象），必须按引用显式保护，
+            // 否则每次全量重载都会把旗子撤掉。
+            HashSet<NPCObject> guarded = new HashSet<NPCObject>();
+            for (int i = 0; i < Conquests.Count; i++)
+            {
+                ConquestObject conq = Conquests[i];
+                if (conq == null || conq.GuildInfo == null) continue;
+
+                for (int j = 0; j < conq.FlagList.Count; j++)
+                {
+                    ConquestGuildFlagInfo flag = conq.FlagList[j];
+                    if (flag != null && flag.Flag != null) guarded.Add(flag.Flag);
+                }
+
+                foreach (KeyValuePair<ConquestGuildFlagInfo, Dictionary<GuildObject, int>> kv in conq.ControlPoints)
+                {
+                    if (kv.Key != null && kv.Key.Flag != null) guarded.Add(kv.Key.Flag);
+                }
+            }
 
             // ---- 1) 撤下已在编辑器里删除的 NPC ----
             List<NPCObject> removed = new List<NPCObject>();
@@ -3998,10 +4175,16 @@ namespace Server.MirEnvir
             {
                 NPCObject npc = NPCs[i];
 
-                if (npc == null || npc.Conq != null) continue;  // 攻城旗等由攻城系统管理，不在此处理
-                if (npc.Info == null || npc.Info.Index == 0) continue; // 运行时临时创建的 NPCInfo（如攻城旗）
-                if (editIds.Contains(npc.Info.Index)) continue; // 编辑器列表里还在，正常保留
+                if (npc == null || npc.Conq != null) continue;  // 攻城 NPC 由攻城系统管理，不在此处理
+                if (npc.Info == null) continue;
+                if (guarded.Contains(npc)) continue;            // 攻城旗 / 争夺旗
 
+                // 全局 NPC 按 Index 匹配；地图级 NPC（Index 可能为 0）按对象引用匹配
+                if (npc.Info.Index != 0 && editIds.Contains(npc.Info.Index)) continue;
+                if (editRefs.Contains(npc.Info)) continue;
+
+                // 运行时唯一的临时 NPC 是攻城旗（已被 Conq 守卫挡住），
+                // 其余 Index 为 0 的只可能是地图级 NPC，编辑器里没了就是被删了
                 removed.Add(npc);
             }
 
@@ -4010,66 +4193,608 @@ namespace Server.MirEnvir
                 npc.CurrentMap?.RemoveObject(npc);
                 npc.Despawn();
                 NPCs.Remove(npc);
-                NPCInfoList.RemoveAll(x => x.Index == npc.Info.Index); // 信息列表一并移除
+
+                if (npc.Info.Index != 0)
+                    NPCInfoList.RemoveAll(x => x.Index == npc.Info.Index); // 信息列表一并移除
+
+                MessageQueue.Enqueue(string.Format("NPC全量重载：撤下 {0}（地图 {1} 坐标 {2}）",
+                    string.IsNullOrEmpty(npc.Info.Name) ? "(无名)" : npc.Info.Name,
+                    npc.Info.MapIndex, npc.Info.Location));
             }
 
-            if (removed.Count > 0)
-                MessageQueue.Enqueue(string.Format("NPC全量重载：撤下 {0} 个已删除的 NPC", removed.Count));
-
             // ---- 2) 同步新增/修改的 NPC ----
-            int added = 0, rebuilt = 0;
+            int added = 0, rebuilt = 0, skipped = 0;
 
             for (int i = 0; i < editInfos.Count; i++)
             {
                 NPCInfo info = editInfos[i];
-                if (info.Index == 0) continue;
+                bool isMapOnly = mapOnly.Contains(info);
 
-                int listIdx = NPCInfoList.FindIndex(x => x.Index == info.Index);
-                NPCInfo old = listIdx >= 0 ? NPCInfoList[listIdx] : null;
+                int listIdx = -1;
+                NPCInfo old = null;
 
-                if (old != null && SameConfig(old, info)) continue; // 配置没变，跳过
+                if (!isMapOnly && info.Index != 0)
+                {
+                    listIdx = NPCInfoList.FindIndex(x => x.Index == info.Index);
+                    if (listIdx >= 0) old = NPCInfoList[listIdx];
+                }
+
+                // 找到场上对应的对象：全局的靠 Info 引用（Main 侧的旧对象），地图级的靠自身引用
+                NPCObject existing = old != null
+                    ? NPCs.FirstOrDefault(x => x.Info == old && x.Conq == null)
+                    : NPCs.FirstOrDefault(x => x.Info == info && x.Conq == null);
+
+                if (existing != null && old != null && SameConfig(old, info)) continue; // 配置没变，跳过
+                if (existing != null && old == null) continue;                          // 已在场，无需重复生成
+
+                string who = string.IsNullOrEmpty(info.Name) ? "(无名)" : info.Name;
 
                 Map map = GetMap(info.MapIndex);
                 if (map == null)
                 {
-                    MessageQueue.Enqueue(string.Format("NPC全量重载：{0} 所属地图不存在，已跳过", info.Name));
+                    MessageQueue.Enqueue(string.Format("NPC全量重载：跳过 {0} —— 所属地图 {1} 不存在", who, info.MapIndex));
+                    skipped++;
                     continue;
                 }
 
-                if (!map.ValidPoint(info.Location))
+                if (map.ValidPoint(info.Location))
                 {
-                    MessageQueue.Enqueue(string.Format("NPC全量重载：{0} 坐标不可站立（{1}），已跳过", info.Name, info.Location));
+                    // ok
+                }
+                else
+                {
+                    MessageQueue.Enqueue(string.Format("NPC全量重载：跳过 {0} —— 坐标不可站立（地图 {1} {2},{3}），请换到可走的格子",
+                        who, info.MapIndex, info.Location.X, info.Location.Y));
+                    skipped++;
                     continue;
                 }
 
                 // 修改场景：撤下旧对象（位置/外观/脚本名等变了需要重建）
-                if (old != null)
+                if (existing != null)
                 {
-                    NPCObject existing = NPCs.FirstOrDefault(x => x.Info == old && x.Conq == null);
-                    if (existing != null)
-                    {
-                        existing.CurrentMap?.RemoveObject(existing);
-                        existing.Despawn();
-                        NPCs.Remove(existing);
-                        rebuilt++;
-                    }
+                    existing.CurrentMap?.RemoveObject(existing);
+                    existing.Despawn();
+                    NPCs.Remove(existing);
+                    rebuilt++;
 
                     Map oldMap = GetMap(old.MapIndex);
                     oldMap?.Info?.NPCs.Remove(old);
                 }
 
-                if (listIdx >= 0) NPCInfoList[listIdx] = info;
-                else { NPCInfoList.Add(info); added++; }
+                if (!isMapOnly && info.Index != 0)
+                {
+                    if (listIdx >= 0) NPCInfoList[listIdx] = info;
+                    else
+                    {
+                        NPCInfoList.Add(info);
+                        added++;
+                    }
+                }
 
                 // 写回地图的 NPC 列表，保证下次重启后仍会生成
                 if (!map.Info.NPCs.Contains(info)) map.Info.NPCs.Add(info);
 
                 // 与 Map.Load 相同的生成方式：构造时按 FileName 自动加载脚本（新脚本文件由此生效）
                 map.AddObject(new NPCObject(info) { CurrentMap = map });
+
+                if (info.Image == 0 || string.IsNullOrEmpty(info.FileName))
+                    MessageQueue.Enqueue(string.Format("NPC全量重载：{0} 已上线，但{1}为{2}，游戏里可能看不见或没有对话",
+                        who, info.Image == 0 ? "外观图号" : "脚本名", info.Image == 0 ? "0" : "空"));
             }
 
-            MessageQueue.Enqueue(string.Format("NPC全量重载完成：新上线 {0} 个，重建 {1} 个", added, rebuilt));
+            MessageQueue.Enqueue(string.Format("NPC全量重载完成：新上线 {0} 个，重建 {1} 个，撤下 {2} 个，跳过 {3} 个（共扫描 {4} 条）",
+                added, rebuilt, removed.Count, skipped, editInfos.Count));
         }
+
+        /// <summary>
+        /// 重载刷怪配置（合并式）：数据源 = 编辑器实例（Edit.MapInfoList）里每张图的 Respawns。
+        /// 配置没变的刷怪点沿用原 MapRespawn 对象，保住 Count 计数（场上活着的怪不会导致重复刷满）；
+        /// 新增的刷怪点下一轮计时自动刷；被删掉的只摘配置，场上的怪不杀，照常活动到被打死。
+        /// </summary>
+        public void ReloadRespawns()
+        {
+            int mapCount = 0, added = 0, kept = 0, removed = 0, skipped = 0;
+
+            for (int i = 0; i < MapList.Count; i++)
+            {
+                Map map = MapList[i];
+                if (map == null || map.Info == null) continue;
+
+                MapInfo editMap = null;
+                for (int e = 0; e < Edit.MapInfoList.Count; e++)
+                {
+                    if (Edit.MapInfoList[e].Index != map.Info.Index) continue;
+                    editMap = Edit.MapInfoList[e];
+                    break;
+                }
+
+                if (editMap == null) continue; // 编辑器里没有这张图（运行时临时图等），保持不动
+
+                mapCount++;
+
+                List<RespawnInfo> newInfos = editMap.Respawns ?? new List<RespawnInfo>();
+                List<MapRespawn> merged = new List<MapRespawn>(newInfos.Count);
+
+                for (int j = 0; j < newInfos.Count; j++)
+                {
+                    RespawnInfo info = newInfos[j];
+                    if (info == null) continue;
+
+                    MapRespawn existing = null;
+                    for (int k = 0; k < map.Respawns.Count; k++)
+                    {
+                        if (!SameRespawnKey(map.Respawns[k].Info, info)) continue;
+                        existing = map.Respawns[k];
+                        break;
+                    }
+
+                    if (existing != null)
+                    {
+                        // 同一个刷怪点：沿用对象（Count/计时都在里面），只把配置换成最新的
+                        bool spreadChanged = existing.Info.Spread != info.Spread;
+                        bool routeChanged = !string.Equals(existing.Info.RoutePath ?? string.Empty, info.RoutePath ?? string.Empty, StringComparison.Ordinal);
+
+                        existing.Info = info;
+
+                        if (spreadChanged) FillRespawnCells(map, existing);
+                        if (routeChanged) existing.LoadRoutes();
+
+                        if (!merged.Contains(existing)) merged.Add(existing);
+                        kept++;
+                        continue;
+                    }
+
+                    MapRespawn created = new MapRespawn(info) { Map = map };
+
+                    if (created.Monster == null)
+                    {
+                        MessageQueue.Enqueue(string.Format("刷怪重载：跳过（地图 {0}）怪物编号 {1} 不存在于怪物库（坐标 {2},{3}）",
+                            map.Info.Index, info.MonsterIndex, info.Location.X, info.Location.Y));
+                        skipped++;
+                        continue;
+                    }
+
+                    FillRespawnCells(map, created);
+
+                    if (created.WalkableCells == null || created.WalkableCells.Count == 0)
+                    {
+                        MessageQueue.Enqueue(string.Format("刷怪重载：警告（地图 {0}）怪物 {1} 在坐标 {2},{3} 范围 {4} 内没有可走格子，可能刷不出来",
+                            map.Info.Index, created.Monster.Name, info.Location.X, info.Location.Y, info.Spread));
+                    }
+
+                    merged.Add(created);
+                    added++;
+                }
+
+                for (int k = 0; k < map.Respawns.Count; k++)
+                    if (!merged.Contains(map.Respawns[k])) removed++;
+
+                // 已删除刷怪点的存档计时清理；场上已存在的怪不杀，它们死亡时对摘掉的条目减计数，无副作用
+                for (int k = SavedSpawns.Count - 1; k >= 0; k--)
+                    if (SavedSpawns[k].Map == map && !merged.Contains(SavedSpawns[k])) SavedSpawns.RemoveAt(k);
+
+                map.Respawns = merged;
+
+                // DB 保存时写新配置（保留原列表实例，避免外部持有引用失效）
+                map.Info.Respawns.Clear();
+                map.Info.Respawns.AddRange(newInfos);
+
+                for (int k = 0; k < merged.Count; k++)
+                {
+                    MapRespawn r = merged[k];
+                    if (!r.Info.SaveRespawnTime || r.Info.RespawnTicks == 0) continue;
+                    if (!SavedSpawns.Contains(r)) SavedSpawns.Add(r);
+                }
+            }
+
+            MessageQueue.Enqueue(string.Format("刷怪配置已重载：{0} 张地图，新增 {1} 个刷怪点，沿用 {2} 个，移除 {3} 个，跳过 {4} 个",
+                mapCount, added, kept, removed, skipped));
+        }
+
+        /// <summary>
+        /// 刷怪点身份判定：怪物 + 坐标 + 范围 + 路线。数量/延迟/刷新间隔变了算同一个点（就地更新）。
+        /// </summary>
+        private static bool SameRespawnKey(RespawnInfo a, RespawnInfo b)
+        {
+            if (a == null || b == null) return false;
+
+            return a.MonsterIndex == b.MonsterIndex
+                && a.Location.Equals(b.Location)
+                && a.Spread == b.Spread
+                && string.Equals(a.RoutePath ?? string.Empty, b.RoutePath ?? string.Empty, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// 按刷怪点坐标 + 范围重算可走格子（与 Map.Load 里的算法一致）。
+        /// </summary>
+        private static void FillRespawnCells(Map map, MapRespawn respawn)
+        {
+            if (map.WalkableCells == null)
+            {
+                respawn.WalkableCells = null;
+                return;
+            }
+
+            int sx = respawn.Info.Location.X, sy = respawn.Info.Location.Y, spread = respawn.Info.Spread;
+
+            respawn.WalkableCells = map.WalkableCells.Where(x =>
+                x.X <= sx + spread && x.X >= sx - spread &&
+                x.Y <= sy + spread && x.Y >= sy - spread).ToList();
+        }
+
+        #region 地图热重载（免重启加新图 / 老图配置刷新）
+
+        /// <summary>
+        /// 重载地图（菜单「重新加载 → 重载地图」/ GM 命令 @RELOADMAP）。
+        ///
+        /// A. 新图：编辑器里新增、运行服还没有的地图 → 现场读 .map 建图上线（格子/刷怪点/NPC/安全区/矿区全部按启动流程生成）；
+        ///    建好后自动顺带同步刷怪点与 NPC，不用再点另外两个菜单。
+        /// B. 老图：只刷新「配置」（标题/大小地图/音乐/光照/各种禁制开关/火雷伤害/天气/安全区/传送点/矿区），
+        ///    格子(Cells) 与在场玩家对象一律不动 —— 不掉线、不位移、不重置刷怪计时。
+        ///    这就是「新图加好了、老图上的传送点也要能立刻传过去」所必需的那一步：传送点(Movements)是点击时实时读的，
+        ///    配置刷新后老图上的传送口立刻就能进新图。
+        ///
+        /// 明确不做的三件事（会依次在日志里提示）：
+        ///   1) 编辑器里删掉的地图不会从运行服摘掉（摘除牵扯在场玩家/攻城/存档），需重启生效；
+        ///   2) 老图的 .map 地形文件改过（或 FileName 改了）不重建格子，需重启生效；
+        ///   3) 地图显示类参数（标题/小地图/大地图/音乐/光照）已生效，但客户端要重新进图才会看到。
+        /// </summary>
+        public void ReloadMaps()
+        {
+            // 一律排到"工作循环下一拍的开头"再执行：
+            //   · 菜单按钮在 UI 线程点下来 —— 不能和主循环抢 MapList/Objects；
+            //   · GM 命令在工作线程执行，但那时正处于"遍历 Objects 处理每个对象"的循环里，
+            //     重载会新建/撤下 NPC（增删 Envir.Objects 链表节点），边遍历边删会踩空。
+            // 放到每拍开头（对象遍历之外）执行，两种来源都安全。
+            if (_thread != null && !_executingMainThreadTask)
+            {
+                EnqueueMainThreadTask(ReloadMaps);
+                MessageQueue.Enqueue("重载地图：已提交，将在本拍对象处理结束后执行（结果见后续日志）");
+                return;
+            }
+
+            if (!Running)
+            {
+                MessageQueue.Enqueue("重载地图：服务器未在运行，已忽略");
+                return;
+            }
+
+            // 编辑器侧数据没加载时，整份列表为空 —— 直接退出，免得到处误报"地图已被删除"
+            if (Edit.MapInfoList.Count == 0)
+            {
+                MessageQueue.Enqueue("重载地图：编辑器里的地图列表是空的（数据库未在编辑器加载？），已忽略");
+                return;
+            }
+
+            int created = 0, refreshed = 0, unchanged = 0, skipped = 0, failed = 0;
+
+            // 这次新上线的地图：等 NPC / 刷怪点都同步完再做体检，免得把"还没轮到补"的情况误报成生成失败
+            List<Map> newMaps = new List<Map>();
+
+            // 编辑器现存的地图编号（用来判断"运行服上有、编辑器里已经没有了"的孤儿图）
+            HashSet<int> editIds = new HashSet<int>();
+            for (int e = 0; e < Edit.MapInfoList.Count; e++)
+            {
+                MapInfo mi = Edit.MapInfoList[e];
+                if (mi != null) editIds.Add(mi.Index);
+            }
+
+            for (int e = 0; e < Edit.MapInfoList.Count; e++)
+            {
+                MapInfo edit = Edit.MapInfoList[e];
+                if (edit == null) continue;
+
+                string who = string.IsNullOrEmpty(edit.Title) ? "(无名地图)" : edit.Title;
+
+                Map runtime = GetMap(edit.Index);
+
+                // ---- 已有地图：只刷新配置 ----
+                if (runtime != null)
+                {
+                    if (!string.Equals(runtime.Info.FileName, edit.FileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        MessageQueue.Enqueue(string.Format(
+                            "重载地图：{0}（编号 {1}）的地图文件从 {2} 改成了 {3} —— 地形不能热换，本次只刷新其它配置，地形改动需重启",
+                            who, edit.Index, runtime.Info.FileName, edit.FileName));
+                    }
+
+                    bool zonesChanged, movementsChanged, minesChanged;
+
+                    string oldTitle = runtime.Info.Title;
+                    ushort oldMini = runtime.Info.MiniMap, oldBig = runtime.Info.BigMap, oldMusic = runtime.Info.Music;
+                    LightSetting oldLight = runtime.Info.Light;
+
+                    bool anyChanged = runtime.Info.CopyConfigFrom(edit, out zonesChanged, out movementsChanged, out minesChanged);
+
+                    bool displayChanged = oldTitle != runtime.Info.Title || oldMini != runtime.Info.MiniMap
+                        || oldBig != runtime.Info.BigMap || oldMusic != runtime.Info.Music || oldLight != runtime.Info.Light;
+
+                    if (zonesChanged)
+                    {
+                        // 安全区改了：撤掉旧的边框/回血法术 → 重建 → 同步全服出生点
+                        runtime.RebuildSafeZones();
+                        RebuildStartPoints(runtime);
+                    }
+
+                    if (minesChanged)
+                    {
+                        // 矿区重建要按 MineSet 配置铺格子，配置越界时不能把异常抛出去（会打断这一拍工作循环）
+                        try
+                        {
+                            runtime.RebuildMine();
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageQueue.Enqueue(string.Format("重载地图：{0}（编号 {1}）矿区重建失败（检查矿区设置编号是否超出 MineSet 数量）：{2}",
+                                who, edit.Index, ex.Message));
+                        }
+                    }
+
+                    if (anyChanged)
+                    {
+                        refreshed++;
+
+                        string detail = string.Format("{0}{1}{2}",
+                            zonesChanged ? "安全区 " : string.Empty,
+                            movementsChanged ? "传送点 " : string.Empty,
+                            minesChanged ? "矿区 " : string.Empty);
+
+                        MessageQueue.Enqueue(string.Format("重载地图：{0}（编号 {1}）配置已刷新{2}",
+                            who, edit.Index,
+                            string.IsNullOrEmpty(detail) ? "（显示参数/开关/伤害等）" : "（" + detail.Trim() + "）"));
+
+                        if (displayChanged)
+                        {
+                            MessageQueue.Enqueue(string.Format(
+                                "  提示：{0}（编号 {1}）的标题/小地图/大地图/音乐/光照改动已生效，客户端需要重新进图（或重登）才看得到",
+                                who, edit.Index));
+                        }
+                    }
+                    else
+                    {
+                        unchanged++;
+                    }
+
+                    continue;
+                }
+
+                // ---- 新图：先挡掉"删掉又重建"的重复风险 ----
+                // 编辑器里删掉地图再加一张同文件名的，会拿到新编号；运行服上还挂着旧编号那张，
+                // 直接建新图会让同一份 .map 变成两个运行实例（刷怪/NPC 双份）。这种情况只能重启。
+                Map ghost = null;
+                for (int m = 0; m < MapList.Count; m++)
+                {
+                    Map rm = MapList[m];
+                    if (rm?.Info == null) continue;
+                    if (editIds.Contains(rm.Info.Index)) continue;   // 编辑器里还有，是另一张正常的复用图
+                    if (!string.Equals(rm.Info.FileName, edit.FileName, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    ghost = rm;
+                    break;
+                }
+
+                if (ghost != null)
+                {
+                    MessageQueue.Enqueue(string.Format(
+                        "重载地图：跳过 {0}（编号 {1}）—— 运行服上已有同文件名的地图（编号 {2}，可能是删掉后重建的），为避免刷怪/NPC 重复，请重启",
+                        who, edit.Index, ghost.Info.Index));
+                    skipped++;
+                    continue;
+                }
+
+                string error;
+                Map map = CreateMapForHotReload(edit, out error);
+
+                if (map == null)
+                {
+                    MessageQueue.Enqueue(string.Format("重载地图：{0}（编号 {1}）加载失败 —— {2}", who, edit.Index, error));
+                    failed++;
+                    continue;
+                }
+
+                created++;
+
+                MessageQueue.Enqueue(string.Format(
+                    "重载地图：新图 {0}（编号 {1}，文件 {2}.map）已上线 —— {3}x{4}，刷怪点 {5} 个，NPC {6} 个，出生点 {7} 个",
+                    who, edit.Index, edit.FileName, map.Width, map.Height,
+                    map.Respawns.Count, map.NPCs.Count, CountStartPoints(map)));
+
+                newMaps.Add(map);
+
+                MessageQueue.Enqueue("  提示：客户端 Map 目录下必须有同名 .map 文件（走微端的话要放进资源目录），否则玩家进图会黑屏/报错");
+                MessageQueue.Enqueue("  提示：地图定义已进内存，重启前请在数据库窗口保存一次，否则重启后这张图会消失");
+
+                // 攻城地图的 Conquest 对象是启动时一次性挂的，热加的图挂不上去
+                for (int c = 0; c < ConquestInfoList.Count; c++)
+                {
+                    ConquestInfo ci = ConquestInfoList[c];
+                    if (ci == null || ci.MapIndex != edit.Index) continue;
+
+                    MessageQueue.Enqueue(string.Format(
+                        "  注意：这张图是攻城地图「{0}」，攻城系统未随热重载挂载，攻城玩法需重启后生效", ci.Name));
+                    break;
+                }
+            }
+
+            // 已删除的地图：只提示，不动运行服
+            for (int m = 0; m < MapList.Count; m++)
+            {
+                Map rm = MapList[m];
+                if (rm?.Info == null) continue;
+                if (editIds.Contains(rm.Info.Index)) continue;
+
+                MessageQueue.Enqueue(string.Format(
+                    "重载地图：地图 {0}（编号 {1}）在编辑器里已删除，但运行服不会移除（会牵扯在场玩家与存档），重启后才会消失",
+                    string.IsNullOrEmpty(rm.Info.Title) ? "(无名地图)" : rm.Info.Title, rm.Info.Index));
+            }
+
+            MessageQueue.Enqueue(string.Format(
+                "重载地图完成：新上线 {0} 张，配置刷新 {1} 张，无变化 {2} 张，跳过 {3} 张，失败 {4} 张（共扫描 {5} 条）",
+                created, refreshed, unchanged, skipped, failed, Edit.MapInfoList.Count));
+
+            if (created > 0)
+            {
+                // 新图自带刷怪点/NPC：直接走现成的两个重载，把它们按运行服对象补齐（已存在的按引用/编号识别，不会重复生成）
+                ReloadRespawns();
+                ReloadAllNPCs();
+
+                // 都补齐之后再体检：这时还缺的，才是真的坐标站不住 / 怪物编号不存在
+                for (int i = 0; i < newMaps.Count; i++)
+                    ReportMapSpawnGaps(newMaps[i]);
+            }
+        }
+
+        /// <summary>
+        /// 现场建一张运行服地图（新图热加载用）。与 MapInfo.CreateMap 的区别：
+        ///   1) 不在编辑器实例上建，而是先 Clone 一份运行服副本 —— 运行服和编辑器绝不能共用同一个 MapInfo；
+        ///   2) NPC 信息换成运行服 NPCInfoList 里的同一实例（新 NPC 登记进去），
+        ///      否则随后的 NPC 全量重载会把它们当"新 NPC"再生成一遍，地图上出现双份 NPC；
+        ///   3) 失败时回滚刚登记的 NPC 信息，不留下"所属地图不存在"的孤儿。
+        /// </summary>
+        private Map CreateMapForHotReload(MapInfo edit, out string error)
+        {
+            error = string.Empty;
+
+            MapInfo info = edit.Clone();
+
+            List<NPCInfo> bound = new List<NPCInfo>(info.NPCs.Count);
+            List<NPCInfo> registered = new List<NPCInfo>();
+
+            for (int i = 0; i < info.NPCs.Count; i++)
+            {
+                NPCInfo n = info.NPCs[i];
+                if (n == null) continue;
+
+                NPCInfo main = n.Index != 0 ? NPCInfoList.FirstOrDefault(x => x.Index == n.Index) : null;
+
+                if (main != null)
+                {
+                    bound.Add(main);
+                    continue;
+                }
+
+                if (n.Index != 0 && !NPCInfoList.Contains(n))
+                {
+                    NPCInfoList.Add(n);
+                    registered.Add(n);
+                }
+
+                bound.Add(n);
+            }
+
+            info.NPCs = bound;
+
+            Map map = new Map(info);
+
+            if (!map.Load())
+            {
+                for (int i = 0; i < registered.Count; i++) NPCInfoList.Remove(registered[i]);
+
+                // 半途失败时 Map 对象会被丢掉，但它的刷怪点可能已经被登记进存档列表 —— 一并清掉
+                for (int i = SavedSpawns.Count - 1; i >= 0; i--)
+                    if (SavedSpawns[i].Map == map) SavedSpawns.RemoveAt(i);
+
+                error = string.Format("无法读入地图文件 {0}.map（检查服务器 Maps 目录）",
+                    info.FileName);
+                return null;
+            }
+
+            // 同名编号若残留在 MapInfoList（启动时加载失败的那张），用新副本顶掉，避免出现两条同编号记录
+            MapInfo stale = MapInfoList.FirstOrDefault(x => x.Index == info.Index);
+            if (stale != null) MapInfoList.Remove(stale);
+
+            MapInfoList.Add(info);
+            if (info.Index > MapIndex) MapIndex = info.Index;
+
+            MapList.Add(map);
+
+            for (int i = 0; i < info.SafeZones.Count; i++)
+                if (info.SafeZones[i] != null && info.SafeZones[i].StartPoint) StartPoints.Add(info.SafeZones[i]);
+
+            return map;
+        }
+
+        /// <summary>
+        /// 老图安全区变了以后重建全服出生点：StartPoints 里存的是 SafeZoneInfo 对象引用，
+        /// 不跟着换的话，新角色/随机传送还会往旧安全区坐标落。
+        /// </summary>
+        private void RebuildStartPoints(Map map)
+        {
+            StartPoints.RemoveAll(x => x == null || x.Info == null || x.Info.Index == map.Info.Index);
+
+            for (int i = 0; i < map.Info.SafeZones.Count; i++)
+            {
+                SafeZoneInfo szi = map.Info.SafeZones[i];
+                if (szi != null && szi.StartPoint) StartPoints.Add(szi);
+            }
+        }
+
+        private static int CountStartPoints(Map map)
+        {
+            int count = 0;
+
+            for (int i = 0; i < map.Info.SafeZones.Count; i++)
+                if (map.Info.SafeZones[i] != null && map.Info.SafeZones[i].StartPoint) count++;
+
+            return count;
+        }
+
+        /// <summary>
+        /// 新图体检：把"配了但没生成出来"的刷怪点/NPC 直接报出来，
+        /// 免得玩家进去发现是空图再回头猜原因。
+        /// </summary>
+        private void ReportMapSpawnGaps(Map map)
+        {
+            if (map.Info == null) return;
+
+            int badNPC = 0;
+            for (int i = 0; i < map.Info.NPCs.Count; i++)
+            {
+                NPCInfo info = map.Info.NPCs[i];
+                if (info == null) continue;
+
+                bool spawned = false;
+                for (int j = 0; j < map.NPCs.Count; j++)
+                {
+                    if (map.NPCs[j].Info != info) continue;
+                    spawned = true;
+                    break;
+                }
+
+                if (spawned) continue;
+
+                badNPC++;
+                MessageQueue.Enqueue(string.Format("  警告：NPC {0} 未生成 —— 地图 {1} 上坐标 {2},{3} 不可站立（或者没有刷在该格）",
+                    string.IsNullOrEmpty(info.Name) ? "(无名)" : info.Name, map.Info.Index,
+                    info.Location.X, info.Location.Y));
+            }
+
+            int badRespawn = 0;
+            for (int i = 0; i < map.Info.Respawns.Count; i++)
+            {
+                RespawnInfo ri = map.Info.Respawns[i];
+                if (ri == null) continue;
+
+                bool ok = false;
+                for (int j = 0; j < map.Respawns.Count; j++)
+                {
+                    if (!SameRespawnKey(map.Respawns[j].Info, ri)) continue;
+                    ok = true;
+                    break;
+                }
+
+                if (ok) continue;
+
+                badRespawn++;
+                MessageQueue.Enqueue(string.Format("  警告：刷怪点未生效（地图 {0}）怪物编号 {1}，坐标 {2},{3} —— 怪物库里没有这个编号",
+                    map.Info.Index, ri.MonsterIndex, ri.Location.X, ri.Location.Y));
+            }
+
+            if (badNPC > 0 || badRespawn > 0)
+                MessageQueue.Enqueue(string.Format("  体检结果：{0} 个 NPC、{1} 个刷怪点没生成，请按上面提示改坐标/编号", badNPC, badRespawn));
+        }
+
+        #endregion
 
         /// <summary>
         /// 对比两个 NPCInfo 的全部配置字段（不含 Index，调用前已保证相等）。

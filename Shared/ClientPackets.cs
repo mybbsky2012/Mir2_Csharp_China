@@ -2575,4 +2575,17 @@ namespace ClientPackets
         {
         }
     }
+
+    /// <summary>一键删除全部邮件（只删未锁定的，已锁定的保留；服务端删完回一次完整邮件列表）</summary>
+    public sealed class DeleteAllMail : Packet
+    {
+        public override short Index { get { return (short)ClientPacketIds.DeleteAllMail; } }
+
+        protected override void ReadPacket(BinaryReader reader)
+        {
+        }
+        protected override void WritePacket(BinaryWriter writer)
+        {
+        }
+    }
 }

@@ -16,6 +16,7 @@ namespace Client.MirScenes.Dialogs
         MirLabel PageLabel;
         MirButton PreviousButton, NextButton;
         MirButton SendButton, ReplyButton, ReadButton, DeleteButton, BlockListButton, BugReportButton;
+        MirButton DeleteAllButton;
 
         public MailItemRow[] Rows = new MailItemRow[10];
 
@@ -281,6 +282,20 @@ namespace Client.MirScenes.Dialogs
                 GrayScale = true,
                 Enabled = false
             };
+
+            // 一键删除全部邮件：接在动作按钮排最右边（原排 75~238，27px 一格，第 7 个落 237）
+            DeleteAllButton = new MirButton
+            {
+                Index = 557,
+                HoverIndex = 558,
+                PressedIndex = 559,
+                Library = Libraries.Prguse,
+                Parent = this,
+                Location = new Point(237, 414),
+                Sound = SoundList.ButtonA,
+                Hint = "删除所有邮件"
+            };
+            DeleteAllButton.Click += (o, e) => DeleteAllMails();
             #endregion
 
             
@@ -296,12 +311,36 @@ namespace Client.MirScenes.Dialogs
             }
         }
 
+        /// <summary>
+        /// 把当前页夹进有效范围，并算出这一页的起始下标。纯逻辑，方便单独测试。
+        /// 一键删除后邮件总数会掉，原来停在第 5 页的可能只剩 1 页。
+        /// </summary>
+        public static void NormalizePage(int currentPage, int mailCount, out int pageCount, out int page, out int startIndex)
+        {
+            if (mailCount < 0) mailCount = 0;
+
+            pageCount = (int)Math.Ceiling(mailCount / 10d);
+            if (pageCount < 1) pageCount = 1;
+
+            page = currentPage;
+            if (page > pageCount) page = pageCount;
+            if (page < 1) page = 1;
+
+            startIndex = (page - 1) * 10;
+            if (startIndex >= mailCount) startIndex = 0;
+        }
+
         public void UpdateInterface()
         {
             Reset();
 
-            PageCount = (int)Math.Ceiling((double)GameScene.User.Mail.Count / 10);
-            if (PageCount < 1) PageCount = 1;
+            int pageCount, page, startIndex;
+
+            NormalizePage(CurrentPage, GameScene.User.Mail.Count, out pageCount, out page, out startIndex);
+
+            PageCount = pageCount;
+            CurrentPage = page;
+            StartIndex = startIndex;
 
             PageLabel.Text = string.Format("{0} / {1}", CurrentPage, PageCount);
 
@@ -351,6 +390,12 @@ namespace Client.MirScenes.Dialogs
                 }
             }
 
+            // ★必须放在补完行之后：每次刷新列表都是新建 ClientMail 实例，
+            //   上面那段会按 MailID 把 SelectedMail 指到新实例上；先清就等于把选择弄丢
+            //   （读信、锁信都会触发刷新，一清就每次都要重点）
+            if (SelectedMail != null && !GameScene.User.Mail.Contains(SelectedMail))
+                SelectedMail = null;
+
             UpdateRows();
         }
 
@@ -386,10 +431,89 @@ namespace Client.MirScenes.Dialogs
                 Rows[i].UpdateInterface();
             }
 
-            if(SelectedMail != null)
+            if (SelectedMail != null)
             {
                 ReplyButton.Visible = SelectedMail.CanReply;
             }
+            else
+            {
+                // 不写 else 的话，上一封能回复的邮件被删掉后，回复按钮会一直挂着
+                ReplyButton.Visible = false;
+            }
+        }
+
+        /// <summary>
+        /// 一键删除的统计（纯逻辑，便于测试）：可删封数 / 锁定保留封数 / 带未领取物品或金币的封数。
+        /// </summary>
+        public static void CountForDeleteAll(List<ClientMail> mail, out int deletable, out int locked, out int parcel)
+        {
+            deletable = 0;
+            locked = 0;
+            parcel = 0;
+
+            if (mail == null) return;
+
+            for (int i = 0; i < mail.Count; i++)
+            {
+                ClientMail m = mail[i];
+                if (m == null) continue;
+
+                if (m.Locked)
+                {
+                    locked++;
+                    continue;
+                }
+
+                deletable++;
+
+                if (m.Gold > 0 || (m.Items != null && m.Items.Count > 0))
+                    parcel++;
+            }
+        }
+
+        /// <summary>
+        /// 一键删除全部邮件。只删未锁定的（锁定 = 玩家自己加的保护），
+        /// 带未领取物品/金币的会一并销毁，所以先弹确认框把数量说清楚。
+        /// </summary>
+        private void DeleteAllMails()
+        {
+            if (GameScene.User == null || GameScene.User.Mail == null) return;
+
+            List<ClientMail> mail = GameScene.User.Mail;
+
+            if (mail.Count == 0)
+            {
+                new MirMessageBox("没有邮件可以删除。", MirMessageBoxButtons.OK).Show();
+                return;
+            }
+
+            int delCount, locked, parcel;
+
+            CountForDeleteAll(mail, out delCount, out locked, out parcel);
+
+            if (delCount <= 0)
+            {
+                new MirMessageBox(string.Format("共 {0} 封邮件，全部处于锁定状态。\r\n锁定邮件不会被删除，需要先解锁。", mail.Count),
+                    MirMessageBoxButtons.OK).Show();
+                return;
+            }
+
+            string message = string.Format("确定删除全部邮件？\r\n共 {0} 封，将删除 {1} 封。", mail.Count, delCount);
+
+            if (locked > 0)
+                message += string.Format("\r\n其中 {0} 封已锁定，会保留。", locked);
+
+            if (parcel > 0)
+                message += string.Format("\r\n有 {0} 封还带着未领取的物品或金币，\r\n删除后一并销毁，无法恢复。", parcel);
+
+            MirMessageBox messageBox = new MirMessageBox(message, MirMessageBoxButtons.YesNo);
+
+            messageBox.YesButton.Click += (o1, e1) =>
+            {
+                Network.Enqueue(new C.DeleteAllMail());
+            };
+
+            messageBox.Show();
         }
 
         public override void Show()

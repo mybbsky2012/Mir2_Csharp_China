@@ -52,6 +52,7 @@ namespace Server
             levelHeader = new ColumnHeader();
             classHeader = new ColumnHeader();
             genderHeader = new ColumnHeader();
+            statusHeader = new ColumnHeader();
             tabPage5 = new TabPage();
             GuildListView = new CustomFormControl.ListViewNF();
             columnHeader1 = new ColumnHeader();
@@ -91,6 +92,8 @@ namespace Server
             itemDatabaseToolStripMenuItem = new ToolStripMenuItem();
             monsterDatabaseToolStripMenuItem = new ToolStripMenuItem();
             magicDatabaseToolStripMenuItem = new ToolStripMenuItem();
+            reloadRespawnsToolStripMenuItem = new ToolStripMenuItem();
+            reloadMapsToolStripMenuItem = new ToolStripMenuItem();
             dropsToolStripMenuItem = new ToolStripMenuItem();
             lineMessageToolStripMenuItem = new ToolStripMenuItem();
             accountToolStripMenuItem = new ToolStripMenuItem();
@@ -279,7 +282,7 @@ namespace Server
             // 
             PlayersOnlineListView.Activation = ItemActivation.OneClick;
             PlayersOnlineListView.BackColor = SystemColors.Window;
-            PlayersOnlineListView.Columns.AddRange(new ColumnHeader[] { indexHeader, nameHeader, levelHeader, classHeader, genderHeader });
+            PlayersOnlineListView.Columns.AddRange(new ColumnHeader[] { indexHeader, nameHeader, levelHeader, classHeader, genderHeader, statusHeader });
             PlayersOnlineListView.Dock = DockStyle.Fill;
             PlayersOnlineListView.FullRowSelect = true;
             PlayersOnlineListView.GridLines = true;
@@ -318,7 +321,12 @@ namespace Server
             // 
             genderHeader.Text = "性别";
             genderHeader.Width = 98;
-            // 
+            //
+            // statusHeader
+            //
+            statusHeader.Text = "状态";
+            statusHeader.Width = 70;
+            //
             // tabPage5
             // 
             tabPage5.Controls.Add(GuildListView);
@@ -549,7 +557,7 @@ namespace Server
             // 
             // reloadToolStripMenuItem
             // 
-            reloadToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { nPCsToolStripMenuItem, allNPCsToolStripMenuItem, gameShopToolStripMenuItem1, itemDatabaseToolStripMenuItem, monsterDatabaseToolStripMenuItem, magicDatabaseToolStripMenuItem, dropsToolStripMenuItem, lineMessageToolStripMenuItem });
+            reloadToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { nPCsToolStripMenuItem, allNPCsToolStripMenuItem, gameShopToolStripMenuItem1, itemDatabaseToolStripMenuItem, monsterDatabaseToolStripMenuItem, magicDatabaseToolStripMenuItem, reloadRespawnsToolStripMenuItem, reloadMapsToolStripMenuItem, dropsToolStripMenuItem, lineMessageToolStripMenuItem });
             reloadToolStripMenuItem.Name = "reloadToolStripMenuItem";
             reloadToolStripMenuItem.Size = new Size(180, 22);
             reloadToolStripMenuItem.Text = "重新加载";
@@ -596,6 +604,13 @@ namespace Server
             magicDatabaseToolStripMenuItem.Text = "技能数据库";
             magicDatabaseToolStripMenuItem.Click += magicDatabaseToolStripMenuItem_Click;
             //
+            // reloadRespawnsToolStripMenuItem
+            //
+            reloadRespawnsToolStripMenuItem.Name = "reloadRespawnsToolStripMenuItem";
+            reloadRespawnsToolStripMenuItem.Size = new Size(180, 22);
+            reloadRespawnsToolStripMenuItem.Text = "刷怪信息";
+            reloadRespawnsToolStripMenuItem.Click += reloadRespawnsToolStripMenuItem_Click;
+            //
             // dropsToolStripMenuItem
             //
             dropsToolStripMenuItem.Name = "dropsToolStripMenuItem";
@@ -609,6 +624,13 @@ namespace Server
             lineMessageToolStripMenuItem.Size = new Size(180, 22);
             lineMessageToolStripMenuItem.Text = "连接信息";
             lineMessageToolStripMenuItem.Click += lineMessageToolStripMenuItem_Click;
+            // 
+            // reloadMapsToolStripMenuItem
+            // 
+            reloadMapsToolStripMenuItem.Name = "reloadMapsToolStripMenuItem";
+            reloadMapsToolStripMenuItem.Size = new Size(180, 22);
+            reloadMapsToolStripMenuItem.Text = "重载地图";
+            reloadMapsToolStripMenuItem.Click += reloadMapsToolStripMenuItem_Click;
             // 
             // accountToolStripMenuItem
             // 
@@ -946,6 +968,7 @@ namespace Server
         private ColumnHeader levelHeader;
         private ColumnHeader classHeader;
         private ColumnHeader genderHeader;
+        private ColumnHeader statusHeader;
         private ColumnHeader indexHeader;
         private ToolStripMenuItem mailToolStripMenuItem;
         private ToolStripMenuItem goodsToolStripMenuItem;
@@ -974,6 +997,8 @@ namespace Server
         private ToolStripMenuItem itemDatabaseToolStripMenuItem;
         private ToolStripMenuItem monsterDatabaseToolStripMenuItem;
         private ToolStripMenuItem magicDatabaseToolStripMenuItem;
+        private ToolStripMenuItem reloadRespawnsToolStripMenuItem;
+        private ToolStripMenuItem reloadMapsToolStripMenuItem;
         private ToolStripMenuItem dropsToolStripMenuItem;
         private ToolStripMenuItem lineMessageToolStripMenuItem;
         private TabPage tabPage5;

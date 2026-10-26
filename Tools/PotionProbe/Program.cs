@@ -26,6 +26,32 @@ internal static class Program
             return 2;
         }
 
+        // ── 物品详情模式：PotionProbe.dll --item 关键词 ──────────────────
+        if (args.Length > 1 && args[0] == "--item")
+        {
+            string kw = args[1];
+            var hits = envir.ItemInfoList.Where(x => x != null &&
+                (x.Name.Contains(kw) || x.Index.ToString() == kw)).ToList();
+            Console.WriteLine($"=== 物品匹配「{kw}」共 {hits.Count} 条 ===");
+            foreach (var it in hits)
+            {
+                Console.WriteLine($"--- [{it.Index}] {it.Name}");
+                Console.WriteLine($"    Type={it.Type}({(int)it.Type}) Shape={it.Shape} Effect={it.Effect} Grade={it.Grade} Image={it.Image}");
+                Console.WriteLine($"    Durability={it.Durability} StackSize={it.StackSize} Price={it.Price} Weight={it.Weight} RequiredAmount={it.RequiredAmount}");
+                Console.WriteLine($"    Bind={it.Bind} ClassBased={it.ClassBased} LevelBased={it.LevelBased}");
+                var sb = new System.Text.StringBuilder();
+                for (int si = 0; si < 80; si++)
+                {
+                    int v = 0;
+                    try { v = it.Stats[(Stat)si]; } catch { break; }
+                    if (v != 0) sb.Append($"{(Stat)si}={v} ");
+                }
+                string st = sb.ToString().Trim();
+                Console.WriteLine($"    Stats: {(string.IsNullOrEmpty(st) ? "(空)" : st)}");
+            }
+            return 0;
+        }
+
         string[] files;
         try { files = Directory.GetFiles(Settings.RecipePath, "*.txt"); }
         catch (Exception ex) { Console.WriteLine("!! GetFiles 失败: " + ex.Message); return 2; }

@@ -36,6 +36,10 @@
             MultiThreadCheckBox = new CheckBox();
             TestServerCheckBox = new CheckBox();
             GoldDirectCheckBox = new CheckBox();
+            OfflineAfkEnabledCheckBox = new CheckBox();
+            OfflineAfkNoConsumableCheckBox = new CheckBox();
+            OfflineAfkNoEquipCheckBox = new CheckBox();
+            FakePlayerEnabledCheckBox = new CheckBox();
             ExpRateLabel = new Label();
             ExpRateTextBox = new TextBox();
             DropRateLabel = new Label();
@@ -233,7 +237,7 @@
             // 
             // RelogDelayTextBox
             // 
-            RelogDelayTextBox.Location = new Point(104, 88);
+            RelogDelayTextBox.Location = new Point(320, 58);
             RelogDelayTextBox.Margin = new Padding(5, 7, 5, 7);
             RelogDelayTextBox.MaxLength = 5;
             RelogDelayTextBox.Name = "RelogDelayTextBox";
@@ -244,7 +248,7 @@
             // label7
             // 
             label7.AutoSize = true;
-            label7.Location = new Point(22, 91);
+            label7.Location = new Point(240, 61);
             label7.Margin = new Padding(5, 0, 5, 0);
             label7.Name = "label7";
             label7.Size = new Size(80, 17);
@@ -297,6 +301,10 @@
             versionFuncGroupBox.Controls.Add(MultiThreadCheckBox);
             versionFuncGroupBox.Controls.Add(TestServerCheckBox);
             versionFuncGroupBox.Controls.Add(GoldDirectCheckBox);
+            versionFuncGroupBox.Controls.Add(OfflineAfkEnabledCheckBox);
+            versionFuncGroupBox.Controls.Add(OfflineAfkNoConsumableCheckBox);
+            versionFuncGroupBox.Controls.Add(OfflineAfkNoEquipCheckBox);
+            versionFuncGroupBox.Controls.Add(FakePlayerEnabledCheckBox);
             versionFuncGroupBox.Controls.Add(ExpRateLabel);
             versionFuncGroupBox.Controls.Add(ExpRateTextBox);
             versionFuncGroupBox.Controls.Add(DropRateLabel);
@@ -305,9 +313,9 @@
             versionFuncGroupBox.Controls.Add(HighLevelRateTextBox);
             versionFuncGroupBox.Controls.Add(DeathExpLabel);
             versionFuncGroupBox.Controls.Add(DeathExpTextBox);
-            versionFuncGroupBox.Location = new Point(7, 125);
+            versionFuncGroupBox.Location = new Point(7, 100);
             versionFuncGroupBox.Name = "versionFuncGroupBox";
-            versionFuncGroupBox.Size = new Size(461, 168);
+            versionFuncGroupBox.Size = new Size(461, 194);
             versionFuncGroupBox.TabIndex = 26;
             versionFuncGroupBox.TabStop = false;
             versionFuncGroupBox.Text = "版本功能设置";
@@ -315,7 +323,7 @@
             // MultiThreadCheckBox
             //
             MultiThreadCheckBox.AutoSize = true;
-            MultiThreadCheckBox.Location = new Point(20, 36);
+            MultiThreadCheckBox.Location = new Point(20, 22);
             MultiThreadCheckBox.Name = "MultiThreadCheckBox";
             MultiThreadCheckBox.Size = new Size(99, 21);
             MultiThreadCheckBox.TabIndex = 0;
@@ -325,7 +333,7 @@
             // TestServerCheckBox
             //
             TestServerCheckBox.AutoSize = true;
-            TestServerCheckBox.Location = new Point(20, 72);
+            TestServerCheckBox.Location = new Point(20, 46);
             TestServerCheckBox.Name = "TestServerCheckBox";
             TestServerCheckBox.Size = new Size(168, 21);
             TestServerCheckBox.TabIndex = 1;
@@ -335,17 +343,57 @@
             // GoldDirectCheckBox
             //
             GoldDirectCheckBox.AutoSize = true;
-            GoldDirectCheckBox.Location = new Point(20, 108);
+            GoldDirectCheckBox.Location = new Point(20, 70);
             GoldDirectCheckBox.Name = "GoldDirectCheckBox";
             GoldDirectCheckBox.Size = new Size(123, 21);
             GoldDirectCheckBox.TabIndex = 2;
             GoldDirectCheckBox.Text = "金币直接入包";
             GoldDirectCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // OfflineAfkEnabledCheckBox
+            // 
+            OfflineAfkEnabledCheckBox.AutoSize = true;
+            OfflineAfkEnabledCheckBox.Location = new Point(20, 94);
+            OfflineAfkEnabledCheckBox.Name = "OfflineAfkEnabledCheckBox";
+            OfflineAfkEnabledCheckBox.Size = new Size(150, 21);
+            OfflineAfkEnabledCheckBox.TabIndex = 14;
+            OfflineAfkEnabledCheckBox.Text = "允许离线挂机";
+            OfflineAfkEnabledCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // OfflineAfkNoConsumableCheckBox
+            // 
+            OfflineAfkNoConsumableCheckBox.AutoSize = true;
+            OfflineAfkNoConsumableCheckBox.Location = new Point(20, 118);
+            OfflineAfkNoConsumableCheckBox.Name = "OfflineAfkNoConsumableCheckBox";
+            OfflineAfkNoConsumableCheckBox.Size = new Size(190, 21);
+            OfflineAfkNoConsumableCheckBox.TabIndex = 11;
+            OfflineAfkNoConsumableCheckBox.Text = "离线挂机不扣消耗品持久";
+            OfflineAfkNoConsumableCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // OfflineAfkNoEquipCheckBox
+            // 
+            OfflineAfkNoEquipCheckBox.AutoSize = true;
+            OfflineAfkNoEquipCheckBox.Location = new Point(20, 142);
+            OfflineAfkNoEquipCheckBox.Name = "OfflineAfkNoEquipCheckBox";
+            OfflineAfkNoEquipCheckBox.Size = new Size(178, 21);
+            OfflineAfkNoEquipCheckBox.TabIndex = 12;
+            OfflineAfkNoEquipCheckBox.Text = "离线挂机不扣装备耐久";
+            OfflineAfkNoEquipCheckBox.UseVisualStyleBackColor = true;
+            // 
+            // FakePlayerEnabledCheckBox
+            // 
+            FakePlayerEnabledCheckBox.AutoSize = true;
+            FakePlayerEnabledCheckBox.Location = new Point(20, 166);
+            FakePlayerEnabledCheckBox.Name = "FakePlayerEnabledCheckBox";
+            FakePlayerEnabledCheckBox.Size = new Size(160, 21);
+            FakePlayerEnabledCheckBox.TabIndex = 13;
+            FakePlayerEnabledCheckBox.Text = "启用假人系统(AI玩家)";
+            FakePlayerEnabledCheckBox.UseVisualStyleBackColor = true;
             //
             // ExpRateLabel
             //
             ExpRateLabel.AutoSize = true;
-            ExpRateLabel.Location = new Point(225, 39);
+            ExpRateLabel.Location = new Point(225, 25);
             ExpRateLabel.Name = "ExpRateLabel";
             ExpRateLabel.Size = new Size(67, 17);
             ExpRateLabel.TabIndex = 3;
@@ -353,7 +401,7 @@
             //
             // ExpRateTextBox
             //
-            ExpRateTextBox.Location = new Point(320, 35);
+            ExpRateTextBox.Location = new Point(320, 21);
             ExpRateTextBox.MaxLength = 6;
             ExpRateTextBox.Name = "ExpRateTextBox";
             ExpRateTextBox.Size = new Size(108, 23);
@@ -362,7 +410,7 @@
             // DropRateLabel
             //
             DropRateLabel.AutoSize = true;
-            DropRateLabel.Location = new Point(225, 74);
+            DropRateLabel.Location = new Point(225, 49);
             DropRateLabel.Name = "DropRateLabel";
             DropRateLabel.Size = new Size(67, 17);
             DropRateLabel.TabIndex = 5;
@@ -370,7 +418,7 @@
             //
             // DropRateTextBox
             //
-            DropRateTextBox.Location = new Point(320, 70);
+            DropRateTextBox.Location = new Point(320, 45);
             DropRateTextBox.MaxLength = 6;
             DropRateTextBox.Name = "DropRateTextBox";
             DropRateTextBox.Size = new Size(108, 23);
@@ -379,7 +427,7 @@
             // HighLevelRateLabel
             //
             HighLevelRateLabel.AutoSize = true;
-            HighLevelRateLabel.Location = new Point(225, 109);
+            HighLevelRateLabel.Location = new Point(225, 73);
             HighLevelRateLabel.Name = "HighLevelRateLabel";
             HighLevelRateLabel.Size = new Size(90, 17);
             HighLevelRateLabel.TabIndex = 7;
@@ -387,7 +435,7 @@
             //
             // HighLevelRateTextBox
             //
-            HighLevelRateTextBox.Location = new Point(320, 105);
+            HighLevelRateTextBox.Location = new Point(320, 69);
             HighLevelRateTextBox.MaxLength = 6;
             HighLevelRateTextBox.Name = "HighLevelRateTextBox";
             HighLevelRateTextBox.Size = new Size(108, 23);
@@ -396,7 +444,7 @@
             // DeathExpLabel
             //
             DeathExpLabel.AutoSize = true;
-            DeathExpLabel.Location = new Point(225, 144);
+            DeathExpLabel.Location = new Point(225, 97);
             DeathExpLabel.Name = "DeathExpLabel";
             DeathExpLabel.Size = new Size(90, 17);
             DeathExpLabel.TabIndex = 9;
@@ -404,7 +452,7 @@
             //
             // DeathExpTextBox
             //
-            DeathExpTextBox.Location = new Point(320, 140);
+            DeathExpTextBox.Location = new Point(320, 93);
             DeathExpTextBox.MaxLength = 3;
             DeathExpTextBox.Name = "DeathExpTextBox";
             DeathExpTextBox.Size = new Size(108, 23);
@@ -1129,6 +1177,10 @@
         private System.Windows.Forms.CheckBox MultiThreadCheckBox;
         private System.Windows.Forms.CheckBox TestServerCheckBox;
         private System.Windows.Forms.CheckBox GoldDirectCheckBox;
+        private System.Windows.Forms.CheckBox OfflineAfkEnabledCheckBox;
+        private System.Windows.Forms.CheckBox OfflineAfkNoConsumableCheckBox;
+        private System.Windows.Forms.CheckBox OfflineAfkNoEquipCheckBox;
+        private System.Windows.Forms.CheckBox FakePlayerEnabledCheckBox;
         private System.Windows.Forms.Label ExpRateLabel;
         private System.Windows.Forms.TextBox ExpRateTextBox;
         private System.Windows.Forms.Label DropRateLabel;

@@ -2819,6 +2819,10 @@ namespace Client.MirScenes.Dialogs
         public MirButton HPViewOn, HPViewOff;
         public MirButton NewMoveOn, NewMoveOff;
         public MirButton ObserveOn, ObserveOff;
+        // 怪物特效开关（10-25）：底图 411 最后一行「移动方式」在 y=296，面板高 356，
+        // 底部还有约 40px 空白，正好塞一行（标签自绘，底图上没有这行字）
+        public MirButton MonsterEffectOn, MonsterEffectOff;
+        public MirLabel MonsterEffectLabel;
         public MirImageControl SoundBar, MusicSoundBar;
         public MirImageControl VolumeBar, MusicVolumeBar;
 
@@ -3089,6 +3093,50 @@ namespace Client.MirScenes.Dialogs
                 PressedIndex = 460
             };
             ObserveOff.Click += (o, e) => ToggleObserve(false);
+
+            // ---- 怪物特效（10-25）：关闭怪物施放的魔法/大招满屏特效（阎魔太子那类）----
+            // 只影响表现，伤害/判定全在服务端；默认开。
+            MonsterEffectLabel = new MirLabel
+            {
+                Location = new Point(66, 323),   // 与「技能模式」「移动方式」等文字列对齐
+                Size = new Size(90, 17),
+                DrawFormat = TextFormatFlags.Left | TextFormatFlags.VerticalCenter,
+                Parent = this,
+                NotControl = true,
+                Text = "怪物特效",
+            };
+
+            MonsterEffectOn = new MirButton
+            {
+                Library = Libraries.Prguse2,
+                Location = new Point(159, 321),
+                Parent = this,
+                Sound = SoundList.ButtonA,
+                Size = new Size(36, 17),
+                PressedIndex = 457,
+            };
+            MonsterEffectOn.Click += (o, e) =>
+            {
+                Settings.MonsterEffectOn = true;
+                Settings.Save();
+                GameScene.Scene.ChatDialog.ReceiveChat("[怪物特效 开]", ChatType.Hint);
+            };
+
+            MonsterEffectOff = new MirButton
+            {
+                Library = Libraries.Prguse2,
+                Location = new Point(201, 321),
+                Parent = this,
+                Sound = SoundList.ButtonA,
+                Size = new Size(36, 17),
+                PressedIndex = 460
+            };
+            MonsterEffectOff.Click += (o, e) =>
+            {
+                Settings.MonsterEffectOn = false;
+                Settings.Save();
+                GameScene.Scene.ChatDialog.ReceiveChat("[怪物特效 关]", ChatType.Hint);
+            };
         }
 
         private void ToggleObserve(bool allow)
@@ -3285,6 +3333,17 @@ namespace Client.MirScenes.Dialogs
             {        
                 ObserveOn.Index = 456;
                 ObserveOff.Index = 461;
+            }
+
+            if (Settings.MonsterEffectOn)
+            {
+                MonsterEffectOn.Index = 458;
+                MonsterEffectOff.Index = 459;
+            }
+            else
+            {
+                MonsterEffectOn.Index = 456;
+                MonsterEffectOff.Index = 461;
             }
         }
 

@@ -93,6 +93,17 @@ namespace Server.MirDatabase
             if (version > 101)
                 SealCount = reader.ReadUInt16();
 
+            //★英雄的持久化 BUFF（药剂/脚本给的时效属性，比如破坏强化水的 5 小时）。
+            //  原来这里没有这一段，英雄喝药加的 BUFF 从来没进过库 —— 一退出游戏/一重启服务端就没了。
+            //  version 111 起才有：老档（<=110）读到 SealCount 就结束，不会错位。
+            if (version > 110)
+            {
+                count = reader.ReadInt32();
+                for (int i = 0; i < count; i++)
+                {
+                    Buffs.Add(new Buff(reader, version, customVersion));
+                }
+            }
         }
 
         public override void Save(BinaryWriter writer)
@@ -144,6 +155,28 @@ namespace Server.MirDatabase
             writer.Write(AutoHPPercent);
             writer.Write(AutoMPPercent);
             writer.Write(SealCount);
+
+            //★与 HeroInfo.Load 的 version > 110 段对应，两者必须一起改（见 Envir.Version）
+            //  条数按「真正写得出去的」算：Buff.Save 里 Values/Stats 是直接 .Length/.Save 的，
+            //  手工 new 出来的 Buff（脚本/测试直接往列表里塞）这两项可能是 null，
+            //  一抛异常整个 SaveAccounts 就废了（全服存不了档）。这里就地补空，绝不跳过条目 ——
+            //  跳过会让条数和实际写入不一致，读回来直接错位。
+            int buffCount = 0;
+            for (int i = 0; i < (Buffs?.Count ?? 0); i++)
+                if (Buffs[i] != null) buffCount++;
+
+            writer.Write(buffCount);
+
+            for (int i = 0; i < (Buffs?.Count ?? 0); i++)
+            {
+                Buff buff = Buffs[i];
+                if (buff == null) continue;
+
+                buff.Values ??= new int[0];
+                buff.Stats ??= new Stats();
+
+                buff.Save(writer);
+            }
         }
 
         public override int ResizeInventory()

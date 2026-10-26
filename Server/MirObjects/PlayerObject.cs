@@ -154,6 +154,15 @@ namespace Server.MirObjects
         /// <summary>离线挂机死亡后的自动回城复活计时（0=未在等待）。</summary>
         private long _offlineReviveTick;
 
+        /// <summary>
+        /// 离线挂机免扣消耗类物品持久（10-26）：挂机期间气血石/魔血石电量不再跳电。
+        /// 假人（FakePlayerObject）永远不享受——假人属于服务器模拟账号，不该走免损耗通道。
+        /// </summary>
+        public override bool AfkFreeConsumableDura => OfflineAFK && Settings.OfflineAfkEnabled && !(this is FakePlayerObject) && Settings.OfflineAfkNoConsumableDura;
+
+        /// <summary>离线挂机免扣装备持久（10-26）：挂机期间被怪打不磨损装备。</summary>
+        public override bool AfkFreeEquipDura => OfflineAFK && Settings.OfflineAfkEnabled && !(this is FakePlayerObject) && Settings.OfflineAfkNoEquipDura;
+
         public bool UserMatch;
         public string MatchName;
         public ItemType MatchType;
@@ -301,11 +310,17 @@ namespace Server.MirObjects
 
             // ★离线挂机（10-25）：脚本点头 + 客户端正常退出/掉线/回选人(20~23) + 服务器运行中
             // → 跳过整段下线清理，角色留在原地图继续被 Process（怪物照打、Buff/泡点循环照跑）。
-            if (!isFake && OfflineAFK && reason >= 20 && reason <= 23 && Envir.Running)
+            // ★10-26 追加：后台「允许离线挂机」总开关关掉后，脚本点过头也不留场，一律走正常下线。
+            bool afkBlocked = OfflineAFK && !Settings.OfflineAfkEnabled;
+
+            if (!isFake && OfflineAFK && !afkBlocked && reason >= 20 && reason <= 23 && Envir.Running)
             {
                 EnterOfflineAFK();
                 return;
             }
+
+            if (afkBlocked)
+                MessageQueue.Enqueue(string.Format("[离线挂机] {0}：服务端已禁用离线挂机，本次按正常下线处理", Name));
 
             // 走完整下线时清掉挂机标记：下次下线由 [@_LOGOUT] 脚本重新决定
             OfflineAFK = false;
@@ -913,6 +928,9 @@ namespace Server.MirObjects
         {
             //假人不爆装（理由见 HumanObject.DeathDrop）
             if (this is FakePlayerObject) return;
+
+            //★离线挂机不爆装（10-26）：红名挂机死亡也一样，人不在没法捡回来（与 HumanObject.DeathDrop 口径一致）
+            if (OfflineAFK) return;
 
             if (killer == null || killer.Race != ObjectType.Player)
             {
@@ -1551,13 +1569,10 @@ namespace Server.MirObjects
 
             Info.Pets.Clear();
 
+            //玩家自己的持久化 BUFF：统一走 ReplayBuff（不再重复注入 BuffSystem.ini 的配置属性）
             for (int i = 0; i < Buffs.Count; i++)
             {
-                var buff = Buffs[i];
-                buff.LastTime = Envir.Time;
-                buff.ObjectID = ObjectID;
-
-                AddBuff(buff.Type, null, (int)buff.ExpireTime, buff.Stats, true, true, buff.Values);   
+                ReplayBuff(Buffs[i]);
             }
 
             for (int i = 0; i < PoisonList.Count; i++)
@@ -3327,6 +3342,15 @@ namespace Server.MirObjects
 
                         Envir.ReloadMagics();
                         ReceiveChat("技能库已重载，在线玩家技能已刷新", ChatType.Hint);
+                        break;
+
+                    //★ 重载地图（免重启加新图 + 老图配置刷新；详细结果看服务器日志）
+                    case "RELOADMAP":
+                    case "RELOADMAPS":
+                        if (!IsGM) return;
+
+                        Envir.ReloadMaps();
+                        ReceiveChat("地图重载已提交：新图上线/老图配置刷新的结果见服务器日志", ChatType.Hint);
                         break;
 
                     //★ 重载自定义 BUFF 配置（Configs\BuffSystem.ini），对应 GM 工具的「自定义BUFF属性」编辑器
@@ -6410,6 +6434,13 @@ namespace Server.MirObjects
                             ReceiveChat("武器已经完全修复", ChatType.Hint);
                             Enqueue(new S.ItemRepaired { UniqueID = temp.UniqueID, MaxDura = temp.MaxDura, CurrentDura = temp.CurrentDura });
                             break;
+                        case 23: //RepairAllOil 全身修复神水：修满全身已装备物品，不损持久上限
+                            if (!RepairAllEquipment())
+                            {
+                                Enqueue(p);
+                                return;
+                            }
+                            break;
                         case 6: //ResurrectionScroll
                             if (CurrentMap.Info.NoReincarnation)
                             {
@@ -6544,6 +6575,18 @@ namespace Server.MirObjects
                     RefreshStats();
                     break;
                 case ItemType.特殊消耗品:
+                    // ★修复神水（Shape=84）：全身修复。原版这里只去调 NPC 的 [@_USEITEM] 页，
+                    //   本服没有 NPC 接 84 号页，物品等于废的；这里直接实现修复动作。
+                    if (item.Info.Shape == 84)
+                    {
+                        if (!RepairAllEquipment())
+                        {
+                            Enqueue(p);
+                            return;
+                        }
+                        break;  // 修好了 → 走下面统一扣数量
+                    }
+
                     CallDefaultNPC(DefaultNPCType.UseItem, item.Info.Shape);
 
                     // Effect=2 的特殊消耗品：使用后不消失（可重复触发脚本，如一键回收令）
@@ -8484,6 +8527,61 @@ namespace Server.MirObjects
 
             Enqueue(p);
         }
+        /// <summary>
+        /// ★全身修复（10-26）：把身上所有「持久有损」的装备直接修满，不损耗持久上限。
+        /// 供「卷轴 Shape=23（全身修复神水）」和「特殊消耗品 Shape=84（修复神水）」共用。
+        /// 规则沿用修理的绑定限制：DontRepair 一律不修，NoSRepair 只能用普通修理（这里按特修处理，故也不修）。
+        /// 返回 false 表示一件可修装备都没有（调用方据此不消耗物品）。
+        /// </summary>
+        public bool RepairAllEquipment()
+        {
+            List<UserItem> fixedItems = new List<UserItem>();
+            RepairAllEquipmentCore(Info.Equipment, fixedItems);
+
+            if (fixedItems.Count == 0)
+            {
+                ReceiveChat("身上没有需要修复的装备", ChatType.Hint);
+                return false;
+            }
+
+            foreach (UserItem eq in fixedItems)
+                Enqueue(new S.ItemRepaired { UniqueID = eq.UniqueID, MaxDura = eq.MaxDura, CurrentDura = eq.CurrentDura });
+
+            ReceiveChat("全身装备已完全修复", ChatType.Hint);
+            return true;
+        }
+
+        /// <summary>
+        /// 全身修复的纯逻辑核心（静态，便于单元测试）：
+        /// 把「持久有损且允许修理」的装备直接修满，返回修好的件数。
+        /// 跳过：空槽 / 已满持久 / DontRepair / NoSRepair（后者只允许普通修理，这里按特修处理）。
+        /// </summary>
+        public static int RepairAllEquipmentCore(UserItem[] equipment, List<UserItem> repaired = null)
+        {
+            if (equipment == null) return 0;
+
+            int count = 0;
+
+            for (int i = 0; i < equipment.Length; i++)
+            {
+                UserItem eq = equipment[i];
+
+                if (eq == null || eq.Info == null) continue;
+                if (eq.CurrentDura >= eq.MaxDura) continue;
+
+                if (eq.Info.Bind.HasFlag(BindMode.DontRepair)) continue;
+                if (eq.Info.Bind.HasFlag(BindMode.NoSRepair)) continue;
+
+                eq.CurrentDura = eq.MaxDura;
+                eq.DuraChanged = false;
+
+                if (repaired != null) repaired.Add(eq);
+                count++;
+            }
+
+            return count;
+        }
+
         public void RepairItem(ulong uniqueID, bool special = false)
         {
             Enqueue(new S.RepairItem { UniqueID = uniqueID });
@@ -11942,6 +12040,30 @@ namespace Server.MirObjects
             GetMail();
         }
 
+        /// <summary>
+        /// 一键删除全部邮件。只删未锁定的（锁定的保留，和单封删除的口径一致：
+        /// 客户端点删除也要求 !Locked），删完回一次完整列表，避免客户端逐封删时被刷 N 次列表。
+        /// </summary>
+        public int DeleteAllMail()
+        {
+            if (Info == null || Info.Mail == null) return 0;
+
+            int removed = RemoveUnlockedMail(Info.Mail);
+
+            if (removed > 0)
+                GetMail();
+
+            return removed;
+        }
+
+        /// <summary>把未锁定的邮件从列表里剔掉，返回剔掉的封数。纯静态，方便单独测试。</summary>
+        public static int RemoveUnlockedMail(List<MailInfo> mail)
+        {
+            if (mail == null || mail.Count == 0) return 0;
+
+            return mail.RemoveAll(e => e != null && !e.Locked);
+        }
+
         public void LockMail(ulong mailID, bool lockMail)
         {
             MailInfo mail = Info.Mail.SingleOrDefault(e => e.MailID == mailID);
@@ -14692,14 +14814,15 @@ namespace Server.MirObjects
             else
                 hero.Spawn(CurrentMap, CurrentLocation);
 
-            for (int i = 0; i < Buffs.Count; i++)
-            {
-                var buff = Buffs[i];
-                buff.LastTime = Envir.Time;
-                buff.ObjectID = ObjectID;
+            //★重放的是**英雄自己**的持久化 BUFF。
+            //  原来这里写的是 this.Buffs + AddBuff(...)，即每次召唤都把「玩家」的 BUFF 又往玩家身上刷一遍，
+            //  英雄一条都拿不到 —— 于是英雄的药剂 BUFF 服务端属性还在、客户端英雄 BUFF 栏却永远是空的。
+            //  注意：HumanObject.Buffs 取的是 Info.Buffs，英雄被 CleanUp 过（Info=null）时不能碰。
+            if (hero.Info == null) return;
 
-                AddBuff(buff.Type, null, (int)buff.ExpireTime, buff.Stats, true, true, buff.Values);
-            }
+            int count = hero.Buffs.Count;
+            for (int i = 0; i < count; i++)
+                hero.ReplayBuff(hero.Buffs[i]);
         }
         public void DespawnHero()
         {         

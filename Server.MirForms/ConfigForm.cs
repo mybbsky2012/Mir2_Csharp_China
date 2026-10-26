@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text.RegularExpressions;
+using Server.MirObjects;
 
 namespace Server
 {
@@ -17,6 +18,12 @@ namespace Server
             MultiThreadCheckBox.Checked = Settings.Multithreaded;
             TestServerCheckBox.Checked = Settings.TestServer;
             GoldDirectCheckBox.Checked = !Settings.DropGold;    //勾选=金币直接入包（DropGold=false 时怪物金币不落地）
+
+            // 离线挂机 / 假人系统（10-26 从 ini 搬到界面）
+            OfflineAfkEnabledCheckBox.Checked = Settings.OfflineAfkEnabled;
+            OfflineAfkNoConsumableCheckBox.Checked = Settings.OfflineAfkNoConsumableDura;
+            OfflineAfkNoEquipCheckBox.Checked = Settings.OfflineAfkNoEquipDura;
+            FakePlayerEnabledCheckBox.Checked = Settings.FakePlayerEnabled;
             ExpRateTextBox.Text = Settings.ExpRate.ToString();
             DropRateTextBox.Text = Settings.DropRate.ToString();
             HighLevelRateTextBox.Text = Settings.HighLevelExpRate.ToString();
@@ -64,6 +71,22 @@ namespace Server
 
             ServerVersionLabel.Text = Application.ProductVersion;
             DBVersionLabel.Text = MirEnvir.Envir.LoadVersion.ToString() + ((MirEnvir.Envir.LoadVersion < MirEnvir.Envir.Version) ? " (需要更新)" : "");
+
+            // 总开关联动：不允许离线挂机时，下面两个免损耗子项置灰
+            OfflineAfkEnabledCheckBox.CheckedChanged += (o, e) => SyncOfflineAfkUi();
+            SyncOfflineAfkUi();
+        }
+
+        /// <summary>
+        /// 离线挂机总开关联动（10-26）：只切子项的可用性，不动它们的勾选值 ——
+        /// 这样临时关掉总开关再打开，之前配好的免损耗设置还在。
+        /// </summary>
+        private void SyncOfflineAfkUi()
+        {
+            bool on = OfflineAfkEnabledCheckBox.Checked;
+
+            OfflineAfkNoConsumableCheckBox.Enabled = on;
+            OfflineAfkNoEquipCheckBox.Enabled = on;
         }
 
         private void ConfigForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -75,6 +98,14 @@ namespace Server
         private void SaveButton_Click(object sender, EventArgs e)
         {
             Save();
+
+            // 勾了假人却把数量配成 0，界面上不会报错，但一个假人都不会出现——这里提前说一声
+            if (Settings.FakePlayerEnabled && Settings.FakePlayerCount <= 0)
+            {
+                MessageBox.Show("假人系统已勾选，但生成数量配置为 0，启动后不会出现任何假人。\r\n请先把 Configs\\Setup.ini 里 [FakePlayer] Count 改成需要的数量。",
+                    "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
             Close();
         }
 
@@ -87,6 +118,19 @@ namespace Server
             Settings.Multithreaded = MultiThreadCheckBox.Checked;
             Settings.TestServer = TestServerCheckBox.Checked;
             Settings.DropGold = !GoldDirectCheckBox.Checked;    //勾选=直接入包 → DropGold=false
+
+            // 离线挂机：总开关 + 两项免损耗。全是运行时逐次读取的静态值，
+            // 保存即生效；关掉总开关后，已在挂机的角色会在下一帧被服务端收回（Envir.Process 巡检）。
+            Settings.OfflineAfkEnabled = OfflineAfkEnabledCheckBox.Checked;
+            Settings.OfflineAfkNoConsumableDura = OfflineAfkNoConsumableCheckBox.Checked;
+            Settings.OfflineAfkNoEquipDura = OfflineAfkNoEquipCheckBox.Checked;
+
+            // 假人系统：启停要创建/销毁角色、往地图里撒对象，只能由游戏主线程做，
+            // 所以这里只置标记，下一帧由 FakePlayerManager.Process 真正执行（无需重启服务端）。
+            bool fakePlayerBefore = Settings.FakePlayerEnabled;
+            Settings.FakePlayerEnabled = FakePlayerEnabledCheckBox.Checked;
+            if (Settings.FakePlayerEnabled != fakePlayerBefore)
+                FakePlayerManager.RestartPending = true;
 
             float tempFloat;
             if (float.TryParse(ExpRateTextBox.Text, out tempFloat) && tempFloat >= 0)

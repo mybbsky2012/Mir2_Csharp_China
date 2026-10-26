@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AssemblyName>MapReloadTest</AssemblyName>
+    <RootNamespace>MapReloadTest</RootNamespace>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\Shared.csproj" />
+    <ProjectReference Include="..\..\Server\Server.Library.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Map.Load 固定读 ./Maps，测试用真 .map 文件放在输出目录 -->
+    <None Include="Maps\**\*.map" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

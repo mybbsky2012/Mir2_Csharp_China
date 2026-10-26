@@ -4989,6 +4989,14 @@ namespace Server.MirObjects
 
                     // OFFLINEAFK：开启离线挂机——角色下线后留在场上继续在线（判定在 PlayerObject.StopGame）
                     case ActionType.OfflineAFK:
+                        //★10-26：后台「允许离线挂机」总开关关着就不点头，
+                        //   否则脚本给了标记、下线时还是被 StopGame 拦掉，玩家会看到“点了没反应”
+                        if (!Settings.OfflineAfkEnabled)
+                        {
+                            MessageQueue.Enqueue(string.Format("[离线挂机] {0}：服务端已禁用离线挂机，脚本的 OFFLINEAFK 未生效", player.Name));
+                            break;
+                        }
+
                         player.OfflineAFK = true;
                         // 排查用日志：能在服务端控制台看到这一行，说明 [@_LOGOUT] 脚本链路已通
                         MessageQueue.Enqueue(string.Format("[离线挂机] {0} 已挂起离线挂机标记（下线时生效）", player.Name));

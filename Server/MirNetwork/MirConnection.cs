@@ -666,6 +666,9 @@ namespace Server.MirNetwork
                 case (short)ClientPacketIds.DeleteMail:
                     DeleteMail((C.DeleteMail)p);
                     break;
+                case (short)ClientPacketIds.DeleteAllMail:
+                    DeleteAllMail();
+                    break;
                 case (short)ClientPacketIds.LockMail:
                     LockMail((C.LockMail)p);
                     break;
@@ -1849,6 +1852,13 @@ namespace Server.MirNetwork
             if (Stage != GameStage.Game) return;
 
             Player.DeleteMail(p.MailID);
+        }
+
+        public void DeleteAllMail()
+        {
+            if (Stage != GameStage.Game) return;
+
+            Player.DeleteAllMail();
         }
 
         public void LockMail(C.LockMail p)

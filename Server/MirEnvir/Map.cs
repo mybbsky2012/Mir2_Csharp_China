@@ -37,6 +37,10 @@ namespace Server.MirEnvir
         public List<DelayedAction> ActionList = new List<DelayedAction>();
         public List<HeroObject> Heroes = new List<HeroObject>();
 
+        // 安全区自动生成的那批装饰/回血法术（边框 TrapHexagon + 每 2 秒回血 Healing）的引用。
+        // 重载安全区配置时按这个列表精确撤掉，不去扫格子猜 —— 攻城战场特效同样是 Decoration 法术，扫格子会误伤。
+        public List<SpellObject> SafeZoneSpells = new List<SpellObject>();
+
         public List<ConquestObject> Conquest = new List<ConquestObject>();
         public ConquestObject tempConquest;
 
@@ -577,6 +581,8 @@ namespace Server.MirEnvir
                         Cells[x, y].Add(spell);
 
                         spell.Spawned();
+
+                        SafeZoneSpells.Add(spell);
                     }
                 }
             }
@@ -606,11 +612,62 @@ namespace Server.MirEnvir
                         Cells[x, y].Add(spell);
 
                         spell.Spawned();
+
+                        SafeZoneSpells.Add(spell);
                     }
                 }
             }
 
 
+        }
+
+        /// <summary>
+        /// 撤掉本图所有安全区自动生成的法术（边框/回血）。老图重载安全区配置前必须先调用，
+        /// 否则新边框会叠在旧边框外面，回血法术也会翻倍。
+        /// </summary>
+        public void ClearSafeZoneSpells()
+        {
+            for (int i = 0; i < SafeZoneSpells.Count; i++)
+            {
+                SpellObject spell = SafeZoneSpells[i];
+                if (spell == null) continue;
+
+                Point loc = spell.CurrentLocation;
+
+                if (loc.X >= 0 && loc.X < Width && loc.Y >= 0 && loc.Y < Height)
+                {
+                    Cell cell = Cells[loc.X, loc.Y];
+                    if (cell != null && cell.Objects != null) cell.Remove(spell);
+                }
+
+                spell.Despawn();
+            }
+
+            SafeZoneSpells.Clear();
+        }
+
+        /// <summary>
+        /// 按当前 Info.SafeZones 重新生成安全区法术（老图重载安全区配置时用）。
+        /// </summary>
+        public void RebuildSafeZones()
+        {
+            ClearSafeZoneSpells();
+
+            for (int i = 0; i < Info.SafeZones.Count; i++)
+            {
+                if (Info.SafeZones[i] == null) continue;   // 编辑器里留的空行不该让重载崩掉
+                CreateSafeZone(Info.SafeZones[i]);
+            }
+        }
+
+        /// <summary>
+        /// 按当前 Info 的矿区配置重建 Mine 格子（老图重载矿区配置时用）。
+        /// Mine 只在挖矿时按坐标实时读取，重建不影响在场玩家。
+        /// </summary>
+        public void RebuildMine()
+        {
+            Mine = null;
+            CreateMine();
         }
 
         private void CreateMine()
@@ -632,9 +689,11 @@ namespace Server.MirEnvir
                 for (int i = 0; i < Info.MineZones.Count; i++)
                 {
                     MineZone Zone = Info.MineZones[i];
+                    // 越界检查要放在取下标之前：矿区设置编号超过 MineSet 数量时直接跳过，
+                    // 否则（尤其是重载地图时）会抛 IndexOutOfRange
+                    if (Settings.MineSetList.Count < Zone.Mine) continue;
                     if (Zone.Mine != 0)
                         Settings.MineSetList[Zone.Mine - 1].SetDrops(Envir.ItemInfoList);
-                    if (Settings.MineSetList.Count < Zone.Mine) continue;
                     for (int x =  Zone.Location.X - Zone.Size; x < Zone.Location.X + Zone.Size; x++)
                         for (int y = Zone.Location.Y - Zone.Size; y < Zone.Location.Y + Zone.Size; y++)
                         {

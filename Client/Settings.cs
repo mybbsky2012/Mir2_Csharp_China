@@ -167,7 +167,10 @@ namespace Client
             // 数字显血：血条下方显示血量百分比数字（内挂面板勾选）
             HealthNumber = false,
             // 品质动态发光：宝物/圣物/神物物品格旋转激光放射光（Mir2Config.ini [Game] QualityEffect）
-            QualityEffectOn = true;
+            QualityEffectOn = true,
+            // 怪物特效：怪物施放的魔法/地形大招特效（阎魔太子那种满屏光）。F12「怪物特效」开关。
+            // 关掉只是不绘制，伤害判定在服务端，纯表现层（Mir2Config.ini [Game] MonsterEffect）
+            MonsterEffectOn = true;
 
         // 战斗后 10 秒退出等待开关（Mir2Config.ini [Game] LogoutCombatDelay）。
         // True = 保留原版行为：被打/攻击后 10 秒内退出游戏、关窗口会被拦下（代码原样保留，只是加了这个闸）。
@@ -194,9 +197,32 @@ namespace Client
             AutoPotMPPercent = 30,      // MP 低于该百分比时自动喝药
             AutoSearchRange = 8;        // 自动索敌/捡物的搜索半径（格）
 
+        //★内挂·药水明细（10-26）：4 行独立配置，各自「启用 / 血量或魔法阈值 / 使用物品 / 间隔毫秒」
+        //  「自动喝血药 / 自动喝蓝药（自动打怪）」两个总闸由 AutoPotHP / AutoPotMP 控制，只在内挂总开关开启时生效；
+        //  ★10-26 定稿：不开自动打怪时，明细行「启用」勾了就按百分比保命喝（不需要总开关，也不需要总闸）
+        public static bool[] PotRowOn = new bool[4] { true, true, false, false };
+        public static int[] PotRowPercent = new int[4] { 50, 30, 50, 50 };
+        public static string[] PotRowItem = new string[4] { "太阳水", "魔法药(中量)", "强效金创药", "魔法药(小量)" };
+        public static int[] PotRowInterval = new int[4] { 5000, 1000, 5000, 1000 };
+
+        //★内挂·传送保护（10-26）：血量低于阈值自动小退（一次性，触发后停手）
+        //  ★默认关闭：小退是破坏性动作，必须玩家自己勾，避免手动玩时被误触发
+        public static bool AutoScrollOn = false;
+        public static int AutoScrollPercent = 15;
+        public static string AutoScrollItem = "小退";      // 「小退」= 退回选人界面；填物品名 = 使用该物品
+
+        //★内挂·装备保护（10-26）：任一装备持久低于阈值百分比 → 自动使用指定修复物品；
+        //  另外兜底：任一装备持久 ≤1 时无条件立即修（不看阈值、不受勾选影响以外的情况）
+        public static bool AutoRepairOn = false;
+        public static int AutoRepairPercent = 5;
+        public static string AutoRepairItem = "修复神水";
+
+        //★内挂·自动续气血石（10-26）：只认「宝石位」（EquipmentSlot.守护石）——
+        //  宝石位的气血石类电量消耗完，自动从背包换一块新的穿上去（气血石 / 魔血石 / 幻血石）
+        public static bool AutoRenewStone = false;
+
         //自动攻击时忽略的怪物名关键字（逗号分隔），用于避开守卫/NPC类怪物
         public static string AutoAttackIgnore = "守卫,卫士,大刀,弓箭手,城主,门卫";
-
         //不死系怪物名关键字（逗号分隔）：法师内挂命中这些名字的怪时改用圣言术
         public static string AutoSaintKeywords = "僵尸,骷髅,白骨,腐尸,尸,亡灵,死灵,幽灵,幽魂,巫妖,骨";
 
@@ -366,6 +392,7 @@ namespace Client
             ItemFilterOn = Reader.ReadBoolean("Game", "ItemFilter", ItemFilterOn);
             HealthNumber = Reader.ReadBoolean("Game", "HealthNumber", HealthNumber);
             QualityEffectOn = Reader.ReadBoolean("Game", "QualityEffect", QualityEffectOn);
+            MonsterEffectOn = Reader.ReadBoolean("Game", "MonsterEffect", MonsterEffectOn);
             LogoutCombatDelay = Reader.ReadBoolean("Game", "LogoutCombatDelay", LogoutCombatDelay);
             NameView = Reader.ReadBoolean("Game", "NameView", NameView);
             HPView = Reader.ReadBoolean("Game", "HPMPView", HPView);
@@ -397,6 +424,31 @@ namespace Client
             AutoPotHPPercent = Reader.ReadInt32("AutoPlay", "AutoPotHPPercent", AutoPotHPPercent);
             AutoPotMPPercent = Reader.ReadInt32("AutoPlay", "AutoPotMPPercent", AutoPotMPPercent);
             AutoSearchRange = Reader.ReadInt32("AutoPlay", "AutoSearchRange", AutoSearchRange);
+            // ★内挂·药水明细 / 传送保护 / 装备保护（10-26）
+            for (int potI = 0; potI < 4; potI++)
+            {
+                string k = "PotRow" + (potI + 1);
+                PotRowOn[potI] = Reader.ReadBoolean("AutoPlay", k + "On", PotRowOn[potI]);
+                PotRowPercent[potI] = Reader.ReadInt32("AutoPlay", k + "Pct", PotRowPercent[potI]);
+                PotRowItem[potI] = Reader.ReadString("AutoPlay", k + "Item", PotRowItem[potI]);
+                PotRowInterval[potI] = Reader.ReadInt32("AutoPlay", k + "Itv", PotRowInterval[potI]);
+
+                if (PotRowPercent[potI] < 1 || PotRowPercent[potI] > 99) PotRowPercent[potI] = 50;
+                if (PotRowInterval[potI] < 100) PotRowInterval[potI] = 1000;
+                if (PotRowItem[potI] == null) PotRowItem[potI] = string.Empty;
+            }
+            AutoScrollOn = Reader.ReadBoolean("AutoPlay", "AutoScrollOn", AutoScrollOn);
+            AutoScrollPercent = Reader.ReadInt32("AutoPlay", "AutoScrollPercent", AutoScrollPercent);
+            if (AutoScrollPercent < 1 || AutoScrollPercent > 99) AutoScrollPercent = 15;
+            AutoScrollItem = Reader.ReadString("AutoPlay", "AutoScrollItem", AutoScrollItem);
+            if (string.IsNullOrWhiteSpace(AutoScrollItem)) AutoScrollItem = "小退";
+
+            AutoRepairOn = Reader.ReadBoolean("AutoPlay", "AutoRepairOn", AutoRepairOn);
+            AutoRepairPercent = Reader.ReadInt32("AutoPlay", "AutoRepairPercent", AutoRepairPercent);
+            if (AutoRepairPercent < 1 || AutoRepairPercent > 99) AutoRepairPercent = 5;
+            AutoRepairItem = Reader.ReadString("AutoPlay", "AutoRepairItem", AutoRepairItem);
+            if (AutoRepairItem == null) AutoRepairItem = string.Empty;
+            AutoRenewStone = Reader.ReadBoolean("AutoPlay", "AutoRenewStone", AutoRenewStone);
             AutoAttackIgnore = Reader.ReadString("AutoPlay", "AutoAttackIgnore", AutoAttackIgnore);
             AutoSaintKeywords = Reader.ReadString("AutoPlay", "AutoSaintKeywords", AutoSaintKeywords);
 
@@ -573,6 +625,7 @@ namespace Client
             Reader.Write("Game", "ItemFilter", ItemFilterOn);
             Reader.Write("Game", "HealthNumber", HealthNumber);
             Reader.Write("Game", "QualityEffect", QualityEffectOn);
+            Reader.Write("Game", "MonsterEffect", MonsterEffectOn);
             Reader.Write("Game", "LogoutCombatDelay", LogoutCombatDelay);
             Reader.Write("Game", "NameView", NameView);
             Reader.Write("Game", "HPMPView", HPView);
@@ -604,6 +657,22 @@ namespace Client
             Reader.Write("AutoPlay", "AutoPotHPPercent", AutoPotHPPercent);
             Reader.Write("AutoPlay", "AutoPotMPPercent", AutoPotMPPercent);
             Reader.Write("AutoPlay", "AutoSearchRange", AutoSearchRange);
+            // ★内挂·药水明细 / 传送保护 / 装备保护（10-26）
+            for (int potI = 0; potI < 4; potI++)
+            {
+                string k = "PotRow" + (potI + 1);
+                Reader.Write("AutoPlay", k + "On", PotRowOn[potI]);
+                Reader.Write("AutoPlay", k + "Pct", PotRowPercent[potI]);
+                Reader.Write("AutoPlay", k + "Item", PotRowItem[potI] ?? string.Empty);
+                Reader.Write("AutoPlay", k + "Itv", PotRowInterval[potI]);
+            }
+            Reader.Write("AutoPlay", "AutoScrollOn", AutoScrollOn);
+            Reader.Write("AutoPlay", "AutoScrollPercent", AutoScrollPercent);
+            Reader.Write("AutoPlay", "AutoScrollItem", AutoScrollItem ?? "小退");
+            Reader.Write("AutoPlay", "AutoRepairOn", AutoRepairOn);
+            Reader.Write("AutoPlay", "AutoRepairPercent", AutoRepairPercent);
+            Reader.Write("AutoPlay", "AutoRepairItem", AutoRepairItem ?? string.Empty);
+            Reader.Write("AutoPlay", "AutoRenewStone", AutoRenewStone);
             Reader.Write("AutoPlay", "AutoAttackIgnore", AutoAttackIgnore);
             Reader.Write("AutoPlay", "AutoSaintKeywords", AutoSaintKeywords);
             // 落盘的是玩家偏好，不是服务器当前下发值，否则登录一次偏好就被清空
