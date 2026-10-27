@@ -1452,6 +1452,9 @@ namespace Server.MirObjects
 
             SetLevelEffects();
 
+            //★0 持久残留自动清理：必须跑在 GetUserInfo 之前，否则下发的背包快照里还是那批要删的残件
+            ZeroDuraCleaner.AutoClean(this, false, false);
+
             GetItemInfo(Connection);
             GetMapInfo(Connection);
             GetUserInfo(Connection);
@@ -1720,6 +1723,41 @@ namespace Server.MirObjects
             Enqueue(GetFishInfo());
             GroupMemberMapNameChanged();
             GetPlayerLocation();
+        }
+        /// <summary>「@传送」用不了时给出具体原因（戒指没戴 / 戴了但电量耗尽 / 根本没有）。</summary>
+        private string GetTeleportRingHint()
+        {
+            bool wornButDead = false;
+
+            for (int i = 0; i < Info.Equipment.Length; i++)
+            {
+                UserItem eq = Info.Equipment[i];
+                if (eq == null || eq.Info == null) continue;
+                if (!eq.Info.Unique.HasFlag(SpecialItemMode.Teleport)) continue;
+
+                // 身上这件带传送属性的装备已经没电了（RefreshStats 会跳过 0 持久的装备，所以能力消失）
+                if (eq.CurrentDura == 0 && eq.Info.Durability > 0)
+                {
+                    if (eq.Info.Type == ItemType.戒指)
+                        return string.Format("传送戒指（{0}）电量已耗尽，需要修理后才能继续使用", eq.Info.Name);
+                    wornButDead = true;
+                }
+            }
+
+            if (wornButDead)
+                return "身上的传送装备电量已耗尽，需要修理后才能继续使用";
+
+            for (int i = 0; i < Info.Inventory.Length; i++)
+            {
+                UserItem item = Info.Inventory[i];
+                if (item == null || item.Info == null) continue;
+                if (item.Info.Type != ItemType.戒指) continue;
+                if (!item.Info.Unique.HasFlag(SpecialItemMode.Teleport)) continue;
+
+                return "传送戒指在背包里，请先装备到戒指位再使用 @传送";
+            }
+
+            return "你没有传送戒指，无法使用 @传送";
         }
         public override bool Teleport(Map temp, Point location, bool effects = true, byte effectnumber = 0)
         {
@@ -3077,7 +3115,12 @@ namespace Server.MirObjects
                         break;
 
                     case "传送":
-                        if (!IsGM && !SpecialMode.HasFlag(SpecialItemMode.Teleport) && !Settings.TestServer) return;
+                        if (!IsGM && !Settings.TestServer && !SpecialMode.HasFlag(SpecialItemMode.Teleport))
+                        {
+                            //原来这里直接 return，玩家什么提示都看不到，只会觉得「戒指没用」
+                            ReceiveChat(GetTeleportRingHint(), ChatType.System);
+                            return;
+                        }
                         if (!IsGM && CurrentMap.Info.NoPosition)
                         {
                             ReceiveChat(("地图禁用传送戒指"), ChatType.System);
@@ -3098,15 +3141,75 @@ namespace Server.MirObjects
 
                         if (parts.Length <= 2 || !int.TryParse(parts[1], out x) || !int.TryParse(parts[2], out y))
                         {
+                            if (!TeleportRandom(200, 0))
+                            {
+                                ReceiveChat("当前地图没有可传送的落点", ChatType.System);
+                                if (!IsGM) LastTeleportTime = Envir.Time + 1000;
+                                return;
+                            }
                             if (!IsGM)
                                 LastTeleportTime = Envir.Time + 10000;
-                            TeleportRandom(200, 0);
                             return;
                         }
+
+                        //★失败不再吃满 10 秒冷却：目标格不可站立/越界原来是一个包都不发还要罚站，
+                        //  最容易被当成「传送戒指没作用」。失败只锁 1 秒防连点。
+                        if (!Teleport(CurrentMap, new Point(x, y)))
+                        {
+                            ReceiveChat(string.Format("传送失败：坐标 {0},{1} 超出地图范围或无法站立", x, y), ChatType.System);
+                            if (!IsGM) LastTeleportTime = Envir.Time + 1000;
+                            return;
+                        }
+
                         if (!IsGM)
                             LastTeleportTime = Envir.Time + 10000;
-                        Teleport(CurrentMap, new Point(x, y));
                         break;
+
+                    case "清理废品":
+                    case "cleanzero":
+                        {
+                            if (!IsGM)
+                            {
+                                ReceiveChat("该命令仅管理员可用", ChatType.System);
+                                return;
+                            }
+
+                            // 默认只出清单（玩家 + 已召唤英雄），不删任何东西
+                            List<ZeroDuraCleaner.Entry> list = ZeroDuraCleaner.Scan(this);
+                            if (Hero != null && Hero.Info != null)
+                                list.AddRange(ZeroDuraCleaner.Scan(Hero, true));
+
+                            if (list.Count == 0)
+                            {
+                                ReceiveChat("没有发现持久为 0 的残留物品", ChatType.System);
+                                return;
+                            }
+
+                            List<ZeroDuraCleaner.Entry> safe = ZeroDuraCleaner.OnlySafe(list);
+
+                            if (parts.Length >= 2 && (parts[1] == "清理" || parts[1] == "clean"))
+                            {
+                                int cleaned = ZeroDuraCleaner.Delete(safe, true, "GM命令@清理废品");
+                                ReceiveChat(string.Format("已清理 {0} 件（清单见 Logs\\ZeroDuraClean.log）", cleaned), ChatType.System);
+                                return;
+                            }
+
+                            ZeroDuraCleaner.WriteList(string.Format("GM {0} 预览", Name), list);
+
+                            ReceiveChat(string.Format("发现 {0} 件持久为 0 的物品，其中 {1} 件可安全清理（守护石/回城石/随机传送石）：",
+                                list.Count, safe.Count), ChatType.System);
+
+                            int show = Math.Min(list.Count, 12);
+                            for (int i = 0; i < show; i++)
+                                ReceiveChat("  " + list[i].Describe(), ChatType.Hint);
+
+                            if (list.Count > show)
+                                ReceiveChat(string.Format("  …… 其余 {0} 件见日志", list.Count - show), ChatType.Hint);
+
+                            if (safe.Count > 0)
+                                ReceiveChat("确认清理请发送：@清理废品 清理（只删安全项，祝福油/修复油等 0 持久仍可使用的不会删）", ChatType.System);
+                            return;
+                        }
 
                     case "MAPMOVE":
                         if ((!IsGM && !Settings.TestServer) || parts.Length < 2) return;
@@ -5722,6 +5825,9 @@ namespace Server.MirObjects
         /// 整理背包（服务端权威）：腰带 0~5 格不动，只整理 6 起的背包区。
         /// 药水排最前，其余按 ItemType + 名字稳定排序，空格全部压实到尾部。
         /// 同步方式：把「现状→目标」拆成一串对调，逐个发 S.MoveItem，客户端逐条镜像，两端状态一致。
+        /// 顺手做两件事：
+        ///   ① 持久为 0 的物品直接删掉（客户端会收到 DeleteItem，当场消失）
+        ///   ② 每件物品补一个 RefreshItem，客户端用新实例重绘（0/0 这种陈旧持久显示同步修掉）
         /// </summary>
         public void SortBag()
         {
@@ -5731,6 +5837,9 @@ namespace Server.MirObjects
                 ReceiveChat("交易或租借进行中，无法整理背包。", ChatType.System);
                 return;
             }
+
+            //★整理背包顺手清 0 持久残件（含腰带格）：定义有持久却已经 0 的东西用不了，只是占格子
+            ZeroDuraCleaner.CleanAllZeroDura(this, "整理背包清理");
 
             const int bagStart = 6;                                  // 与客户端 User.BeltIdx 一致
             UserItem[] bag = Info.Inventory;
@@ -5784,6 +5893,14 @@ namespace Server.MirObjects
                     if (++swaps > 500) return;                       // 保险丝，正常到不了
                     break;
                 }
+            }
+
+            //整理完给每件物品补一个 RefreshItem：客户端按 UniqueID 换成服务端这份新数据并重绘，
+            //这样「定义持久改过、客户端还显示 0/0」的陈旧物品也会被纠正（整理背包顺带刷新背包）。
+            for (int i = bagStart; i < len; i++)
+            {
+                if (bag[i] == null) continue;
+                Enqueue(new S.RefreshItem { Item = bag[i] });
             }
         }
         public void StoreItem(int from, int to)
@@ -6338,7 +6455,14 @@ namespace Server.MirObjects
 
                                 if (item.Info.Durability > 0 && item.CurrentDura == 0)
                                 {
-                                    ReceiveChat(string.Format("{0} 的能量已经耗尽", item.Info.Name), ChatType.System);
+                                    //★电量已经是 0 的老残留：原来只提示「已耗尽」，永远删不掉（占格子）。
+                                    //  既然服务端认定它没电，就直接销毁。
+                                    Info.Inventory[index] = null;
+                                    Enqueue(new S.DeleteItem { UniqueID = item.UniqueID, Count = item.Count });
+                                    RefreshBagWeight();
+                                    ReceiveChat(string.Format("{0} 的能量已经耗尽，已自动销毁", item.Info.Name), ChatType.System);
+                                    ZeroDuraCleaner.WriteLog(string.Format("{0}\t角色={1}\t背包#{2} {3} 持久=0/{4}\tuid={5}\t原因=使用0持久传送石时销毁",
+                                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"), Name, index, item.Info.Name, item.MaxDura, item.UniqueID));
                                     Enqueue(p);
                                     return;
                                 }
@@ -14819,6 +14943,9 @@ namespace Server.MirObjects
             //  英雄一条都拿不到 —— 于是英雄的药剂 BUFF 服务端属性还在、客户端英雄 BUFF 栏却永远是空的。
             //  注意：HumanObject.Buffs 取的是 Info.Buffs，英雄被 CleanUp 过（Info=null）时不能碰。
             if (hero.Info == null) return;
+
+            //英雄背包同样有 0 持久残留：召唤时顺手清（英雄背包已经下发过，要补 DeleteItem）
+            ZeroDuraCleaner.AutoClean(hero, true, true);
 
             int count = hero.Buffs.Count;
             for (int i = 0; i < count; i++)

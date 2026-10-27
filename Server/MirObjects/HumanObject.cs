@@ -1155,20 +1155,47 @@ namespace Server.MirObjects
         {
             return false;
         }
+        /// <summary>祝福油用不了时把原因告诉玩家；英雄则带给主人（和成功提示同一套格式）。</summary>
+        private void NotifyLuckFailed(string text)
+        {
+            if (this is HeroObject hero && hero.Owner != null)
+                hero.Owner.ReceiveChat(string.Format("[英雄: {0}] {1}", hero.Name, text), ChatType.System);
+            else
+                ReceiveChat(text, ChatType.System);
+        }
         /// <summary>祝福油吃幸运。普通版(luckCap=7)：成功率 1/(10×当前幸运)、1/20 诅咒；
         /// 超级版(superOil=true，超级祝福油 Shape=22)：必成、不诅咒、上限由 luckCap 决定（默认 10）。</summary>
         protected bool TryLuckWeapon(int luckCap = 7, bool superOil = false)
         {
             var item = Info.Equipment[(int)EquipmentSlot.武器];
 
-            if (item == null || item.AddedStats[Stat.幸运] >= luckCap)
+            //★失败必须说话：原来这几种情况全是静默 return false（只回一个 UseItem Success=false），
+            //  玩家看到的就是「点了没反应、油也没少」，根本猜不到是武器不可升级。
+            string oilName = superOil ? "超级祝福油" : "祝福油";
+
+            if (item == null)
+            {
+                NotifyLuckFailed(string.Format("没有装备武器，无法使用{0}", oilName));
                 return false;
+            }
+
+            if (item.AddedStats[Stat.幸运] >= luckCap)
+            {
+                NotifyLuckFailed(string.Format("武器幸运已达上限 {0}，{1}无法继续提升", luckCap, oilName));
+                return false;
+            }
 
             if (item.Info.Bind.HasFlag(BindMode.DontUpgrade))
+            {
+                NotifyLuckFailed("该武器带有「不可升级」属性，无法使用祝福油");
                 return false;
+            }
 
             if (item.RentalInformation != null && item.RentalInformation.BindingFlags.HasFlag(BindMode.DontUpgrade))
+            {
+                NotifyLuckFailed("该武器租赁中且不可升级，无法使用祝福油");
                 return false;
+            }
 
             string message = String.Empty;
             ChatType chatType;

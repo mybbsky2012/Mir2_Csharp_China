@@ -38,7 +38,7 @@ internal static class Program
                 Console.WriteLine($"--- [{it.Index}] {it.Name}");
                 Console.WriteLine($"    Type={it.Type}({(int)it.Type}) Shape={it.Shape} Effect={it.Effect} Grade={it.Grade} Image={it.Image}");
                 Console.WriteLine($"    Durability={it.Durability} StackSize={it.StackSize} Price={it.Price} Weight={it.Weight} RequiredAmount={it.RequiredAmount}");
-                Console.WriteLine($"    Bind={it.Bind} ClassBased={it.ClassBased} LevelBased={it.LevelBased}");
+                Console.WriteLine($"    Bind={it.Bind} ClassBased={it.ClassBased} LevelBased={it.LevelBased} Unique={it.Unique}({(short)it.Unique})");
                 var sb = new System.Text.StringBuilder();
                 for (int si = 0; si < 80; si++)
                 {
@@ -49,6 +49,23 @@ internal static class Program
                 string st = sb.ToString().Trim();
                 Console.WriteLine($"    Stats: {(string.IsNullOrEmpty(st) ? "(空)" : st)}");
             }
+            return 0;
+        }
+
+        // ── 扫描模式：PotionProbe.dll --scan <Type名或数字> ──────────────
+        if (args.Length > 1 && args[0] == "--scan")
+        {
+            string t = args[1];
+            ItemType? want = null;
+            foreach (ItemType v in Enum.GetValues(typeof(ItemType)))
+                if (v.ToString() == t || ((int)v).ToString() == t) { want = v; break; }
+            if (want == null) { Console.WriteLine($"未知类型: {t}"); return 2; }
+            var list = envir.ItemInfoList.Where(x => x != null && x.Type == want.Value)
+                                         .OrderBy(x => x.Shape).ThenBy(x => x.Index).ToList();
+            Console.WriteLine($"=== Type={want} 共 {list.Count} 条（按 Shape 排序）===");
+            foreach (var it in list)
+                Console.WriteLine($"[{it.Index,5}] {it.Name,-18} Shape={it.Shape,-4} Durability={it.Durability,-6} " +
+                                  $"Stack={it.StackSize,-3} Unique={(short)it.Unique,-4} Effect={it.Effect} Bind={it.Bind}");
             return 0;
         }
 

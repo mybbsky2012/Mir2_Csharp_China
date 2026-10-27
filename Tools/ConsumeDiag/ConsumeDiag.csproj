@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AssemblyName>ConsumeDiag</AssemblyName>
+    <RootNamespace>ConsumeDiag</RootNamespace>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- 存档里的 Buff.Data 走 BinaryFormatter，服务端进程是开着的；诊断进程必须一致 -->
+    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\Shared.csproj" />
+    <ProjectReference Include="..\..\Server\Server.Library.csproj" />
+  </ItemGroup>
+
+</Project>

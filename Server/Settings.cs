@@ -325,6 +325,11 @@ namespace Server
         public static bool OfflineAfkNoConsumableDura = true;   // 不扣消耗类物品持久：气血石/魔血石电量、照明物（回血照常给）
         public static bool OfflineAfkNoEquipDura = true;   // 不扣装备持久（含武器，被怪打不磨损）
 
+        //0 持久残留清理（10-27）
+        //  物品定义持久改过之后，老实例会停在 0 持久却永远占格子。这里只控制「登录/召唤英雄时自动清」，
+        //  且只清 守护石/气血石/魔血石、回城石/随机传送石 这类 0 持久必然用不了的；手动清理用 @清理废品。
+        public static bool CleanZeroDuraOnLogin = true;
+
 
         //Goods Settings
         public static bool GoodsOn = true;
@@ -512,6 +517,9 @@ namespace Server
             OfflineAfkEnabled = Reader.ReadBoolean("OfflineAFK", "Enabled", OfflineAfkEnabled);
             OfflineAfkNoConsumableDura = Reader.ReadBoolean("OfflineAFK", "NoConsumableDura", OfflineAfkNoConsumableDura);
             OfflineAfkNoEquipDura = Reader.ReadBoolean("OfflineAFK", "NoEquipDura", OfflineAfkNoEquipDura);
+
+            //0 持久残留自动清理
+            CleanZeroDuraOnLogin = Reader.ReadBoolean("Optional", "CleanZeroDuraOnLogin", CleanZeroDuraOnLogin);
 
             //假人（AI 玩家）
             FakePlayerEnabled = Reader.ReadBoolean("FakePlayer", "Enabled", FakePlayerEnabled);
@@ -853,6 +861,9 @@ namespace Server
             Reader.Write("OfflineAFK", "Enabled", OfflineAfkEnabled);
             Reader.Write("OfflineAFK", "NoConsumableDura", OfflineAfkNoConsumableDura);
             Reader.Write("OfflineAFK", "NoEquipDura", OfflineAfkNoEquipDura);
+
+            //0 持久残留自动清理
+            Reader.Write("Optional", "CleanZeroDuraOnLogin", CleanZeroDuraOnLogin);
 
             //假人（AI 玩家）
             Reader.Write("FakePlayer", "Enabled", FakePlayerEnabled);

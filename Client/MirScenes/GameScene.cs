@@ -3843,7 +3843,7 @@ namespace Client.MirScenes
                     if (item == null || item.UniqueID != p.UniqueID) continue;
 
                     if (item.Count == p.Count)
-                        User.Inventory[i] = null;
+                        Hero.Inventory[i] = null;   //★原来误写成 User.Inventory[i]：会删掉玩家背包同格物品
                     else
                         item.Count -= p.Count;
                     actor = Hero;
@@ -3876,7 +3876,7 @@ namespace Client.MirScenes
                         if (item == null || item.UniqueID != p.UniqueID) continue;
 
                         if (item.Count == p.Count)
-                            User.Equipment[i] = null;
+                            Hero.Equipment[i] = null;   //★同上：原来误写成 User.Equipment[i]
                         else
                             item.Count -= p.Count;
                         actor = Hero;
@@ -5695,7 +5695,7 @@ namespace Client.MirScenes
         {
             Bind(p.Item);
 
-            if (SelectedCell != null && SelectedCell.Item.UniqueID == p.Item.UniqueID)
+            if (SelectedCell != null && SelectedCell.Item != null && SelectedCell.Item.UniqueID == p.Item.UniqueID)
                 SelectedCell = null;
 
             if (HoverItem != null && HoverItem.UniqueID == p.Item.UniqueID)
@@ -5710,6 +5710,7 @@ namespace Client.MirScenes
                 {
                     User.Inventory[i] = p.Item;
                     User.RefreshStats();
+                    Redraw();   //★直接改数组绕过了 MirItemCell.Item 的 Redraw，这里补一次整屏重绘（整理背包刷新要用）
                     return;
                 }
             }
@@ -5720,6 +5721,7 @@ namespace Client.MirScenes
                 {
                     User.Equipment[i] = p.Item;
                     User.RefreshStats();
+                    Redraw();
                     return;
                 }
             }
@@ -5732,6 +5734,7 @@ namespace Client.MirScenes
                     {
                         Hero.Inventory[i] = p.Item;
                         Hero.RefreshStats();
+                        Redraw();   //英雄背包同理（原来英雄格子被替换后也不重绘）
                         return;
                     }
                 }
@@ -5742,6 +5745,7 @@ namespace Client.MirScenes
                     {
                         Hero.Equipment[i] = p.Item;
                         Hero.RefreshStats();
+                        Redraw();
                         return;
                     }
                 }
