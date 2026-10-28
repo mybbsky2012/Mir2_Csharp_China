@@ -24,15 +24,15 @@ namespace Server.MirObjects
                 Owner
             };
 
+            // ① 净化：自己或主人中了减益/毒
             for (int i = 0; i < TargetList.Count; i++)
             {
                 MapObject target = TargetList[i];
-                if (target.Dead) continue;
-
-                MirDirection direction = Functions.DirectionFromPoint(CurrentLocation, target.CurrentLocation);
+                if (target == null || target.Dead) continue;
 
                 if (target.Buffs.Any(b => b.Properties.HasFlag(BuffProperty.Debuff)) || target.PoisonList.Count > 0)
                 {
+                    MirDirection direction = Functions.DirectionFromPoint(CurrentLocation, target.CurrentLocation);
                     magic = GetMagic(Spell.Purification);
                     if (CanUseMagic(magic))
                     {
@@ -40,55 +40,16 @@ namespace Server.MirObjects
                         return;
                     }
                 }
-
-                if (target.PercentHealth < 90)
-                {
-                    magic = GetMagic(Spell.MassHealing);
-                    if (CanUseMagic(magic))
-                    {
-                        BeginMagic(magic.Spell, direction, target.ObjectID, target.CurrentLocation);
-                        return;
-                    }
-
-                    magic = GetMagic(Spell.Healing);
-                    if (CanUseMagic(magic))
-                    {
-                        BeginMagic(magic.Spell, direction, target.ObjectID, target.CurrentLocation);
-                        return;
-                    }
-                }
-
-                UserItem item = GetAmulet(1);
-
-                if (!InSafeZone)
-                {
-                    magic = GetMagic(Spell.SoulShield);
-                    if (CanUseMagic(magic) && item != null && !target.HasBuff(BuffType.幽灵盾))
-                    {
-                        BeginMagic(magic.Spell, direction, target.ObjectID, target.CurrentLocation);
-                        return;
-                    }
-
-                    magic = GetMagic(Spell.BlessedArmour);
-                    if (CanUseMagic(magic) && item != null && !target.HasBuff(BuffType.神圣战甲术))
-                    {
-                        BeginMagic(magic.Spell, direction, target.ObjectID, target.CurrentLocation);
-                        return;
-                    }
-
-                    magic = GetMagic(Spell.UltimateEnhancer);
-                    if (CanUseMagic(magic) && item != null && !target.HasBuff(BuffType.无极真气))
-                    {
-                        BeginMagic(magic.Spell, direction, target.ObjectID, target.CurrentLocation);
-                        return;
-                    }
-                }
             }
 
-            magic = GetMagic(Spell.None);
-            {
-                return;
-            }
+            // ② 治疗：谁血少先治谁（自己 → 主人）
+            if (PercentHealth < 90 && TryCast(HeroSpellKind.Heal)) return;
+            if (Owner != null && !Owner.Dead && Owner.PercentHealth < 90 && TryCast(HeroSpellKind.Heal, Owner)) return;
+
+            // ③ 增益：先给主人补，再给自己补。幽灵盾/神圣战甲术/无极真气/先天气功/万效符
+            //    自动挑「还没上的、等级最高的」那本，高级 buff 会顶掉低级的
+            if (Owner != null && !Owner.Dead && TryCast(HeroSpellKind.Buff, Owner)) return;
+            if (TryCast(HeroSpellKind.Buff)) return;
         }
 
         protected override void ProcessAttack()
@@ -103,7 +64,7 @@ namespace Server.MirObjects
             UserItem poisonItem = GetPoison(1);
 
             // 被围（2 个以上敌人贴身）时优先毒云群攻（需要携带毒粉）
-            if (CanCast && SurroundedCount >= 2 && poisonItem != null)
+            if (SurroundedCount >= 2 && poisonItem != null)
             {
                 magic = GetMagic(Spell.PoisonCloud);
                 if (CanUseMagic(magic))
@@ -115,6 +76,7 @@ namespace Server.MirObjects
 
             if (InAttackRange())
             {
+                // 上毒（有对应毒粉、目标还没中这种毒）
                 magic = GetMagic(Spell.Poisoning);
                 if (CanUseMagic(magic) && poisonItem != null)
                 {
@@ -125,39 +87,20 @@ namespace Server.MirObjects
                     }
                 }
 
-                magic = GetMagic(Spell.Curse);
-                if (CanUseMagic(magic) && !Target.HasBuff(BuffType.诅咒术) && amuletItem != null)
-                {
-                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                    return;
-                }
-
-                if (Target.AutoRev == false && Envir.Time > Target.RevTime) 
+                // 心灵启示：让目标一段时间内无法回血
+                if (Target.AutoRev == false && Envir.Time > Target.RevTime && amuletItem != null)
                 {
                     magic = GetMagic(Spell.Revelation);
-                    if (CanUseMagic(magic) && amuletItem != null)
+                    if (CanUseMagic(magic))
                     {
                         BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
                         return;
                     }
                 }
 
-                magic = GetMagic(Spell.SoulFireBall);
-                if (CanUseMagic(magic) && amuletItem != null)
-                {
-                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                    return;
-                }
-
-                magic = GetMagic(Spell.None);
-                {
-                    return;
-                }
-            }
-
-            magic = GetMagic(Spell.None);
-            {
-                return;
+                // 单体主力：诅咒术 / 烦脑 / 灵魂火符自动挑最高级的那本；
+                // 灵魂火符在「万效符」buff 期间由服务端自动升格成三连符，这里不用特殊处理
+                if (amuletItem != null && TryCast(HeroSpellKind.Single)) return;
             }
         }
 

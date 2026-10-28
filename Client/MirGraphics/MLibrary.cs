@@ -683,6 +683,21 @@ namespace Client.MirGraphics
             _libName = Path.GetFileNameWithoutExtension(_fileName);
         }
 
+        /// <summary>图库里的图像（帧）总数；微端还没下完时返回 0。
+        /// 「怪物简装」要用它确认目标帧号没越界（越界 = 那只怪整帧不画）。</summary>
+        public int ImageCount
+        {
+            get
+            {
+                if (!_initialized && !_loadFailed)
+                {
+                    try { Initialize(); }
+                    catch { }
+                }
+                return _count;
+            }
+        }
+
         public void Initialize()
         {
             if (_initialized || _loadFailed) return;

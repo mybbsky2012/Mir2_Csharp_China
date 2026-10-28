@@ -34,22 +34,8 @@ namespace Server.MirObjects
         {
             if (!CanCast || InSafeZone) return;
 
-            // 战斗中与空闲时都保持自身增益（进图先加速、开身法）
-            {
-                UserMagic magic = GetMagic(Spell.Haste);
-                if (CanUseMagic(magic) && !HasBuff(BuffType.体迅风))
-                {
-                    BeginMagic(magic.Spell, Direction, ObjectID, CurrentLocation);
-                    return;
-                }
-
-                magic = GetMagic(Spell.LightBody);
-                if (CanUseMagic(magic) && !HasBuff(BuffType.风身术))
-                {
-                    BeginMagic(magic.Spell, Direction, ObjectID, CurrentLocation);
-                    return;
-                }
-            }
+            // 自身增益：体迅风 / 风身术 / 烈火身 / 月影术 —— 缺哪个补哪个
+            if (TryCast(HeroSpellKind.Buff)) return;
         }
         protected override void ProcessAttack()
         {
@@ -57,24 +43,19 @@ namespace Server.MirObjects
             TargetDistance = Functions.MaxDistance(CurrentLocation, Target.CurrentLocation);
             Direction = Functions.DirectionFromPoint(CurrentLocation, Target.CurrentLocation);
 
-            // 被围（2 个以上敌人贴身）时优先月华乱舞（自身周围360°群攻）
-            if (CanCast && SurroundedCount >= 2)
-            {
-                UserMagic aoe = GetMagic(Spell.CrescentSlash);
-                if (CanUseMagic(aoe))
-                {
-                    BeginMagic(aoe.Spell, Direction, ObjectID, CurrentLocation);
-                    return;
-                }
-            }
+            // 迁移剑是「2 格突刺」：决定 InAttackRange 是否允许 2 格攻击
+            HasHeavenlySword = CanCast && CanUseMagic(GetMagic(Spell.HeavenlySword));
 
-            UserMagic magic = GetMagic(Spell.HeavenlySword);
-            HasHeavenlySword = CanCast && CanUseMagic(magic);
-            if (HasHeavenlySword && TargetDistance == 2)
-            {
-                BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                return;
-            }
+            if (!CanCast) return;
+
+            // 开关型：风剑术只开不关（开着的绝不再点第二次）
+            if (ToggleIfOff(Spell.DoubleSlash)) return;
+
+            // 被围（2 个以上敌人贴身）→ 月华乱舞/秘籍（360° 群攻），按等级自动挑最高的
+            if (SurroundedCount >= 2 && TryCast(HeroSpellKind.Aoe)) return;
+
+            // 单体主力：影华连击 / 拔刀术-秘籍 / 猛毒剑气 / 血风击 / 烈风击 / 迁移剑 … 自动挑最高级
+            if (TryCast(HeroSpellKind.Single)) return;
         }
 
         protected override void ProcessTarget()

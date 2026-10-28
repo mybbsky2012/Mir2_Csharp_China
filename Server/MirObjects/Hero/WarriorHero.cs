@@ -26,50 +26,38 @@ namespace Server.MirObjects
         {
             if (!CanCast) return;
 
-            if (Target != null)
-            {
-                UserMagic magic = GetMagic(Spell.Rage);
-                if (CanUseMagic(magic) && !HasBuff(BuffType.剑气爆))
-                {
-                    BeginMagic(magic.Spell, Direction, ObjectID, CurrentLocation);
-                    return;
-                }
-
-                magic = GetMagic(Spell.ProtectionField);
-                if (CanUseMagic(magic) && !HasBuff(BuffType.护身气幕))
-                {
-                    BeginMagic(magic.Spell, Direction, ObjectID, CurrentLocation);
-                    return;
-                }
-            }
+            // 自身增益：剑气爆 / 护身气幕 / 血龙剑法 / 金刚不坏 —— 缺哪个补哪个，学了高级的就不放低级的
+            if (TryCast(HeroSpellKind.Buff)) return;
         }
         protected override void ProcessAttack()
         {
             if (Target == null || Target.Dead) return;
             TargetDistance = Functions.MaxDistance(CurrentLocation, Target.CurrentLocation);
 
-            if (HasMagic(Spell.FlamingSword) && Envir.Time > FlamingSwordTime)
-                SpellToggle(Spell.FlamingSword, SpellToggleState.True);
-
-            int surrounded = SurroundedCount;
-
-            // 主动群攻优先：被围（2 个以上敌人贴身）时先放剑刃雪崩（正面三向横扫）
-            if (surrounded >= 2 && CanCast)
+            if (CanCast)
             {
-                UserMagic aoe = GetMagic(Spell.BladeAvalanche);
-                if (CanUseMagic(aoe))
-                {
-                    Direction = Functions.DirectionFromPoint(CurrentLocation, Target.CurrentLocation);
-                    BeginMagic(aoe.Spell, Direction, ObjectID, CurrentLocation);
-                    return;
-                }
-            }
+                // 开关型强化：只开不关（开着的绝不点第二次），顺序即优先级
+                if (ToggleIfOff(Spell.FlamingSword)) return;      // 烈火剑法
+                if (ToggleIfOff(Spell.TwinDrakeBlade)) return;    // 双龙斩
 
-            // 没有主动群攻时自动切换被动群攻姿态：2 个以上贴身用圆月（全月），单个贴身用半月，脱围后关闭
-            if (HasMagic(Spell.CrossHalfMoon))
-                SpellToggle(Spell.CrossHalfMoon, surrounded >= 2 ? SpellToggleState.True : SpellToggleState.False);
-            if (HasMagic(Spell.HalfMoon) && !Info.CrossHalfMoon)
-                SpellToggle(Spell.HalfMoon, surrounded == 1 ? SpellToggleState.True : SpellToggleState.False);
+                int nearby = SurroundedCount;
+                if (nearby >= 2)                                   // 被围切圆月，单怪用半月
+                {
+                    if (ToggleIfOff(Spell.CrossHalfMoon)) return;
+                }
+                else
+                {
+                    if (ToggleIfOff(Spell.HalfMoon)) return;
+                }
+
+                if (ToggleIfOff(Spell.Thrusting)) return;         // 刺杀剑术（隔位）
+
+                // 被围先群攻：空破闪 / 日闪 / 时空剑，按学习等级自动挑最高的那个
+                if (nearby >= 2 && TryCast(HeroSpellKind.Aoe)) return;
+
+                // 被围死再控场：狮子吼 / 捕绳剑
+                if (nearby >= 3 && TryCast(HeroSpellKind.Control)) return;
+            }
         }
 
         private bool HasAnySurroundedAoE => HasMagic(Spell.BladeAvalanche) || HasMagic(Spell.CrossHalfMoon) || HasMagic(Spell.HalfMoon);

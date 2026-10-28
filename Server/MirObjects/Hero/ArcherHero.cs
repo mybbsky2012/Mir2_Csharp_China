@@ -50,15 +50,8 @@ namespace Server.MirObjects
         {
             if (InSafeZone) return;
 
-            if (!HasBuff(BuffType.气流术))
-            {
-                UserMagic magic = GetMagic(Spell.Concentration);
-                if (CanUseMagic(magic))
-                {
-                    BeginMagic(magic.Spell, Direction, ObjectID, CurrentLocation);
-                    return;
-                }
-            }
+            // 自身增益：气流术 / 金刚术 / 精神状态 —— 缺哪个补哪个，高级的顶掉低级的
+            if (TryCast(HeroSpellKind.Buff)) return;
         }
 
         protected override void ProcessAttack()
@@ -75,17 +68,10 @@ namespace Server.MirObjects
             UserMagic magic;
 
             // 按目标状态选箭，不再随机：
-            // 0. 被围（2 个以上敌人贴身）优先火雨箭群攻；1. 元素珠不足先攒珠；
-            // 2. 血厚的目标没上毒优先毒箭；3. 强敌（不低于自身等级）用削弱射击；4. 普通怪直射。
-            if (SurroundedCount >= 2)
-            {
-                magic = GetMagic(Spell.NapalmShot);
-                if (CanUseMagic(magic))
-                {
-                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                    return;
-                }
-            }
+            // 0. 被围（2 个以上敌人贴身）优先群攻（血龙闪/爆阱，按等级自动挑最高的）；
+            // 1. 元素珠不足先攒珠；2. 目标没上毒优先毒箭；3. 强敌用削弱射击；
+            // 4. 主力输出自动挑「学过等级最高」的那一本（血龙闪秘笈/落雷杀/邪爆闪…）
+            if (SurroundedCount >= 2 && TryCast(HeroSpellKind.Aoe)) return;
 
             if (GetElementalOrbCount() < 1)
             {
@@ -117,12 +103,19 @@ namespace Server.MirObjects
                 }
             }
 
-            magic = GetMagic(Spell.StraightShot);
-            if (CanUseMagic(magic))
+            // 灭杀：只有「落雷杀-秘笈」命中后 10 秒的窗口里才放得出来，没窗口不放
+            if (HasBuff(BuffType.灭杀窗口))
             {
-                BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                return;
+                magic = GetMagic(Spell.DeathBlow);
+                if (CanUseMagic(magic))
+                {
+                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
+                    return;
+                }
             }
+
+            // 主力输出：按学习等级 + 威力自动挑最高级（血龙闪秘籍 > 血龙闪 > 落雷杀 > 邪爆闪 > …）
+            if (TryCast(HeroSpellKind.Single)) return;
 
             magic = GetMagic(Spell.ElementalShot);
             if (CanUseMagic(magic))

@@ -160,6 +160,11 @@ namespace Client
             HighlightTarget = true,
             ExpandedBuffWindow = true,
             ExpandedHeroBuffWindow = true,
+            // 人物简装 / 怪物简装（内挂第 3 页）：纯本地渲染替换，不影响服务端判定
+            SimplePlayer = false,
+            SimpleMonster = false,
+            // 免shift（内挂第 3 页）：点玩家/宝宝不再需要按住 Shift 就直接攻击
+            NoShift = false,
             DisplayBodyName = false,
             NewMove = false,
             // 地面物品名字过滤：只显示 Data\ItemFilter.txt 列表里匹配到的物品（内挂面板勾选）
@@ -391,6 +396,9 @@ namespace Client
             DropView = Reader.ReadBoolean("Game", "DropView", DropView);
             ItemFilterOn = Reader.ReadBoolean("Game", "ItemFilter", ItemFilterOn);
             HealthNumber = Reader.ReadBoolean("Game", "HealthNumber", HealthNumber);
+            SimplePlayer = Reader.ReadBoolean("Game", "SimplePlayer", SimplePlayer);
+            SimpleMonster = Reader.ReadBoolean("Game", "SimpleMonster", SimpleMonster);
+            NoShift = Reader.ReadBoolean("Game", "NoShift", NoShift);
             QualityEffectOn = Reader.ReadBoolean("Game", "QualityEffect", QualityEffectOn);
             MonsterEffectOn = Reader.ReadBoolean("Game", "MonsterEffect", MonsterEffectOn);
             LogoutCombatDelay = Reader.ReadBoolean("Game", "LogoutCombatDelay", LogoutCombatDelay);
@@ -624,6 +632,9 @@ namespace Client
             Reader.Write("Game", "DropView", DropView);
             Reader.Write("Game", "ItemFilter", ItemFilterOn);
             Reader.Write("Game", "HealthNumber", HealthNumber);
+            Reader.Write("Game", "SimplePlayer", SimplePlayer);
+            Reader.Write("Game", "SimpleMonster", SimpleMonster);
+            Reader.Write("Game", "NoShift", NoShift);
             Reader.Write("Game", "QualityEffect", QualityEffectOn);
             Reader.Write("Game", "MonsterEffect", MonsterEffectOn);
             Reader.Write("Game", "LogoutCombatDelay", LogoutCombatDelay);

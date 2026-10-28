@@ -379,7 +379,8 @@ namespace Client.MirScenes
                         CMain.SetMouseCursor(MouseCursor.NPCTalk);
                         break;
                     case ObjectType.Player:
-                        if (CMain.Shift)
+                        // 悬停玩家时：按住 Shift（或勾了「免shift」）显示红剑光标 = 这一下会打人
+                        if (CMain.Shift || Settings.NoShift)
                         {
                             CMain.SetMouseCursor(MouseCursor.AttackRed);
                         }
@@ -15072,7 +15073,11 @@ namespace Client.MirScenes
 
             if (MapObject.TargetObject != null && !MapObject.TargetObject.Dead)
             {
-                if (((MapObject.TargetObject.Name.EndsWith(")") || MapObject.TargetObject is PlayerObject) && CMain.Shift) ||
+                // ★免shift（内挂第 3 页）：勾选后点玩家 / 宝宝（名字带 ")"）不再需要按住 Shift 也能攻击。
+                //   这里只管「持续按住左键连打」的判定；单击那一路在下面的 switch (MapButtons) 里。
+                //   免shift 这一侧额外排除自己（原版按 Shift 点自己会空挥一下，服务端拒绝；免shift 常开时容易误触，直接不算）。
+                if (((MapObject.TargetObject.Name.EndsWith(")") || MapObject.TargetObject is PlayerObject) &&
+                     (CMain.Shift || (Settings.NoShift && MapObject.TargetObject != User))) ||
                     (!MapObject.TargetObject.Name.EndsWith(")") && MapObject.TargetObject is MonsterObject))
                 {
                     GameScene.LogTime = CMain.Time + Globals.LogDelay;
@@ -15166,7 +15171,10 @@ namespace Client.MirScenes
                 switch (MapButtons)
                 {
                     case MouseButtons.Left:
-                        if (MapObject.MouseObject is NPCObject || (MapObject.MouseObject is PlayerObject && MapObject.MouseObject != User)) break;
+                        if (MapObject.MouseObject is NPCObject) break;
+                        // 点到别的玩家：默认什么都不做（避免误伤），要打就按住 Shift。
+                        // 勾了「免shift」后不再拦，直接落到下面的攻击分支。
+                        if (MapObject.MouseObject is PlayerObject && MapObject.MouseObject != User && !Settings.NoShift) break;
                         if (MapObject.MouseObject is MonsterObject && MapObject.MouseObject.AI == 56) break;
  
                         if (CMain.Alt && !User.RidingMount)
@@ -15175,7 +15183,16 @@ namespace Client.MirScenes
                             return;
                         }
 
-                        if (CMain.Shift)
+                        // 按住 Shift = 强制攻击（点哪打哪，宠物/玩家也照打）。
+                        // ★免shift：勾选后「点到别的玩家 / 宝宝（名字带 ")"）」也走这一支，不必再按 Shift。
+                        //   点空地（MouseObject 为 null）不满足条件 → 仍然是正常走路，不会原地乱挥；
+                        //   点普通怪物同样不满足（那边本来就不需要 Shift）。
+                        bool noShiftTarget = Settings.NoShift && MapObject.MouseObject != null &&
+                                             ((MapObject.MouseObject is PlayerObject && MapObject.MouseObject != User) ||
+                                              (MapObject.MouseObject is MonsterObject && MapObject.MouseObject.Name != null &&
+                                               MapObject.MouseObject.Name.EndsWith(")")));
+
+                        if (CMain.Shift || noShiftTarget)
                         {
                             if (CMain.Time > GameScene.AttackTime && CanRideAttack()) //ArcherTest - shift click
                             {
@@ -15378,7 +15395,10 @@ namespace Client.MirScenes
             }
 
             if (MapObject.TargetObject == null || MapObject.TargetObject.Dead) return;
-            if (((!MapObject.TargetObject.Name.EndsWith(")") && !(MapObject.TargetObject is PlayerObject)) || !CMain.Shift) &&
+            // 只有「该打的目标」才继续往下走（追过去 / 隔位刺杀 / 近身）：
+            //   怪物 → 直接算；玩家 / 宝宝 → 默认要按住 Shift，勾了免shift 就不用了（自己除外）。
+            if (((!MapObject.TargetObject.Name.EndsWith(")") && !(MapObject.TargetObject is PlayerObject)) ||
+                 (!CMain.Shift && !(Settings.NoShift && MapObject.TargetObject != User))) &&
                 (MapObject.TargetObject.Name.EndsWith(")") || !(MapObject.TargetObject is MonsterObject))) return;
             // 隔位刺杀（战士，面板勾选即生效）：自动走到「与目标隔一格」的站位再出剑气。
             //  · 已经站在隔位上 → 交给上面的攻击分支发剑气；

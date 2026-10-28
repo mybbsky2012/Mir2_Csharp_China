@@ -35,6 +35,9 @@ namespace Client.MirObjects
 
         public int DieSound, FlinchSound, AttackSound;
 
+        /// <summary>上一次绘制时「人物简装」的开关状态：变化时立刻重算图库，站着不动也能马上切换外观。</summary>
+        private bool _simplePlayerApplied;
+
 
         public FrameSet Frames;
         public Frame Frame, WingFrame;
@@ -737,6 +740,55 @@ namespace Client.MirObjects
                     WeaponLibrary1 = 0 < Libraries.Fishing.Length ? Libraries.Fishing[Weapon - 49] : null;
                     WeaponLibrary2 = null;
                     WeaponOffSet = -632;
+                }
+            }
+
+            //★人物简装（内挂第 3 页）：把所有玩家统一画成「布衣 + 木剑」。
+            //
+            //  为什么能只换图集、不动帧号：人类衣服库/武器库共用同一套帧布局
+            //  （8 方向 × 动作段，段起点由 FrameSet.Player 定义），衣服之间的区别只是
+            //  「库文件不同 + 男女段偏移」。所以把 BodyLibrary 换成布衣那一本、
+            //  WeaponLibrary 换成木剑那一本，DrawFrame 照用，动作/朝向/帧数都不受影响。
+            //
+            //  ★偏移必须跟着换代：
+            //    · 衣服：统一用战法道库 CArmours[0]（1616 帧 = 男 0..807 + 女 808..1615），
+            //      所以 ArmourOffSet 也统一成 男 0 / 女 808。若继续用刺客的 512、弓箭手的 352，
+            //      配 1616 帧的库虽然能不越界，但会取到错位的身段。
+            //    · 武器：CWeapon/30 只有 832 帧，女装段 416 + 最大帧 511 = 927 会越界（武器整段不画），
+            //      所以武器偏移一律按男性段 0 算 —— 木剑男女外观本来就一模一样。
+            //
+            //  头发保留：CHair 每个库也是 1616 帧（男 0..807 / 女 808..1615），偏移跟衣服同源，
+            //  所以发型跟着一起用 男 0 / 女 808，不会错位也不会越界；Hair 超出库数量就自然变成没头发。
+            //
+            //  TransformType >= 0 是变身状态，身体已经是 Transform 图库，不覆盖（变身优先）。
+            if (Settings.SimplePlayer && TransformType < 0)
+            {
+                MLibrary plainBody = PlayerAppearance.ArmourLib(Libraries.CArmours, PlayerAppearance.PlainArmour);
+
+                //★素材没就绪就整段跳过（保持原样），绝不能硬换：
+                //  微端第一次遇到没下载过的库时 Draw 会静默失败，硬换的结果是「满屏玩家全部消失」，
+                //  等后台下完自然就简装了。ImageCount 只是读文件头，已经初始化过的库是常数开销。
+                if (plainBody != null && plainBody.ImageCount > 0)
+                {
+                    BodyLibrary = plainBody;
+                    ArmourOffSet = Gender == MirGender.男性 ? 0 : 808;
+
+                    MLibrary hair = Hair < Libraries.CHair.Length ? Libraries.CHair[Hair] : null;
+                    if (hair != null && hair.ImageCount == 0) hair = null;   // 发型没好就不画头发，不阻塞简装
+                    HairLibrary = hair;
+                    HairOffSet = Gender == MirGender.男性 ? 0 : 808;
+
+                    WingLibrary = null;
+                    WeaponEffectLibrary1 = null;
+                    WeaponEffectLibrary2 = null;
+
+                    MLibrary sword = PlayerAppearance.SwordLib(Libraries.CWeapons);
+                    if (sword != null && sword.ImageCount > 0)
+                    {
+                        WeaponLibrary1 = sword;
+                        WeaponLibrary2 = null;
+                        WeaponOffSet = 0;
+                    }
                 }
             }
 
@@ -5550,6 +5602,14 @@ namespace Client.MirObjects
 
             if (shadowStealth) return;
 
+            //★「人物简装」开关被勾上/取消时，站着不动的角色不会走 SetAction → 图库一直不重算，
+            //  看起来就像开关没生效。这里在绘制入口比对一次开关状态，变了就立刻重算图库。
+            if (_simplePlayerApplied != Settings.SimplePlayer)
+            {
+                _simplePlayerApplied = Settings.SimplePlayer;
+                SetLibraries();
+            }
+
             float oldOpacity = DXManager.Opacity;
             if (Hidden && !DXManager.Blending) DXManager.SetOpacity(0.5F);
 
@@ -5717,7 +5777,8 @@ namespace Client.MirObjects
             Color drawColour = ApplyDrawColour();                     
 
             // 品质轮廓光：画在身体之前，只溢出到轮廓外侧（宝物紫 / 圣物蓝 / 神物金）
-            if (BodyLibrary != null && ArmourGrade >= 2)
+            // 简装时穿的是布衣，再按身上真实装备的品级打光会很怪，直接跳过
+            if (!Settings.SimplePlayer && BodyLibrary != null && ArmourGrade >= 2)
                 QualityOutlineGlow.Draw(BodyLibrary, DrawFrame + ArmourOffSet, DrawLocation, ArmourGrade);
 
             if (BodyLibrary != null)
@@ -5907,7 +5968,8 @@ namespace Client.MirObjects
 			if (WeaponLibrary1 != null)
 			{
                 // 武器品质轮廓光/火焰：画在武器之前，只溢出到武器轮廓外侧（不糊住武器本体的贴图）
-                if (WeaponGrade >= 2)
+                // 简装时手里是木剑，不再按真实武器的品级打光
+                if (!Settings.SimplePlayer && WeaponGrade >= 2)
                     QualityOutlineGlow.DrawFlame(WeaponLibrary1, DrawFrame + WeaponOffSet, DrawLocation, WeaponGrade);
 
 				WeaponLibrary1.Draw(DrawFrame + WeaponOffSet, DrawLocation, DrawColour, true); //original
@@ -5922,7 +5984,7 @@ namespace Client.MirObjects
 
             if (WeaponLibrary2 != null)
             {
-                if (WeaponGrade >= 2)
+                if (!Settings.SimplePlayer && WeaponGrade >= 2)
                     QualityOutlineGlow.DrawFlame(WeaponLibrary2, DrawFrame + WeaponOffSet, DrawLocation, WeaponGrade);
 
                 WeaponLibrary2.Draw(DrawFrame + WeaponOffSet, DrawLocation, DrawColour, true);

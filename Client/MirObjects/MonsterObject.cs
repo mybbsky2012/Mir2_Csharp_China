@@ -5298,6 +5298,26 @@ namespace Client.MirObjects
             bool oldGrayScale = DXManager.GrayScale;
             Color drawColour = ApplyDrawColour();
 
+            //★怪物简装（内挂第 3 页）：除卫士/弓箭手/练功师外，一律画成稻草人。
+            //  只换「用哪本图库、画第几帧」，**不动** BodyLibrary / Frame / ActionFeed ——
+            //  勾选立刻生效、不用重建对象，也不会因为目标怪缺某个动作帧而让怪物整只消失
+            //  （直接换 BodyLibrary 最容易踩这个坑：帧号是按原怪的帧表算的，换库就越界）。
+            if (Settings.SimpleMonster && !MonsterAppearance.KeepOriginal((ushort)BaseImage))
+            {
+                MLibrary scarecrow = MonsterAppearance.ScarecrowLib();
+                int scarecrowFrame = MonsterAppearance.StandingFrame((int)Direction, FrameIndex);
+
+                if (scarecrow != null && scarecrowFrame >= 0)
+                {
+                    scarecrow.Draw(scarecrowFrame, DrawLocation, drawColour, true);
+
+                    DXManager.SetGrayscale(oldGrayScale);
+                    DXManager.SetOpacity(oldOpacity);
+                    return;
+                }
+                // 稻草人图库还没就绪（微端下载中）→ 这一帧先按原样画，下完自动切换
+            }
+
             if (!DXManager.Blending && Frame.Blend)
                 BodyLibrary.DrawBlend(DrawFrame, DrawLocation, drawColour, true);
             else
@@ -5310,7 +5330,22 @@ namespace Client.MirObjects
 
         public override bool MouseOver(Point p)
         {
-            return MapControl.MapLocation == CurrentLocation || BodyLibrary != null && BodyLibrary.VisiblePixel(DrawFrame, p.Subtract(FinalDrawLocation), false);
+            if (MapControl.MapLocation == CurrentLocation) return true;
+
+            //简装时画的是稻草人，点击判定也得跟着换，否则鼠标指着稻草人点不中
+            if (Settings.SimpleMonster && !MonsterAppearance.KeepOriginal((ushort)BaseImage))
+            {
+                MLibrary scarecrow = MonsterAppearance.ScarecrowLib();
+                int scarecrowFrame = MonsterAppearance.StandingFrame((int)Direction, FrameIndex);
+
+                if (scarecrow != null && scarecrowFrame >= 0)
+                {
+                    Point loc = DrawLocation.Add(scarecrow.GetOffSet(scarecrowFrame));
+                    return scarecrow.VisiblePixel(scarecrowFrame, p.Subtract(loc), false);
+                }
+            }
+
+            return BodyLibrary != null && BodyLibrary.VisiblePixel(DrawFrame, p.Subtract(FinalDrawLocation), false);
         }
 
         public override void DrawBehindEffects(bool effectsEnabled)

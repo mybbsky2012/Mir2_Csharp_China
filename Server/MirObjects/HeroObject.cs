@@ -133,6 +133,8 @@ namespace Server.MirObjects
         protected MirDirection NextMagicDirection;
         protected uint NextMagicTargetID;
         protected Point NextMagicLocation;
+        /// <summary>排队施法的入队时间：超过 5 秒还没放出去就丢掉，避免 CanCast 抖动把队列卡死。</summary>
+        protected long NextMagicSetTime;
 
         protected int TargetDistance;
         public override GuildObject MyGuild
@@ -338,6 +340,7 @@ namespace Server.MirObjects
             NextMagicDirection = dir;
             NextMagicTargetID = targetID;
             NextMagicLocation = location;
+            NextMagicSetTime = Envir.Time;
         }
         public override MapObject DefaultMagicTarget => Owner;
         public override void UseItem(ulong id)
@@ -1223,8 +1226,120 @@ namespace Server.MirObjects
             return false;                        // 瞬移冷却中：继续就地反击
         }
 
+        //＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+        // ★技能决策层（10-28）：技能从哪来、什么时候放，统一走 HeroSpellBook
+        //   ① 玩家给英雄设的技能快捷键（UserMagic.Key = 17~24，即英雄技能栏 1~8）最优先，按 1→8；
+        //   ② 其余按「学习等级 + 威力/延迟」评分从高到低 —— 学了更高级的技能自动顶掉低级的；
+        //   ③ 开关型（烈火/半月/狂风/双龙/天务）已经开着就绝不再点一次，也不主动关；
+        //   ④ 增益/防护缺什么补什么，长 buff（金刚不坏/万效符/血龙印）不重复叠。
+        // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+        protected bool TryCast(HeroSpellKind kind, MapObject castTarget = null)
+        {
+            if (!CanCast) return false;
+
+            MapObject target = castTarget;
+            int distance;
+
+            switch (kind)
+            {
+                case HeroSpellKind.Buff:
+                case HeroSpellKind.Heal:
+                case HeroSpellKind.Summon:
+                    if (target == null) target = this;
+                    if (target.Dead) return false;
+                    distance = Functions.MaxDistance(CurrentLocation, target.CurrentLocation);
+                    break;
+
+                default:
+                    if (Target == null || Target.Dead || Target.CurrentMap != CurrentMap) return false;
+                    target = Target;
+                    distance = Functions.MaxDistance(CurrentLocation, target.CurrentLocation);
+                    break;
+            }
+
+            List<UserMagic> candidates = HeroSpellBook.Rank(Info.Magics, kind, SurroundedCount, distance,
+                b => target.HasBuff(b), IsToggleActive, Settings.HeroAutoSkill);
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                UserMagic magic = candidates[i];
+                if (!CanUseMagic(magic)) continue;
+
+                // 自己再判一次冷却：冷却中的技能选出来也放不出去，会白占一拍
+                if (Envir.Time < magic.CastTime + magic.GetDelay()) continue;
+
+                return CastSelected(magic, target);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 「只开不关」：没开才开，已经开着什么都不做（绝不点第二次把技能关掉）。
+        /// 返回 true 表示这一拍用掉了（真的点开了）。
+        /// </summary>
+        protected bool ToggleIfOff(Spell spell)
+        {
+            if (IsToggleActive(spell)) return false;
+
+            UserMagic magic = GetMagic(spell);
+            if (magic == null || !CanUseMagic(magic)) return false;
+
+            if (spell == Spell.FlamingSword && Envir.Time < FlamingSwordTime) return false;
+            if (spell == Spell.CounterAttack && Envir.Time < CounterAttackTime) return false;
+            if (Envir.Time < magic.CastTime + magic.GetDelay()) return false;
+
+            SpellToggle(spell, SpellToggleState.True);
+            return true;
+        }
+
+        protected bool CastSelected(UserMagic magic, MapObject target)
+        {
+            HeroSpellProfile profile = HeroSpellBook.Get(magic.Spell);
+
+            if (profile != null && profile.Kind == HeroSpellKind.Toggle)
+            {
+                SpellToggle(magic.Spell, SpellToggleState.True);
+                return true;
+            }
+
+            uint targetID = target.ObjectID;
+            Point location = target.CurrentLocation;
+            MirDirection dir = target == this ? Direction : Functions.DirectionFromPoint(CurrentLocation, target.CurrentLocation);
+
+            // 攻击类统一传「目标 + 目标位置」：以自身为原点的技能（地狱火/疾光电影/月华乱舞）内部只用方向，
+            // 以落点为中心的技能（爆裂火焰/天霜冰环/落雷杀）需要目标位置，两边的实现都能吃这一套。
+            BeginMagic(magic.Spell, dir, targetID, location);
+            return true;
+        }
+
+        /// <summary>开关型技能当前是否已经开着（开着的绝不再点一次，否则就关掉了）。</summary>
+        protected bool IsToggleActive(Spell spell)
+        {
+            switch (spell)
+            {
+                case Spell.Thrusting: return Info.Thrusting;
+                case Spell.HalfMoon: return Info.HalfMoon;
+                case Spell.CrossHalfMoon: return Info.CrossHalfMoon;
+                case Spell.DoubleSlash: return Info.DoubleSlash;
+                case Spell.TwinDrakeBlade: return TwinDrakeBlade;
+                case Spell.FlamingSword: return FlamingSword;
+                case Spell.CounterAttack: return CounterAttack;
+            }
+
+            HeroSpellProfile profile = HeroSpellBook.Get(spell);
+            return profile != null && profile.Buff != BuffType.None && HasBuff(profile.Buff);
+        }
+
         protected void ProcessAI()
         {
+            // 排队超时保护：CanCast 抖动（被眩晕/换形态/切行为）时队列可能一直没人消费，
+            // 原写法会让 ProcessAI 永远在这里 return，表现为「英雄突然再也不放技能」。
+            if (NextMagicSpell != Spell.None && Envir.Time > NextMagicSetTime + 5000)
+            {
+                NextMagicSpell = Spell.None;
+            }
+
             if (NextMagicSpell != Spell.None) return;            
             ProcessFriend();
 

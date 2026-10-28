@@ -179,6 +179,11 @@ namespace Server
 
         public static bool PetSave = false;
 
+        /// <summary>分身是否智能选技能（false = 退回原版：只会雷电术）。</summary>
+        public static bool CloneSmartSkill = true;
+        /// <summary>分身施法消耗主人法力的百分比（100 = 与玩家自己施法一致，0 = 不耗蓝）。</summary>
+        public static int CloneSkillMpCost = 30;
+
         public static int RestedPeriod = 60,
                           RestedBuffLength = 10,
                           RestedExpBonus = 5,
@@ -619,6 +624,8 @@ namespace Server
             AngelName = Reader.ReadString("Game", "AngelName", AngelName);
             BombSpiderName = Reader.ReadString("Game", "BombSpiderName", BombSpiderName);
             CloneName = Reader.ReadString("Game", "CloneName", CloneName);
+            CloneSmartSkill = Reader.ReadBoolean("Game", "CloneSmartSkill", CloneSmartSkill);
+            CloneSkillMpCost = Reader.ReadInt32("Game", "CloneSkillMpCost", CloneSkillMpCost);
             FishingMonster = Reader.ReadString("Game", "FishMonster", FishingMonster);
             AssassinCloneName = Reader.ReadString("Game", "AssassinCloneName", AssassinCloneName);
             VampireName = Reader.ReadString("Game", "VampireName", VampireName);
@@ -937,6 +944,8 @@ namespace Server
             Reader.Write("Game", "AngelName", AngelName);
             Reader.Write("Game", "BombSpiderName", BombSpiderName);
             Reader.Write("Game", "CloneName", CloneName);
+            Reader.Write("Game", "CloneSmartSkill", CloneSmartSkill);
+            Reader.Write("Game", "CloneSkillMpCost", CloneSkillMpCost);
             Reader.Write("Game", "AssassinCloneName", AssassinCloneName);
 
             Reader.Write("Game", "VampireName", VampireName);

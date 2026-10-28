@@ -5,7 +5,7 @@ namespace Server.MirObjects
     public class WizardHero : HeroObject
     {
         public WizardHero(CharacterInfo info, PlayerObject owner) : base(info, owner) { }
-        public int SurroundedCount;
+        public int NearbyCount;
         public int TargetSurroundedCount;
         protected override bool InAttackRange()
         {
@@ -20,29 +20,15 @@ namespace Server.MirObjects
         {
             if (!CanCast || InSafeZone) return;
 
-            // 战斗中优先自保增益，空闲时也预挂（像玩家一样进图先开盾）
-            {
-                UserMagic magic = GetMagic(Spell.MagicShield);
-                if (CanUseMagic(magic) && !HasBuff(BuffType.魔法盾))
-                {
-                    BeginMagic(magic.Spell, Direction, ObjectID, CurrentLocation);
-                    return;
-                }
-
-                magic = GetMagic(Spell.MagicBooster);
-                if (CanUseMagic(magic) && !HasBuff(BuffType.深延术))
-                {
-                    BeginMagic(magic.Spell, Direction, ObjectID, CurrentLocation);
-                    return;
-                }
-            }
+            // 自保增益：魔法盾 / 深延术 / 天上秘术 —— 缺哪个补哪个，长 buff 不重复叠
+            if (TryCast(HeroSpellKind.Buff)) return;
         }
 
         protected override void ProcessAttack()
         {
             if (!CanCast || Target == null || Target.Dead) return;
             TargetDistance = Functions.MaxDistance(CurrentLocation, Target.CurrentLocation);
-            SurroundedCount = FindAllTargets(2, CurrentLocation).Count;
+            NearbyCount = FindAllTargets(2, CurrentLocation).Count;
             TargetSurroundedCount = FindAllTargets(1, Target.CurrentLocation).Count;
             if (!HasRangedSpell) return;
 
@@ -51,29 +37,10 @@ namespace Server.MirObjects
 
             if (InAttackRange())
             {
-                if (TargetDistance == 1)
+                // ① 贴身推开（只对等级不高于自己的目标，否则推不动白耗蓝）
+                if (TargetDistance == 1 && Target.Level < Level)
                 {
-                    if (Target.Level < Level)
-                    {
-                        magic = GetMagic(Spell.Repulsion);
-                        if (CanUseMagic(magic))
-                        {
-                            BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                            return;
-                        }
-                    }
-                }
-
-                if (TargetDistance < 3 && SurroundedCount > 1)
-                {
-                    magic = GetMagic(Spell.FlameField);
-                    if (CanUseMagic(magic))
-                    {
-                        BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                        return;
-                    }
-
-                    magic = GetMagic(Spell.ThunderStorm);
+                    magic = GetMagic(Spell.Repulsion);
                     if (CanUseMagic(magic))
                     {
                         BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
@@ -81,24 +48,8 @@ namespace Server.MirObjects
                     }
                 }
 
-                if (TargetSurroundedCount > 1)
-                {
-                    magic = GetMagic(Spell.IceStorm);
-                    if (CanUseMagic(magic))
-                    {
-                        BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                        return;
-                    }
-
-                    magic = GetMagic(Spell.FireBang);
-                    if (CanUseMagic(magic))
-                    {
-                        BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                        return;
-                    }
-                }
-
-                if (Target.Undead == true && Target.Level < Level)
+                // ② 圣言术：只对不死系（对普通怪放没有任何效果）
+                if (Target.Undead && Target.Level < Level)
                 {
                     magic = GetMagic(Spell.TurnUndead);
                     if (CanUseMagic(magic))
@@ -108,57 +59,16 @@ namespace Server.MirObjects
                     }
                 }
 
-                magic = GetMagic(Spell.FlameDisruptor);
-                if (CanUseMagic(magic))
+                // ③ 被围 / 目标身边扎堆 → 群攻。按学习等级自动挑最高级的那本：
+                //    火龙气焰 > 天霜冰环 > 火流星 > 冰咆哮 > 爆裂火焰 > 火墙 …
+                if (NearbyCount > 1 || TargetSurroundedCount > 1)
                 {
-                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                    return;
+                    if (TryCast(HeroSpellKind.Aoe)) return;
                 }
 
-                magic = GetMagic(Spell.Vampirism);
-                if (CanUseMagic(magic))
-                {
-                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                    return;
-                }
-
-                magic = GetMagic(Spell.FrostCrunch);
-                if (CanUseMagic(magic))
-                {
-                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                    return;
-                }
-
-                magic = GetMagic(Spell.ThunderBolt);
-                if (CanUseMagic(magic))
-                {
-                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                    return;
-                }
-
-                magic = GetMagic(Spell.GreatFireBall);
-                if (CanUseMagic(magic))
-                {
-                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                    return;
-                }
-
-                magic = GetMagic(Spell.FireBall);
-                if (CanUseMagic(magic))
-                {
-                    BeginMagic(magic.Spell, Direction, Target.ObjectID, Target.CurrentLocation);
-                    return;
-                }
-
-                magic = GetMagic(Spell.None);
-                {
-                    return;
-                }
-            }
-            
-            magic = GetMagic(Spell.None);
-            {
-                return;
+                // ④ 单体主力：按「学习等级 + 威力」自动挑最高的
+                //    天上落焰 / 大火球-秘籍 / 强击-秘籍 / 灭天火 / 嗜血术 … 学了新的自动顶上
+                if (TryCast(HeroSpellKind.Single)) return;
             }
         }
 

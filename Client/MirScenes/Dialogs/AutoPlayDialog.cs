@@ -55,6 +55,12 @@ namespace Client.MirScenes.Dialogs
         public MirCheckBox PickUpBox, ItemFilterBox, HealthNumberBox, PoisonSwapBox,
                            NoLampBox, WalkThroughBox, NoRunUpBox, OverWeightBox, MountTaiBox;
 
+        // 简装（纯本地渲染替换，不发包、不影响服务端判定）
+        public MirCheckBox SimplePlayerBox, SimpleMonsterBox;
+
+        // 免shift（纯本地输入判定：点玩家/宝宝不再需要按住 Shift）
+        public MirCheckBox NoShiftBox;
+
         public MirLabel HintLabel;
 
         public AutoPlayDialog()
@@ -563,9 +569,45 @@ namespace Client.MirScenes.Dialogs
                 GameScene.RequestPlayerOption(PlayerOptionType.MountTai, MountTaiBox.Checked);
             };
 
-            Reg(P, CreateHint(340, "自动捡物：未开总开关只捡脚下；开了主动去捡但只捡过滤表内物品。右列需服务器开放。"));
-        }
+            // ── 免shift（第 3 行右列）──────────────────────────
+            // 纯本地输入判定，不发包：勾上后左键点「别的玩家 / 宝宝」直接攻击，不用再按住 Shift。
+            // 点地面不触发（仍是正常走路），所以不会出现原地乱挥。
+            NoShiftBox = Reg(P, CreateBox(162, 260, "免shift", Settings.NoShift));
+            NoShiftBox.Click += (o, e) =>
+            {
+                Settings.NoShift = NoShiftBox.Checked;
+                Settings.Save();
+                GameScene.Scene.OutputMessage(Settings.NoShift
+                    ? "免shift已开启：左键点玩家、宝宝直接攻击，不必再按住 Shift（点地面仍正常走路；只想交易或看装备时请先关掉）"
+                    : "免shift已关闭：攻击玩家、宝宝需要按住 Shift");
+            };
 
+            // ── 简装（第 4 行）────────────────────────────────
+            // 纯本地渲染替换：只改「画哪本图集」，不发包、不碰服务端，别人看到的你还是原样。
+            SimplePlayerBox = Reg(P, CreateBox(26, 306, "人物简装", Settings.SimplePlayer));
+            SimplePlayerBox.Click += (o, e) =>
+            {
+                Settings.SimplePlayer = SimplePlayerBox.Checked;
+                Settings.Save();
+                GameScene.Scene.OutputMessage(Settings.SimplePlayer
+                    ? "人物简装已开启：视野内所有玩家统一显示为「布衣 + 木剑」（含自己、英雄、宝宝），仅本地显示，不影响别人"
+                    : "人物简装已关闭");
+            };
+
+            SimpleMonsterBox = Reg(P, CreateBox(162, 306, "怪物简装", Settings.SimpleMonster));
+            SimpleMonsterBox.Click += (o, e) =>
+            {
+                Settings.SimpleMonster = SimpleMonsterBox.Checked;
+                Settings.Save();
+                GameScene.Scene.OutputMessage(Settings.SimpleMonster
+                    ? "怪物简装已开启：除卫士、弓箭手、练功师外，所有怪物统一显示为稻草人（仅本地显示，打怪判定不变）"
+                    : "怪物简装已关闭");
+            };
+
+            Reg(P, CreateHint(336, "自动捡物：未开总开关只捡脚下；开了主动去捡但只捡过滤表内物品。右列需服务器开放。", 30));
+            Reg(P, CreateHint(368, "简装只改本地显示：怪物攻击、掉落、名字血条全部照常；卫士·弓箭手·练功师保持原样。", 28));
+            Reg(P, CreateHint(398, "免shift只改本地点人的判定：点玩家/宝宝照打，点地面照走。", 22));
+        }
         // ══════════════════════════════════════════════════
         // 控件工厂
         // ══════════════════════════════════════════════════
@@ -794,6 +836,11 @@ namespace Client.MirScenes.Dialogs
             NoRunUpBox.Checked = Settings.NoRunUp;
             OverWeightBox.Checked = Settings.OverWeight;
             MountTaiBox.Checked = Settings.MountTai;
+
+            // 免shift 是纯本地开关，打开面板时按配置回填（配置被手改过也能对上）
+            if (NoShiftBox != null && !NoShiftBox.IsDisposed) NoShiftBox.Checked = Settings.NoShift;
+            if (SimplePlayerBox != null && !SimplePlayerBox.IsDisposed) SimplePlayerBox.Checked = Settings.SimplePlayer;
+            if (SimpleMonsterBox != null && !SimpleMonsterBox.IsDisposed) SimpleMonsterBox.Checked = Settings.SimpleMonster;
 
             NoLampBox.Enabled = GameScene.NoLampAllowed;
             WalkThroughBox.Enabled = GameScene.WalkThroughAllowed || GameScene.WalkThroughMonsterAllowed
