@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Server.MirDatabase;
 using Server.MirObjects;
 
@@ -20,6 +20,7 @@ internal static class Program
         Console.WriteLine("=== 英雄技能大脑测试 ===");
 
         CatalogTests();
+        ImplementationTests();
         RankingTests();
         FilterTests();
         ScenarioTests();
@@ -51,19 +52,112 @@ internal static class Program
         Check("刺客-影华连击已登记", HeroSpellBook.Get(Spell.ShadowCombo)?.Kind == HeroSpellKind.Single);
         Check("刺客-月华乱舞是群攻", HeroSpellBook.Get(Spell.CrescentSlash)?.Kind == HeroSpellKind.Aoe);
 
-        Check("弓手-血龙闪秘笈已登记", HeroSpellBook.Get(Spell.OneWithNature)?.Kind == HeroSpellKind.Single);
+        Check("弓手-血龙闪秘笈按自身群攻登记", HeroSpellBook.Get(Spell.OneWithNature)?.Kind == HeroSpellKind.Aoe);
         Check("弓手-落雷杀已登记", HeroSpellBook.Get(Spell.SkyThunderShot)?.Kind == HeroSpellKind.Single);
 
         // 有条件才能放的技能绝不能进目录，否则英雄会一直空放
         Check("灭杀未登记（需灭杀窗口 buff）", !HeroSpellBook.IsKnown(Spell.DeathBlow));
         Check("圣言术未登记（只对不死系）", !HeroSpellBook.IsKnown(Spell.TurnUndead));
         Check("施毒术未登记（需毒粉，道士显式处理）", !HeroSpellBook.IsKnown(Spell.Poisoning));
+        //★10-31 弓手英雄「站着不打」的元凶：精神状态只能走 SpellToggle，走 Magic() 是空转
+        Check("精神状态未登记（Magic() 没有这个分支）", !HeroSpellBook.IsKnown(Spell.MentalState));
+        Check("血风击未登记（被动触发，不是主动施法）", !HeroSpellBook.IsKnown(Spell.Hemorrhage));
 
         // 关键 buff 判重映射
         Check("魔法盾 buff 映射", HeroSpellBook.Get(Spell.MagicShield)?.Buff == BuffType.魔法盾);
         Check("幽灵盾 buff 映射", HeroSpellBook.Get(Spell.SoulShield)?.Buff == BuffType.幽灵盾);
         Check("体迅风 buff 映射", HeroSpellBook.Get(Spell.Haste)?.Buff == BuffType.体迅风);
         Check("气流术 buff 映射", HeroSpellBook.Get(Spell.Concentration)?.Buff == BuffType.气流术);
+    }
+
+    //＝＝＝＝＝＝＝＝＝＝＝＝＝＝======== 实现对齐 ＝＝＝＝＝＝＝＝＝＝＝＝＝＝========
+    /// <summary>
+    /// 排雷：HeroSpellBook 里登记的技能，服务端必须真的有施法分支。
+    /// 没有分支的技能会让 AI 每 tick 都重新挑中它 → ProcessAI 一直 return → 英雄站在原地一箭不放。
+    /// 这条是静态检查（读 HumanObject.cs 源码），能提前抓到「登记了但忘了实现」。
+    /// </summary>
+    private static void ImplementationTests()
+    {
+        Section("技能实现对齐");
+
+        string repo = FindRepoRoot();
+        if (repo == null)
+        {
+            Check("找到源码目录", false);
+            return;
+        }
+
+        string path = Path.Combine(repo, "Server", "MirObjects", "HumanObject.cs");
+        HashSet<string> magicCases = ExtractCases(path, "public void Magic(Spell spell");
+        HashSet<string> toggleCases = ExtractCases(path, "public void SpellToggle(Spell spell");
+
+        Check("解析到 Magic() 的 case 分支", magicCases.Count > 100);
+        Check("解析到 SpellToggle() 的 case 分支", toggleCases.Count >= 4);
+
+        var magicOnly = new List<string>();
+        var toggleOnly = new List<string>();
+
+        foreach (Spell spell in HeroSpellBook.AllSpells)
+        {
+            HeroSpellProfile p = HeroSpellBook.Get(spell);
+            if (p == null) continue;
+
+            string name = spell.ToString();
+
+            if (p.Kind == HeroSpellKind.Toggle)
+            {
+                if (!toggleCases.Contains(name)) toggleOnly.Add(name);
+            }
+            else
+            {
+                if (!magicCases.Contains(name)) magicOnly.Add(name);
+            }
+        }
+
+        Check("所有攻击/增益技能都有 Magic() 分支" + (magicOnly.Count > 0 ? " 缺:" + string.Join(",", magicOnly) : ""), magicOnly.Count == 0);
+        Check("所有开关技能都有 SpellToggle() 分支" + (toggleOnly.Count > 0 ? " 缺:" + string.Join(",", toggleOnly) : ""), toggleOnly.Count == 0);
+    }
+
+    private static string FindRepoRoot()
+    {
+        DirectoryInfo dir = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 8 && dir != null; i++)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "Server", "MirObjects", "HumanObject.cs"))) return dir.FullName;
+            dir = dir.Parent;
+        }
+        return null;
+    }
+
+    /// <summary>从源码里抽出某个方法体内的 case Spell.XXX: 名单（大括号计数找方法结束）。</summary>
+    private static HashSet<string> ExtractCases(string path, string signature)
+    {
+        var set = new HashSet<string>();
+        if (!File.Exists(path)) return set;
+
+        string[] lines = File.ReadAllLines(path);
+        int start = -1;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (lines[i].Contains(signature)) { start = i; break; }
+        }
+        if (start < 0) return set;
+
+        int depth = 0;
+        bool began = false;
+
+        for (int i = start; i < lines.Length; i++)
+        {
+            depth += lines[i].Count(c => c == '{') - lines[i].Count(c => c == '}');
+            if (lines[i].Contains('{')) began = true;
+
+            var m = System.Text.RegularExpressions.Regex.Match(lines[i], @"case Spell\.(\w+):");
+            if (m.Success) set.Add(m.Groups[1].Value);
+
+            if (began && depth == 0) break;
+        }
+
+        return set;
     }
 
     //＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝ 排序规则 ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
@@ -209,14 +303,18 @@ internal static class Program
         Check("刺客风剑术已开 → 不重复点",
             Rank(sin, HeroSpellKind.Toggle, 0, 1, toggles: new[] { Spell.DoubleSlash }).Count == 0);
 
-        // ⑦ 弓手：血龙闪秘籍(56) 优先于 血龙闪(55)
+        // ⑦ 弓手：血龙闪秘籍是「自身 5x5」，不能进单体候选（否则站远处放就是打空气）
         var archer = new[]
         {
             M(Spell.NapalmShot, level3: 55, power: 25, mpower: 25, range: 9),
             M(Spell.OneWithNature, level3: 56, power: 30, mpower: 75, range: 9),
         };
         picked = Rank(archer, HeroSpellKind.Single, 0, 5);
-        Check("弓手单体优先血龙闪秘籍", picked.Count > 0 && picked[0].Spell == Spell.OneWithNature);
+        Check("弓手单体候选里没有血龙闪秘籍", picked.All(x => x.Spell != Spell.OneWithNature));
+
+        // 贴身有怪时它才作为群攻出场（自身 5x5 能真正打到人）
+        Check("贴身有怪才用血龙闪秘籍", Rank(archer, HeroSpellKind.Aoe, 1, 1).Any(x => x.Spell == Spell.OneWithNature));
+        Check("身边没怪不放血龙闪秘籍", Rank(archer, HeroSpellKind.Aoe, 0, 5).All(x => x.Spell != Spell.OneWithNature));
 
         // ⑧ 剑走偏锋：学了万效三连符的道士不该再惦记普通灵魂火符
         var taoistAttack = new[]
@@ -226,6 +324,23 @@ internal static class Program
         };
         picked = Rank(taoistAttack, HeroSpellKind.Single, 0, 5);
         Check("道士万效灵魂火符顶掉普通火符", picked.Count > 0 && picked[0].Spell == Spell.SoulFireBallPlusRare);
+
+        // ⑨ 伏击型 buff（烈火身/月影术）：走路、攻击、施法、挨打任意一个动作都会把它消耗掉
+        //    （HumanObject.Walk/Attack/Magic/Struck），当持续 buff 每拍刷新 → 英雄一直放烈火身不出手
+        Section("伏击型 buff（烈火身/月影术）");
+        Check("刺客-烈火身标记为伏击型", HeroSpellBook.Get(Spell.DarkBody)?.Ambush == true);
+        Check("刺客-月影术标记为伏击型", HeroSpellBook.Get(Spell.MoonLight)?.Ambush == true);
+        Check("刺客-体迅风不是伏击型", HeroSpellBook.Get(Spell.Haste)?.Ambush == false);
+        Check("法师-魔法盾不是伏击型", HeroSpellBook.Get(Spell.MagicShield)?.Ambush == false);
+
+        Check("交战中不补烈火身", !HeroSpellBook.CanRefreshAmbushBuff(true, 10000, 0));
+        Check("冷却内不补烈火身", !HeroSpellBook.CanRefreshAmbushBuff(false, 10000, 20000));
+        Check("脱战且冷却到了才补烈火身", HeroSpellBook.CanRefreshAmbushBuff(false, 25000, 20000));
+
+        // 标记为伏击型不能变成「永远不放」：脱战时仍然要排得出来
+        var assassinBuff = new[] { M(Spell.DarkBody, level3: 52) };
+        Check("脱战时烈火身仍在 buff 候选里",
+            Rank(assassinBuff, HeroSpellKind.Buff, 0, 0).Any(x => x.Spell == Spell.DarkBody));
     }
 
     //＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝ 辅助 ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝

@@ -340,6 +340,13 @@ namespace Server.MirObjects
 
                 pet.Master = null;
 
+                // 僵尸宠物（从没落地，CurrentMap 为空）：既不存档也不参与地图怪物计数
+                if (pet.CurrentMap == null)
+                {
+                    Pets.RemoveAt(i);
+                    continue;
+                }
+
                 if (!pet.Dead)
                 {
                     switch (Settings.PetSave)
@@ -388,10 +395,14 @@ namespace Server.MirObjects
                             break;
                     }
 
-                    Envir.MonsterCount--;
-                    pet.CurrentMap.MonsterCount--;
+                    // 没落地的僵尸宠物（CurrentMap 为空）不能走这两步，否则下线时又抛空引用
+                    if (pet.CurrentMap != null)
+                    {
+                        Envir.MonsterCount--;
+                        pet.CurrentMap.MonsterCount--;
+                        pet.CurrentMap.RemoveObject(pet);
+                    }
 
-                    pet.CurrentMap.RemoveObject(pet);
                     pet.Despawn();
 
                     Pets.RemoveAt(i);
@@ -1560,12 +1571,15 @@ namespace Server.MirObjects
                 // [grimchamp] leave refresh here incase future code sets levels or stats in above switch
                 monster.RefreshAll(); 
 
-                Pets.Add(monster);
-
-                if (!monster.Spawn(CurrentMap, Back))
+                // 先落地、后入列表：两个落点都不可走时 Spawn 返回 false，怪物身上没有 CurrentMap，
+                // 留在 Pets 里就是"僵尸宠物"（服务端界面查信息、下线存档都会空引用）
+                if (!monster.Spawn(CurrentMap, Back) && !monster.Spawn(CurrentMap, CurrentLocation))
                 {
-                    monster.Spawn(CurrentMap, CurrentLocation);
+                    monster.Master = null;
+                    continue;
                 }
+
+                Pets.Add(monster);
 
                 monster.SetHP(info.HP);
             }
@@ -1977,19 +1991,38 @@ namespace Server.MirObjects
 
                         //if (ob.Race == ObjectType.Player && ob.Observer) continue;
 
-                        ob.Add(this);
+                        //★11-02：单个坏对象绝不允许打断整批下发。
+                        //  原来这里一旦某个对象 Add 抛异常，这一格后面的对象、以及后面所有格子
+                        //  的 Add 全部作废 —— 客户端就只收到「地图信息」而没有周围对象，
+                        //  表现正是「进图黑屏 / 半天才看得见人」。现在坏一个跳一个。
+                        try
+                        {
+                            ob.Add(this);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogObjectPacketError("GetObjects", ob, ex);
+                        }
                     }
                 }
             }
         }
         private void GetObjectsPassive(MirConnection c = null)
         {
-            for (int y = CurrentLocation.Y - Globals.DataRange; y <= CurrentLocation.Y + Globals.DataRange; y++)
+            //★进图下发范围（10-31）：客户端分辨率固定 800x600，格子 48x32，绘制视距是 14 格
+            //  （GameScene.MapControl: ViewRangeX/Y = OffSet + 6 = 14），再远的东西根本不在屏幕上。
+            //  原来这里按 DataRange(=16) 做方形遍历，33x33 = 1089 格全部下发 —— 怪多的地图一次
+            //  就是几百个对象包，客户端进图那一下要全部建对象、首次绘制还要逐个读图库，于是「卡一段」。
+            //  这里只下发 14 格（29x29 = 841 格，少 23%），玩家移动后照常由正常广播补上边缘对象。
+            //  注意：DataRange 本身不动，技能/仇恨/广播范围全部维持原样。
+            int range = Globals.DataRange - 2;
+
+            for (int y = CurrentLocation.Y - range; y <= CurrentLocation.Y + range; y++)
             {
                 if (y < 0) continue;
                 if (y >= CurrentMap.Height) break;
 
-                for (int x = CurrentLocation.X - Globals.DataRange; x <= CurrentLocation.X + Globals.DataRange; x++)
+                for (int x = CurrentLocation.X - range; x <= CurrentLocation.X + range; x++)
                 {
                     if (x < 0) continue;
                     if (x >= CurrentMap.Width) break;
@@ -2004,39 +2037,82 @@ namespace Server.MirObjects
                         MapObject ob = cell.Objects[i];
                         if (ob == this) continue;
 
-                        if (ob.Race == ObjectType.Player)
+                        //★11-02：单对象容错（详见 GetObjects 处的说明）。
+                        //  进图下发是「一条流水线」，任何一格抛异常都会让剩下的对象包全部丢掉，
+                        //  客户端于是黑着屏等 —— 这正是「服务器一报错，进图就变慢」的直接原因。
+                        try
                         {
-                            PlayerObject Player = (PlayerObject)ob;
-                            Enqueue(Player.GetInfoEx(this), c);
-                        }
-                        else if (ob.Race == ObjectType.Spell)
-                        {
-                            SpellObject obSpell = (SpellObject)ob;
+                            if (ob.Race == ObjectType.Player)
+                            {
+                                PlayerObject Player = (PlayerObject)ob;
+                                Enqueue(Player.GetInfoEx(this), c);
+                            }
+                            else if (ob.Race == ObjectType.Spell)
+                            {
+                                SpellObject obSpell = (SpellObject)ob;
 
-                            if ((obSpell.Spell != Spell.ExplosiveTrap) || (obSpell.Caster != null && IsFriendlyTarget(obSpell.Caster)))
+                                if ((obSpell.Spell != Spell.ExplosiveTrap) || (obSpell.Caster != null && IsFriendlyTarget(obSpell.Caster)))
+                                    Enqueue(ob.GetInfo(), c);
+                            }
+                            else if (ob.Race == ObjectType.Merchant)
+                            {
+                                NPCObject NPC = (NPCObject)ob;
+
+                                NPC.CheckVisible(this);
+
+                                if (NPC.VisibleLog[Info.Index] && NPC.Visible) Enqueue(ob.GetInfo(), c);
+                            }
+                            else
+                            {
                                 Enqueue(ob.GetInfo(), c);
-                        }
-                        else if (ob.Race == ObjectType.Merchant)
-                        {
-                            NPCObject NPC = (NPCObject)ob;
+                            }
 
-                            NPC.CheckVisible(this);
-
-                            if (NPC.VisibleLog[Info.Index] && NPC.Visible) Enqueue(ob.GetInfo(), c);
+                            if (ob.Race == ObjectType.Player || ob.Race == ObjectType.Monster || ob.Race == ObjectType.Hero)
+                            {
+                                ob.SendHealth(this);
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            Enqueue(ob.GetInfo(), c);
-                        }
-
-                        if (ob.Race == ObjectType.Player || ob.Race == ObjectType.Monster || ob.Race == ObjectType.Hero)
-                        {
-                            ob.SendHealth(this);
+                            LogObjectPacketError("GetObjectsPassive", ob, ex);
                         }
                     }
                 }
             }
         }
+        /// <summary>
+        /// 下发对象包时单个对象出错：只记一条（按「对象类型+异常类型」10 秒去重），
+        /// 然后让调用方继续处理下一个对象。绝不再让一个坏对象吃掉整批下发。
+        /// </summary>
+        private void LogObjectPacketError(string where, MapObject ob, Exception ex)
+        {
+            if (ex == null) return;
+
+            string key = where + "|" + (ob == null ? "null" : ob.Race.ToString()) + "|" + ex.GetType().Name;
+            long now = Envir.Time;
+
+            if (_packetErrorLastLog.TryGetValue(key, out long last) && now - last < 10000)
+                return;
+
+            if (_packetErrorLastLog.Count > 64) _packetErrorLastLog.Clear();
+            _packetErrorLastLog[key] = now;
+
+            // 带上对象身份，方便直接去地图上揪出那只坏怪 / 坏分身
+            string who = ob == null
+                ? "对象=null"
+                : string.Format("对象={0}#{1} 类型={2} 地图={3}({4}) 坐标={5}",
+                    ob.GetType().Name, ob.ObjectID, ob.Race,
+                    ob.CurrentMap != null && ob.CurrentMap.Info != null ? ob.CurrentMap.Info.FileName : "?",
+                    ob.CurrentMap != null && ob.CurrentMap.Info != null ? ob.CurrentMap.Info.Index : 0,
+                    ob.CurrentLocation);
+
+            MessageQueue.Instance.Enqueue(string.Format(
+                "[{0} 跳过坏对象] {1} : {2}{3}", where, who, ex.GetType().Name + " - " + ex.Message,
+                ex.StackTrace != null ? Environment.NewLine + ex.StackTrace : string.Empty));
+        }
+
+        private readonly Dictionary<string, long> _packetErrorLastLog = new Dictionary<string, long>();
+
         public override void RefreshGuildBuffs()
         {
             if (MyGuild == null) return;
@@ -3381,7 +3457,15 @@ namespace Server.MirObjects
                             monster.MaxPetLevel = 7;
                             monster.Direction = Direction;
                             monster.ActionTime = Envir.Time + 1000;
-                            monster.Spawn(CurrentMap, Front);
+
+                            // 落地失败就别收进 Pets：没有 CurrentMap 的宠物会让后续所有
+                            // Pet.CurrentMap.Info 访问都空引用（界面查信息 / 下线存档）
+                            if (!monster.Spawn(CurrentMap, Front) && !monster.Spawn(CurrentMap, CurrentLocation))
+                            {
+                                monster.Master = null;
+                                continue;
+                            }
+
                             Pets.Add(monster);
                         }
 
@@ -5168,6 +5252,7 @@ namespace Server.MirObjects
         {
             if (attacker == null || attacker.Node == null) return false;
             if (Dead || attacker.Master == this || GMGameMaster) return false;
+            if (attacker.Info == null) return false;   // 防御：Info 未就绪的怪物不参与 AI 判定
             if (attacker.Info.AI == 980 || attacker.Info.AI == 981 || attacker.Info.AI == 982) return PKPoints >= 200;
             if (attacker.Master == null) return true;
             if (InSafeZone || attacker.InSafeZone || attacker.Master.InSafeZone) return false;

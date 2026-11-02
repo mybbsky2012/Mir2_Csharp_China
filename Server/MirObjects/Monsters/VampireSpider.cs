@@ -178,9 +178,10 @@ namespace Server.MirObjects.Monsters
 
         private void MasterVampire(int value, MapObject ob)
         {
-            if (Master == null) return;
-            if (Master.VampAmount == 0) ((PlayerObject)Master).VampTime = Envir.Time + 1000;
-            Master.VampAmount += (ushort)(value * (PetLevel + 1) * 0.25F);
+            //Master 可能是玩家也可能是英雄(怪物蛋孵化)，强转 PlayerObject 会 InvalidCastException
+            if (!(Master is HumanObject human)) return;
+            if (human.VampAmount == 0) human.VampTime = Envir.Time + 1000;
+            human.VampAmount += (ushort)(value * (PetLevel + 1) * 0.25F);
             ob.Broadcast(new S.ObjectEffect { ObjectID = ob.ObjectID, Effect = SpellEffect.Bleeding, EffectType = 0 });
         }
 

@@ -148,6 +148,68 @@ namespace Server.MirEnvir
 
         //Live Info
         public bool Saving = false;
+
+        /// <summary>
+        /// HTTP 管理接口请求「立刻存档」（10-30）：HTTP 在自己的线程上跑，
+        /// 直接调 SaveAccounts 会和游戏线程的定时存档抢同一个文件 → 只置标志，
+        /// 由工作线程下一拍统一消费。
+        /// </summary>
+        public volatile bool HttpSaveRequested = false;
+
+        /// <summary>
+        /// HTTP 管理接口投递的踢人请求（10-30）：socket 收发 / 断链统一回工作线程做，
+        /// 避免 HTTP 线程和游戏线程同时往一条连接写包。
+        /// </summary>
+        private readonly List<MirConnection> _httpKickQueue = new List<MirConnection>();
+
+        public void QueueHttpKick(MirConnection connection)
+        {
+            if (connection == null) return;
+
+            lock (_httpKickQueue)
+                _httpKickQueue.Add(connection);
+        }
+
+        /// <summary>工作线程每拍消费一次 HTTP 管理接口的写请求（存档 + 踢人）。</summary>
+        private void ProcessHttpRequests()
+        {
+            // 先踢人再存档：踢下线会让角色 StopGame，先踢后存才能把下线后的状态一起落盘
+            MirConnection[] kicks;
+
+            lock (_httpKickQueue)
+            {
+                if (_httpKickQueue.Count == 0) 
+                {
+                    kicks = null;
+                }
+                else
+                {
+                    kicks = _httpKickQueue.ToArray();
+                    _httpKickQueue.Clear();
+                }
+            }
+
+            if (kicks != null)
+            {
+                foreach (var connection in kicks)
+                {
+                    try
+                    {
+                        connection.SendDisconnect(3);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogInnerError("HTTP踢人失败", ex);
+                    }
+                }
+            }
+
+            if (HttpSaveRequested && !Saving)
+            {
+                HttpSaveRequested = false;
+                BeginSaveAccounts();
+            }
+        }
         public List<Map> MapList = new List<Map>();
         public List<SafeZoneInfo> StartPoints = new List<SafeZoneInfo>();
         public List<ItemInfo> StartItems = new List<ItemInfo>();
@@ -543,17 +605,82 @@ namespace Server.MirEnvir
         }
 
         //＝＝＝内循环容错（10-24）：任何一拍异常只记日志，不停服、不踢人＝＝＝
-        //同一秒内重复异常只记第一条，防止坏对象每帧报错刷屏日志
+        //
+        // 11-02 重做（用户实测「服务器刷错误的时候进图明显变慢」）：
+        //   原实现每 1 秒最多记一条，但每条都要
+        //     · new StackTrace(ex, true) —— 会去解析 PDB 取行号，异常路径上最贵的一步；
+        //     · 再同步写一次日志文件。
+        //   坏对象/脏数据是「每拍都炸」的，1 秒一条意味着一直在花这份钱。
+        // 现在改成：
+        //   ① 同一处异常（tag+类型+方法+消息首行）30 秒内只写一条，并累计「又压掉了 N 次」；
+        //   ② 不再构造 StackTrace —— 直接用异常自带的 StackTrace 字符串，零解析开销；
+        //   ③ 落盘交给 AsyncLog 后台线程，主循环只入队。
+        // 结果：报错再怎么刷，也不会再拖慢进图/走路的节奏。
         private long _lastInnerErrorLog;
+        private sealed class InnerErrorStat
+        {
+            public long LastLogTime;
+            public int Suppressed;
+        }
+        private readonly Dictionary<string, InnerErrorStat> _innerErrorStats = new Dictionary<string, InnerErrorStat>(64);
+        private const int InnerErrorWindowMs = 30000;
+        private const int InnerErrorGlobalIntervalMs = 200;
+        private const int InnerErrorMaxFingerprints = 256;
+
+        /// <summary>异常指纹：同一处反复报错只算一个。</summary>
+        private static string InnerErrorFingerprint(string tag, Exception ex)
+        {
+            string msg;
+            try { msg = ex.Message ?? string.Empty; }
+            catch { msg = string.Empty; }
+
+            int cut = msg.IndexOfAny(new[] { '\r', '\n' });
+            if (cut > 0) msg = msg.Substring(0, cut);
+            if (msg.Length > 80) msg = msg.Substring(0, 80);
+
+            string site = ex.TargetSite != null ? ex.TargetSite.Name : "?";
+
+            return tag + "|" + ex.GetType().Name + "|" + site + "|" + msg;
+        }
+
         private void LogInnerError(string tag, Exception ex)
         {
+            if (ex == null) return;
+
             long now = Stopwatch.ElapsedMilliseconds;
-            if (now - _lastInnerErrorLog < 1000) return;
+
+            // 全局兜底节流：各不相同的异常同时爆发时，也别把主循环写死
+            if (now - _lastInnerErrorLog < InnerErrorGlobalIntervalMs) return;
             _lastInnerErrorLog = now;
 
-            var st = new StackTrace(ex, true);
-            var line = st.FrameCount > 0 ? st.GetFrame(0).GetFileLineNumber() : 0;
-            MessageQueue.Enqueue($"[{tag} 线程 {line}]" + ex);
+            string key;
+            try { key = InnerErrorFingerprint(tag, ex); }
+            catch { key = tag; }
+
+            InnerErrorStat stat;
+            if (!_innerErrorStats.TryGetValue(key, out stat))
+            {
+                if (_innerErrorStats.Count >= InnerErrorMaxFingerprints)
+                    _innerErrorStats.Clear();   // 指纹太多（多半是随机内容）→ 整体重置，绝不无限增长
+
+                stat = new InnerErrorStat { LastLogTime = 0, Suppressed = 0 };
+                _innerErrorStats[key] = stat;
+            }
+
+            if (now - stat.LastLogTime < InnerErrorWindowMs)
+            {
+                stat.Suppressed++;
+                return;
+            }
+
+            string suffix = stat.Suppressed > 0
+                ? string.Format("（过去 {0} 秒内同类异常另有 {1} 次，已合并）", InnerErrorWindowMs / 1000, stat.Suppressed)
+                : string.Empty;
+
+            stat.LastLogTime = now;
+            stat.Suppressed = 0;
+
+            MessageQueue.Enqueue($"[{tag}]" + ex + suffix);
         }
 
         /// <summary>
@@ -855,6 +982,16 @@ namespace Server.MirEnvir
                         catch (Exception ex)
                         {
                             LogInnerError("系统处理错误", ex);
+                        }
+
+                        // HTTP 管理接口的写操作（存档 / 踢人）统一在工作线程落地（10-30）
+                        try
+                        {
+                            ProcessHttpRequests();
+                        }
+                        catch (Exception ex)
+                        {
+                            LogInnerError("HTTP管理请求处理错误", ex);
                         }
 
                         if (Time >= saveTime)
@@ -2008,9 +2145,18 @@ namespace Server.MirEnvir
         {
             new Thread(() =>
             {
-                MessageQueue.Enqueue("服务器正在重启...");
-                Stop();
-                Start();
+                // 重启涉及全量 DB/地图/掉落重载，数据有问题时不能把整个进程炸掉（10-30）
+                try
+                {
+                    MessageQueue.Enqueue("服务器正在重启...");
+                    Stop();
+                    Start();
+                }
+                catch (Exception ex)
+                {
+                    MessageQueue.Enqueue("[重启失败] " + ex);
+                    Running = false;
+                }
             }).Start();
         }
 

@@ -179,6 +179,9 @@ namespace Client.MirObjects
 
             Bytes = File.ReadAllBytes(FileName);
 
+            // 文件到了：不管这次是首次进图还是后台补齐后的重载，都清掉「正在等文件」标记
+            PendingMapFile = null;
+
 
             //c# custom map format
             if ((Bytes[2] == 0x43) && (Bytes[3] == 0x23))
@@ -251,25 +254,41 @@ namespace Client.MirObjects
 
             try
             {
-                // ★最多等 10 秒（用户要求）：大地图慢网速下干等几分钟谁都受不了。
-                // 等不到就先进空地图（看得见、能动、心跳正常），下载在后台继续；
-                // 文件补齐后由 MapControl.CheckLateMapReload 自动重载真实地图。
+                // ★11-02：原来这里死等 10 秒，玩家侧看到的就是「进图黑屏卡半天」。
+                // 现在只等 1.5 秒（正常情况下磁盘上就有，1.5 秒只是给「刚好在拷贝/下载收尾」留的余量），
+                // 超过就立刻放行 → 先进占位地图 + 继续挂着载入画面，真正的下载在后台跑，
+                // 文件到位后由 MapControl.CheckLateMapReload 无缝重载真实地图。
                 ResourceDownloader.EnsureLocalFileBlocking(FileName, MapWaitCapMs, PumpWhileWaiting);
             }
             finally
             {
-                if (!wasArmed) LoadingScreen.Hide();
+                // 文件还没到就**不要**撤载入画面：由 MapControl 在真实地图重载完成后关掉，
+                // 否则玩家会盯着占位地图（一片黑）等下载。
+                if (File.Exists(FileName) && !wasArmed) LoadingScreen.Hide();
             }
 
             if (!File.Exists(FileName))
             {
-                ResourceDownloader.Log("地图等待超过 " + (MapWaitCapMs / 1000) + " 秒，先进空地图兜底，后台继续下载：" + FileName);
+                PendingMapFile = FileName;
+                ResourceDownloader.Log("地图未就绪（已等 " + (MapWaitCapMs / 1000.0).ToString("0.#") +
+                                       " 秒），先挂载入画面 + 占位地图，后台继续下载：" + FileName);
                 StartLateReloadWatcher();
+            }
+            else
+            {
+                PendingMapFile = null;
             }
         }
 
-        /// <summary>切图等待上限：超过就先进空地图，下载转后台（用户要求 10 秒）。</summary>
-        private const int MapWaitCapMs = 10000;
+        /// <summary>
+        /// 当前正在等文件的 .map 全路径（null = 没有在等）。
+        /// MapControl 靠它决定「载入画面继续挂着」还是「可以撤掉了」。
+        /// </summary>
+        internal static string PendingMapFile;
+
+        /// <summary>切图等待上限（11-02：10 秒 → 1.5 秒）。
+        /// 超过就先进占位地图、载入画面继续挂着，下载转后台。</summary>
+        private const int MapWaitCapMs = 1500;
 
         /// <summary>地图文件在空地图兜底后才在后台补齐完成时触发（参数=地图文件全路径）。
         /// 由 MapControl 挂接，在主循环里自动重载地面。</summary>

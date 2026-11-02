@@ -136,7 +136,10 @@ namespace Server
 
         private ListViewItem CreateListView(PlayerObject player)
         {
-            CharacterInfo character = player.Info;
+            CharacterInfo character = player?.Info;
+
+            // 玩家正在登录/下线时 Info 可能是空的，别让整个在线列表刷新炸掉
+            if (character == null) return null;
 
             ListViewItem ListItem = new ListViewItem(character.Index.ToString()) { Tag = character };
 
@@ -207,23 +210,91 @@ namespace Server
 
         private void ProcessPlayersOnlineTab(bool forced = false)
         {
-            if (PlayersOnlineListView.Items.Count != Envir.Players.Count || forced == true)
+            // 服务端线程同时在校 Envir.Players，这里先做本地快照，避免"集合已修改/越界"
+            List<PlayerObject> players;
+            try
             {
+                players = new List<PlayerObject>(Envir.Players);
+            }
+            catch
+            {
+                return;
+            }
+
+            // ★只比数量是不够的：有人下线的同时有人上线，数量不变但列表顺序整体错开，
+            //   下面按位置刷状态就会把 A 的「挂机/假人」标到 B 那一行上
+            //   （这就是"在线状态信息跳到别的玩家身上"）。改成按行的身份（角色 Index）核对。
+            bool rebuild = forced || PlayersOnlineListView.Items.Count != players.Count;
+
+            if (!rebuild)
+            {
+                for (int i = 0; i < players.Count; i++)
+                {
+                    CharacterInfo info = players[i]?.Info;
+                    if (!(PlayersOnlineListView.Items[i].Tag is CharacterInfo rowInfo) ||
+                        info == null || rowInfo.Index != info.Index)
+                    {
+                        rebuild = true;
+                        break;
+                    }
+                }
+            }
+
+            if (rebuild)
+            {
+                // 重建时按角色 Index 还原选中行与滚动位置，避免刷新一下选中就跳走
+                int selectedIndex = 0;
+                if (PlayersOnlineListView.SelectedItems.Count > 0 &&
+                    PlayersOnlineListView.SelectedItems[0].Tag is CharacterInfo sel)
+                    selectedIndex = sel.Index;
+
+                int topRow = 0;
+                try { topRow = PlayersOnlineListView.TopItem?.Index ?? 0; }
+                catch { topRow = 0; }
+
+                int restoreRow = -1;
+
                 PlayersOnlineListView.BeginUpdate();
-                PlayersOnlineListView.Items.Clear();
+                try
+                {
+                    PlayersOnlineListView.Items.Clear();
 
-                for (int i = 0; i < Envir.Players.Count; i++)
-                    PlayersOnlineListView.Items.Add(CreateListView(Envir.Players[i]));
+                    for (int i = 0; i < players.Count; i++)
+                    {
+                        ListViewItem item = CreateListView(players[i]);
+                        if (item == null) continue;
 
-                PlayersOnlineListView.EndUpdate();
+                        if (selectedIndex != 0 && item.Tag is CharacterInfo c && c.Index == selectedIndex)
+                            restoreRow = PlayersOnlineListView.Items.Count;
+
+                        PlayersOnlineListView.Items.Add(item);
+                    }
+                }
+                finally
+                {
+                    PlayersOnlineListView.EndUpdate();
+                }
+
+                try
+                {
+                    if (restoreRow >= 0 && restoreRow < PlayersOnlineListView.Items.Count)
+                    {
+                        PlayersOnlineListView.Items[restoreRow].Selected = true;
+                        PlayersOnlineListView.Items[restoreRow].Focused = true;
+                    }
+
+                    if (topRow > 0 && topRow < PlayersOnlineListView.Items.Count)
+                        PlayersOnlineListView.TopItem = PlayersOnlineListView.Items[topRow];
+                }
+                catch { }
             }
             else
             {
-                // ★数量没变也要刷新状态列：真人→挂机、挂机→真人重登 等切换不会触发重建
+                // 身份序列完全对得上，只刷状态列（真人→挂机、挂机→假人 等切换不会触发重建）
                 bool changed = false;
-                for (int i = 0; i < Envir.Players.Count && i < PlayersOnlineListView.Items.Count; i++)
+                for (int i = 0; i < players.Count; i++)
                 {
-                    string status = GetStatusText(Envir.Players[i]);
+                    string status = GetStatusText(players[i]);
                     var sub = PlayersOnlineListView.Items[i].SubItems[5];
                     if (sub == null || sub.Text != status)
                     {
@@ -250,6 +321,10 @@ namespace Server
         private void SMain_FormClosing(object sender, FormClosingEventArgs e)
         {
             Envir.Stop();
+
+            // 日志是异步落盘的（AsyncLog），停服前把队列尽量写光，
+            // 否则最后那几条「已退出游戏 / 服务已停止」会丢。
+            AsyncLog.Flush(1500);
         }
 
         private void closeServerToolStripMenuItem_Click(object sender, EventArgs e)
@@ -408,15 +483,34 @@ namespace Server
         {
             CustomFormControl.ListViewNF list = (CustomFormControl.ListViewNF)sender;
 
-            if (list.SelectedItems.Count > 0)
+            if (list.SelectedItems.Count <= 0) return;
+
+            ListViewItem item = list.SelectedItems[0];
+
+            // ★用行上绑定的角色 Index（Tag），不要用单元格里的文本：
+            //   行一旦和玩家错开，按文本查就会打开另一个玩家的信息
+            if (!(item.Tag is CharacterInfo info))
             {
-                ListViewItem item = list.SelectedItems[0];
-                string index = item.SubItems[0].Text;
-
-                PlayerInfoForm form = new PlayerInfoForm(Convert.ToUInt32(index));
-
-                form.ShowDialog();
+                MessageBox.Show("这一行的数据已过期，列表已重新刷新。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ProcessPlayersOnlineTab(true);
+                return;
             }
+
+            PlayerObject player = null;
+            try { player = Envir.GetPlayer((uint)info.Index); }
+            catch { }
+
+            if (player == null)
+            {
+                MessageBox.Show($"角色「{info.Name}」已经不在线了（可能刚下线），列表已刷新。", "提示",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ProcessPlayersOnlineTab(true);
+                return;
+            }
+
+            PlayerInfoForm form = new PlayerInfoForm((uint)info.Index);
+
+            form.ShowDialog();
         }
 
         private void PlayersOnlineListView_ColumnWidthChanging(object sender, ColumnWidthChangingEventArgs e)

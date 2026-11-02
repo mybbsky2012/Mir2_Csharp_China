@@ -42,6 +42,87 @@ namespace Server.MirObjects.Monsters
             return CurrentMap == Target.CurrentMap && Functions.InRange(CurrentLocation, Target.CurrentLocation, AttackRange);
         }
 
+        /// <summary>
+        /// 跑动版移动（同 HumanAssassin）：直路一次跑 2 格发 ObjectRun，
+        /// 前方被挡才退回 1 格走路。原基类 Walk 只会 1 格步行。
+        /// </summary>
+        public override bool Walk(MirDirection dir)
+        {
+            if (!CanMove) return false;
+
+            Point location = Functions.PointMove(CurrentLocation, dir, 2);
+
+            if (!CurrentMap.ValidPoint(location)) return false;
+
+            Cell cell = CurrentMap.GetCell(location);
+
+            bool isBreak = false;
+
+            if (cell.Objects != null)
+                for (int i = 0; i < cell.Objects.Count; i++)
+                {
+                    MapObject ob = cell.Objects[i];
+                    if (!ob.Blocking) continue;
+                    isBreak = true;
+                    break;
+                }
+
+            if (isBreak)
+            {
+                location = Functions.PointMove(CurrentLocation, dir, 1);
+
+                if (!CurrentMap.ValidPoint(location)) return false;
+
+                cell = CurrentMap.GetCell(location);
+
+                if (cell.Objects != null)
+                    for (int i = 0; i < cell.Objects.Count; i++)
+                    {
+                        MapObject ob = cell.Objects[i];
+                        if (!ob.Blocking) continue;
+                        return false;
+                    }
+            }
+
+            CurrentMap.GetCell(CurrentLocation).Remove(this);
+
+            Direction = dir;
+            RemoveObjects(dir, 1);
+            CurrentLocation = location;
+            CurrentMap.GetCell(CurrentLocation).Add(this);
+            AddObjects(dir, 1);
+
+            if (Hidden)
+            {
+                RemoveBuff(BuffType.隐身术);
+            }
+
+            CellTime = Envir.Time + 500;
+            ActionTime = Envir.Time + 300;
+            MoveTime = Envir.Time + MoveSpeed;
+            if (MoveTime > AttackTime)
+                AttackTime = MoveTime;
+
+            InSafeZone = CurrentMap.GetSafeZone(CurrentLocation) != null;
+
+            if (isBreak)
+                Broadcast(new S.ObjectWalk { ObjectID = ObjectID, Direction = Direction, Location = CurrentLocation });
+            else
+                Broadcast(new S.ObjectRun { ObjectID = ObjectID, Direction = Direction, Location = CurrentLocation });
+
+            cell = CurrentMap.GetCell(CurrentLocation);
+
+            for (int i = 0; i < cell.Objects.Count; i++)
+            {
+                if (cell.Objects[i].Race != ObjectType.Spell) continue;
+                SpellObject ob = (SpellObject)cell.Objects[i];
+
+                ob.ProcessSpell(this);
+            }
+
+            return true;
+        }
+
         /// <summary>兜底攻击：原版雷电术（不扣主人法力）。</summary>
         protected override void Attack()
         {
@@ -171,7 +252,7 @@ namespace Server.MirObjects.Monsters
 
             BuffType buff = spell == Spell.MagicShield ? BuffType.魔法盾 : BuffType.深延术;
             if (HasBuff(buff)) return false;
-            if (!CanApplyBuff(buff)) return false;   // 服务端 buff 配置里没有这条时不要硬加（GetBuffInfo 会抛异常）
+            // 注：AddBuff 对内置 buff（魔法盾/深延术）直接生效，与玩家开盾同一路径，无需查 BuffSystem.ini
             if (IsCoolingDown(spell)) return false;
             if (!CanPay(master, magic)) return false;
 
@@ -400,44 +481,102 @@ namespace Server.MirObjects.Monsters
             return list;
         }
 
+        /// <summary>诊断横幅只打一次：见到这行日志才说明新 DLL 真的被加载了。</summary>
+        private static bool _diagBanner;
+
         private void PushNearbyEnemies(PlayerObject master, UserMagic magic)
         {
+            if (!_diagBanner)
+            {
+                _diagBanner = true;
+                MessageQueue.Enqueue("[分身推人 v3.1 极细诊断版已生效] —— 看到这行才说明新的 Server.Library.dll 加载成功");
+            }
+
+            // v3：语句级诊断。崩溃时输出 step（执行到哪一句）+ ob（正在处理谁），
+            // 不再靠堆栈反推 —— 之前用户粘贴的堆栈中间帧被"…"吞掉，没法定位。
+            try
+            {
+                PushNearbyEnemiesCore(master, magic);
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format(
+                    "[分身推人异常] master={0} | magic={1} | map={2} | 位置={3} | 目标={4}{5}{6}",
+                    master == null ? "null" : master.Name,
+                    magic == null ? "null" : magic.Spell.ToString(),
+                    CurrentMap == null ? "null" : CurrentMap.Info.Title,
+                    CurrentLocation,
+                    Target == null ? "null" : Target.Name,
+                    Environment.NewLine,
+                    ex));
+            }
+        }
+
+        private void PushNearbyEnemiesCore(PlayerObject master, UserMagic magic)
+        {
+            // 防御：地图/数据未就绪时放弃本拍推人，不能让分身 AI 崩掉整个工作线程循环
+            if (magic == null || CurrentMap == null || CurrentMap.Cells == null) return;
+            if (magic.Info == null) return;   // GetDamage 依赖 Info，双保险（正常已被 CanPay 过滤）
+
+            // v3.1：地图/坐标/边界全部快照为局部变量 —— 循环体内不再有任何属性调用，
+            // 每条语句前更新 step（带坐标和索引），cur 一旦赋值不再清空。
+            // 崩溃时 step= 会精确指向唯一一条语句。
+            Map map = CurrentMap;
+            Point center = CurrentLocation;
+            int mapW = map.Width, mapH = map.Height;
             int level = master != null ? master.Level : Level;
 
-            for (int d = 0; d <= 1; d++)
+            string step = "init";
+            MapObject cur = null;
+
+            try
             {
-                for (int y = CurrentLocation.Y - d; y <= CurrentLocation.Y + d; y++)
+                for (int d = 0; d <= 1; d++)
+                for (int y = center.Y - d; y <= center.Y + d; y++)
                 {
-                    if (y < 0) continue;
-                    if (y >= CurrentMap.Height) break;
+                    if (y < 0 || y >= mapH) continue;
 
-                    for (int x = CurrentLocation.X - d; x <= CurrentLocation.X + d; x += Math.Abs(y - CurrentLocation.Y) == d ? 1 : d * 2)
+                    for (int x = center.X - d; x <= center.X + d; x++)
                     {
-                        if (x < 0) continue;
-                        if (x >= CurrentMap.Width) break;
+                        if (x < 0 || x >= mapW) continue;
+                        if (d == 1 && x == center.X && y == center.Y) continue;   // 中心格 d=0 已扫过
 
-                        Cell cell = CurrentMap.GetCell(x, y);
-                        if (!cell.Valid || cell.Objects == null) continue;
+                        step = "getcell d=" + d + " x=" + x + " y=" + y;
+                        Cell cell = map.GetCell(x, y);
+                        if (cell == null || !cell.Valid || cell.Objects == null) continue;
 
-                        for (int i = 0; i < cell.Objects.Count; i++)
+                        List<MapObject> objs = cell.Objects;
+
+                        for (int i = 0; i < objs.Count; i++)
                         {
-                            MapObject ob = cell.Objects[i];
+                            step = "getobj d=" + d + " x=" + x + " y=" + y + " i=" + i;
+                            MapObject ob = objs[i];
+                            cur = ob;
+
+                            step = "dmg d=" + d + " i=" + i;
                             if (!IsDamageable(ob)) continue;
+
+                            step = "lv i=" + i;
                             if (ob.Level >= level) continue;
 
+                            step = "roll i=" + i;
                             if (Envir.Random.Next(20) >= 6 + magic.Level * 3 + level - ob.Level) continue;
 
                             int distance = 1 + Math.Max(0, magic.Level - 1) + Envir.Random.Next(2);
-                            MirDirection dir = Functions.DirectionFromPoint(CurrentLocation, ob.CurrentLocation);
+                            MirDirection dir = Functions.DirectionFromPoint(center, ob.CurrentLocation);
 
+                            step = "push i=" + i;
                             if (ob.Pushed(this, dir, distance) == 0) continue;
 
+                            step = "player i=" + i;
                             if (ob.Race == ObjectType.Player)
                             {
-                                SafeZoneInfo szi = CurrentMap.GetSafeZone(ob.CurrentLocation);
+                                step = "szi i=" + i;
+                                SafeZoneInfo szi = map.GetSafeZone(ob.CurrentLocation);
 
                                 if (szi != null)
                                 {
+                                    step = "bind i=" + i;
                                     ((PlayerObject)ob).BindLocation = szi.Location;
                                     ((PlayerObject)ob).BindMapIndex = CurrentMapIndex;
                                     ob.InSafeZone = true;
@@ -447,11 +586,27 @@ namespace Server.MirObjects.Monsters
                                     ob.InSafeZone = false;
                                 }
 
+                                step = "adddmg i=" + i;
                                 AddDelayedDamage(ob, magic.GetDamage(0), 200);
                             }
                         }
                     }
                 }
+
+                step = "done";
+            }
+            catch (Exception ex)
+            {
+                // 兜底吞掉：输出精确到语句的现场，然后放行 —— 分身推人失败不该拖垮工作线程
+                MessageQueue.Enqueue(string.Format(
+                    "[分身推人语句级] step={0} | cur={1} | curRace={2} | curDead={3} | magicInfo={4}{5}{6}",
+                    step,
+                    cur == null ? "null" : cur.Name,
+                    cur == null ? "-" : cur.Race.ToString(),
+                    cur == null ? "-" : cur.Dead.ToString(),
+                    magic.Info == null ? "null" : magic.Info.Name,
+                    Environment.NewLine,
+                    ex));
             }
         }
 
@@ -471,20 +626,6 @@ namespace Server.MirObjects.Monsters
         private int CountNearbyEnemies(int range)
         {
             return FindAllTargets(range, CurrentLocation).Count;
-        }
-
-        /// <summary>服务端 BuffSystem 里是否登记了这个 buff（没登记时 AddBuff 会抛异常）。</summary>
-        private bool CanApplyBuff(BuffType type)
-        {
-            var list = Envir.BuffInfoList;
-            if (list == null) return false;
-
-            for (int i = 0; i < list.Count; i++)
-            {
-                if (list[i].Type == type) return true;
-            }
-
-            return false;
         }
 
         private bool IsCoolingDown(Spell spell)
@@ -562,14 +703,13 @@ namespace Server.MirObjects.Monsters
 
         public override Packet GetInfo()
         {
-            PlayerObject master = null;
+            // 分身由玩家或英雄（HeroObject）召唤，Looks_* 都定义在 HumanObject 基类上，
+            // 原来只认 PlayerObject 导致英雄召唤的分身不穿装备
+            HumanObject master = Master as HumanObject;
             short weapon = -1;
             short armour = 0;
             byte wing = 0;
             short weaponeffects = 0;
-            
-            if (Master != null && Master is PlayerObject) 
-                master = (PlayerObject)Master;
 
             if (master != null)
             {

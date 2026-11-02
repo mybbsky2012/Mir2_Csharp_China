@@ -272,6 +272,62 @@ namespace Server.MirObjects
             }
             return original;
         }
+        //＝ 僵尸宠物清理：宠物先入 Pets、再延迟 Spawn，若召唤被打断或落点不可走，
+        //   怪物就会带着空的 CurrentMap 一直留在列表里（Node/CurrentMap 都为空），
+        //   之后任何 Pet.CurrentMap.Info 访问都是空引用（服务端界面查信息、下线存档都会踩）。
+        private readonly Dictionary<MonsterObject, long> _ghostPetSeen = new Dictionary<MonsterObject, long>();
+        private long _ghostPetSweepTime;
+        private const long GhostPetGraceMs = 15000;   // 给延迟召唤（500~1000ms）留足窗口，别误杀
+
+        /// <summary>
+        /// 清理宠物列表：死掉的移出，另外把「没落地」的僵尸宠物也移出。
+        /// 召唤流程是「先 Pets.Add、再延迟 Spawn」，一旦主人换图/死亡/落点不可走，
+        /// Spawn 就不会发生，而怪物身上 CurrentMap 永远是 null —— 留在列表里只会制造空引用。
+        /// 这里给 15 秒宽限，正常的延迟召唤窗口（500ms~1s）不会被误杀。
+        /// </summary>
+        private void SweepPets()
+        {
+            if (Envir.Time < _ghostPetSweepTime) return;
+            _ghostPetSweepTime = Envir.Time + 3000;
+
+            for (int i = Pets.Count - 1; i >= 0; i--)
+            {
+                MonsterObject pet = Pets[i];
+
+                if (pet == null)
+                {
+                    Pets.RemoveAt(i);
+                    continue;
+                }
+
+                if (pet.Dead)
+                {
+                    _ghostPetSeen.Remove(pet);
+                    Pets.RemoveAt(i);
+                    continue;
+                }
+
+                if (pet.CurrentMap != null || pet.Node != null)
+                {
+                    _ghostPetSeen.Remove(pet);
+                    continue;
+                }
+
+                long seen;
+                if (!_ghostPetSeen.TryGetValue(pet, out seen))
+                {
+                    _ghostPetSeen[pet] = Envir.Time;
+                    continue;
+                }
+
+                if (Envir.Time - seen < GhostPetGraceMs) continue;
+
+                _ghostPetSeen.Remove(pet);
+                pet.Master = null;
+                Pets.RemoveAt(i);
+            }
+        }
+
         public override void Process()
         {
             if ((Race == ObjectType.Player && Connection == null) || Node == null || Info == null) return;
@@ -341,11 +397,7 @@ namespace Server.MirObjects
                 ProcessItems();
             }
 
-            for (int i = Pets.Count() - 1; i >= 0; i--)
-            {
-                MonsterObject pet = Pets[i];
-                if (pet.Dead) Pets.Remove(pet);
-            }
+            SweepPets();
 
             ProcessBuffs();
             ProcessRegen();
@@ -6715,10 +6767,17 @@ namespace Server.MirObjects
             if (target == null) return;
 
             MonsterObject monster;
-            for (int i = 0; i < Pets.Count; i++)
+            for (int i = Pets.Count - 1; i >= 0; i--)
             {
                 monster = Pets[i];
-                if ((monster.Info.Name != Settings.AssassinCloneName) || monster.Dead) continue;
+                if (monster == null) { Pets.RemoveAt(i); continue; }
+                if (monster.Info == null || monster.Info.Name != Settings.AssassinCloneName) continue;
+
+                // 没落地（Node 和 CurrentMap 都是空）的分身 = 上次召唤失败留下的僵尸，
+                // 原来这里只是 continue，结果每放一次就多攒一个，最后界面查信息时空引用
+                if (monster.Node == null && monster.CurrentMap == null) { Pets.RemoveAt(i); continue; }
+
+                if (monster.Dead) continue;
                 if (monster.Node == null) continue;
                 monster.Die();
                 return;
@@ -6728,14 +6787,22 @@ namespace Server.MirObjects
             if (info == null) return;
 
             monster = MonsterObject.GetMonster(info);
+            if (monster == null) return;
             monster.Master = this;
             monster.Direction = Direction;
             monster.ActionTime = Envir.Time + 500;
             monster.RefreshNameColour(false);
             monster.Target = target;
-            Pets.Add(monster);
 
-            monster.Spawn(CurrentMap, CurrentLocation);
+            // 落地成功才收进 Pets；失败就只是这一发没分身，不能留一个没有地图的僵尸宠物
+            if (monster.Spawn(CurrentMap, CurrentLocation))
+            {
+                Pets.Add(monster);
+            }
+            else
+            {
+                monster.Master = null;
+            }
 
             if (!HasBuff(BuffType.烈火身, out _))
             {

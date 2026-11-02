@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>服务端管理后台</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Microsoft YaHei', sans-serif; background:#f2f4f7; margin:0; padding:20px; color:#1f2937; }
+  .wrap { max-width:1180px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 14px; }
+  .bar { display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  input, select { padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; background:#fff; color:#1f2937; }
+  input[type=password] { width:260px; }
+  #filter { width:280px; }
+  button { padding:6px 14px; border:0; border-radius:6px; background:#2563eb; color:#fff; cursor:pointer; font-size:13px; }
+  button.sec { background:#64748b; }
+  button.danger { background:#dc2626; }
+  button.ok { background:#059669; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  label { font-size:13px; color:#475569; }
+  #msg { font-size:13px; color:#64748b; }
+
+  .dash { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:16px; }
+  .kpi { background:#fff; border-radius:10px; padding:12px 14px; box-shadow:0 1px 3px rgba(0,0,0,.07); }
+  .kpi .k { font-size:12px; color:#64748b; margin-bottom:6px; }
+  .kpi .v { font-size:18px; font-weight:700; color:#0f172a; }
+  .kpi .v small { font-size:12px; font-weight:400; color:#94a3b8; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .dot.on { background:#16a34a; box-shadow:0 0 0 3px rgba(22,163,74,.15); }
+  .dot.off { background:#dc2626; box-shadow:0 0 0 3px rgba(220,38,38,.15); }
+
+  .filters { display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+
+  table { width:100%; border-collapse:collapse; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.07); }
+  th, td { padding:9px 12px; text-align:left; font-size:13px; border-bottom:1px solid #eef2f7; vertical-align:middle; }
+  th { background:#f8fafc; color:#475569; font-weight:600; font-size:12px; white-space:nowrap; }
+  tr:last-child td { border-bottom:0; }
+  tbody tr:hover { background:#f8fafc; }
+  .acc { font-weight:600; }
+  .sub { font-size:12px; color:#94a3b8; margin-top:2px; }
+  .tag { display:inline-block; padding:1px 7px; border-radius:999px; font-size:11px; margin-right:4px; }
+  .tag.on { background:#dcfce7; color:#15803d; }
+  .tag.off { background:#f1f5f9; color:#64748b; }
+  .tag.ban { background:#fee2e2; color:#b91c1c; }
+  .tag.gm { background:#ede9fe; color:#6d28d9; }
+  .ops { display:flex; gap:6px; flex-wrap:wrap; }
+  .ops button { padding:4px 10px; font-size:12px; }
+
+  .pager { display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-top:12px; font-size:13px; color:#475569; }
+  .pager button { background:#fff; color:#334155; border:1px solid #cbd5e1; }
+  .pager button:disabled { color:#cbd5e1; }
+
+  .modal { position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:9; }
+  .modal.open { display:flex; }
+  .panel { background:#fff; border-radius:12px; width:420px; max-width:92vw; padding:18px 20px; }
+  .panel h2 { margin:0 0 12px; font-size:16px; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; margin-bottom:5px; font-size:12px; color:#64748b; }
+  .field input, .field select { width:100%; }
+  .panel .foot { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛠 服务端管理后台</h1>
+
+  <div class="bar">
+    <input id="key" type="password" placeholder="访问密钥（!Setting.txt 的 HTTPQueryKey）">
+    <button onclick="reload()">刷新</button>
+    <label><input type="checkbox" id="auto" checked> 每30秒自动刷新</label>
+    <span id="msg"></span>
+  </div>
+
+  <div class="dash" id="dash"></div>
+
+  <div class="filters">
+    <input id="filter" placeholder="搜索 账号 / 角色名 / 邮箱 / IP，回车搜索">
+    <select id="fOnline">
+      <option value="">全部在线状态</option>
+      <option value="1">仅在线</option>
+      <option value="0">仅离线</option>
+    </select>
+    <select id="fBanned">
+      <option value="">全部封禁状态</option>
+      <option value="1">仅已封禁</option>
+      <option value="0">仅正常</option>
+    </select>
+    <select id="size">
+      <option value="20">20 条/页</option>
+      <option value="50">50 条/页</option>
+      <option value="100">100 条/页</option>
+    </select>
+    <button class="sec" onclick="reload()">查询</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:200px">账号</th>
+        <th>角色</th>
+        <th style="width:150px">状态</th>
+        <th style="width:150px">最后登录</th>
+        <th style="width:210px">操作</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <div class="pager">
+    <span id="pageInfo"></span>
+    <button id="prev" onclick="gotoPage(-1)">上一页</button>
+    <button id="next" onclick="gotoPage(1)">下一页</button>
+  </div>
+</div>
+
+<div class="modal" id="banModal">
+  <div class="panel">
+    <h2>封禁账号 <span id="banWho"></span></h2>
+    <div class="field">
+      <label>封禁原因（玩家登录时会看到）</label>
+      <input id="banReason" placeholder="例如：使用外挂 / 恶意刷屏">
+    </div>
+    <div class="field">
+      <label>封禁时长</label>
+      <select id="banDuration" onchange="toggleCustom()">
+        <option value="1">1 天</option>
+        <option value="3">3 天</option>
+        <option value="7" selected>7 天</option>
+        <option value="30">30 天</option>
+        <option value="0">永久</option>
+        <option value="-1">自定义小时</option>
+      </select>
+    </div>
+    <div class="field" id="customWrap" style="display:none">
+      <label>自定义时长（小时）</label>
+      <input id="banHours" type="number" min="1" max="87600" value="12">
+    </div>
+    <div class="foot">
+      <button class="sec" onclick="closeBan()">取消</button>
+      <button class="danger" onclick="confirmBan()">确认封禁</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var state = { page: 1, pages: 1, size: 20, banTarget: '' };
+var kInput = document.getElementById('key');
+kInput.value = localStorage.getItem('admin_key') || '';
+kInput.onchange = function () { localStorage.setItem('admin_key', kInput.value); reload(); };
+
+function esc(s) {
+  return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function setMsg(t, isErr) {
+  var m = document.getElementById('msg');
+  m.textContent = t || '';
+  m.style.color = isErr ? '#dc2626' : '#64748b';
+}
+function key() { return kInput.value.trim(); }
+function q(v) { return encodeURIComponent(v == null ? '' : v); }
+
+async function getJson(path) {
+  var r = await fetch(path);
+  var t = await r.text();
+  if (t === 'denied') throw new Error('密钥错误（或服务端未设置 HTTPQueryKey）');
+  if (t === 'notfound') throw new Error('找不到该账号');
+  if (t === 'offline') throw new Error('该账号当前不在线');
+  return JSON.parse(t);
+}
+
+function reload() {
+  state.page = 1;
+  load();
+}
+
+async function load() {
+  if (!key()) { setMsg('请先输入访问密钥', true); return; }
+
+  var url = '/accounts?key=' + q(key()) + '&page=' + state.page + '&size=' + state.size
+    + '&filter=' + q(document.getElementById('filter').value.trim())
+    + '&online=' + q(document.getElementById('fOnline').value)
+    + '&banned=' + q(document.getElementById('fBanned').value);
+
+  setMsg('加载中…');
+  try {
+    var data = await getJson(url);
+    setMsg('');
+
+    state.pages = data.pages || 1;
+    state.page = data.page || 1;
+
+    renderDash(data.server || {}, data);
+    renderRows(data.items || []);
+    renderPager(data);
+  } catch (e) {
+    setMsg(e.message, true);
+  }
+}
+
+function kpi(k, v, extra) {
+  return '<div class="kpi"><div class="k">' + k + '</div><div class="v">' + v +
+    (extra ? ' <small>' + extra + '</small>' : '') + '</div></div>';
+}
+
+function renderDash(s, d) {
+  var running = s.running
+    ? '<span class="dot on"></span>运行中'
+    : '<span class="dot off"></span>已停止';
+
+  var exp = s.expRate == null ? '-' : s.expRate + 'x';
+  var expExtra = (s.highLevelExpRate && s.highLevelExpRate != 1)
+    ? ('Lv' + s.highLevelExpRateMinLevel + '+ ' + s.highLevelExpRate + 'x')
+    : '';
+
+  var html = '';
+  html += kpi('运行状态', running, s.uptimeText ? ('已运行 ' + esc(s.uptimeText)) : '');
+  html += kpi('在线人数', (s.onlinePlayers == null ? '-' : s.onlinePlayers), '连接 ' + (s.connections == null ? '-' : s.connections));
+  html += kpi('经验倍率', esc(exp), esc(expExtra));
+  html += kpi('爆率倍率', (s.dropRate == null ? '-' : s.dropRate + 'x'), '');
+  html += kpi('账号总数', (d.total == null ? '-' : d.total), '在线 ' + (d.onlineCount || 0) + ' / 封禁 ' + (d.bannedCount || 0));
+  html += kpi('启动时间', '<span style="font-size:13px;font-weight:500">' + esc(s.startedAt || '-') + '</span>', '');
+  document.getElementById('dash').innerHTML = html;
+}
+
+function renderRows(items) {
+  if (!items.length) {
+    document.getElementById('rows').innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:28px">没有符合条件的账号</td></tr>';
+    return;
+  }
+
+  var html = items.map(function (a) {
+    var chars = (a.characters || []).map(function (c) {
+      return esc(c.name) + ' <span class="sub">Lv' + c.level + ' ' + esc(c.class) + '</span>';
+    }).join('、');
+
+    if (a.playing) {
+      chars += '<div class="sub">🟢 正在游戏：' + esc(a.playing.name) + ' Lv' + a.playing.level +
+        ' @ ' + esc(a.playing.map) + ' (' + a.playing.x + ',' + a.playing.y + ')</div>';
+    }
+
+    var status = '';
+    if (a.online) status += '<span class="tag on">在线</span>';
+    else status += '<span class="tag off">离线</span>';
+    if (a.admin) status += '<span class="tag gm">GM</span>';
+    if (a.banned) status += '<span class="tag ban">已封禁</span>';
+
+    var banSub = a.banned
+      ? '<div class="sub">' + esc(a.banReason || '') + (a.banExpire ? '｜至 ' + esc(a.banExpire) : '') + '</div>'
+      : '';
+
+    var ops = '';
+    if (a.banned) {
+      ops += '<button class="ok" onclick="unban(\'' + q(a.account) + '\')">解封</button>';
+    } else {
+      ops += '<button class="danger" onclick="openBan(\'' + q(a.account) + '\')">封禁</button>';
+    }
+    if (a.online) {
+      ops += '<button class="sec" onclick="kick(\'' + q(a.account) + '\')">踢下线</button>';
+    }
+
+    return '<tr>' +
+      '<td><div class="acc">' + esc(a.account) + '</div><div class="sub">' +
+        (a.email ? esc(a.email) + '｜' : '') + 'IP ' + esc(a.lastIP || '-') + '</div></td>' +
+      '<td>' + (chars || '<span class="sub">无角色</span>') + '</td>' +
+      '<td>' + status + banSub + '</td>' +
+      '<td>' + esc(a.lastDate || '-') + '</td>' +
+      '<td><div class="ops">' + ops + '</div></td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('rows').innerHTML = html;
+}
+
+function renderPager(d) {
+  document.getElementById('pageInfo').textContent =
+    '共 ' + d.total + ' 个账号，第 ' + d.page + ' / ' + (d.pages || 1) + ' 页';
+  document.getElementById('prev').disabled = d.page <= 1;
+  document.getElementById('next').disabled = d.page >= (d.pages || 1);
+}
+
+function gotoPage(delta) {
+  var p = state.page + delta;
+  if (p < 1 || p > (state.pages || 1)) return;
+  state.page = p;
+  load();
+}
+
+// ── 封禁弹层 ──
+function openBan(account) {
+  state.banTarget = decodeURIComponent(account);
+  document.getElementById('banWho').textContent = state.banTarget;
+  document.getElementById('banReason').value = '';
+  document.getElementById('banDuration').value = '7';
+  document.getElementById('customWrap').style.display = 'none';
+  document.getElementById('banModal').classList.add('open');
+  document.getElementById('banReason').focus();
+}
+function closeBan() {
+  document.getElementById('banModal').classList.remove('open');
+}
+function toggleCustom() {
+  var v = document.getElementById('banDuration').value;
+  document.getElementById('customWrap').style.display = v === '-1' ? 'block' : 'none';
+}
+
+async function confirmBan() {
+  var account = state.banTarget;
+  if (!account) return;
+
+  var reason = document.getElementById('banReason').value.trim();
+  var duration = document.getElementById('banDuration').value;
+  var hours = document.getElementById('banHours').value;
+
+  var url = '/ban?key=' + q(key()) + '&id=' + q(account) + '&reason=' + q(reason);
+  if (duration === '-1') url += '&hours=' + q(hours);
+  else url += '&days=' + q(duration);
+
+  closeBan();
+  setMsg('正在封禁 ' + account + ' …');
+  try {
+    var r = await getJson(url);
+    var part = '账号 ' + account + ' 已封禁（' + (r.expire || '') + '）' + (r.kicked ? '，已踢下线' : '');
+    await load();          // 先刷完列表再提示，否则提示会被刷新请求覆盖
+    setMsg(part);
+  } catch (e) {
+    setMsg(e.message, true);
+  }
+}
+
+async function unban(account) {
+  account = decodeURIComponent(account);
+  if (!confirm('确定解封账号 ' + account + ' ？')) return;
+
+  setMsg('正在解封 ' + account + ' …');
+  try {
+    await getJson('/unban?key=' + q(key()) + '&id=' + q(account));
+    await load();
+    setMsg('账号 ' + account + ' 已解封');
+  } catch (e) {
+    setMsg(e.message, true);
+  }
+}
+
+async function kick(account) {
+  account = decodeURIComponent(account);
+  if (!confirm('确定把 ' + account + ' 踢下线？')) return;
+
+  setMsg('正在踢下线 ' + account + ' …');
+  try {
+    await getJson('/kick?key=' + q(key()) + '&id=' + q(account));
+    await load();
+    setMsg('账号 ' + account + ' 已踢下线');
+  } catch (e) {
+    setMsg(e.message, true);
+  }
+}
+
+document.getElementById('filter').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') reload();
+});
+document.getElementById('fOnline').onchange = reload;
+document.getElementById('fBanned').onchange = reload;
+document.getElementById('size').onchange = function () {
+  state.size = parseInt(this.value, 10) || 20;
+  reload();
+};
+
+setInterval(function () {
+  if (document.getElementById('auto').checked && !document.getElementById('banModal').classList.contains('open')) load();
+}, 30000);
+
+if (key()) load();
+</script>
+</body>
+</html>

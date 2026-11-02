@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>MapBench</AssemblyName><StartupObject>LibBench.Program</StartupObject><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RootNamespace>MapBench</RootNamespace>
+  </PropertyGroup><ItemGroup><Compile Include="LibBench.cs" /></ItemGroup>
+</Project>

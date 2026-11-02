@@ -524,7 +524,10 @@ namespace Server.MirEnvir
                     }
 
                     for (int i = 0; i < Info.SafeZones.Count; i++)
+                    {
+                        if (Info.SafeZones[i] == null) continue;   // 空行不挡整张图的加载
                         CreateSafeZone(Info.SafeZones[i]);
+                    }
 
                     CreateMine();
 
@@ -939,10 +942,14 @@ namespace Server.MirEnvir
         private void CompleteMagic(IList<object> data)
         {
             bool train = false;
+
+            if (data == null || data.Count < 2) return;
+
             HumanObject player = (HumanObject)data[0];
             UserMagic magic = (UserMagic)data[1];
 
             if (player == null || player.Info == null || player.Node == null) return;
+            if (magic == null || magic.Info == null) return;   // 技能被删/存档异常时别把整张图带崩
 
             int value, value2;
             Point location;
@@ -1005,12 +1012,21 @@ namespace Server.MirEnvir
                     monster = (MonsterObject)data[2];
                     front = (Point)data[3];
 
-                    if (monster.Master.Dead) return;
+                    // ★Master 可能已经是 null：主人换图/掉线/英雄被收回时 MapObject.Process 会把 Master 置空，
+                    // 而这条召唤延迟动作还留在队列里 → 直接 monster.Master.Dead 就是 NullReferenceException。
+                    if (monster == null || monster.Master == null || monster.Master.Dead) return;
 
-                    if (ValidPoint(front))
-                        monster.Spawn(this, front);
-                    else
-                        monster.Spawn(player.CurrentMap, player.CurrentLocation);
+                    // 落点不可走 / 地图不对时 Spawn 返回 false，怪物身上就没有 CurrentMap；
+                    // 这种"没落地"的宠物一旦进了 Master.Pets，之后任何 Pet.CurrentMap.Info 都是空引用
+                    // （服务端界面查玩家信息、下线存档都会踩到）。落地失败就别收进宠物列表。
+                    bool spawned = ValidPoint(front)
+                        ? monster.Spawn(this, front)
+                        : monster.Spawn(player.CurrentMap ?? this, player.CurrentLocation);
+
+                    if (!spawned)
+                        spawned = monster.Spawn(player.CurrentMap ?? this, player.CurrentLocation);
+
+                    if (!spawned) return;
 
                     monster.Master.Pets.Add(monster);
                     break;
@@ -1018,12 +1034,17 @@ namespace Server.MirEnvir
                     monster = (MonsterObject)data[2];
                     front = (Point)data[3];
 
-                    if (monster.Master.Dead) return;
+                    if (monster == null || monster.Master == null || monster.Master.Dead) return;
 
-                    if (ValidPoint(front))
-                        monster.Spawn(this, front);
-                    else
-                        monster.Spawn(player.CurrentMap, player.CurrentLocation);
+                    // 同上：落地失败（没有 CurrentMap）就别收进 Pets
+                    bool trapped = ValidPoint(front)
+                        ? monster.Spawn(this, front)
+                        : monster.Spawn(player.CurrentMap ?? this, player.CurrentLocation);
+
+                    if (!trapped)
+                        trapped = monster.Spawn(player.CurrentMap ?? this, player.CurrentLocation);
+
+                    if (!trapped) return;
 
                     monster.Master.Pets.Add(monster);
                     break;
@@ -1856,6 +1877,8 @@ namespace Server.MirEnvir
                     front = (Point)data[3];
                     bool finish = (bool)data[4];
 
+                    if (monster == null) return;
+
                     if (finish)
                     {
                         monster.Die();
@@ -1865,7 +1888,7 @@ namespace Server.MirEnvir
                     if (ValidPoint(front))
                         monster.Spawn(this, front);
                     else
-                        monster.Spawn(player.CurrentMap, player.CurrentLocation);
+                        monster.Spawn(player.CurrentMap ?? this, player.CurrentLocation);
                     break;
 
                 #endregion
@@ -2833,6 +2856,7 @@ namespace Server.MirEnvir
             for (int i = 0; i < Info.SafeZones.Count; i++)
             {
                 SafeZoneInfo szi = Info.SafeZones[i];
+                if (szi == null) continue;   // 数据里可能有空行（编辑器留白/旧版重载拷贝），不能让遍历崩掉
                 if (Functions.InRange(szi.Location, location, szi.Size))
                     return szi;
             }

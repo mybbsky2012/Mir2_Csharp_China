@@ -108,7 +108,11 @@ namespace Client.MirGraphics
             MapLibs[0] = new MLibrary(Settings.DataPath + "Map\\WemadeMir2\\Tiles");
             MapLibs[1] = new MLibrary(Settings.DataPath + "Map\\WemadeMir2\\Smtiles");
             MapLibs[2] = new MLibrary(Settings.DataPath + "Map\\WemadeMir2\\Objects");
-            for (int i = 2; i < 28; i++)
+            // Objects2 ~ Objects28：地图 frontIndex = 原始字节 + 2，所以 Objects28 落在索引 29。
+            // ★原来只登记到 Objects27（索引 28），韩版 WDragonTown 系列（field/coast）这一层
+            //   整片建筑/山体用的就是 Objects28 → 索引 29 是空库 → 那 3 万多格装饰一个都画不出来，
+            //   表现就是「建筑物、山体没有贴图」（地面正常，因为地面走 Tiles 索引 0）。
+            for (int i = 2; i < 29; i++)
             {
                 MapLibs[i + 1] = new MLibrary(Settings.DataPath + "Map\\WemadeMir2\\Objects" + i.ToString());
             }

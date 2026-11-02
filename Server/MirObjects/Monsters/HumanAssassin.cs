@@ -142,7 +142,8 @@ namespace Server.MirObjects.Monsters
             ProcessSearch();
             ProcessTarget();
 
-            if (Master != null && Master is PlayerObject)
+            // 烈火身由玩家或刺客英雄（HeroObject）召唤，两者都按时自爆
+            if (Master != null && Master is HumanObject)
             {
                 if (Envir.Time > ExplosionTime) Die();
             }
@@ -317,9 +318,13 @@ namespace Server.MirObjects.Monsters
                         case ObjectType.Monster:
                         case ObjectType.Player:
                             //Only targets
-                            if (target.IsAttackTarget((PlayerObject)Master))
+                            //Master 可能是 PlayerObject 也可能是英雄(HumanObject)，强转 PlayerObject 会 InvalidCastException
+                            if (Master is HumanObject human)
                             {
-                                target.Attacked((PlayerObject)Master, damage, DefenceType.AC, false);
+                                if (target.IsAttackTarget(human))
+                                {
+                                    target.Attacked(human, damage, DefenceType.AC, false);
+                                }
                             }
                             break;
                     }
@@ -329,14 +334,13 @@ namespace Server.MirObjects.Monsters
 
         public override Packet GetInfo()
         {
-            PlayerObject master = null;
+            // 烈火身由玩家或刺客英雄（HeroObject）召唤，Looks_* 都定义在 HumanObject 基类上，
+            // 原来只认 PlayerObject 导致英雄召唤的分身不穿装备
+            HumanObject master = Master as HumanObject;
             short weapon = -1;
             short armour = 0;
             byte wing = 0;
             short weaponeffects = 0;
-
-            if (Master != null && Master is PlayerObject) 
-                master = (PlayerObject)Master;
 
             if (master != null)
             {

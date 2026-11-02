@@ -37,6 +37,30 @@ namespace Server.MirObjects
             // 自身增益：体迅风 / 风身术 / 烈火身 / 月影术 —— 缺哪个补哪个
             if (TryCast(HeroSpellKind.Buff)) return;
         }
+
+        /// <summary>
+        /// 烈火身（DarkBody）= 召唤刺客分身 + 隐身 buff。已经有活着的分身时再放，
+        /// HumanObject.DarkBody 会先把旧分身 Die() 掉然后直接 return —— 分身没了、buff 也没补上，
+        /// AI 下一拍又判定「缺 buff」继续放，英雄就站在原地一直烈火身、不攻击。
+        /// 所以有活分身时直接跳过这一发。
+        /// </summary>
+        protected override bool IsBuffWorthCasting(UserMagic magic)
+        {
+            if (magic != null && magic.Spell == Spell.DarkBody && HasLiveAssassinClone()) return false;
+            return base.IsBuffWorthCasting(magic);
+        }
+
+        private bool HasLiveAssassinClone()
+        {
+            for (int i = 0; i < Pets.Count; i++)
+            {
+                MonsterObject pet = Pets[i];
+                if (pet == null || pet.Dead || pet.Info == null) continue;
+                if (pet.Info.Name == Settings.AssassinCloneName) return true;
+            }
+
+            return false;
+        }
         protected override void ProcessAttack()
         {
             if (Target == null || Target.Dead) return;

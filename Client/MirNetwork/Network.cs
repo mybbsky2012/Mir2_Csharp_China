@@ -16,6 +16,13 @@ namespace Client.MirNetwork
         public static bool Connected;
         public static long TimeOutTime, TimeConnected, RetryTime = CMain.Time + 5000;
 
+        /// <summary>上一帧实际处理的包数量（调试面板显示用，超过上限说明在积压）。</summary>
+        public static int LastPacketsProcessed;
+
+        // 断线提示框超时兜底（10-29）：丢后台没人点「确定」时，到点自动回登录界面（见 Process 顶端检查）
+        private static Action _delayedReturnToLogin;
+        private static long _delayedReturnToLoginTime;
+
         private static ConcurrentQueue<Packet> _receiveList;
         private static ConcurrentQueue<Packet> _sendList;
 
@@ -236,6 +243,15 @@ namespace Client.MirNetwork
 
         public static void Process()
         {
+            // 断线提示框超时兜底（10-29）：丢后台没人点确定时，超时后自动回登录界面。
+            // 放在 Process 最顶端，保证任何场景状态下每帧都会检查。
+            if (_delayedReturnToLogin != null && CMain.Time >= _delayedReturnToLoginTime)
+            {
+                var action = _delayedReturnToLogin;
+                _delayedReturnToLogin = null;
+                action();
+            }
+
             if (_client == null || !_client.Connected)
             {
                 if (Connected)
@@ -253,12 +269,32 @@ namespace Client.MirNetwork
                     Disconnect();
 
                     // 断线不再退出客户端：游戏场景回登录界面重新连，其他场景留在原地即可重连
+                    // ★保留「点确定返回」弹窗；丢后台没人点时 10 秒后自动回登录界面（10-29）。
+                    //   不做超时的话，停在游戏场景会导致重连后的握手包（S.Connected 只有登录场景
+                    //   处理）没人认领，5 秒握手超时→拆链→重连死循环，服务端每 5 秒刷连接日志。
                     GameScene gameScene = MirScene.ActiveScene as GameScene;
                     if (gameScene != null)
                     {
+                        bool returned = false;   // 点确定与超时兜底只允许执行一次
+
                         MirMessageBox box = new MirMessageBox("与服务器的连接中断，点击确定返回登录界面重新连接。");
-                        box.OKButton.Click += (o, e) => gameScene.ReturnToLoginOnDisconnect();
+                        box.OKButton.Click += (o, e) =>
+                        {
+                            _delayedReturnToLogin = null;
+                            if (returned) return;
+                            returned = true;
+                            gameScene.ReturnToLoginOnDisconnect();
+                        };
                         box.Show();
+
+                        _delayedReturnToLogin = () =>
+                        {
+                            if (returned) return;
+                            returned = true;
+                            gameScene.ReturnToLoginOnDisconnect();
+                            MirMessageBox.Show("与服务器的连接中断，长时间未确认，已自动返回登录界面。");
+                        };
+                        _delayedReturnToLoginTime = CMain.Time + 10000;
                     }
                     else
                     {
@@ -285,11 +321,23 @@ namespace Client.MirNetwork
 
 
 
+            //★包处理限流（10-31）：满屏怪物同帧齐射时，一帧能涌进几百个包，每个包都要线性扫
+            //  Objects、建特效、首次引用时还要读图库、播音效 —— 全做完这一帧就是几百毫秒，
+            //  下一帧积压更多，形成正反馈直到客户端「卡死」。
+            //  这里限死单帧处理量，多出来的顺延到下一帧：最坏只是画面延迟两三帧，不会拖死主线程。
+            //    300 包/帧 × 60 帧 = 1.8 万包/秒，正常玩远达不到；登录/切图时大量对象包会被摊到
+            //    几帧里，而那段时间载入画面本来就盖着，玩家无感。
+            const int maxPacketsPerFrame = 300;
+            int packetsThisFrame = 0;
+
             while (_receiveList != null && !_receiveList.IsEmpty)
             {
+                if (packetsThisFrame++ >= maxPacketsPerFrame) break;
                 if (!_receiveList.TryDequeue(out Packet p) || p == null) continue;
                 MirScene.ActiveScene.ProcessPacket(p);
             }
+
+            LastPacketsProcessed = packetsThisFrame;
 
 
             if (CMain.Time > TimeOutTime && _sendList != null && _sendList.IsEmpty)

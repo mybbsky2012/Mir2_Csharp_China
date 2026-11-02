@@ -21,7 +21,8 @@ namespace Server
 
             if (player == null)
             {
-                Close();
+                // 别 Close()：窗体还没 Show 就 Close 会变成已释放对象，外面 ShowDialog 反而抛 ObjectDisposedException
+                Text = "玩家信息 - 玩家已离线";
                 return;
             }
 
@@ -33,23 +34,36 @@ namespace Server
             if (Character == null)
                 Character = player.Info;
 
+            if (Character == null)
+            {
+                Text = "玩家信息 - 该玩家没有可读取的存档";
+                return;
+            }
+
             UpdateTabs();
         }
 
         #region PlayerInfo
         private void UpdatePlayerInfo()
         {
+            if (Character == null) return;
+
             IndexTextBox.Text = Character.Index.ToString();
             NameTextBox.Text = Character.Name;
             LevelTextBox.Text = Character.Level.ToString();
             PKPointsTextBox.Text = Character.PKPoints.ToString();
-            GoldTextBox.Text = $"{Character.AccountInfo.Gold:n0}";
-            GameGoldTextBox.Text = String.Format("{0:n0}", Character.AccountInfo.Credit);
+            GoldTextBox.Text = $"{Character.AccountInfo?.Gold:n0}";
+            GameGoldTextBox.Text = String.Format("{0:n0}", Character.AccountInfo?.Credit);
 
 
-            if (Character?.Player != null)
+            if (Character.Player != null)
             {
-                CurrentMapLabel.Text = $"{Character.Player.CurrentMap.Info.Title} / {Character.Player.CurrentMap.Info.FileName}";
+                // 换图/下线瞬间 CurrentMap 可能是 null，直接取 .Info.Title 就是空引用
+                if (Character.Player.CurrentMap?.Info != null)
+                    CurrentMapLabel.Text = $"{Character.Player.CurrentMap.Info.Title} / {Character.Player.CurrentMap.Info.FileName}";
+                else
+                    CurrentMapLabel.Text = "地图载入中";
+
                 CurrentXY.Text = $"X:{Character.CurrentLocation.X}: Y:{Character.CurrentLocation.Y}";
 
                 ExpTextBox.Text = $"{string.Format("{0:#0.##%}", Character.Player.Experience / (double)Character.Player.MaxExperience)}";
@@ -68,7 +82,7 @@ namespace Server
                 CurrentXY.Text = "OFFLINE";
             }
 
-            CurrentIPLabel.Text = Character.AccountInfo.LastIP;
+            CurrentIPLabel.Text = Character.AccountInfo?.LastIP ?? "-";
             OnlineTimeLabel.Text = Character.LastLoginDate > Character.LastLogoutDate ? (SMain.Envir.Now - Character.LastLoginDate).TotalMinutes.ToString("##") + " 分钟" : "Offline";
 
             ChatBanExpiryTextBox.Text = Character.ChatBanExpiryDate.ToString();
@@ -82,12 +96,34 @@ namespace Server
 
             if (Character?.Player == null) return;
 
-            foreach (MonsterObject Pet in Character.Player.Pets)
+            // 宠物列表由服务端线程在改（召唤/死亡/换图），这里只读一份快照，
+            // 避免"集合已修改"导致界面再次抛异常
+            List<MonsterObject> pets;
+            try
             {
-                var listItem = new ListViewItem(Pet.Name) { Tag = Pet };
+                pets = new List<MonsterObject>(Character.Player.Pets);
+            }
+            catch
+            {
+                return;
+            }
+
+            foreach (MonsterObject Pet in pets)
+            {
+                if (Pet == null) continue;
+
+                // ★宠物可能"还没落地"：召唤是先把怪物加进 Pets、再延迟 500ms~1s 才 Spawn，
+                //   这期间 CurrentMap 是 null —— 直接 Pet.CurrentMap.Info.Title 就是这次的空引用。
+                string place;
+                if (Pet.CurrentMap?.Info != null)
+                    place = $"地图: {Pet.CurrentMap.Info.Title}, X: {Pet.CurrentLocation.X}, Y: {Pet.CurrentLocation.Y}";
+                else
+                    place = "地图: 未落地 / 已失效";
+
+                var listItem = new ListViewItem(Pet.Name ?? "Unknown") { Tag = Pet };
                 listItem.SubItems.Add(Pet.PetLevel.ToString());
                 listItem.SubItems.Add($"{Pet.Health}/{Pet.MaxHealth}");
-                listItem.SubItems.Add($"地图: {Pet.CurrentMap.Info.Title}, X: {Pet.CurrentLocation.X}, Y: {Pet.CurrentLocation.Y}");
+                listItem.SubItems.Add(place);
 
                 PetView.Items.Add(listItem);
             }
@@ -104,10 +140,12 @@ namespace Server
         {
             MagicListViewNF.Items.Clear();
 
+            if (Character == null || Character.Magics == null) return;
+
             for (int i = 0; i < Character.Magics.Count; i++)
             {
                 UserMagic magic = Character.Magics[i];
-                if (magic == null) continue;
+                if (magic == null || magic.Info == null) continue;
 
                 ListViewItem ListItem = new ListViewItem(magic.Info.Name.ToString()) { Tag = this };
 
@@ -155,21 +193,25 @@ namespace Server
         {
             QuestInfoListViewNF.Items.Clear();
 
+            if (Character == null) return;
+
             foreach (int completedQuestID in Character.CompletedQuests)
             {
                 QuestInfo completedQuest = SMain.Envir.GetQuestInfo(completedQuestID);
 
                 ListViewItem item = new ListViewItem(completedQuestID.ToString());
                 item.SubItems.Add("已完成");
-                item.SubItems.Add(completedQuest.Name.ToString());
+                item.SubItems.Add(completedQuest?.Name.ToString() ?? "(任务配置缺失)");
                 QuestInfoListViewNF.Items.Add(item);
             }
 
             foreach (QuestProgressInfo currentQuest in Character.CurrentQuests)
             {
+                if (currentQuest == null) continue;
+
                 ListViewItem item = new ListViewItem(currentQuest.Index.ToString());
                 item.SubItems.Add("进行中");
-                item.SubItems.Add(currentQuest.Info.Name.ToString());
+                item.SubItems.Add(currentQuest.Info?.Name.ToString() ?? "(任务配置缺失)");
                 QuestInfoListViewNF.Items.Add(item);
             }
         }
@@ -226,6 +268,8 @@ namespace Server
 
                 PlayerItemInfoListViewNF.Items.Add(questItemListItem);
             }
+
+            if (Character.AccountInfo?.Storage == null) return;
 
             for (int i = 0; i < Character.AccountInfo.Storage.Length; i++)
             {
@@ -595,13 +639,27 @@ namespace Server
         #region UpdateTabs
         private void UpdateTabs()
         {
-            UpdatePlayerInfo();
-            UpdatePetInfo();
-            UpdatePlayerItems();
-            UpdatePlayerMagics();
-            UpdatePlayerQuests();
-            UpdateHeroList();
-            UpdateNamelists();
+            // 分页各自兜底：某一页数据异常（宠物没落地、地图为 null、任务配置缺失……）
+            // 不应该把整个窗体带崩——服务端界面崩一次就再也打不开这个玩家的信息了
+            SafeUpdate("玩家信息", UpdatePlayerInfo);
+            SafeUpdate("宠物", UpdatePetInfo);
+            SafeUpdate("物品", UpdatePlayerItems);
+            SafeUpdate("技能", UpdatePlayerMagics);
+            SafeUpdate("任务", UpdatePlayerQuests);
+            SafeUpdate("英雄", UpdateHeroList);
+            SafeUpdate("名单", UpdateNamelists);
+        }
+
+        private static void SafeUpdate(string name, Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                try { Logger.GetLogger().Error($"玩家信息窗口[{name}]刷新失败: {ex}"); } catch { }
+            }
         }
         #endregion
 

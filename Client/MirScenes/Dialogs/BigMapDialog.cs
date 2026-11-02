@@ -612,19 +612,112 @@ namespace Client.MirScenes.Dialogs
 
         private void OnMouseClick(object sender, MouseEventArgs e)
         {
-            int X = (int)((e.Location.X - BigMap_MouseCoordsProcessing_OffsetX) / ScaleX);
-            int Y = (int)((e.Location.Y - BigMap_MouseCoordsProcessing_OffsetY) / ScaleY);
+            //★11-03：只有右键才是「走到这里」。原来不分左右键，左键点到地图也会触发一次
+            //  整图 A*（大地图上就是几秒定格），这也是「卡一下但什么都没发生」的来源之一。
+            if (e.Button != MouseButtons.Right) return;
 
-            var path = GameScene.Scene.MapControl.PathFinder.FindPath(MapObject.User.CurrentLocation, new Point(X, Y));
+            if (ParentDialog == null || GameScene.Scene == null) return;
+            if (GameScene.Scene.MapControl == null || MapObject.User == null) return;
+
+            var map = GameScene.Scene.MapControl;
+
+            //大地图可以翻到别的地图去看（世界地图/其它地图页签），那种坐标没法寻路
+            if (ParentDialog.TargetMapIndex != map.Index)
+            {
+                GameScene.Scene.ChatDialog.ReceiveChat("只能在当前所在地图使用自动寻路", ChatType.System);
+                return;
+            }
+
+            if (ScaleX <= 0 || ScaleY <= 0) return;
+
+            int X = (int)Math.Round((e.Location.X - BigMap_MouseCoordsProcessing_OffsetX) / ScaleX);
+            int Y = (int)Math.Round((e.Location.Y - BigMap_MouseCoordsProcessing_OffsetY) / ScaleY);
+
+            //点到缩略图边距上会算出负数/越界坐标 —— 原来直接丢给 GetNode，越界就抛异常（寻路没反应）
+            X = Math.Max(0, Math.Min(map.Width - 1, X));
+            Y = Math.Max(0, Math.Min(map.Height - 1, Y));
+
+            var path = map.PathFinder.FindPath(MapObject.User.CurrentLocation, new Point(X, Y));
 
             if (path == null || path.Count == 0)
             {
+                map.AutoPath = false;
                 GameScene.Scene.ChatDialog.ReceiveChat("目标地点不可用,无适宜的路线", ChatType.System);
             }
             else
             {
-                GameScene.Scene.MapControl.CurrentPath = path;
-                GameScene.Scene.MapControl.AutoPath = true;
+                map.CurrentPath = path;
+                map.AutoPath = true;
+            }
+        }
+
+        /// <summary>
+        /// 把 MapControl.CurrentPath 画成一条青色点线，终点打个黄色方框（11-03 新增）。
+        /// 原来寻路只把路径存进 CurrentPath，界面上一个像素都不画，玩家完全看不到路线。
+        /// </summary>
+        private void DrawAutoPath(MapControl map)
+        {
+            if (map == null || ParentDialog == null) return;
+            if (ParentDialog.TargetMapIndex != map.Index) return;
+            if (!map.AutoPath || map.CurrentPath == null) return;
+            if (ScaleX <= 0 || ScaleY <= 0) return;
+
+            var path = map.CurrentPath;
+
+            if (path.Count < 2) return;
+
+            Color line = Color.FromArgb(120, 255, 255);   // 青
+            Color head = Color.FromArgb(255, 255, 0);     // 黄
+
+            //采样间隔：路很长时放大间隔，避免每帧画几千次拖慢大地图
+            float step = 3f;
+            float approx = (path.Count * Math.Max(ScaleX, ScaleY)) / 500f;
+            if (approx > step) step = approx;
+
+            float lastX = 0f, lastY = 0f;
+
+            for (int i = 0; i < path.Count; i++)
+            {
+                Node n = path[i];
+
+                float tx = (n.Location.X * ScaleX) + DisplayLocation.X;
+                float ty = (n.Location.Y * ScaleY) + DisplayLocation.Y;
+
+                if (i == 0)
+                {
+                    lastX = tx;
+                    lastY = ty;
+                    continue;
+                }
+
+                float dx = tx - lastX;
+                float dy = ty - lastY;
+                float len = (float)Math.Sqrt((dx * dx) + (dy * dy));
+                int steps = Math.Max(1, (int)(len / step));
+
+                for (int s = 1; s <= steps; s++)
+                {
+                    float px = lastX + (dx * s / steps);
+                    float py = lastY + (dy * s / steps);
+
+                    DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, 2, 2), new Vector3(px, py, 0f), line);
+                }
+
+                lastX = tx;
+                lastY = ty;
+            }
+
+            //终点标记：用 2×2 的雷达点拼一个 6×6 的空心小方框
+            Node end = path[path.Count - 1];
+            float ex = (end.Location.X * ScaleX) + DisplayLocation.X;
+            float ey = (end.Location.Y * ScaleY) + DisplayLocation.Y;
+
+            for (int i = 0; i <= 3; i++)
+            {
+                DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, 2, 2), new Vector3(ex - 3 + (i * 2), ey - 3, 0f), head);
+                DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, 2, 2), new Vector3(ex - 3 + (i * 2), ey + 3, 0f), head);
+                DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, 2, 2), new Vector3(ex - 3, ey - 3 + (i * 2), 0f), head);
+                DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, 2, 2), new Vector3(ex + 3, ey - 3 + (i * 2), 0f), head);
             }
         }
 
@@ -676,10 +769,12 @@ namespace Client.MirScenes.Dialogs
 
             Libraries.MiniMap.Draw(index, DisplayLocation, Size, Color.FromArgb(255, 255, 255));
 
-            int startPointX = (int)(viewRect.X / ScaleX);
-            int startPointY = (int)(viewRect.Y / ScaleY);
-
             var map = GameScene.Scene.MapControl;
+
+            //★11-03：把自动寻路的路线画在大地图上（原来只存了路径，一个像素都没画，玩家看不到）。
+            //  必须画在 MiniMap 之后，否则被整张缩略图盖住。
+            DrawAutoPath(map);
+
             if (ParentDialog.TargetMapIndex == map.Index)
             {
                 float x;
@@ -689,8 +784,10 @@ namespace Client.MirScenes.Dialogs
                     MapObject ob = MapControl.Objects[i];
 
                     if (ob.Race == ObjectType.Item || ob.Dead || ob.Race == ObjectType.Spell || ob.ObjectID == MapObject.User.ObjectID) continue;
-                    x = ((ob.CurrentLocation.X - startPointX) * ScaleX) + DisplayLocation.X;
-                    y = ((ob.CurrentLocation.Y - startPointY) * ScaleY) + DisplayLocation.Y;
+                    //★11-03：坐标换算原来多减了一个 startPointX/Y（视图居中偏移被当成地图坐标用），
+                    //  整张图上的怪点都比真实位置偏十几像素 —— 和雷达点、点击换算都对不上。统一成 mapX*Scale。
+                    x = (ob.CurrentLocation.X * ScaleX) + DisplayLocation.X;
+                    y = (ob.CurrentLocation.Y * ScaleY) + DisplayLocation.Y;
 
                     Color colour;
 
@@ -724,8 +821,8 @@ namespace Client.MirScenes.Dialogs
                             foreach (var groupMemberLocation in PlayerLocations.Where(x => x.Key == groupMembersMap.Key))
                             {
 
-                                float alteredX = ((groupMemberLocation.Value.X - startPointX) * ScaleX);
-                                float alteredY = ((groupMemberLocation.Value.Y - startPointY) * ScaleY);
+                                float alteredX = (groupMemberLocation.Value.X * ScaleX);
+                                float alteredY = (groupMemberLocation.Value.Y * ScaleY);
 
                                 if (groupMembersName != MapObject.User.Name)
                                     Players[i].Visible = true;

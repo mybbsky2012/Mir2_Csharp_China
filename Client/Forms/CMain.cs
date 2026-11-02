@@ -538,6 +538,9 @@ namespace Client
             text += string.Format(", TLC: {0}", DXManager.TextureList.Count(x => x.TextureValid));
             text += string.Format(", CLC: {0}", DXManager.ControlList.Count(x => x.IsDisposed == false));
 
+            //★卡顿排查（10-31）：特效数到上限说明触发了限流；Pkt 顶到 300 说明包在积压。
+            text += string.Format(", Eff: {0}, Pkt: {1}", MirObjects.Effect.LastLiveCount, MirNetwork.Network.LastPacketsProcessed);
+
             if (Settings.FullScreen)
             {
                 if (DebugBaseLabel == null || DebugBaseLabel.IsDisposed)

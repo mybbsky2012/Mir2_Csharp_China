@@ -74,6 +74,8 @@ namespace Server
         public static bool StartHTTPService = false;
         public static string HTTPIPAddress = "http://127.0.0.1:5679/";
         public static string HTTPTrustedIPAddress = "127.0.0.1";
+        //账号查询接口密钥（10-30）：留空 = /accountinfo 接口一律拒绝；web 程序调用时带上 &key=此值
+        public static string HTTPQueryKey = "";
 
         //HTTP 监听通道。
         //auto  : 先试 http.sys（内核态、性能最好），失败自动改用纯 Socket（不需要管理员权限）
@@ -453,6 +455,7 @@ namespace Server
             //HTTP
             StartHTTPService = Reader.ReadBoolean("Network", "StartHTTPService", StartHTTPService);
             HTTPIPAddress = Reader.ReadString("Network", "HTTPIPAddress", HTTPIPAddress);
+            HTTPQueryKey = Reader.ReadString("Network", "HTTPQueryKey", HTTPQueryKey);
             HTTPTrustedIPAddress = Reader.ReadString("Network", "HTTPTrustedIPAddress", HTTPTrustedIPAddress);
             HttpTransport = Reader.ReadString("Network", "HttpTransport", HttpTransport);
 
@@ -818,6 +821,7 @@ namespace Server
             //HTTP
             Reader.Write("Network", "StartHTTPService", StartHTTPService);
             Reader.Write("Network", "HTTPIPAddress", HTTPIPAddress);
+            Reader.Write("Network", "HTTPQueryKey", HTTPQueryKey);
             Reader.Write("Network", "HTTPTrustedIPAddress", HTTPTrustedIPAddress);
             Reader.Write("Network", "HttpTransport", HttpTransport);
 

@@ -110,10 +110,15 @@ namespace Server.MirDatabase
             writer.Write(MiniMap);
             writer.Write((byte)Light);
             writer.Write(BigMap);
-            writer.Write(SafeZones.Count);
+            int safeZoneCount = 0;
+            for (int i = 0; i < SafeZones.Count; i++)
+                if (SafeZones[i] != null) safeZoneCount++;
+
+            writer.Write(safeZoneCount);
 
             for (int i = 0; i < SafeZones.Count; i++)
-                SafeZones[i].Save(writer);
+                if (SafeZones[i] != null)   // 空行（null）不写入存档
+                    SafeZones[i].Save(writer);
 
             writer.Write(Respawns.Count);
             for (int i = 0; i < Respawns.Count; i++)
@@ -277,7 +282,11 @@ namespace Server.MirDatabase
             {
                 SafeZoneInfo s = src[i];
 
-                list.Add(s == null ? null : new SafeZoneInfo
+                // 编辑器数据里安全区可能有空行（null），拷贝时直接丢弃，
+                // 否则运行时 GetSafeZone 遍历到 null 元素会抛空引用（分身推人/传送等都会触发）
+                if (s == null) continue;
+
+                list.Add(new SafeZoneInfo
                 {
                     Location = s.Location,
                     Size = s.Size,
@@ -423,8 +432,11 @@ namespace Server.MirDatabase
             Envir.MapList.Add(map);
 
             for (int i = 0; i < SafeZones.Count; i++)
+            {
+                if (SafeZones[i] == null) continue;   // 空行不进出生点
                 if (SafeZones[i].StartPoint)
                     Envir.StartPoints.Add(SafeZones[i]);
+            }
         }
 
         public void CreateSafeZone()

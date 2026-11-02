@@ -24,6 +24,50 @@ namespace Server.MirNetwork
             get { return MessageQueue.Instance; }
         }
 
+        // ★连接日志降噪（10-29）：客户端丢后台时会每 5 秒重连一次，同一 IP 的连接日志会被刷屏。
+        //   同一 IP 在窗口期内重复连接只静默计数，窗口过后下次连接时合并输出一条（含被静默的次数）。
+        private const int ConnectLogWindowMs = 60000;
+        private static readonly Dictionary<string, long> _ipLastConnectLog = new Dictionary<string, long>();
+        private static readonly Dictionary<string, int> _ipSuppressedConnects = new Dictionary<string, int>();
+
+        private static void LogConnect(string ip)
+        {
+            lock (_ipLastConnectLog)
+            {
+                long now = Envir.Time;
+                long last;
+                int suppressed;
+
+                if (_ipLastConnectLog.TryGetValue(ip, out last) && now - last < ConnectLogWindowMs)
+                {
+                    // 窗口期内：静默并计数
+                    _ipSuppressedConnects.TryGetValue(ip, out suppressed);
+                    _ipSuppressedConnects[ip] = suppressed + 1;
+                    return;
+                }
+
+                _ipSuppressedConnects.TryGetValue(ip, out suppressed);
+                _ipLastConnectLog[ip] = now;
+                _ipSuppressedConnects[ip] = 0;
+
+                // 字典防膨胀：条目过多时清掉早已过期的 IP
+                if (_ipLastConnectLog.Count > 64)
+                {
+                    var expired = _ipLastConnectLog.Where(kv => now - kv.Value > ConnectLogWindowMs * 2)
+                                                   .Select(kv => kv.Key).ToList();
+                    foreach (var k in expired)
+                    {
+                        _ipLastConnectLog.Remove(k);
+                        _ipSuppressedConnects.Remove(k);
+                    }
+                }
+
+                MessageQueue.Enqueue(suppressed > 0
+                    ? string.Format("{0}已连接服务器（此前 {1} 秒内还有 {2} 次重复连接已省略）", ip, ConnectLogWindowMs / 1000, suppressed)
+                    : ip + "已连接服务器");
+            }
+        }
+
         public readonly int SessionID;
         public readonly string IPAddress;
 
@@ -102,7 +146,7 @@ namespace Server.MirNetwork
 
             Envir.UpdateIPBlock(IPAddress, TimeSpan.FromSeconds(Settings.IPBlockSeconds));
 
-            MessageQueue.Enqueue(IPAddress + "已连接服务器");
+            LogConnect(IPAddress);
 
             _client = client;
             _client.NoDelay = true;
@@ -202,20 +246,27 @@ namespace Server.MirNetwork
 
             if (_dataCounter > Settings.MaxPacket)
             {
-                Envir.UpdateIPBlock(IPAddress, TimeSpan.FromHours(24));
-
-                List<string> packetList = new List<string>();
-
-                while (_lastPackets.Count > 0)
+                try
                 {
-                    _lastPackets.TryDequeue(out Packet pkt);
+                    Envir.UpdateIPBlock(IPAddress, TimeSpan.FromHours(24));
 
-                    Enum.TryParse<ClientPacketIds>((pkt?.Index ?? 0).ToString(), out ClientPacketIds cPacket);
+                    List<string> packetList = new List<string>();
 
-                    packetList.Add(cPacket.ToString());
+                    while (_lastPackets.Count > 0)
+                    {
+                        _lastPackets.TryDequeue(out Packet pkt);
+
+                        Enum.TryParse<ClientPacketIds>((pkt?.Index ?? 0).ToString(), out ClientPacketIds cPacket);
+
+                        packetList.Add(cPacket.ToString());
+                    }
+
+                    MessageQueue.Enqueue($"{IPAddress} 发现大量数据包，已断开连接 最后数据包为: {String.Join(",", packetList.Distinct())}.");
                 }
-
-                MessageQueue.Enqueue($"{IPAddress} 发现大量数据包，已断开连接 最后数据包为: {String.Join(",", packetList.Distinct())}.");
+                catch
+                {
+                    // 封禁处理本身出错也不能炸掉网络回调线程（10-30），连接照样要断
+                }
 
                 Disconnecting = true;
                 return;

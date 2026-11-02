@@ -743,7 +743,11 @@ namespace Server.MirObjects
 
         public override void Spawned()
         {
-            ActionTime = Envir.Time + 2000;
+            //★出生错峰（10-31）：一个刷怪点是一次性把 N 只怪全部刷出来的（Map.ProcessRespawns 里的
+            //  for 循环），原来它们的 ActionTime 完全一致 → 之后移动、抬手、放技能的节奏永远同步。
+            //  满屏时表现就是「同一帧几十只怪一起放技能」，客户端瞬间被几百个特效包打爆。
+            //  这里给每只怪加 0~800ms 的随机偏移，把出生节奏打散，后续冷却自然就错开了。
+            ActionTime = Envir.Time + 2000 + Envir.Random.Next(800);
 
             if (Info.HasSpawnScript && (Envir.MonsterNPC != null))
             {
@@ -1575,7 +1579,16 @@ namespace Server.MirObjects
 
         protected virtual void ProcessBuffEnd(Buff buff)
         {
-
+            // 盾类 buff 到期/被打掉时广播收盾特效，否则客户端的循环盾特效会残留
+            switch (buff.Type)
+            {
+                case BuffType.魔法盾:
+                    CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.MagicShieldDown }, CurrentLocation);
+                    break;
+                case BuffType.金刚术:
+                    CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.ElementalBarrierDown }, CurrentLocation);
+                    break;
+            }
         }
 
         protected virtual void ProcessAI()
@@ -2297,6 +2310,7 @@ namespace Server.MirObjects
             if (attacker == null || attacker.Node == null) return false;
             if (Dead || attacker == this) return false;
             if (attacker.Race == ObjectType.Creature) return false;
+            if (attacker.Info == null) return false;   // 防御：Info 未就绪的怪物（如异常路径创建的实例）不参与 AI 判定
 
             if (attacker.Info.AI == 980 || attacker.Info.AI == 982)
             {
@@ -2325,7 +2339,8 @@ namespace Server.MirObjects
                 switch (attacker.Master.AMode)
                 {
                     case AttackMode.Group:
-                        if (Master.GroupMembers != null && Master.GroupMembers.Contains((PlayerObject)attacker.Master)) return false;
+                        // 防御：attacker.Master 可能是英雄（HeroObject），直接强转 PlayerObject 会 InvalidCastException
+                        if (Master.GroupMembers != null && attacker.Master is PlayerObject attackerOwner && Master.GroupMembers.Contains(attackerOwner)) return false;
                         break;
                     case AttackMode.Guild:
                         break;
@@ -2668,6 +2683,18 @@ namespace Server.MirObjects
         public override Buff AddBuff(BuffType type, MapObject owner, int duration, Stats stats, bool refreshStats = true, bool updateOnly = false, params int[] values)
         {
             Buff b = base.AddBuff(type, owner, duration, stats, refreshStats, updateOnly, values);
+
+            // 起盾特效广播：魔法盾 Visible=false，S.AddBuff 包不会广播；
+            // 客户端靠这条 ObjectEffect 才会在对象身上挂持续盾特效（对齐玩家 FinishAddBuff 的行为）
+            switch (b.Type)
+            {
+                case BuffType.魔法盾:
+                    CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.MagicShieldUp }, CurrentLocation);
+                    break;
+                case BuffType.金刚术:
+                    CurrentMap.Broadcast(new S.ObjectEffect { ObjectID = ObjectID, Effect = SpellEffect.ElementalBarrierUp }, CurrentLocation);
+                    break;
+            }
 
             var packet = new S.AddBuff
             {

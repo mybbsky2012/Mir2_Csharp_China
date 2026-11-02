@@ -1,0 +1,104 @@
+高级开发工程师
+高级开发工程师
+最好是能带上服务器的运行状态和经验倍率还有爆率信息。
+
+
+账号管理接口已完成并部署（Build\Server\Release\Server.Library.dll，13:43:27，编译 0 警告 0 错误），需要完全重启 Server.exe 后生效。
+
+新增 4 个接口（都使用同一把 HTTPQueryKey）
+1. /accounts — 账号分页列表
+
+plaintext
+
+http://127.0.0.1:5679/accounts?key=密钥&page=1&size=20
+可选：&filter=神秘   &online=1   &banned=1
+参数：page（默认1）、size（默认20，上限200）、filter（模糊匹配账号、用户名、邮箱、角色名、最后IP）、online=1|0、banned=1|0
+排序：按账号序号倒序，新号在前；这样分页稳定，不会漏掉或重复账号
+每个账号返回：account / userName / email / admin / online / banned / banReason / banExpire / creationDate / lastDate / lastIP / characters[]；在线时多一个 playing{name,level,map,x,y}，直接看到“在玩哪个号、在哪张图”
+顶层还带 total / pages / onlineCount / bannedCount，以及内嵌的 server 状态块，一屏就能看到全貌
+2. /serverstatus — 服务器运行状态与倍率
+
+json
+
+{"gameName":"...","running":true,"startedAt":"2026-10-30 09:12:03",
+ "uptimeSeconds":16923,"uptimeText":"4小时42分",
+ "onlinePlayers":12,"connections":15,
+ "expRate":2,"highLevelExpRate":1.5,"highLevelExpRateMinLevel":60,
+ "dropRate":1.5,"saveDelayMinutes":5}
+expRate 为全局经验倍率，highLevelExpRate/MinLevel 为高等级额外加成，dropRate 为爆率倍率（倍率越高，越容易掉落）。
+
+3. /ban 与 /unban — 封禁与解封
+
+plaintext
+
+/ban?key=密钥&id=账号&reason=使用外挂&days=7        （按小时：&hours=12）
+/ban?key=密钥&name=角色名&reason=恶意刷屏          （days/hours 都不填 = 永久）
+/unban?key=密钥&id=账号
+返回 {"ok":true,"account":"xxx","banned":true,"reason":"...","expire":"2026-11-06 13:43:00","kicked":true}；找不到账号返回 notfound。
+
+4. /kick — 只踢下线不封号，返回 offline 表示当前不在线。
+
+写操作的安全性设计（重点）
+不跨线程碰 socket 或存档文件：HTTP 线程只改内存字段并入队，真正的 SendDisconnect 和“立即存档”由游戏工作线程在下一拍执行（Envir 新增 HttpSaveRequested 和踢人队列，先踢人再存档，保证下线状态也写入文件）；
+锁与登录同源：账号读写统一使用 Envir.AccountLock（和登录、断开、建号同一把锁），不是随手 lock 账号列表；
+没有死锁隐患：服务器状态块在账号锁之外获取（它在锁内容易形成 AccountLock→Connections，和游戏线程 Connections→AccountLock 反向）；踢人队列锁也保证先释放、再调用断链；
+审计留痕：封禁/解封/踢人都会往服务端日志打一条 [管理接口] 账号 xxx 已封禁，原因：…，已踢下线。
+排雷说明
+只改了 HttpServer.cs（新增路由和方法）与 Envir.cs（新增队列与处理函数，并在主循环 Process() 之后加一次消费），游戏主流程、战斗、掉落全未触碰；
+永久封禁用“当前时间 + 30 年”而非 DateTime.MaxValue，避免客户端倒计时溢出；
+解封会同时清空原因与到期时间，与原版登录逻辑（到期自动解封）一致。
+需要的话，我可以照 /online 的做法再做一个 /accounts 后台网页（分页表格 + 封禁按钮 + 顶部看板显示在线数、经验倍率、爆率），直接浏览器操作，不用写前端代码。
+
+查看所有产物 (57)
+
+
+
+
+
+
+13:43
+需要
+
+13:46
+
+
+
+高级开发工程师
+高级开发工程师
+管理后台页已完成并部署（Build\Server\Release\Server.Library.dll，13:48:48，编译 0 警告 0 错误）。完全重启 Server.exe 后，用浏览器打开：
+
+plaintext
+
+http://127.0.0.1:5679/admin
+首次进入填写一次密钥（!Setting.txt 里的 HTTPQueryKey，存进浏览器，之后免输）。
+
+页面长什么样
+顶部看板（6 个卡片，就是你要求的状态信息）​
+
+运行状态：绿点「运行中」+ 已运行时长（如 4小时42分）；
+在线人数（附连接数）；
+经验倍率：2x，若有高等级额外加成会显示 Lv60+ 1.5x；
+爆率倍率：1.5x；
+账号总数：附「在线 n / 封禁 m」；
+启动时间。
+筛选栏：搜索框（账号、角色名、邮箱、IP，回车即查）+ 在线状态筛选 + 封禁状态筛选 + 每页条数（20/50/100）+ 查询按钮。
+
+表格（每行一个账号）
+
+账号（附邮箱、最后 IP）；
+角色列表（名字 LvXX 职业）；在线时多一行 🟢 正在游戏：神秘人 Lv45 @ 般若神殿7层 (227,189)；
+状态标签：在线 / 离线 / GM / 已封禁（封禁下面带原因与到期时间）；
+最后登录时间；
+操作：封禁（已封禁则变 解封）+ 在线时多一个 踢下线。
+封禁弹层：填原因（玩家登录时会看到）+ 选时长（1/3/7/30 天 / 永久 / 自定义小时），确认后立即执行、在线会被踢下线，列表自动刷新并提示「账号 xxx 已封禁（永久），已踢下线」。
+
+其他细节：每 30 秒自动刷新（可关；封禁弹层打开时自动暂停，不会打断操作）；分页显示「共 N 个账号，第 x / y 页」。
+
+实现与验证
+页面源码放在 Server\Utils\admin_page.html，编译时嵌入 DLL（BuildAdminPage），不依赖任何外部文件；
+想改外观不用重编译：把同名 HTML 放到 Configs\Web\admin.html 即优先使用（和 /online 一个机制）；
+转义是脚本化生成的（引号 " → ""），并做了回读还原校验：还原内容与源文件逐字节一致；
+前端逻辑跑了真实校验：node --check 语法通过；再用 node 的 vm 桩环境 + 与接口字段完全一致的样例 JSON 跑通「渲染看板 / 渲染表格 / 打开封禁弹层 / 提交封禁 / 踢人」，请求 URL 正确（/ban?key=…&id=…&reason=…&days=0）；
+测试中发现并修掉一个时序 bug：操作成功提示会被随后发起的列表刷新覆盖，改为先 await load() 再提示；
+后端这轮只加了 /admin 一条路由，接口逻辑未变。
+排雷：/admin 和 /accounts 一样受 StartHTTPService 开关和 HTTPQueryKey 保护（未设密钥时页面能打开但会提示「密钥错误」，与 /online 行为一致）；页面只在浏览器里跑，不占用游戏线程。

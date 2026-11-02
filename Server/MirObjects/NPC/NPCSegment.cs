@@ -1050,8 +1050,10 @@ namespace Server.MirObjects
                 case "GIVEBUFF":
                     if (parts.Length < 4) return;
 
-                    string visible = parts.Length > 3 ? parts[3] : "";
-                    string infinite = parts.Length > 4 ? parts[4] : "";
+                    //★ 参数顺序与执行端(ActionType.GiveBuff)对齐：BUFF名 时长 永久 可见 可叠加
+                    //  （原先解析端把第3/4参数当 可见/无限 取，执行端却按 无限/可见 读，两端口径错位）
+                    string infinite = parts.Length > 3 ? parts[3] : "";
+                    string visible = parts.Length > 4 ? parts[4] : "";
                     string stackable = parts.Length > 5 ? parts[5] : "";
 
                     var additionalParams = new List<string>();
@@ -1060,7 +1062,7 @@ namespace Server.MirObjects
                         additionalParams.Add(parts[i]);
                     }
 
-                    var allParams = new List<string> { parts[1], parts[2], visible, infinite, stackable };
+                    var allParams = new List<string> { parts[1], parts[2], infinite, visible, stackable };
                     allParams.AddRange(additionalParams);
 
                     acts.Add(new NPCActions(ActionType.GiveBuff, allParams.ToArray()));
@@ -3614,7 +3616,14 @@ namespace Server.MirObjects
                                 monster.MaxPetLevel = 7;
                                 monster.Direction = player.Direction;
                                 monster.ActionTime = Envir.Time + 1000;
-                                monster.Spawn(player.CurrentMap, player.CurrentLocation);
+
+                                // 落地失败（落点被占/不可走）就别收进 Pets，否则是没有 CurrentMap 的僵尸宠物
+                                if (!monster.Spawn(player.CurrentMap, player.CurrentLocation))
+                                {
+                                    monster.Master = null;
+                                    continue;
+                                }
+
                                 player.Pets.Add(monster);
                             }
                         }
@@ -3643,6 +3652,14 @@ namespace Server.MirObjects
                     case ActionType.AddNameList:
                         {
                             var tempString = param[0];
+                            //★ 名单文件不存在时自动创建（含父目录），避免抛异常炸掉后续动作
+                            if (!File.Exists(tempString))
+                            {
+                                var listDir = Path.GetDirectoryName(tempString);
+                                if (!string.IsNullOrEmpty(listDir) && !Directory.Exists(listDir))
+                                    Directory.CreateDirectory(listDir);
+                                File.Create(tempString).Dispose();
+                            }
                             if (File.ReadAllLines(tempString).All(t => player.Name != t))
                             {
                                 using (var line = File.AppendText(tempString))
@@ -3670,6 +3687,8 @@ namespace Server.MirObjects
                     case ActionType.DelNameList:
                         {
                             var tempString = param[0];
+                            //★ 名单文件不存在时无需删除，直接跳过
+                            if (!File.Exists(tempString)) break;
                             File.WriteAllLines(tempString, File.ReadLines(tempString).Where(l => l != player.Name).ToList());
                         }
                         break;

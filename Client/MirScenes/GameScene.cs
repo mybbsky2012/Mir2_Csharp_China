@@ -1225,7 +1225,26 @@ namespace Client.MirScenes
             bool worldReady = MapControl != null && !MapControl.IsDisposed
                               && User != null && MapControl.FloorValid;
 
-            if (!worldReady)
+            // 11-02：地图文件还在后台下载（微端）→ 一直挂着载入画面，别让玩家盯着占位地图。
+            // 注意这里不能 return：主循环还要跑（心跳、看护线程、自动重载都靠它）。
+            bool waitingMap = MapControl != null && !MapControl.IsDisposed && MapControl.WaitingMapFile != null;
+
+            if (waitingMap)
+            {
+                if (!LoadingScreen.Visible) LoadingScreen.Show();
+
+                string mapName = Path.GetFileNameWithoutExtension(MapControl.WaitingMapFile);
+                string relative = ResourceDownloader.ToRelativePath(MapControl.WaitingMapFile);
+                long got = relative != null &&
+                           string.Equals(ResourceDownloader.ActiveFile, relative, StringComparison.OrdinalIgnoreCase)
+                    ? ResourceDownloader.ActiveBytes
+                    : 0;
+
+                LoadingScreen.SetStatus(got > 0
+                    ? string.Format("正在下载地图 {0}（已收到 {1:0.0} MB），请稍候...", mapName, got / 1048576.0)
+                    : string.Format("正在下载地图 {0}，请稍候...", mapName));
+            }
+            else if (!worldReady)
             {
                 if (LoadingScreen.Armed)
                 {
@@ -10968,6 +10987,17 @@ namespace Client.MirScenes
         
         public static List<Effect> Effects = new List<Effect>();
 
+        #region 光源限流（10-31）
+        // 每个带光的对象 / 每个特效都会往光照层画一张至少 605x460 的加法混合光斑。
+        // 满屏怪物同时放技能时那是几百张全屏级半透明四边形叠在一张 800x600 的目标面上，
+        // 填充率直接爆掉 —— 白天不明显，夜晚/洞穴里就是「一放技能卡死」的元凶。
+        // 这里只画离玩家最近的若干个：远处的光斑本来就被近处盖住，砍掉看不出区别。
+        private const int MaxObjectLights = 12;
+        private const int MaxEffectLights = 8;
+        private static readonly List<(int Dist, MapObject Ob)> _objectLightSort = new List<(int, MapObject)>();
+        private static readonly List<(int Dist, Effect Ef)> _effectLightSort = new List<(int, Effect)>();
+        #endregion
+
         public MapControl()
         {
             MapButtons = MouseButtons.None;
@@ -11027,6 +11057,18 @@ namespace Client.MirScenes
             Width = Map.Width;
             Height = Map.Height;
 
+            // 11-02：地图文件还没到（微端）→ 先摆占位地图并**继续挂着载入画面**，
+            // 后台下载完成后 ReloadFloor 收尾。玩家不会再看到「先卡死 10 秒 / 再进一片黑」。
+            WaitingMapFile = string.Equals(MapReader.PendingMapFile, FileName, StringComparison.OrdinalIgnoreCase)
+                ? FileName
+                : null;
+
+            if (WaitingMapFile != null)
+            {
+                LoadingScreen.Show();
+                LoadingScreen.SetStatus("正在下载地图 " + Path.GetFileNameWithoutExtension(FileName) + "，请稍候...");
+            }
+
             PathFinder = new PathFinder(this);
 
             try
@@ -11062,6 +11104,9 @@ namespace Client.MirScenes
             };
         }
 
+        /// <summary>正在等 .map 下载完成的地图（null = 不等）。开着的时候载入画面不撤。</summary>
+        public string WaitingMapFile;
+
         /// <summary>
         /// 重载地面：只重建格子数据并重新登记现有对象，不走 LoadMap/ResetMap ——
         /// 那两个会把 Objects 清空，玩家和其它角色会从画面里消失直到重新下发。
@@ -11070,6 +11115,12 @@ namespace Client.MirScenes
         {
             try
             {
+                if (!File.Exists(FileName))
+                {
+                    // 文件还没真的落地（下载线程刚写完一半等极端情况）：下一拍再来
+                    return;
+                }
+
                 MapReader map = new MapReader(FileName);
                 M2CellInfo = map.MapCells;
                 Width = map.Width;
@@ -11087,6 +11138,13 @@ namespace Client.MirScenes
 
                 FloorValid = false;
 
+                // 真实地图到位：等图状态结束，撤掉载入画面
+                if (WaitingMapFile != null)
+                {
+                    WaitingMapFile = null;
+                    LoadingScreen.Hide();
+                }
+
                 ResourceDownloader.Log("地图文件后台补齐完成，已自动重载：" + FileName);
             }
             catch (Exception ex)
@@ -11097,6 +11155,13 @@ namespace Client.MirScenes
 
         private void CheckLateMapReload()
         {
+            // 保险丝：看护线程没来得及通知（或通知丢了），只要文件真落地了就自己重载一次
+            if (WaitingMapFile != null && File.Exists(WaitingMapFile))
+            {
+                ReloadFloor();
+                if (WaitingMapFile == null) return;
+            }
+
             string file = _pendingLateReloadFile;
             if (file == null) return;
 
@@ -11123,6 +11188,9 @@ namespace Client.MirScenes
 
             for (int i = Effects.Count - 1; i >= 0; i--)
                 Effects[i].Process();
+
+            //★特效全局限流（10-31）：按实际在场数量校正，超限的最新特效会被标记丢弃
+            Effect.EnforceGlobalLimit();
 
             if (MapObject.TargetObject != null && MapObject.TargetObject is MonsterObject && MapObject.TargetObject.AI == 970)
                 MapObject.TargetObjectID = 0;
@@ -11805,10 +11873,28 @@ namespace Client.MirScenes
             DXManager.Device.SetRenderState(RenderState.DestinationBlend, Blend.One);
 
             #region Object Lights (Player/Mob/NPC)
+            //★光源限流（10-31）：先按离屏幕中心的距离排序，只画最近的 MaxObjectLights 个。
+            //  远处的光斑本来就被近处盖住，砍掉视觉上几乎无差别，填充率却能降一个数量级。
+            int lightCenterX = Settings.ScreenWidth / 2;
+            int lightCenterY = Settings.ScreenHeight / 2;
+
+            _objectLightSort.Clear();
             for (int i = 0; i < Objects.Count; i++)
             {
                 MapObject ob = Objects[i];
-                if (ob.Light > 0 && (!ob.Dead || ob == MapObject.User || ob.Race == ObjectType.Spell))
+                if (ob.Light <= 0) continue;
+                if (ob.Dead && ob != MapObject.User && ob.Race != ObjectType.Spell) continue;
+
+                int dist = Math.Abs(ob.DrawLocation.X - lightCenterX) + Math.Abs(ob.DrawLocation.Y - lightCenterY);
+                _objectLightSort.Add((dist, ob));
+            }
+
+            if (_objectLightSort.Count > MaxObjectLights)
+                _objectLightSort.Sort((a, b) => a.Dist.CompareTo(b.Dist));
+
+            for (int i = 0; i < _objectLightSort.Count && i < MaxObjectLights; i++)
+            {
+                MapObject ob = _objectLightSort[i].Ob;
                 {
                     light = ob.Light;
 
@@ -11857,50 +11943,54 @@ namespace Client.MirScenes
                         DXManager.Draw(DXManager.Lights[lightRange], null, new Vector3((float)p.X, (float)p.Y, 0.0F), lightColour);
                     }
                 }
-
-                #region Object Effect Lights
-                if (!Settings.Effect) continue;
-                for (int e = 0; e < ob.Effects.Count; e++)
-                {
-                    Effect effect = ob.Effects[e];
-                    if (!effect.Blend || CMain.Time < effect.Start || (!(effect is Missile) && effect.Light < ob.Light)) continue;
-
-                    light = effect.Light;
-                    
-                    p = effect.DrawLocation;
-
-                    var lightColour = effect.LightColour;
-
-                    if (MapObject.User.Poison.HasFlag(PoisonType.Blindness))
-                    {
-                        lightColour = GetBlindLight(lightColour);
-                    }
-
-                    if (DXManager.Lights[light] != null && !DXManager.Lights[light].Disposed)
-                    {
-                        p.Offset(-(DXManager.LightSizes[light].X / 2) - (CellWidth / 2), -(DXManager.LightSizes[light].Y / 2) - (CellHeight / 2) - 5);
-                        DXManager.Draw(DXManager.Lights[light], null, new Vector3((float)p.X, (float)p.Y, 0.0F), lightColour);
-                    }
-
-                }
-                #endregion
             }
             #endregion
 
-            #region Map Effect Lights
+            #region Object / Map Effect Lights
+            //特效光源同样限流：对象身上的特效和地图特效合并成一个候选池，只画最近的几个。
             if (Settings.Effect)
             {
+                _effectLightSort.Clear();
+
+                for (int i = 0; i < Objects.Count; i++)
+                {
+                    MapObject ob = Objects[i];
+                    for (int e = 0; e < ob.Effects.Count; e++)
+                    {
+                        Effect effect = ob.Effects[e];
+                        if (effect.Suppressed) continue;
+                        if (!effect.Blend || CMain.Time < effect.Start || (!(effect is Missile) && effect.Light < ob.Light)) continue;
+                        if (effect.Light <= 0 || effect.Light >= DXManager.Lights.Count) continue;
+
+                        int dist = Math.Abs(effect.DrawLocation.X - lightCenterX) + Math.Abs(effect.DrawLocation.Y - lightCenterY);
+                        _effectLightSort.Add((dist, effect));
+                    }
+                }
+
                 for (int e = 0; e < Effects.Count; e++)
                 {
                     Effect effect = Effects[e];
+                    if (effect.Suppressed) continue;
                     if (!effect.Blend || CMain.Time < effect.Start) continue;
+                    if (effect.Light <= 0 || effect.Light >= DXManager.Lights.Count) continue;
+
+                    int dist = Math.Abs(effect.DrawLocation.X - lightCenterX) + Math.Abs(effect.DrawLocation.Y - lightCenterY);
+                    _effectLightSort.Add((dist, effect));
+                }
+
+                if (_effectLightSort.Count > MaxEffectLights)
+                    _effectLightSort.Sort((a, b) => a.Dist.CompareTo(b.Dist));
+
+                for (int i = 0; i < _effectLightSort.Count && i < MaxEffectLights; i++)
+                {
+                    Effect effect = _effectLightSort[i].Ef;
 
                     light = effect.Light;
-                    if (light == 0) continue;
 
                     p = effect.DrawLocation;
 
-                    var lightColour = Color.White;
+                    //对象身上的特效沿用特效自身光色；地图级特效（无 Owner）原来是纯白
+                    Color lightColour = effect.Owner != null ? effect.LightColour : Color.White;
 
                     if (MapObject.User.Poison.HasFlag(PoisonType.Blindness))
                     {
@@ -15341,38 +15431,62 @@ namespace Client.MirScenes
 
             if (AutoPath)
             {
-                if (CurrentPath == null || CurrentPath.Count == 0)
+                if (User == null || CurrentPath == null || CurrentPath.Count == 0)
                 {
                     AutoPath = false;
                     return;
                 }
 
-                var path = GameScene.Scene.MapControl.PathFinder.FindPath(MapObject.User.CurrentLocation, CurrentPath.Last().Location);
+                Point goal = CurrentPath[CurrentPath.Count - 1].Location;
 
-                if (path != null && path.Count > 0)
-                    GameScene.Scene.MapControl.CurrentPath = path;
-                else
+                //★11-03：原来这里「每一步都从当前位置把整条路重算一遍」。
+                //  大地图（1000×800）上一次重算要展开几万格，走一步就烧一次，画面一顿一顿的；
+                //  而且重算失败就直接 AutoPath=false —— 表现就是「定住几秒然后人不动了」。
+                //  现在只在「人已经不在路线上」或「下一格被挡住了」时才重算。
+                int walked = CurrentPath.FindIndex(x => x.Location == User.CurrentLocation);
+
+                if (walked > 0)
                 {
-                    AutoPath = false;
-                    return;
+                    CurrentPath.RemoveRange(0, walked);      //把走过的节点摘掉，路线图也跟着变短
                 }
-
-                Node currentNode = CurrentPath.SingleOrDefault(x => User.CurrentLocation == x.Location);
-                if (currentNode != null)
+                else if (walked < 0)
                 {
-                    while (true)
+                    var repath = PathFinder.FindPath(User.CurrentLocation, goal);
+
+                    if (repath == null || repath.Count == 0)
                     {
-                        Node first = CurrentPath.First();
-                        CurrentPath.Remove(first);
-
-                        if (first == currentNode)
-                            break;
+                        AutoPath = false;
+                        return;
                     }
+
+                    CurrentPath = repath;
                 }
 
-                if (CurrentPath.Count > 0)
+                if (CurrentPath.Count <= 1)
                 {
-                    MirDirection dir = Functions.DirectionFromPoint(User.CurrentLocation, CurrentPath.First().Location);
+                    AutoPath = false;                        //已经站在终点
+                    return;
+                }
+
+                Point next = CurrentPath[1].Location;
+
+                //下一格走不进去（怪走过来 / 门关了 / 被顶开）才重算，其余情况照原路线走
+                if (!EmptyCell(next))
+                {
+                    var repath = PathFinder.FindPath(User.CurrentLocation, goal);
+
+                    if (repath == null || repath.Count <= 1)
+                    {
+                        AutoPath = false;
+                        return;
+                    }
+
+                    CurrentPath = repath;
+                    next = CurrentPath[1].Location;
+                }
+
+                {
+                    MirDirection dir = Functions.DirectionFromPoint(User.CurrentLocation, next);
 
                     // 轻身步（SwiftFeet）生效时服务端 HumanObject.Run() 是「一步跑 3 格」，
                     // 这里原来只认坐骑（RidingMount ? 3 : 2），漏了 Sprint，
@@ -15857,6 +15971,32 @@ namespace Client.MirScenes
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// 寻路专用（11-03）：把当前所有「挡路」的坐标一次性收进集合。
+        /// 原来 A* 每展开一格都要调 EmptyCell，而 EmptyCell 要遍历整个 Objects 列表 ——
+        /// 大地图上一次寻路展开几万格 × 上百个对象 = 上千万次比较，这就是「大地图右键定格几秒」的主体。
+        /// 现在整轮寻路只遍历 Objects 一次。穿人开关的判定必须与 EmptyCell 完全一致。
+        /// </summary>
+        public void SnapshotBlockingCells(HashSet<long> into)
+        {
+            into.Clear();
+
+            for (int i = 0; i < Objects.Count; i++)
+            {
+                MapObject ob = Objects[i];
+
+                if (ob == null || ob == User || !ob.Blocking) continue;
+
+                if (Settings.WalkThrough && CanWalkThroughObject(ob)) continue;
+
+                Point p = ob.CurrentLocation;
+
+                if (p.X < 0 || p.Y < 0 || p.X >= Width || p.Y >= Height) continue;
+
+                into.Add((((long)p.X) << 32) | ((uint)p.Y));
+            }
         }
 
         private bool CanWalk(MirDirection dir)

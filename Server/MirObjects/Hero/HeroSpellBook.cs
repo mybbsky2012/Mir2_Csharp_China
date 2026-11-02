@@ -36,6 +36,12 @@ namespace Server.MirObjects
         public int MaxDistance = -1;
         /// <summary>true = 以自身为目标施放（buff/防护/开关）。</summary>
         public bool SelfCast;
+        /// <summary>
+        /// 伏击型 buff（烈火身/月影术）：走路、攻击、施法、挨打任意一个动作都会把它消耗掉，
+        /// 本质上只能「开战前上一次」。战斗中刷新只会每拍抢走施法机会 → 英雄一直放技能不攻击，
+        /// 所以这类 buff 只在没有目标（未交战）时补，并且带冷却。
+        /// </summary>
+        public bool Ambush;
 
         public HeroSpellProfile(HeroSpellKind kind, BuffType buff = BuffType.None, bool selfCast = false)
         {
@@ -69,6 +75,9 @@ namespace Server.MirObjects
             return Profiles.ContainsKey(spell);
         }
 
+        /// <summary>全部登记过的技能（只给测试/排查用）。</summary>
+        public static IEnumerable<Spell> AllSpells => Profiles.Keys;
+
         /// <summary>快捷键序号：英雄栏 1~8 存成 Key=17~24，这里归一到 1~8；没设键的排最后。</summary>
         public static int KeyRank(UserMagic magic)
         {
@@ -94,6 +103,19 @@ namespace Server.MirObjects
             double delay = Math.Max(info.DelayBase, 800) / 1000.0;
 
             return level + damage * mult / delay * 2;
+        }
+
+        /// <summary>伏击型 buff（烈火身/月影术）的补放冷却：放进去了也会被下一次动作吃掉，补太勤没意义。</summary>
+        public const int AmbushCooldownMs = 12000;
+
+        /// <summary>
+        /// 伏击型 buff 现在该不该补：
+        /// ① 交战中（有活目标）绝不补 —— 补了也是下一秒被走路/攻击消耗掉，只会白占一拍施法；
+        /// ② 冷却内不补 —— 防止「补上→被消耗→再补」的空转。
+        /// </summary>
+        public static bool CanRefreshAmbushBuff(bool inCombat, long now, long nextAllowed)
+        {
+            return !inCombat && now >= nextAllowed;
         }
 
         /// <summary>
@@ -187,13 +209,15 @@ namespace Server.MirObjects
             var map = new Dictionary<Spell, HeroSpellProfile>();
 
             void Add(Spell spell, HeroSpellKind kind, BuffType buff = BuffType.None,
-                bool selfCast = false, int minSurround = 0, int minDistance = -1, int maxDistance = -1)
+                bool selfCast = false, int minSurround = 0, int minDistance = -1, int maxDistance = -1,
+                bool ambush = false)
             {
                 map[spell] = new HeroSpellProfile(kind, buff, selfCast)
                 {
                     MinSurround = minSurround,
                     MinDistance = minDistance,
                     MaxDistance = maxDistance,
+                    Ambush = ambush,
                 };
             }
 
@@ -286,12 +310,16 @@ namespace Server.MirObjects
             //＝＝＝＝＝＝＝＝＝＝ 刺客 ＝＝＝＝＝＝＝＝＝＝
             Add(Spell.Haste, HeroSpellKind.Buff, BuffType.体迅风, true);
             Add(Spell.LightBody, HeroSpellKind.Buff, BuffType.风身术, true);
-            Add(Spell.DarkBody, HeroSpellKind.Buff, BuffType.烈火身, true);
-            Add(Spell.MoonLight, HeroSpellKind.Buff, BuffType.月影术, true);
+            // 烈火身/月影术：走路、攻击、施法、挨打都会把 buff 消耗掉（HumanObject.Walk/Attack/Magic/Struck），
+            // 只能当「伏击前上一次」，不能当持续 buff 每拍刷新，否则英雄会一直放它不出手（详见 HeroSpellProfile.Ambush）
+            Add(Spell.DarkBody, HeroSpellKind.Buff, BuffType.烈火身, true, ambush: true);
+            Add(Spell.MoonLight, HeroSpellKind.Buff, BuffType.月影术, true, ambush: true);
             Add(Spell.DoubleSlash, HeroSpellKind.Toggle, selfCast: true);
             Add(Spell.FireBurst, HeroSpellKind.Single);
             Add(Spell.PoisonSword, HeroSpellKind.Single);
-            Add(Spell.Hemorrhage, HeroSpellKind.Single);
+            //★血风击（Hemorrhage）也不登记：它没有独立的施法分支，是「普通近战命中时按概率追加一次伤害」
+            //  的被动触发技能（HumanObject.CompleteAttack 里结算）。登记成 Single 会让刺客英雄每 tick 排它、
+            //  排了又放不出来，同样卡成「站着不打」。
             Add(Spell.HeavenlySword, HeroSpellKind.Single, maxDistance: 2);
             Add(Spell.CatTongue, HeroSpellKind.Single);
             Add(Spell.ShadowCombo, HeroSpellKind.Single, maxDistance: 2);
@@ -305,7 +333,11 @@ namespace Server.MirObjects
             Add(Spell.Concentration, HeroSpellKind.Buff, BuffType.气流术, true);
             Add(Spell.ConcentrationRare, HeroSpellKind.Buff, BuffType.气流术, true);
             Add(Spell.ElementalBarrier, HeroSpellKind.Buff, BuffType.金刚术, true);
-            Add(Spell.MentalState, HeroSpellKind.Buff, BuffType.精神状态, true);
+            //★精神状态（MentalState）绝不登记：它根本不能通过 Magic() 施放（服务端只在 SpellToggle 里处理，
+            //  走 Magic() 会落到 default → cast=false，什么都没发生；于是 AI 每 tick 都以为「buff 还没上」重复排它，
+            //  排完 ProcessAI 直接 return → 英雄站在怪物面前一箭不放）。
+            //  而且它是「模式切换」：每点一次 0集中→1穿透→2组队，穿透模式伤害只剩 55%~70%。
+            //  英雄默认 0 集中模式就是满伤害，所以干脆不碰。
             Add(Spell.StraightShot, HeroSpellKind.Single);
             Add(Spell.DoubleShot, HeroSpellKind.Single);
             Add(Spell.ElementalShot, HeroSpellKind.Single);
@@ -313,7 +345,10 @@ namespace Server.MirObjects
             Add(Spell.PoisonShot, HeroSpellKind.Single);
             Add(Spell.CrippleShot, HeroSpellKind.Single);
             Add(Spell.NapalmShot, HeroSpellKind.Aoe, minSurround: 2);
-            Add(Spell.OneWithNature, HeroSpellKind.Single, BuffType.吸血地闪);
+            //★血龙闪秘笈（OneWithNature）不是单体远程箭：服务端 OneWithNature() 把落点固定成
+            //  「施法者自己的 CurrentLocation」，Map 里按 5x5 结算。站着 5 格外放等于打空气。
+            //  所以按「自身 5x5 群攻」登记：只在贴身有怪（≥1）时才用，别当主力单体外。
+            Add(Spell.OneWithNature, HeroSpellKind.Aoe, minSurround: 1);
             // DeathBlow（灭杀）需要「灭杀窗口」buff，由 SkyThunderShotRare 命中后产生，
             // 这里不登记（登记了会在没窗口时白占一拍），由 ArcherHero 显式判断
             Add(Spell.DelayedExplosion, HeroSpellKind.Single);

@@ -136,6 +136,18 @@ namespace Server.MirObjects
         /// <summary>排队施法的入队时间：超过 5 秒还没放出去就丢掉，避免 CanCast 抖动把队列卡死。</summary>
         protected long NextMagicSetTime;
 
+        //＝＝＝施法失败保护（10-31）＝＝＝
+        //背景：AI 把技能排进 NextMagicSpell 后，ProcessAI 会直接 return，等 ProcessTarget 真正去放。
+        //      如果那个技能「排得出来但放不出来」（服务端没实现/缺弹药/缺元素珠/距离不合格），
+        //      NextMagicSpell 被清掉、magic.CastTime 却没更新，下一拍 AI 又会挑中同一个技能 ——
+        //      无限循环，英雄从此一箭不放（弓手学「精神状态」时就是这么废掉的）。
+        //对策：排出去的技能下一拍回头核对一次，没真正放出去就禁止 3 秒，让 AI 换别的技能。
+        private Spell _pendingSpell = Spell.None;
+        private long _pendingAt;
+        private readonly Dictionary<Spell, long> _castFailUntil = new Dictionary<Spell, long>();
+        /// <summary>伏击型 buff（烈火身/月影术）下一次允许补放的时间。</summary>
+        private readonly Dictionary<Spell, long> _ambushNext = new Dictionary<Spell, long>();
+
         protected int TargetDistance;
         public override GuildObject MyGuild
         {
@@ -1235,6 +1247,9 @@ namespace Server.MirObjects
         // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
         protected bool TryCast(HeroSpellKind kind, MapObject castTarget = null)
         {
+            // 先核对上一拍排出去的技能到底放出去没有（见 _castFailUntil 的注释）
+            CheckPendingCast();
+
             if (!CanCast) return false;
 
             MapObject target = castTarget;
@@ -1263,15 +1278,62 @@ namespace Server.MirObjects
             for (int i = 0; i < candidates.Count; i++)
             {
                 UserMagic magic = candidates[i];
+                HeroSpellProfile profile = HeroSpellBook.Get(magic.Spell);
+
+                // 伏击型 buff（烈火身/月影术）：任何动作都会消耗掉它，战斗中补等于白扔一拍施法
+                // → 英雄会「一直在放技能、就是不攻击」。只在没目标时补，且带冷却。
+                if (profile != null && profile.Ambush)
+                {
+                    long ambushNext;
+                    _ambushNext.TryGetValue(magic.Spell, out ambushNext);
+
+                    bool inCombat = Target != null && !Target.Dead;
+                    if (!HeroSpellBook.CanRefreshAmbushBuff(inCombat, Envir.Time, ambushNext)) continue;
+                }
+
+                // 子类判定「这个 buff 现在放了有没有意义」（如刺客已有活着的分身就别再放烈火身）
+                if (!IsBuffWorthCasting(magic)) continue;
+
                 if (!CanUseMagic(magic)) continue;
+
+                // 刚放不出来的技能先晾 3 秒（否则会一直挑它、把每一拍都吃掉）
+                long failUntil;
+                if (_castFailUntil.TryGetValue(magic.Spell, out failUntil) && Envir.Time < failUntil) continue;
 
                 // 自己再判一次冷却：冷却中的技能选出来也放不出去，会白占一拍
                 if (Envir.Time < magic.CastTime + magic.GetDelay()) continue;
 
-                return CastSelected(magic, target);
+                bool cast = CastSelected(magic, target);
+
+                if (cast && profile != null && profile.Ambush)
+                    _ambushNext[magic.Spell] = Envir.Time + HeroSpellBook.AmbushCooldownMs;
+
+                return cast;
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 回查上一拍排队的技能：若「已被施法流程消费（NextMagicSpell 清空）」但 magic.CastTime 没更新，
+        /// 说明 Magic() 根本没放出去（服务端无实现 / 缺弹药 / 距离不合格 / 目标没了），记 3 秒禁用。
+        /// 排队后 1.5 秒内还没被消费（战斗中切目标、CanCast 抖动）不算失败，避免误伤。
+        /// </summary>
+        private void CheckPendingCast()
+        {
+            if (_pendingSpell == Spell.None) return;
+
+            Spell spell = _pendingSpell;
+            long at = _pendingAt;
+            _pendingSpell = Spell.None;
+
+            if (Envir.Time - at > 1500) return;      // 还没轮到放（没目标/暂时不能施法），不记失败
+
+            UserMagic magic = GetMagic(spell);
+            if (magic == null) return;               // 技能被删了，下一拍自然不会再选中
+            if (magic.CastTime >= at) return;        // 真的放出去了
+
+            _castFailUntil[spell] = Envir.Time + 3000;
         }
 
         /// <summary>
@@ -1293,6 +1355,15 @@ namespace Server.MirObjects
             return true;
         }
 
+        /// <summary>
+        /// 子类判定「这个自身 buff 现在放了有没有意义」。
+        /// 返回 false 表示这一发别放（不消耗施法机会，让后面的攻击/别的技能顶上）。
+        /// </summary>
+        protected virtual bool IsBuffWorthCasting(UserMagic magic)
+        {
+            return true;
+        }
+
         protected bool CastSelected(UserMagic magic, MapObject target)
         {
             HeroSpellProfile profile = HeroSpellBook.Get(magic.Spell);
@@ -1310,6 +1381,10 @@ namespace Server.MirObjects
             // 攻击类统一传「目标 + 目标位置」：以自身为原点的技能（地狱火/疾光电影/月华乱舞）内部只用方向，
             // 以落点为中心的技能（爆裂火焰/天霜冰环/落雷杀）需要目标位置，两边的实现都能吃这一套。
             BeginMagic(magic.Spell, dir, targetID, location);
+
+            // 记一笔：下一拍回头核对这一发到底放出去没有（放不出去就短暂禁用，见 CheckPendingCast）
+            _pendingSpell = magic.Spell;
+            _pendingAt = Envir.Time;
             return true;
         }
 

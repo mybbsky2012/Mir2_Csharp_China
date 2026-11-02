@@ -39,6 +39,118 @@ namespace Client.MirObjects
         public event EventHandler Complete;
         public event EventHandler Played;
 
+        #region 特效限流（10-31）
+        // 原来客户端对特效完全没有数量上限：满屏怪物同时放技能时特效能涨到几百个，
+        // 而每个特效每推进一帧都会把 MapControl.TextureValid 置 false（= 下一帧整屏重建），
+        // 夜晚还要各自再叠一张 605x460 的加法混合光斑 —— 这是「满屏 + 齐射就卡死」的主体。
+        //
+        // 这里在【构造阶段】就拦截，而不是等到绘制时再跳过：超限的特效第一次 Process 就自我移除，
+        // 既不进绘制列表、也不会把画面置脏。先来的优先，已经存在的特效完全不受影响。
+        //   · 只限「一次性技能特效」（Effect / SpecialEffect）；
+        //     Buff / 元素珠 / 持续爆炸 / 飞弹 / 纯光源这些有状态的特效必须保留，否则表现会缺一大块。
+        /// <summary>全局同时存在的技能特效上限。</summary>
+        public const int MaxActiveEffects = 100;
+        /// <summary>单个对象身上同时叠加的技能特效上限。</summary>
+        public const int MaxEffectsPerOwner = 8;
+        /// <summary>同一个对象、同一素材在该时间窗内只保留一个（毫秒）。</summary>
+        public const int DuplicateWindowMs = 300;
+
+        /// <summary>被限流丢弃：不绘制、立即移除、不触发 Complete。</summary>
+        public bool Suppressed;
+
+        private static bool IsLimitable(Effect e)
+        {
+            Type t = e.GetType();
+            return t == typeof(Effect) || t == typeof(SpecialEffect);
+        }
+
+        /// <summary>
+        /// 单对象限流：在构造阶段判断，不用等绘制。只看自己身上的特效，不依赖任何全局计数。
+        /// </summary>
+        private void RegisterLimit()
+        {
+            if (!IsLimitable(this)) return;
+            if (Owner == null || Owner.Effects == null) return;
+
+            int same = 0;
+
+            for (int i = 0; i < Owner.Effects.Count; i++)
+            {
+                Effect other = Owner.Effects[i];
+                if (other == null || other.Suppressed) continue;
+                same++;
+
+                // 同一只怪、同一套素材、连发时只留第一发：群攻技能经常一次给同一个目标叠好几层同图特效
+                if (other.Library == Library && other.BaseIndex == BaseIndex &&
+                    CMain.Time - other.Start < DuplicateWindowMs)
+                {
+                    Suppressed = true;
+                    return;
+                }
+            }
+
+            if (same >= MaxEffectsPerOwner)
+                Suppressed = true;
+        }
+
+        private static readonly List<Effect> _limitBuffer = new List<Effect>();
+
+        /// <summary>上一帧统计到的技能特效数量（调试面板显示用）。</summary>
+        public static int LastLiveCount;
+
+        /// <summary>
+        /// 全局限流：每帧由 MapControl.Process 调一次，按「实际在场数量」校正，而不是靠构造时加减计数。
+        /// 靠计数容易漂移（切图时 Effects.Clear()、怪物阶段切换时 Effects.Clear() 都不会走 Remove），
+        /// 一旦漂高就会把所有新特效永久抑制掉，所以这里每帧重新数一遍：数量很小，开销可以忽略。
+        /// </summary>
+        public static void EnforceGlobalLimit()
+        {
+            _limitBuffer.Clear();
+
+            for (int i = 0; i < MapControl.Effects.Count; i++)
+            {
+                Effect e = MapControl.Effects[i];
+                if (e != null && !e.Suppressed && IsLimitable(e)) _limitBuffer.Add(e);
+            }
+
+            for (int i = 0; i < MapControl.Objects.Count; i++)
+            {
+                MapObject ob = MapControl.Objects[i];
+                if (ob == null || ob.Effects == null) continue;
+
+                for (int j = 0; j < ob.Effects.Count; j++)
+                {
+                    Effect e = ob.Effects[j];
+                    if (e != null && !e.Suppressed && IsLimitable(e)) _limitBuffer.Add(e);
+                }
+            }
+
+            int over = _limitBuffer.Count - MaxActiveEffects;
+            LastLiveCount = _limitBuffer.Count;
+            if (over <= 0) return;
+
+            // 分两轮丢：第一轮只动「怪物/地图」特效，玩家、英雄、其他玩家身上的特效留到最后。
+            // 否则自己在怪堆里放技能时，刚建出来的特效反而会先被裁掉，手感会很怪。
+            for (int pass = 0; pass < 2 && over > 0; pass++)
+            {
+                for (int i = _limitBuffer.Count - 1; i >= 0 && over > 0; i--)
+                {
+                    Effect e = _limitBuffer[i];
+                    if (e.Suppressed) continue;
+
+                    bool important = e.Owner != null &&
+                                     (e.Owner == MapObject.User || e.Owner == MapObject.HeroObject ||
+                                      e.Owner.Race == ObjectType.Player || e.Owner.Race == ObjectType.Hero);
+
+                    if (pass == 0 && important) continue;
+
+                    e.Suppressed = true;
+                    over--;
+                }
+            }
+        }
+        #endregion
+
         public Effect(MLibrary library, int baseIndex, int count, int duration, MapObject owner, long starttime = 0, bool drawBehind = false)
         {
             Library = library;
@@ -52,6 +164,8 @@ namespace Client.MirObjects
             Source = Owner.CurrentLocation;
 
             DrawBehind = drawBehind;
+
+            RegisterLimit();
         }
         public Effect(MLibrary library, int baseIndex, int count, int duration, Point source, long starttime = 0, bool drawBehind = false)
         {
@@ -65,6 +179,8 @@ namespace Client.MirObjects
             Source = source;
 
             DrawBehind = drawBehind;
+
+            RegisterLimit();
         }
 
         public void SetStart(long start)
@@ -76,6 +192,13 @@ namespace Client.MirObjects
 
         public virtual void Process()
         {
+            //被限流丢弃的特效：第一次 Process 就摘掉自己，绝不把画面置脏
+            if (Suppressed)
+            {
+                Remove();
+                return;
+            }
+
             if (CurrentFrame == 1)
             {
                 if (Played != null)
@@ -109,12 +232,17 @@ namespace Client.MirObjects
             else
                 MapControl.Effects.Remove(this);
 
+            //被限流丢弃的特效不触发 Complete：否则可能连带再去建新特效/放音效，等于白限
+            if (Suppressed) return;
+
             if (Complete != null)
                 Complete(this, EventArgs.Empty);
         }
 
         public virtual void Draw()
         {
+            if (Suppressed) return;
+
             if (CMain.Time < Start) return;
 
             if (Owner != null)
