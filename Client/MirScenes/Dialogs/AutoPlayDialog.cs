@@ -95,7 +95,8 @@ namespace Client.MirScenes.Dialogs
                 Parent = this,
                 Sound = SoundList.ButtonA,
             };
-            CloseButton.Click += (o, e) => { Settings.Save(); Hide(); };
+            // Hide() 里已经会 Save()，这里不要再存一次（重复落盘纯属浪费）
+            CloseButton.Click += (o, e) => Hide();
 
             BuildTabs();
             BuildPageBattle();
@@ -476,7 +477,7 @@ namespace Client.MirScenes.Dialogs
                 Settings.HealthNumber = HealthNumberBox.Checked;
                 Settings.Save();
                 GameScene.Scene.OutputMessage(Settings.HealthNumber
-                    ? "数字显血已开启：血条下方显示血量百分比（自己/宝宝、队友，以及刚被你打到的怪物）"
+                    ? "数字显血已开启：血条下方显示 Lv.等级 + 血量（自己/宝宝、队友，以及刚被你打到的怪物）"
                     : "数字显血已关闭");
             };
 

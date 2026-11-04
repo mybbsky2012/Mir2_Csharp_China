@@ -1415,8 +1415,23 @@ namespace Server.MirObjects
 
             Enqueue(new S.StartGame { Result = 4, Resolution = Settings.AllowedResolution });
 
+            // ★11-04 诊断：进图耗时分解。客户端实测「收到授权 → 收到 MapInformation」要 22.8 秒，
+            // 而客户端自建场景只要 0.22 秒，所以时间必然消耗在这段服务端同步代码里。
+            // 只打印 >=30ms 的步骤，定位完可整段删除。
+            System.Diagnostics.Stopwatch __sw = System.Diagnostics.Stopwatch.StartNew();
+            long __last = 0;
+            Action<string> __mark = delegate (string tag)
+            {
+                long __now = __sw.ElapsedMilliseconds;
+                long __cost = __now - __last;
+                if (__cost >= 30)
+                    MessageQueue.Enqueue("[进图计时] " + tag + " " + __cost + " ms（累计 " + __now + " ms）");
+                __last = __now;
+            };
+
             // 同步辅助开关（免蜡 / 穿人）的开放状态与当前值，客户端据此初始化内挂面板
             SendPlayerOptions();
+            __mark("SendPlayerOptions");
 
             ReceiveChat(string.Format(GameLanguage.Welcome, GameLanguage.GameName), ChatType.Hint);
 
@@ -1436,6 +1451,7 @@ namespace Server.MirObjects
                     magic.CastTime = int.MinValue;
                 }
             }
+            __mark("魔法时间重置");
 
             if (Info.GuildIndex != -1)
             {
@@ -1462,24 +1478,34 @@ namespace Server.MirObjects
             }
 
             SetLevelEffects();
+            __mark("SetLevelEffects");
 
             //★0 持久残留自动清理：必须跑在 GetUserInfo 之前，否则下发的背包快照里还是那批要删的残件
             ZeroDuraCleaner.AutoClean(this, false, false);
+            __mark("ZeroDuraCleaner");
 
             GetItemInfo(Connection);
+            __mark("GetItemInfo");
+
             GetMapInfo(Connection);
+            __mark("GetMapInfo（客户端靠这条包建地图）");
+
             GetUserInfo(Connection);
+            __mark("GetUserInfo");
 
             Spawned();
+            __mark("Spawned");
 
             GetQuestInfo();
             GetRecipeInfo();
 
             GetCompletedQuests();
+            __mark("GetQuestInfo+Recipe+CompletedQuests");
 
             GetMail();
             GetFriends();
             GetRelationship();
+            __mark("邮件/好友/师徒");
 
             if (Info.Mentor != 0 && Info.MentorDate.AddDays(Settings.MentorLength) < Envir.Now)
             {
@@ -1502,7 +1528,9 @@ namespace Server.MirObjects
             }
 
             SendBaseStats();
+            __mark("CheckConquest+GameShop+任务循环+BaseStats");
             GetObjectsPassive();
+            __mark("GetObjectsPassive（下发周围对象）");
             Enqueue(new S.TimeOfDay { Lights = Envir.Lights });
             Enqueue(new S.ChangeAMode { Mode = AMode });
             Enqueue(new S.ChangePMode { Mode = PMode });
@@ -1625,6 +1653,7 @@ namespace Server.MirObjects
             }
 
             Report.Connected(Connection.IPAddress);
+            __mark("宠物/公会/收尾（Report.Connected 之后）");
 
             MessageQueue.Enqueue(string.Format("{0} 已连接", Info.Name));
 
@@ -2060,7 +2089,7 @@ namespace Server.MirObjects
 
                                 NPC.CheckVisible(this);
 
-                                if (NPC.VisibleLog[Info.Index] && NPC.Visible) Enqueue(ob.GetInfo(), c);
+                                if (NPC.Visible && NPC.IsVisibleTo(Info.Index)) Enqueue(ob.GetInfo(), c);
                             }
                             else
                             {
@@ -5016,6 +5045,8 @@ namespace Server.MirObjects
             if (page.Length > 0)
             {
                 var script = NPCScript.Get(scriptid);
+                if (script == null) return;
+
                 script.Call(this, npcid, page.ToUpper());
             }
         }
@@ -8539,6 +8570,8 @@ namespace Server.MirObjects
             if (NPCObjectID != Envir.DefaultNPC.LoadedObjectID) return;
 
             var script = NPCScript.Get(NPCScriptID);
+            if (script == null) return;
+
             script.Call(this, NPCObjectID, key.ToUpper());
 
             CallNPCNextPage();
@@ -8558,7 +8591,7 @@ namespace Server.MirObjects
 
                 ob.CheckVisible(this);
 
-                if (!ob.VisibleLog[Info.Index] || !ob.Visible) return;
+                if (!ob.Visible || !ob.IsVisibleTo(Info.Index)) return;
 
                 var scriptID = NPCScriptID;
                 if (objectID != NPCObjectID || key == NPCScript.MainKey)
@@ -8567,6 +8600,9 @@ namespace Server.MirObjects
                 }
 
                 var script = NPCScript.Get(scriptID);
+                //★11-03：脚本缺失只跳过，不要抛 KeyNotFound 打断整个主循环
+                if (script == null) break;
+
                 script.Call(this, objectID, key);
 
                 break;
@@ -8610,6 +8646,8 @@ namespace Server.MirObjects
                 if (type == PanelType.Buy)
                 {
                     NPCScript script = NPCScript.Get(NPCScriptID);
+                    if (script == null) return;
+
                     script.Buy(this, index, count);
                 }
             }
@@ -8627,6 +8665,8 @@ namespace Server.MirObjects
                 if (!Functions.InRange(ob.CurrentLocation, CurrentLocation, Globals.DataRange)) return;
 
                 NPCScript script = NPCScript.Get(NPCScriptID);
+                if (script == null) return;
+
                 script.Craft(this, index, count, slots);
             }
         }
@@ -8684,6 +8724,7 @@ namespace Server.MirObjects
                 }
 
                 NPCScript script = NPCScript.Get(NPCScriptID);
+                if (script == null) return;
 
                 if (script.Types.Count != 0 && !script.Types.Contains(temp.Info.Type))
                 {
@@ -8825,6 +8866,7 @@ namespace Server.MirObjects
                 }
 
                 NPCScript script = NPCScript.Get(NPCScriptID);
+                if (script == null) return;
 
                 if (script.Types.Count != 0 && !script.Types.Contains(temp.Info.Type))
                 {
@@ -11603,7 +11645,7 @@ namespace Server.MirObjects
                 npc = CurrentMap.NPCs[i];
                 break;
             }
-            if (npc == null || !npc.VisibleLog[Info.Index] || !npc.Visible) return;
+            if (npc == null || !npc.Visible || !npc.IsVisibleTo(Info.Index)) return;
 
             if (!info.CanAccept(this))
             {
@@ -11700,7 +11742,7 @@ namespace Server.MirObjects
                 npc = CurrentMap.NPCs[i];
                 break;
             }
-            if (npc == null || !npc.VisibleLog[Info.Index] || !npc.Visible) return;
+            if (npc == null || !npc.Visible || !npc.IsVisibleTo(Info.Index)) return;
 
             List<UserItem> rewardItems = new List<UserItem>();
 

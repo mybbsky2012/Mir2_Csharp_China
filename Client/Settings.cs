@@ -605,6 +605,23 @@ namespace Client
 
         public static void Save()
         {
+            //★批量写入（11-04）：一次 Save 要写 120 多个键，原来每写一个键就整份文件重写一遍
+            //（File.WriteAllLines 开→写→关），本机实测 190ms/次，机械盘或杀软实时扫描时到秒级，
+            //表现为点内挂复选框、关内挂面板卡几秒。现在整段只改内存，最后合并成一次落盘（约 2ms）。
+            Reader.BeginBatch();
+
+            try
+            {
+                SaveCore();
+            }
+            finally
+            {
+                Reader.EndBatch();
+            }
+        }
+
+        private static void SaveCore()
+        {
             //Graphics
             Reader.Write("Graphics", "FullScreen", FullScreen);
             Reader.Write("Graphics", "Borderless", Borderless);

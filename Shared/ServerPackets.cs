@@ -2250,6 +2250,8 @@ namespace ServerPackets
         public bool BindingShotCenter;
         /// <summary>攻城城门/城墙等「堵门」阻挡物：即使客户端开着穿人也不能穿过。</summary>
         public bool NoWalkThrough;
+        /// <summary>怪物等级（内挂数字显血 Lv.xx 用）。追加在包末尾，旧服务端没有这个字段时读不到就保持 0。</summary>
+        public ushort Level;
 
         public List<BuffType> Buffs = new List<BuffType>();
 
@@ -2280,6 +2282,10 @@ namespace ServerPackets
             }
 
             NoWalkThrough = reader.ReadBoolean();
+
+            //等级（数字显血用）：追加在最末尾；旧服务端的包到这里就没有了，流读完就保持 0，不抛异常
+            if (reader.BaseStream.Position + 2 <= reader.BaseStream.Length)
+                Level = reader.ReadUInt16();
         }
 
         protected override void WritePacket(BinaryWriter writer)
@@ -2310,6 +2316,7 @@ namespace ServerPackets
             }
 
             writer.Write(NoWalkThrough);
+            writer.Write(Level);   //数字显血 Lv.xx（追加字段，永远放包尾）
         }
 
     }

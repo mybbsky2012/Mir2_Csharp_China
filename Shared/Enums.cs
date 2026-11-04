@@ -819,6 +819,56 @@ public enum Monster : ushort
     治疗拉拉 = 10014,
     猫咪超人 = 10015,
     龙宝宝 = 10016,
+    // ==== 20261103 从韩服20261001版Shared.dll合并（+48个外观，值与韩服一致） ====
+    Mon517P = 517,
+    Mon581D = 581,
+    Mon582D = 582,
+    Mon584D = 584,
+    Mon585D = 585,
+    Mon587N = 587,
+    Mon606N = 606,
+    Mon607N = 607,
+    Mon612N = 612,
+    Mon613B = 613,
+    Mon614B = 614,
+    Mon615B = 615,
+    Mon616T = 616,
+    Mon617T = 617,
+    Mon620B = 620,
+    Mon621N = 621,
+    Mon622N = 622,
+    Mon623N = 623,
+    Mon624B = 624,
+    Mon625S = 625,
+    Mon626N = 626,
+    Mon627P = 627,
+    Mon628P = 628,
+    Mon629P = 629,
+    Mon630P = 630,
+    Mon631P = 631,
+    Mon632T = 632,
+    Mon633T = 633,
+    Mon634T = 634,
+    Mon635S = 635,
+    Mon636P = 636,
+    Mon637B = 637,
+    Mon638T = 638,
+    Mon639N = 639,
+    Mon640N = 640,
+    Mon641S = 641,
+    Mon642T = 642,
+    Mon643T = 643,
+    Mon644T = 644,
+    Mon645T = 645,
+    Mon646N = 646,
+    Mon647N = 647,
+    Mon648N = 648,
+    Mon649B = 649,
+    Mon650N = 650,
+    Mon651P = 651,
+    蛇宝宝 = 10017,
+    马宝宝 = 10018,
+
 }
 
 public enum MirAction : byte
@@ -1417,7 +1467,12 @@ public enum Spell : byte
     Mon572NFlame = 234,
     Mon572NDarkVortex = 235,
     Mon573NBigCobweb = 236,
-    Mon609NBomb = 237
+    Mon609NBomb = 237,
+
+    // ==== 20261103 韩服20261001移植（值与D://han客户端Shared.dll一致） ====
+    Mon612NFlame = 238,   // 韩服值442
+    Mon635SIceWhirlwind = 239,   // 韩服值443
+    Mon637BAreaBall = 240   // 韩服值444
 }
 
 public enum SpellEffect : byte
@@ -1474,7 +1529,10 @@ public enum SpellEffect : byte
     ThunderBoltStrike,
 
     //新增：落雷杀-秘笈结束时落点的「最后一击」（素材 = 原灭杀的 Magic_32bit 1810-1824）
-    SkyThunderShotFinal
+    SkyThunderShotFinal,
+    // ==== 20261103 韩服20261001移植（本服顺延值；韩服客户端对应值为49/50） ====
+    Mon621NSpikes = 50,
+    Mon622NSpikes = 51
 }
 
 
@@ -1627,6 +1685,8 @@ public enum BuffType : byte
     Custom22,
     Custom23,
     Custom24 = 253,
+    // ==== 20261103 韩服20261001移植 ====
+    Mon615BShield = 254   // 韩服值323
 }
 
 [Flags]

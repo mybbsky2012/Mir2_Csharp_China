@@ -407,6 +407,14 @@ namespace Client.MirObjects
                 case BuffType.防御诅咒:
                     Effects.Add(new BuffEffect(Libraries.Monsters[(ushort)Monster.Mon573N], 562, 6, 600, this, true, type) { Repeat = true, Light = 1 });
                     break;
+                // ==== 20261103 韩服20261001移植：615B护盾（起手3帧→循环8帧，库号615；服务端BuffType顺延值254） ====
+                case BuffType.Mon615BShield:
+                    Effects.Add(effect = new BuffEffect(Libraries.Monsters[(ushort)Monster.Mon615B], 1133, 3, 300, this, true, type) { Repeat = false, Light = 1 });
+                    effect.Complete += (o, e) =>
+                    {
+                        Effects.Add(new BuffEffect(Libraries.Monsters[(ushort)Monster.Mon615B], 1135, 8, 800, this, true, type) { Repeat = true, Light = 1 });
+                    };
+                    break;
             }
         }
         public void RemoveBuffEffect(BuffType type)
@@ -622,6 +630,7 @@ namespace Client.MirObjects
 
         /// <summary>
         /// 在血条下方绘制血量数字：服务端给了绝对值就显示「当前/最大」，没给（MaxHP=0）才退回百分比。
+        /// 前面带对象等级 Lv.xx（玩家/英雄走自带 Level；怪物走 ObjectMonster 包尾追加的 Level，旧服务端没发就不带）。
         /// 位置固定在 32x4 血条正下方（Y-54，避开英雄蓝条 Y-60~Y-56）。
         /// </summary>
         private void DrawHealthNumber()
@@ -629,6 +638,10 @@ namespace Client.MirObjects
             string text = MaxHP > 0
                 ? string.Format("{0}/{1}", CurrentHP, MaxHP)
                 : string.Format("{0}%", PercentHealth);
+
+            //等级前缀：拿不到等级（旧服务端/未知类型）就保持空串，显示原样
+            string lv = GetHealthLevelText();
+            if (lv.Length > 0) text = lv + " " + text;
 
             if (HealthNumberLabel == null || HealthNumberLabel.IsDisposed)
             {
@@ -647,6 +660,24 @@ namespace Client.MirObjects
 
             HealthNumberLabel.Location = new Point(DisplayRectangle.X + 8 + (32 - HealthNumberLabel.Size.Width) / 2, DisplayRectangle.Y - 54);
             HealthNumberLabel.Draw();
+        }
+
+        /// <summary>数字显血的等级前缀（Lv.xx）：玩家/英雄用自带 Level，怪物用 ObjectMonster 下发的 Level；拿不到返回空串。</summary>
+        private string GetHealthLevelText()
+        {
+            switch (Race)
+            {
+                case ObjectType.Player:
+                case ObjectType.Hero:
+                    return string.Format("Lv.{0}", ((PlayerObject)this).Level);
+                case ObjectType.Monster:
+                {
+                    ushort mobLevel = ((MonsterObject)this).Level;
+                    return mobLevel > 0 ? string.Format("Lv.{0}", mobLevel) : string.Empty;
+                }
+                default:
+                    return string.Empty;
+            }
         }
 
         public void DrawPoison()

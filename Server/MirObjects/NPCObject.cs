@@ -12,9 +12,17 @@ namespace Server.MirObjects
             get { return ObjectType.Merchant; }
         }
 
+        /// <summary>
+        /// 正在构造中的 NPC（脚本的 LoadGoods 要按 ObjectID 反查出「自己」来挂已收购物品，见 NPCScript.LoadGoods）。
+        /// ★11-03：为了让「脚本先加载好、再进 Envir.NPCs」，构造期临时用它兜住那次反查。
+        /// </summary>
+        internal static NPCObject Building;
+
         public static NPCObject Get(uint objectID)
         {
             if (objectID == 0) return null;
+
+            if (Building != null && Building.ObjectID == objectID) return Building;
 
             var obj = Envir.NPCs.SingleOrDefault(x => x.ObjectID == objectID);
 
@@ -64,17 +72,42 @@ namespace Server.MirObjects
             Direction = (MirDirection)Envir.Random.Next(3);
             TurnTime = Envir.Time + Envir.Random.Next(100);
 
+            //★11-03：顺序很关键。原来先 Envir.NPCs.Add(this) 再 LoadScript()，
+            //  这中间对象已经在全局列表里、但 ScriptID 还是 0 —— 主循环（或 UI 线程触发的
+            //  NPC 全量重载）恰好在这一瞬间 Process 到它，就会 ProcessGoods → NPCScript.Get(0)
+            //  → KeyNotFoundException（日志里的「对象处理错误 ... '0'」）。
+            //  现在改成「脚本先到位，再对外可见」。
+            Building = this;
+            try
+            {
+                LoadScript();
+            }
+            finally
+            {
+                Building = null;
+            }
+
             Envir.NPCs.Add(this);
 
             Spawned();
-            LoadScript();
         }
 
         private void LoadScript()
         {
-            var script = NPCScript.GetOrAdd(ObjectID, Info.FileName, NPCScriptType.Normal);
+            try
+            {
+                string fileName = Info == null ? string.Empty : (Info.FileName ?? string.Empty);
 
-            ScriptID = script.ScriptID;
+                var script = NPCScript.GetOrAdd(ObjectID, fileName, NPCScriptType.Normal);
+
+                ScriptID = script == null ? 0 : script.ScriptID;
+            }
+            catch (Exception ex)
+            {
+                ScriptID = 0;
+                MessageQueue.Enqueue(string.Format("[NPC] {0} 脚本加载失败：{1}",
+                    Info == null || string.IsNullOrEmpty(Info.Name) ? "(无名)" : Info.Name, ex.Message));
+            }
         }
 
         public void ProcessGoods(bool clear = false)
@@ -82,6 +115,16 @@ namespace Server.MirObjects
             if (!Settings.GoodsOn) return;
 
             var script = NPCScript.Get(ScriptID);
+
+            //★11-03：脚本没准备好就跳过这一轮结算（原来这里直接把 KeyNotFoundException 打进主循环）。
+            //  顺手做一次自愈：按 FileName 重新挂一次脚本，下次就正常了。
+            if (script == null)
+            {
+                LoadScript();
+                script = NPCScript.Get(ScriptID);
+
+                if (script == null) return;
+            }
 
             List<UserItem> deleteList = new List<UserItem>();
 
@@ -210,6 +253,8 @@ namespace Server.MirObjects
         public override void Process()
         {
             base.Process();
+
+            if (Info == null) return;
 
             if (Envir.Time > TurnTime)
             {

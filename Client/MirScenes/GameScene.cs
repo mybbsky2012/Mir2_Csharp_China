@@ -219,6 +219,8 @@ namespace Client.MirScenes
 
         public GameScene()
         {
+            Client.Utils.LoginTrace.Mark("GameScene 构造开始（登录/进游戏起点）");
+
             MapControl.AutoRun = false;
             MapControl.AutoHit = false;
 
@@ -351,6 +353,9 @@ namespace Client.MirScenes
 
             if (MapInfoList.Count > 0)
                 RecreateBigMapButtons();
+
+            // 诊断：构造耗时（= 客户端自己创建全部面板/控件的时间，不含等服务器封包）
+            Client.Utils.LoginTrace.Mark("GameScene 构造完成");
         }
 
         private void UpdateMouseCursor()
@@ -2222,11 +2227,15 @@ namespace Client.MirScenes
         }
         private void MapInformation(S.MapInformation p)
         {
+            Client.Utils.LoginTrace.Mark("MapInformation 到达 map=" + p.FileName + " (" + p.MapIndex + ")");
+
             if (MapControl != null && !MapControl.IsDisposed)
                 MapControl.Dispose();
             MapControl = new MapControl { Index = p.MapIndex, FileName = Path.Combine(Settings.MapPath, p.FileName + ".map"), Title = p.Title, MiniMap = p.MiniMap, BigMap = p.BigMap, Lights = p.Lights, Lightning = p.Lightning, Fire = p.Fire, MapDarkLight = p.MapDarkLight, Music = p.Music};
             MapControl.Weather = p.WeatherParticles;
             MapControl.LoadMap();
+            Client.Utils.LoginTrace.Mark("LoadMap 完成 " + MapControl.Width + "x" + MapControl.Height
+                + (MapControl.WaitingMapFile == null ? "（本地地图已就绪）" : "（地图缺失，等下载）"));
             InsertControl(0, MapControl);
         }
 
@@ -2304,8 +2313,12 @@ namespace Client.MirScenes
         }
         private void UserInformation(S.UserInformation p)
         {
+            Client.Utils.LoginTrace.Mark("UserInformation 到达（角色数据）");
+
             User = new UserObject(p.ObjectID);
             User.Load(p);
+
+            Client.Utils.LoginTrace.Mark("角色数据装载完成 Level=" + User.Level);
             MainDialog.PModeLabel.Visible = User.Class == MirClass.法师 || User.Class == MirClass.道士;
             HasHero = p.HasHero;
             HeroBehaviourPanel.UpdateBehaviour(p.HeroBehaviour);
@@ -5210,6 +5223,16 @@ namespace Client.MirScenes
                     case SpellEffect.Mon573NCobweb:
                         ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon573N], 547, 4, 300, ob) { Blend = true });
                         ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon573N], 551, 4, 1000, ob) { Blend = true });
+                        break;
+
+                    // ==== 20261103 韩服20261001移植：海战怪地刺（服务端SpellEffect顺延值50/51） ====
+                    case SpellEffect.Mon621NSpikes:
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon621N], 580, 10, 300, ob) { Blend = false });
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon621N], 600, 10, 300, ob) { Blend = false });
+                        break;
+                    case SpellEffect.Mon622NSpikes:
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon622N], 570, 10, 300, ob) { Blend = false });
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon622N], 770, 10, 300, ob) { Blend = false });
                         break;
                 }
 
@@ -10955,6 +10978,9 @@ namespace Client.MirScenes
         public WeatherSetting Weather = WeatherSetting.无效果;
         public bool FloorValid, LightsValid;
 
+        /// <summary>诊断用：本次进图的地板首帧是否已记过日志（避免每帧写盘）</summary>
+        private static bool _floorTraceMarked;
+
         public long OutputDelay;
 
         private static bool _awakeningAction;
@@ -11515,6 +11541,14 @@ namespace Client.MirScenes
             DXManager.SetSurface(oldSurface);
 
             FloorValid = true;
+
+            // 诊断：只在本次进图的第一次绘制时记一行。地板每次移动都会重画，
+            // 若每帧都写日志，光是磁盘 IO 就会把进图和走路拖慢（本身变成卡顿源）。
+            if (!_floorTraceMarked)
+            {
+                _floorTraceMarked = true;
+                Client.Utils.LoginTrace.Mark("首帧地板纹理完成（FloorValid=true，此时才不是黑屏）");
+            }
         }
 
         private void DrawBackground()

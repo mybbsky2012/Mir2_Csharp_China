@@ -4223,6 +4223,17 @@ namespace Server.MirEnvir
 
         public void ReloadNPCs()
         {
+            //★11-03：服务端菜单「重新加载 NPC」是在 WinForms 线程上直接调的，
+            //  会和工作线程抢 Envir.NPCs / Scripts（重载中途新建的 NPCObject 还没加载脚本，
+            //  被主循环 Process 到 → ProcessGoods → NPCScript.Get(0) → KeyNotFoundException '0'）。
+            //  统一排到游戏线程执行，和 ReloadMaps 的做法一致。
+            if (_thread != null && Thread.CurrentThread != _thread)
+            {
+                MessageQueue.Enqueue("NPC脚本重载：已排队，下一拍由游戏线程执行");
+                RunOnMainThread(ReloadNPCs);
+                return;
+            }
+
             SaveGoods(true);
 
             Robot.Clear();
@@ -4256,6 +4267,14 @@ namespace Server.MirEnvir
         /// </summary>
         public void ReloadAllNPCs()
         {
+            //★11-03：同上 —— 菜单线程直接调会边建 NPC 边被主循环遍历，必须回游戏线程
+            if (_thread != null && Thread.CurrentThread != _thread)
+            {
+                MessageQueue.Enqueue("NPC全量重载：已排队，下一拍由游戏线程执行");
+                RunOnMainThread(ReloadAllNPCs);
+                return;
+            }
+
             ReloadNPCs();
 
             // 数据源用编辑器实例（Envir.Edit）的列表：编辑器里新增/删除/修改 NPC 后
@@ -4477,12 +4496,12 @@ namespace Server.MirEnvir
                     if (existing != null)
                     {
                         // 同一个刷怪点：沿用对象（Count/计时都在里面），只把配置换成最新的
-                        bool spreadChanged = existing.Info.Spread != info.Spread;
                         bool routeChanged = !string.Equals(existing.Info.RoutePath ?? string.Empty, info.RoutePath ?? string.Empty, StringComparison.Ordinal);
 
                         existing.Info = info;
 
-                        if (spreadChanged) FillRespawnCells(map, existing);
+                        //★11-04 阶段一：Spread 变化不需要任何重算 —— 出生点是取点时按方框现场采样的，
+                        //  不再有「可走点副本」需要刷新（原来这里要调 FillRespawnCells）。
                         if (routeChanged) existing.LoadRoutes();
 
                         if (!merged.Contains(existing)) merged.Add(existing);
@@ -4500,9 +4519,7 @@ namespace Server.MirEnvir
                         continue;
                     }
 
-                    FillRespawnCells(map, created);
-
-                    if (created.WalkableCells == null || created.WalkableCells.Count == 0)
+                    if (created.GetSpawnPoint(map).X < 0)
                     {
                         MessageQueue.Enqueue(string.Format("刷怪重载：警告（地图 {0}）怪物 {1} 在坐标 {2},{3} 范围 {4} 内没有可走格子，可能刷不出来",
                             map.Info.Index, created.Monster.Name, info.Location.X, info.Location.Y, info.Spread));
@@ -4550,23 +4567,10 @@ namespace Server.MirEnvir
                 && string.Equals(a.RoutePath ?? string.Empty, b.RoutePath ?? string.Empty, StringComparison.Ordinal);
         }
 
-        /// <summary>
-        /// 按刷怪点坐标 + 范围重算可走格子（与 Map.Load 里的算法一致）。
-        /// </summary>
-        private static void FillRespawnCells(Map map, MapRespawn respawn)
-        {
-            if (map.WalkableCells == null)
-            {
-                respawn.WalkableCells = null;
-                return;
-            }
-
-            int sx = respawn.Info.Location.X, sy = respawn.Info.Location.Y, spread = respawn.Info.Spread;
-
-            respawn.WalkableCells = map.WalkableCells.Where(x =>
-                x.X <= sx + spread && x.X >= sx - spread &&
-                x.Y <= sy + spread && x.Y >= sy - spread).ToList();
-        }
+        //★11-04 阶段一：FillRespawnCells 已删除。
+        //  它和 Map.Load 里那段是同一算法的两份拷贝，作用是给每个刷怪点生成一份「可走点副本」
+        //  （全服 1.44 GB）。现在取点统一走 MapRespawn.GetSpawnPoint(map) 现场采样，
+        //  两处调用点一并去掉，热重载路径与启动路径行为一致。
 
         #region 地图热重载（免重启加新图 / 老图配置刷新）
 

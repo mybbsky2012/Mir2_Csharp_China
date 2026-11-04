@@ -510,6 +510,9 @@ namespace Client.MirScenes
                 case 4:
                     _startPending = false;   // 交给 GameScene.Process 接管载入画面（Armed 仍为 true）
 
+                    // 诊断：从这里起算「客户端拿到进图授权 → 场景建好 → 等到 MapInformation」
+                    Client.Utils.LoginTrace.Mark("收到 S.StartGame 授权（服务端已允许进入）");
+
                     // 服务端下发的 Resolution 是「允许的最大分辨率」，客户端选择超过上限时回落到上限。
                     if (Settings.Resolution == 0 || p.Resolution < Settings.Resolution)
                         Settings.Resolution = p.Resolution;
@@ -518,6 +521,8 @@ namespace Client.MirScenes
 
                     Size gameSize = ResolutionHelper.GetSize(Settings.Resolution);
                     CMain.SetResolution(gameSize.Width, gameSize.Height);
+
+                    Client.Utils.LoginTrace.Mark("分辨率切换完成（SetResolution 返回）");
 
                     ActiveScene = new GameScene();
 

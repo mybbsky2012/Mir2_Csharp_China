@@ -20,12 +20,34 @@ namespace Server.MirObjects
 
         public static NPCScript Get(int index)
         {
-            return Envir.Scripts[index];
+            //★11-03：原来直接 Envir.Scripts[index]，键不存在就抛 KeyNotFoundException。
+            //  now：脚本缺失只返回 null，调用点按 null 处理 —— 一个 NPC 脚本没加载好，
+            //  不能把整个主循环打成「对象处理错误」。
+            if (index <= 0) return null;
+
+            NPCScript script;
+            Envir.Scripts.TryGetValue(index, out script);
+            return script;
         }
 
         public static NPCScript GetOrAdd(uint loadedObjectID, string fileName, NPCScriptType type)
         {
-            var script = Envir.Scripts.SingleOrDefault(x => x.Value.FileName.Equals(fileName, StringComparison.OrdinalIgnoreCase) && x.Value.LoadedObjectID == loadedObjectID).Value;
+            if (fileName == null) fileName = string.Empty;
+
+            //★11-03：原来用 SingleOrDefault + x.Value.FileName.Equals(...)：
+            //  FileName 为 null 会 NRE，命中两条会抛 InvalidOperationException，
+            //  都发生在 NPC 构造期间 → NPC 半成品留在 Envir.NPCs 里。改成安全的第一条命中。
+            NPCScript script = null;
+
+            foreach (NPCScript item in Envir.Scripts.Values)
+            {
+                if (item == null) continue;
+                if (item.LoadedObjectID != loadedObjectID) continue;
+                if (!string.Equals(item.FileName ?? string.Empty, fileName, StringComparison.OrdinalIgnoreCase)) continue;
+
+                script = item;
+                break;
+            }
 
             if (script != null)
             {
@@ -107,9 +129,18 @@ namespace Server.MirObjects
             FileName = fileName;
             Type = type;
 
-            Load();
+            //★11-03：先登记、后解析。脚本写错时 Load() 会抛异常，但字典里必须已经存在这个 ID，
+            //  否则持有该 ScriptID 的 NPC 每次 ProcessGoods 都会 KeyNotFound（'0'/任意键）。
+            Envir.Scripts[ScriptID] = this;
 
-            Envir.Scripts.Add(ScriptID, this);
+            try
+            {
+                Load();
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue(string.Format("NPC脚本解析失败（该 NPC 仍在线，但对话/商店不可用）：{0} —— {1}", fileName, ex.Message));
+            }
         }
 
         public void Load()

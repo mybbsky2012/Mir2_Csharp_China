@@ -63,9 +63,11 @@ namespace Server.MirObjects.Monsters
             }
         }
 
-        protected override void HalfmoonAttack(int damage, int delay = 500, DefenceType defenceType = DefenceType.ACAgility)
+        protected override bool HalfmoonAttack(int damage, int delay = 500, DefenceType defenceType = DefenceType.ACAgility)
         {
+            // 20261103 适配基类bool返回
             MirDirection dir = Functions.PreviousDir(Direction);
+            bool hitAny = false;
 
             for (int i = 0; i < 4; i++)
             {
@@ -85,9 +87,11 @@ namespace Server.MirObjects.Monsters
 
                     DelayedAction action = new DelayedAction(DelayedType.Damage, Envir.Time + delay, ob, damage, defenceType, true);
                     ActionList.Add(action);
+                    hitAny = true;
                     break;
                 }
             }
+            return hitAny;
         }
 
         protected override void CompleteAttack(IList<object> data)

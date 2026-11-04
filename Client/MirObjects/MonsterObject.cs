@@ -72,6 +72,9 @@ namespace Client.MirObjects
         //攻城城门/城墙：服务端标记，开着「穿人」也不能穿过（本地预测要一致，否则会一直撞门）
         public bool NoWalkThrough;
 
+        //怪物等级（内挂数字显血 Lv.xx 用）：ObjectMonster 包尾追加字段；旧服务端没发时保持 0，就不显示等级
+        public ushort Level;
+
         public Color OldNameColor;
 
         public SpellEffect CurrentEffect;
@@ -102,6 +105,7 @@ namespace Client.MirObjects
             ShockTime = CMain.Time + info.ShockTime;
             BindingShotCenter = info.BindingShotCenter;
             NoWalkThrough = info.NoWalkThrough;
+            Level = info.Level;   //数字显血 Lv.xx（包尾追加字段）
 
             Buffs = info.Buffs;
 
@@ -703,6 +707,8 @@ namespace Client.MirObjects
                     case MirAction.特殊攻击:
                         if (!Frames.TryGetValue(CurrentAction, out Frame))
                             Frames.TryGetValue(MirAction.近距攻击1, out Frame);
+                        if (BaseImage == Monster.Mon610B)
+                            AddMon610BCastEffect(); //Mon610B 特殊攻击=施放地面毒雾带
                         break;
                     case MirAction.挖后尸骸:
                         if (!Frames.TryGetValue(CurrentAction, out Frame))
@@ -754,9 +760,28 @@ namespace Client.MirObjects
                                 Remove();
                                 return false;
                             default:
-                                Frames.TryGetValue(CurrentAction, out Frame);
+                                if (!Frames.TryGetValue(CurrentAction, out Frame))
+                                {
+                                    //20261103 兜底：部分新怪(613/620/622/624/625等)Lib动作表缺『死后』条目，
+                                    //取不到帧会导致Frame=null、尸体被画成站立第0帧(刷出时的样子)。
+                                    //改为停在死亡动作的最后一帧（与Lib自带死后条目的规律一致）。
+                                    if (Frames.TryGetValue(MirAction.死亡动作, out Frame deathFrame))
+                                        Frame = new Frame(deathFrame.Start + deathFrame.Count - 1, 1,
+                                            deathFrame.Count + deathFrame.Skip - 1, 2000);
+                                }
                                 break;
                         }
+                        break;
+                    case MirAction.施法动作:
+                        if (BaseImage == Monster.Mon610B)
+                        {
+                            //Mon610B 无施法帧 → 原地站立播地面毒雾带；其他怪与原 default 路径一致
+                            if (!Frames.TryGetValue(CurrentAction, out Frame))
+                                Frames.TryGetValue(MirAction.站立动作, out Frame);
+                            AddMon610BCastEffect();
+                        }
+                        else
+                            Frames.TryGetValue(CurrentAction, out Frame);
                         break;
                     default:
                         Frames.TryGetValue(CurrentAction, out Frame);
@@ -788,6 +813,8 @@ namespace Client.MirObjects
                         break;
                     case MirAction.石化苏醒:
                         PlayPopupSound();
+                        if (BaseImage == Monster.Mon627P) //韩服：苏醒时晶体生长特效(376,12帧,2.4秒)
+                            Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon627P], 376, 12, 2400, this));
                         break;
                     case MirAction.推开动作:
                         FrameIndex = Frame.Count - 1;
@@ -920,6 +947,33 @@ namespace Client.MirObjects
                             case Monster.Mon601N:
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon601N], 515 + (int)Direction * 10, 10, Frame.Count * Frame.Interval, this));
                                 break;
+                            case Monster.Mon610B:
+                                AddMon610BMeleeEffect();
+                                break;
+                            case Monster.Mon622N: //韩服：近攻1地面水波向两边展开(593起每方向20帧)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon622N], 593 + (int)Direction * 20, 20, Frame.Count * Frame.Interval, this) { Blend = true });
+                                break;
+                            case Monster.Mon621N: //韩服：近攻1起手特效
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon621N], 490 + (int)Direction * 10, 10, Frame.Count * Frame.Interval, this) { Blend = true });
+                                break;
+                            case Monster.Mon624B: //韩服：近攻1第4帧30%概率给目标叠毒特效
+                                if (CMain.Random.Next(100) < 30) AddMonStruckEffect((ushort)Monster.Mon624B, 456, 7, 600, false, false, 4 * Frame.Interval);
+                                break;
+                            case Monster.Mon625S: //韩服：近攻1第4帧70%概率给目标叠特效
+                                if (CMain.Random.Next(100) < 70) AddMonStruckEffect((ushort)Monster.Mon625S, 529, 6, 600, false, false, 4 * Frame.Interval);
+                                break;
+                            case Monster.Mon627P: //韩服：近攻1第4帧80%概率给目标叠特效
+                                if (CMain.Random.Next(100) < 80) AddMonStruckEffect((ushort)Monster.Mon627P, 459, 7, 600, false, false, 4 * Frame.Interval);
+                                break;
+                            case Monster.Mon637B: //韩服：近攻1第4帧给目标叠特效
+                                AddMonStruckEffect((ushort)Monster.Mon637B, 1139, 8, 600, false, false, 4 * Frame.Interval);
+                                break;
+                            case Monster.Mon639N: //韩服：近攻1第4帧给目标叠特效
+                                AddMonStruckEffect((ushort)Monster.Mon639N, 280, 6, 600, false, false, 4 * Frame.Interval);
+                                break;
+                            case Monster.Mon613B: //视觉配对：紫色爪光(638起每方向8帧步长)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon613B], 638 + (int)Direction * 8, 5, 5 * Frame.Interval, this) { Blend = true });
+                                break;
                         }
                         break;
                     case MirAction.近距攻击2:
@@ -982,6 +1036,22 @@ namespace Client.MirObjects
                             case Monster.Mon575S:
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon575S], 403, 7, 7 * 200, this) { Blend = true });
                                 break;
+                            case Monster.Mon610B:
+                                AddMon610BMeleeEffect();
+                                break;
+                            case Monster.Mon637B: //韩服：近攻2起手地面暗影(1228) + 第4帧给目标叠特效(1232)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon637B], 1228, 4, 800, this) { DrawBehind = true });
+                                AddMonStruckEffect((ushort)Monster.Mon637B, 1232, 9, 600, false, false, 4 * Frame.Interval);
+                                break;
+                            case Monster.Mon624B: //韩服：近攻2第4帧给目标叠特效
+                                AddMonStruckEffect((ushort)Monster.Mon624B, 527, 9, 600, false, false, 4 * Frame.Interval);
+                                break;
+                            case Monster.Mon620B: //火焰魔太子：第4帧目标身上青蓝爆闪(910,9帧)
+                                AddMonStruckEffect((ushort)Monster.Mon620B, 910, 9, 630, true, false, 700);
+                                break;
+                            case Monster.Mon613B:
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon613B], 638 + (int)Direction * 8, 5, 5 * Frame.Interval, this) { Blend = true });
+                                break;
                         }
 
                         if ((ushort)BaseImage >= 10000)
@@ -1023,6 +1093,24 @@ namespace Client.MirObjects
                             case Monster.Mon571N:
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon571N], 590, 13, 600, this) { Blend = true, DrawBehind = true });
                                 break;
+                            case Monster.Mon610B:
+                                AddMon610BMeleeEffect();
+                                break;
+                            case Monster.Mon614B: //韩服：近攻3第5帧在面前2格打地面冲击(1082,12帧,300ms)
+                                MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon614B], 1082, 12, 300, Functions.PointMove(CurrentLocation, Direction, 2), CMain.Time + 5 * Frame.Interval) { Blend = true });
+                                break;
+                            case Monster.Mon615B: //韩服：近攻3延迟1.2秒的能量特效(1095,10帧,800ms)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon615B], 1095, 10, 800, this) { Blend = true, DrawBehind = true, Start = CMain.Time + 1200 });
+                                break;
+                            case Monster.Mon624B: //韩服：近攻3第4帧给目标叠特效
+                                AddMonStruckEffect((ushort)Monster.Mon624B, 639, 8, 600, false, false, 4 * Frame.Interval);
+                                break;
+                            case Monster.Mon620B: //火焰魔太子：群攻，小火团飞溅在自己身上散开(860,12帧)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon620B], 860, 12, 840, this) { Blend = true, Start = CMain.Time + 500 });
+                                break;
+                            case Monster.Mon613B:
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon613B], 638 + (int)Direction * 8, 5, 5 * Frame.Interval, this) { Blend = true });
+                                break;
                         }
                         break;
                     case MirAction.近距攻击4:
@@ -1042,11 +1130,26 @@ namespace Client.MirObjects
                             case Monster.FeralTundraFurbolg: //521
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.FeralTundraFurbolg], 795, 9, 1200, this) { Blend = true });
                                 break;
+                            case Monster.Mon610B:
+                                AddMon610BMeleeEffect();
+                                break;
+                            case Monster.Mon620B: //火焰魔太子：火焰喷发从自己身上窜起(810,12帧)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon620B], 810, 12, 840, this) { Blend = true, Start = CMain.Time + 380 });
+                                break;
+                            case Monster.Mon613B:
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon613B], 638 + (int)Direction * 8, 5, 5 * Frame.Interval, this) { Blend = true });
+                                break;
                         }
                         break;
                     case MirAction.近距攻击5:
                         PlayFithAttackSound();
                         CurrentActionLevel = (byte)action.Params[1];
+                        switch (BaseImage)
+                        {
+                            case Monster.Mon620B: //火焰魔太子：大火爆炸在自己身上炸开(840,16帧)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon620B], 840, 16, 960, this) { Blend = true, Start = CMain.Time + 700 });
+                                break;
+                        }
                         break;
                     case MirAction.远程攻击1:
                         PlayRangeSound();
@@ -1197,6 +1300,70 @@ namespace Client.MirObjects
                             case Monster.Mon602N:
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon602N], 200 + (int)Direction * 8, 8, Frame.Count * Frame.Interval, this));
                                 break;
+                            case Monster.Mon610B:
+                                AddMon610BRangedEffect();
+                                break;
+                            case Monster.Mon620B: //火焰魔太子：脚下紫色魔法阵(890,9帧) + 三色光球随机飞向目标(830红/880紫/900蓝,6帧)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon620B], 890, 9, 540, this) { Blend = true, DrawBehind = true });
+                                {
+                                    int roll = CMain.Random.Next(3);
+                                    int ballBase = roll == 0 ? 830 : (roll == 1 ? 880 : 900);
+                                    CreateProjectile(ballBase, Libraries.Monsters[(ushort)Monster.Mon620B], true, 6, 60, 0, 6, direction16: false);
+                                }
+                                break;
+                            case Monster.Mon614B: //韩服：远攻1发射弹体(1094起6帧)，命中目标播爆点(1147,8帧)
+                                {
+                                    Missile m614 = CreateProjectile(1094, Libraries.Monsters[(ushort)Monster.Mon614B], true, 6, 300, 0, 6, direction16: false);
+                                    if (m614 != null && m614.Target != null)
+                                    {
+                                        Missile closed614 = m614;
+                                        closed614.Complete += (o, e) =>
+                                        {
+                                            if (closed614.Target != null && closed614.Target.CurrentAction != MirAction.死亡动作)
+                                                closed614.Target.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon614B], 1147, 8, 600, closed614.Target) { Blend = true });
+                                        };
+                                    }
+                                }
+                                break;
+                            case Monster.Mon613B: //视觉配对：白色扇形弹幕(574起每方向8帧步长)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon613B], 574 + (int)Direction * 8, 6, 6 * Frame.Interval, this) { Blend = true });
+                                break;
+                            case Monster.Mon621N: //韩服：远攻1起手聚气(620,12帧) + 第7帧目标身上特效(640,20帧)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon621N], 620, 12, 1440, this) { Blend = true });
+                                AddMonStruckEffect((ushort)Monster.Mon621N, 640, 20, 600, true, true, 7 * Frame.Interval);
+                                break;
+                            case Monster.Mon624B: //韩服：远攻1第4帧目标身上三段特效（50%/10%概率递进）
+                                AddMonStruckEffect((ushort)Monster.Mon624B, 536, 7, 800, false, false, 4 * Frame.Interval);
+                                if (CMain.Random.Next(100) < 50)
+                                {
+                                    AddMonStruckEffect((ushort)Monster.Mon624B, 543, 8, 600, false, false, 4 * Frame.Interval);
+                                    if (CMain.Random.Next(100) < 10)
+                                        AddMonStruckEffect((ushort)Monster.Mon624B, 551, 8, 900, true, false, 4 * Frame.Interval);
+                                }
+                                break;
+                            case Monster.Mon627P: //韩服：远攻1第4帧目标身上延迟特效
+                                AddMonStruckEffect((ushort)Monster.Mon627P, 546, 10, 1200, true, false, 4 * Frame.Interval + 600);
+                                break;
+                            case Monster.Mon635S: //韩服：远攻1第4帧目标身上大范围特效(655,33帧)
+                                AddMonStruckEffect((ushort)Monster.Mon635S, 655, 33, 900, false, false, 4 * Frame.Interval + 600);
+                                break;
+                            case Monster.Mon637B: //韩服：远攻1第4帧发射弹体(1305,5帧)，命中播(1318,8帧)
+                                {
+                                    Missile m637 = CreateProjectile(1305, Libraries.Monsters[(ushort)Monster.Mon637B], true, 5, 50, -5);
+                                    if (m637 != null && m637.Target != null)
+                                    {
+                                        Missile closed637 = m637;
+                                        closed637.Complete += (o, e) =>
+                                        {
+                                            if (closed637.Target != null && closed637.Target.CurrentAction != MirAction.死亡动作)
+                                                closed637.Target.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon637B], 1318, 8, 600, closed637.Target) { DrawBehind = true });
+                                        };
+                                    }
+                                }
+                                break;
+                            case Monster.Mon649B: //韩服：远攻1第4帧目标身上大型特效(497,22帧)
+                                AddMonStruckEffect((ushort)Monster.Mon649B, 497, 22, 1000, false, true, 4 * Frame.Interval);
+                                break;
                         }
                         break;
                     case MirAction.远程攻击2:
@@ -1265,6 +1432,57 @@ namespace Client.MirObjects
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon572N], 436, 23, 1000, this) { Blend = true, DrawBehind = true });
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon572N], 458, 17, 1000, this) { Blend = true });
                                 break;
+                            case Monster.Mon610B:
+                                AddMon610BRangedEffect();
+                                break;
+                            case Monster.Mon614B: //韩服：远攻2发射弹体(1155起6帧)，命中播爆点(1251,6帧)
+                                {
+                                    Missile m614b = CreateProjectile(1155, Libraries.Monsters[(ushort)Monster.Mon614B], true, 6, 30, 0);
+                                    if (m614b != null && m614b.Target != null)
+                                    {
+                                        Missile closed614b = m614b;
+                                        closed614b.Complete += (o, e) =>
+                                        {
+                                            if (closed614b.Target != null && closed614b.Target.CurrentAction != MirAction.死亡动作)
+                                                closed614b.Target.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon614B], 1251, 6, 600, closed614b.Target) { Blend = true });
+                                        };
+                                    }
+                                }
+                                break;
+                            case Monster.Mon615B: //韩服：远攻2发射弹体(1145起8帧)，命中播爆点(1225,10帧)
+                                {
+                                    Missile m615 = CreateProjectile(1145, Libraries.Monsters[(ushort)Monster.Mon615B], true, 8, 50, 0, 6, direction16: false);
+                                    if (m615 != null && m615.Target != null)
+                                    {
+                                        Missile closed615 = m615;
+                                        closed615.Complete += (o, e) =>
+                                        {
+                                            if (closed615.Target != null && closed615.Target.CurrentAction != MirAction.死亡动作)
+                                                closed615.Target.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon615B], 1225, 10, 300, closed615.Target) { Blend = true, DrawBehind = true });
+                                        };
+                                    }
+                                }
+                                break;
+                            case Monster.Mon635S: //韩服：远攻2第4帧目标身上特效(768,8帧,延迟600)
+                                AddMonStruckEffect((ushort)Monster.Mon635S, 768, 8, 900, false, false, 4 * Frame.Interval + 600);
+                                break;
+                            case Monster.Mon637B: //韩服：远攻2第4帧目标身上特效(1419,6帧,延迟600)
+                                AddMonStruckEffect((ushort)Monster.Mon637B, 1419, 6, 900, false, false, 4 * Frame.Interval + 600);
+                                break;
+                            case Monster.Mon649B: //韩服：远攻2发射弹体(519,9帧)，命中播爆点(727,8帧)
+                                {
+                                    Missile m649 = CreateProjectile(519, Libraries.Monsters[(ushort)Monster.Mon649B], true, 9, 30, 0);
+                                    if (m649 != null && m649.Target != null)
+                                    {
+                                        Missile closed649 = m649;
+                                        closed649.Complete += (o, e) =>
+                                        {
+                                            if (closed649.Target != null && closed649.Target.CurrentAction != MirAction.死亡动作)
+                                                closed649.Target.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon649B], 727, 8, 500, closed649.Target) { Blend = true });
+                                        };
+                                    }
+                                }
+                                break;
                         }
                         break;
                     case MirAction.远程攻击3:
@@ -1288,6 +1506,15 @@ namespace Client.MirObjects
                                 break;
                             case Monster.Mon564N:
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon564N], 801, 35, Frame.Count * FrameInterval, this));
+                                break;
+                            case Monster.Mon610B:
+                                AddMon610BRangedEffect();
+                                break;
+                            case Monster.Mon613B: //视觉配对：白色扇形弹幕(574起每方向8帧步长)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon613B], 574 + (int)Direction * 8, 6, 6 * Frame.Interval, this) { Blend = true });
+                                break;
+                            case Monster.Mon649B: //韩服：远攻3目标身上大型特效(735,24帧)
+                                AddMonStruckEffect((ushort)Monster.Mon649B, 735, 24, 1000, false, true);
                                 break;
 
                         }
@@ -1314,12 +1541,20 @@ namespace Client.MirObjects
                             case Monster.GlacierBeast: //474
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.GlacierBeast], 304, 6, 400, this));
                                 break;
+                            case Monster.Mon610B:
+                                AddMon610BShieldEffect();
+                                break;
                         }
                         break;
                     case MirAction.死亡动作:
                         switch (BaseImage)
                         {
-
+                            case Monster.Mon627P: //韩服：死亡第4帧爆散特效(388,7帧)
+                                AddMon627PDeathEffect();
+                                break;
+                            case Monster.Mon613B: //视觉配对：死亡水晶碎裂(852,12帧)
+                                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon613B], 852, 12, 12 * Frame.Interval, this) { Blend = true });
+                                break;
                             case Monster.DarkDevil: //182
                                 Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.DarkDevil], 336, 6, Frame.Count * Frame.Interval, this));
                                 break;
@@ -8016,8 +8251,285 @@ namespace Client.MirObjects
                             break;
                     }
                     break;
+                case Monster.Mon614B: //20261103 韩服反编译逐帧特效（特效帧与动作帧同步推进）
+                    switch (CurrentAction)
+                    {
+                        case MirAction.站立动作:
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(480 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.行走动作:
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(528 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(576 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(986 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(624 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(1034 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击3:
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(672 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.远程攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(752 + FrameIndex + (int)Direction * 7, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.远程攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(808 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.被击动作:
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(856 + FrameIndex + (int)Direction * 3, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.死亡动作:
+                            Libraries.Monsters[(ushort)Monster.Mon614B].DrawBlend(880 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon615B: //20261103 韩服反编译逐帧特效
+                    switch (CurrentAction)
+                    {
+                        case MirAction.站立动作:
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(504 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.行走动作:
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(552 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(600 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(1014 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(648 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.远程攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(696 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击3:
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(760 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.远程攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(840 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.被击动作:
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(904 + FrameIndex + (int)Direction * 3, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.死亡动作:
+                            Libraries.Monsters[(ushort)Monster.Mon615B].DrawBlend(928 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon622N: //20261103 韩服反编译逐帧特效（触手怪的挥击水波/重击）
+                    switch (CurrentAction)
+                    {
+                        case MirAction.近距攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon622N].DrawBlend(790 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            Libraries.Monsters[(ushort)Monster.Mon622N].DrawBlend(880 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击3:
+                            Libraries.Monsters[(ushort)Monster.Mon622N].DrawBlend(970 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            Libraries.Monsters[(ushort)Monster.Mon622N].DrawBlend(1150 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon624B: //20261103 韩服反编译逐帧特效
+                    switch (CurrentAction)
+                    {
+                        case MirAction.近距攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon624B].DrawBlend(463 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击3:
+                            Libraries.Monsters[(ushort)Monster.Mon624B].DrawBlend(559 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon625S: //20261103 韩服反编译逐帧特效
+                    switch (CurrentAction)
+                    {
+                        case MirAction.近距攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon625S].DrawBlend(535 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击3:
+                            Libraries.Monsters[(ushort)Monster.Mon625S].DrawBlend(615 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon626N: //20261103 韩服：刺客冲击特效
+                    if (CurrentAction == MirAction.刺客冲击)
+                        Libraries.Monsters[(ushort)Monster.Mon626N].DrawBlend(494 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                    break;
+                case Monster.Mon627P: //20261103 韩服反编译逐帧特效
+                    switch (CurrentAction)
+                    {
+                        case MirAction.近距攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon627P].DrawBlend(395 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.远程攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon627P].DrawBlend(466 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon630P: //20261103 韩服反编译逐帧特效
+                    switch (CurrentAction)
+                    {
+                        case MirAction.近距攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon630P].DrawBlend(396 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon630P].DrawBlend(476 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.死亡动作:
+                            Libraries.Monsters[(ushort)Monster.Mon630P].DrawBlend(556 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon635S: //20261103 韩服反编译逐帧特效
+                    switch (CurrentAction)
+                    {
+                        case MirAction.近距攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon635S].DrawBlend(504 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.远程攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon635S].DrawBlend(575 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.远程攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon635S].DrawBlend(688 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon637B: //20261103 韩服反编译逐帧特效（双层）
+                    switch (CurrentAction)
+                    {
+                        case MirAction.站立动作:
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(635 + FrameIndex + (int)Direction * 6, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(683 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(1075 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(747 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(1145 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.远程攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(827 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(1241 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.远程攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(891 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(1333 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.被击动作:
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(971 + FrameIndex + (int)Direction * 3, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.死亡动作:
+                            Libraries.Monsters[(ushort)Monster.Mon637B].DrawBlend(995 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon638T: //20261103 韩服：死亡特效
+                    if (CurrentAction == MirAction.死亡动作)
+                        Libraries.Monsters[(ushort)Monster.Mon638T].DrawBlend(168 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                    break;
+                case Monster.Mon641S: //20261103 韩服反编译逐帧特效
+                    switch (CurrentAction)
+                    {
+                        case MirAction.近距攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon641S].DrawBlend(376 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon641S].DrawBlend(456 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon643T: //20261103 韩服：死亡特效
+                    if (CurrentAction == MirAction.死亡动作)
+                        Libraries.Monsters[(ushort)Monster.Mon643T].DrawBlend(152 + FrameIndex + (int)Direction * 10, DrawLocation, Color.White, true);
+                    break;
+                case Monster.Mon645T: //20261103 韩服：死亡特效
+                    if (CurrentAction == MirAction.死亡动作)
+                        Libraries.Monsters[(ushort)Monster.Mon645T].DrawBlend(136 + FrameIndex + (int)Direction * 11, DrawLocation, Color.White, true);
+                    break;
+                case Monster.Mon647N: //20261103 韩服反编译逐帧特效
+                    switch (CurrentAction)
+                    {
+                        case MirAction.近距攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon647N].DrawBlend(320 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击2:
+                            Libraries.Monsters[(ushort)Monster.Mon647N].DrawBlend(384 + FrameIndex + (int)Direction * 9, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
+                case Monster.Mon648N: //20261103 韩服：近攻1特效
+                    if (CurrentAction == MirAction.近距攻击1)
+                        Libraries.Monsters[(ushort)Monster.Mon648N].DrawBlend(296 + FrameIndex + (int)Direction * 8, DrawLocation, Color.White, true);
+                    break;
+                case Monster.Mon649B: //20261103 韩服：近攻1特效
+                    if (CurrentAction == MirAction.近距攻击1)
+                        Libraries.Monsters[(ushort)Monster.Mon649B].DrawBlend(440 + FrameIndex + (int)Direction * 7, DrawLocation, Color.White, true);
+                    break;
+                case Monster.Mon650N: //20261103 韩服反编译逐帧特效
+                    switch (CurrentAction)
+                    {
+                        case MirAction.近距攻击1:
+                            Libraries.Monsters[(ushort)Monster.Mon650N].DrawBlend(296 + FrameIndex + (int)Direction * 7, DrawLocation, Color.White, true);
+                            break;
+                        case MirAction.近距攻击2:
+                            if (FrameIndex < 7)
+                                Libraries.Monsters[(ushort)Monster.Mon650N].DrawBlend(352 + FrameIndex + (int)Direction * 9, DrawLocation, Color.White, true);
+                            break;
+                    }
+                    break;
 
             } //END OF DRAW EFFECTS
+        }
+
+        //★Mon610B（变异石块长拉卡巴）特效：610.Lib 760+ 段为韩服未挂接特效素材，按视觉比对配对（用户确认方案）
+        //  近攻=紫毒爆(1054)/蓝火环(794,每方向23帧)随机；远攻=蓝弹(760,每方向4帧)/紫毒弹(978)随机；
+        //  施法=地面毒雾带(1070,贴地)；被击防御=蓝球罩(1149)。均用 Effect 独立进度，不受动作帧数限制。
+        private void AddMon610BMeleeEffect()
+        {
+            if (CMain.Random.Next(2) == 0)
+                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon610B], 1054, 7, 7 * Frame.Interval, this) { Blend = true }); //紫毒爆
+            else
+                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon610B], 794 + (int)Direction * 23, 21, Frame.Count * Frame.Interval, this) { Blend = true }); //蓝火环(按朝向)
+        }
+
+        private void AddMon610BRangedEffect()
+        {
+            if (CMain.Random.Next(2) == 0)
+                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon610B], 760 + (int)Direction * 4, 4, 4 * Frame.Interval, this) { Blend = true }); //蓝弹(按朝向)
+            else
+                Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon610B], 978, 13, 13 * Frame.Interval, this) { Blend = true }); //紫毒弹
+        }
+
+        private void AddMon610BCastEffect()
+        {
+            Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon610B], 1070, 11, 1100, this) { Blend = true, DrawBehind = true }); //地面毒雾带(画在怪身后)
+        }
+
+        private void AddMon610BShieldEffect()
+        {
+            Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon610B], 1149, 15, 900, this) { Blend = true }); //蓝色球罩
+        }
+
+        //★20261103 韩服623-651特效移植：打在当前目标身上的特效
+        //  （韩服在攻击动作 FrameIndex==N 时触发；本服动作开始即触发，用 delay 毫秒补偿时机）
+        private void AddMonStruckEffect(ushort libIndex, int start, int count, int duration, bool blend, bool behind = false, int delay = 0)
+        {
+            MapObject ob = MapControl.GetObject(TargetID);
+            if (ob == null) return;
+            Effect ef = new Effect(Libraries.Monsters[libIndex], start, count, duration, ob) { Blend = blend, DrawBehind = behind };
+            if (delay > 0) ef.Start = CMain.Time + delay;
+            ob.Effects.Add(ef);
+        }
+
+        //韩服：Mon627P 死亡动画第4帧爆散特效(388,7帧,Blend)
+        private void AddMon627PDeathEffect()
+        {
+            Effect ef = new Effect(Libraries.Monsters[(ushort)Monster.Mon627P], 388, 7, 7 * Frame.Interval, this) { Blend = true };
+            ef.Start = CMain.Time + 4 * Frame.Interval;
+            Effects.Add(ef);
         }
 
         public override void DrawName()

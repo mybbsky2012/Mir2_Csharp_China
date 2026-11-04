@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 ﻿using Server.MirDatabase;
 using Server.MirEnvir;
 using Server.MirObjects.Monsters;
@@ -519,10 +519,316 @@ namespace Server.MirObjects
                     return new SepHighAssassin(info);
                 case 999:
                     return new SepHighArcher(info);
+                // ==== 20261103 韩服20261001移植 ====
+                case 612:
+                    return new Mon612N(info);
+                case 614:
+                    return new Mon614B(info);
+                case 615:
+                    return new Mon615B(info);
+                case 620:
+                    return new Mon620B(info);
+                case 621:
+                    return new Mon621N(info);
+                case 622:
+                    return new Mon622N(info);
+                case 624:
+                    return new Mon624B(info);
+                case 625:
+                    return new Mon625S(info);
+                case 626:
+                    return new Mon626N(info);
+                case 627:
+                    return new Mon432P(info);
+                case 635:
+                    return new Mon635S(info);
+                case 637:
+                    return new Mon637B(info);
+                case 649:
+                    return new Mon649B(info);
+                case 650:
+                    return new Mon346N(info);
                 default:
                     return new MonsterObject(info);
             }
         }
+
+        // ==== 20261103 韩服20261001移植辅助方法 ====
+	protected virtual bool SinglePullAttack(int damage, DefenceType type = DefenceType.AC, int delay = 500, int pullDistance = 3, bool levelLimit = true)
+	{
+		if (damage <= 0 || Target == null || Target.Dead || base.CurrentMap == null || Target.CurrentMap != base.CurrentMap)
+		{
+			return false;
+		}
+		int num = Math.Min(pullDistance, Info.ViewRange);
+		if (num < 2)
+		{
+			return false;
+		}
+		if (levelLimit && Target.Level > Level + 5)
+		{
+			return false;
+		}
+		Point currentLocation = CurrentLocation;
+		Point currentLocation2 = Target.CurrentLocation;
+		int num2 = currentLocation2.X - currentLocation.X;
+		int num3 = currentLocation2.Y - currentLocation.Y;
+		if (num2 == 0 && num3 == 0)
+		{
+			return false;
+		}
+		int num4 = Math.Max(Math.Abs(num2), Math.Abs(num3));
+		if (num4 < 2 || num4 > num)
+		{
+			return false;
+		}
+		int num5 = num4 - 1;
+		MirDirection mirDirection = Functions.DirectionFromPoint(currentLocation2, currentLocation);
+		Point location = Functions.PointMove(currentLocation2, mirDirection, num5);
+		if (!base.CurrentMap.ValidPoint(location))
+		{
+			return false;
+		}
+		Point point = currentLocation2;
+		for (int i = 1; i <= num5; i++)
+		{
+			point = Functions.PointMove(point, mirDirection, 1);
+			if (!base.CurrentMap.ValidPoint(point) || !base.CurrentMap.CanJump(point))
+			{
+				return false;
+			}
+		}
+		if (Target.Pushed(this, mirDirection, num5) <= 0)
+		{
+			return false;
+		}
+		AttackTime = MapObject.Envir.Time + AttackSpeed + 300;
+		ActionList.Add(new DelayedAction(DelayedType.Damage, MapObject.Envir.Time + Math.Max(0, delay), Target, damage, type));
+		return true;
+	}
+
+        // ==== 20261103 韩服20261001移植辅助方法 ====
+	protected virtual bool LineCharge(int distance, bool broadcast = false)
+	{
+		if (base.CurrentMap == null || Target == null || Target.Dead)
+		{
+			return false;
+		}
+		if (Target.CurrentMap != base.CurrentMap)
+		{
+			return false;
+		}
+		if (distance <= 1 || distance > Info.ViewRange)
+		{
+			return false;
+		}
+		Point currentLocation = CurrentLocation;
+		Point currentLocation2 = Target.CurrentLocation;
+		int num = currentLocation2.X - currentLocation.X;
+		int num2 = currentLocation2.Y - currentLocation.Y;
+		MirDirection mirDirection;
+		if (num == 0)
+		{
+			if (num2 == 0)
+			{
+				return false;
+			}
+			mirDirection = ((num2 >= 0) ? MirDirection.Down : MirDirection.Up);
+		}
+		else if (num2 == 0)
+		{
+			mirDirection = ((num < 0) ? MirDirection.Left : MirDirection.Right);
+		}
+		else
+		{
+			if (Math.Abs(num) != Math.Abs(num2))
+			{
+				return false;
+			}
+			mirDirection = ((num >= 0) ? ((num2 < 0) ? MirDirection.UpRight : MirDirection.DownRight) : ((num2 < 0) ? MirDirection.UpLeft : MirDirection.DownLeft));
+		}
+		int num3 = Math.Max(Math.Abs(num), Math.Abs(num2));
+		int num4 = Math.Min(distance, num3 - 1);
+		if (num4 < 1)
+		{
+			return false;
+		}
+		Point point = currentLocation;
+		for (int i = 0; i < num4; i++)
+		{
+			point = Functions.PointMove(point, mirDirection, 1);
+			if (!base.CurrentMap.CanJump(point))
+			{
+				return false;
+			}
+		}
+		point = currentLocation;
+		for (int j = 0; j < num4; j++)
+		{
+			Point point2 = Functions.PointMove(point, mirDirection, 1);
+			base.CurrentMap.GetCell(point).Remove(this);
+			RemoveObjects(mirDirection, 1);
+			point = (CurrentLocation = point2);
+			base.CurrentMap.GetCell(point).Add(this);
+			AddObjects(mirDirection, 1);
+		}
+		Direction = mirDirection;
+		if (broadcast)
+		{
+			Broadcast(new S.ObjectDashAttack
+			{
+				ObjectID = ObjectID,
+				Direction = Direction,
+				Location = CurrentLocation,
+				Distance = num4
+			});
+		}
+		return true;
+	}
+
+        // ==== 20261103 韩服20261001移植辅助方法 ====
+	protected virtual bool TargetAreaAttack(Spell spell, int damage, int areaSize, int delay, int duration, int tickSpeed, DefenceType defenceType)
+	{
+		if (base.CurrentMap == null || damage <= 0 || delay < 0 || duration <= 0 || tickSpeed <= 0)
+		{
+			return false;
+		}
+		int num;
+		switch (areaSize)
+		{
+		case 1:
+			num = 0;
+			break;
+		case 3:
+			num = 1;
+			break;
+		case 5:
+			num = 2;
+			break;
+		default:
+			return false;
+		}
+		List<MapObject> list = FindAllTargets(Info.ViewRange, CurrentLocation);
+		if (list == null || list.Count == 0)
+		{
+			return false;
+		}
+		MapObject mapObject = list[MapObject.Envir.Random.Next(list.Count)];
+		if (mapObject == null || mapObject.Dead || mapObject.CurrentMap != base.CurrentMap)
+		{
+			return false;
+		}
+		Point currentLocation = mapObject.CurrentLocation;
+		long num2 = MapObject.Envir.Time + delay;
+		long expireTime = num2 + duration;
+		int num3 = 0;
+		for (int i = currentLocation.Y - num; i <= currentLocation.Y + num; i++)
+		{
+			if (i < 0 || i >= base.CurrentMap.Height)
+			{
+				continue;
+			}
+			for (int j = currentLocation.X - num; j <= currentLocation.X + num; j++)
+			{
+				if (j >= 0 && j < base.CurrentMap.Width && (j != CurrentLocation.X || i != CurrentLocation.Y) && base.CurrentMap.GetCell(j, i).Valid)
+				{
+					SpellObject spellObject = new SpellObject
+					{
+						Spell = spell,
+						Value = damage,
+						DefenceType = defenceType,
+						StartTime = num2,
+						ExpireTime = expireTime,
+						TickSpeed = tickSpeed,
+						CurrentLocation = new Point(j, i),
+						CastLocation = currentLocation,
+						Show = (j == currentLocation.X && i == currentLocation.Y),
+						CurrentMap = base.CurrentMap,
+						Caster = this
+					};
+					base.CurrentMap.ActionList.Add(new DelayedAction(DelayedType.Spawn, num2, spellObject));
+					num3++;
+				}
+			}
+		}
+		return num3 > 0;
+	}
+
+        // ==== 20261103 韩服20261001移植辅助方法 ====
+	protected virtual bool SpawnSlaves(MonsterInfo info, int maxCount = 0, bool maintainCount = false)
+	{
+		if (info == null || base.CurrentMap == null || maxCount < 1 || maxCount > 5)
+		{
+			return false;
+		}
+		int num = 0;
+		for (int num2 = SlaveList.Count - 1; num2 >= 0; num2--)
+		{
+			MonsterObject monsterObject = SlaveList[num2];
+			if (monsterObject == null || monsterObject.Dead || monsterObject.CurrentMap == null)
+			{
+				SlaveList.RemoveAt(num2);
+			}
+			else if (monsterObject.Info == info)
+			{
+				num++;
+			}
+		}
+		int num3;
+		if (maintainCount)
+		{
+			num3 = maxCount - num;
+			if (num3 <= 0)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			num3 = maxCount;
+		}
+		int num4 = Math.Max(0, CurrentLocation.X - 2);
+		int num5 = Math.Min(base.CurrentMap.Width - 1, CurrentLocation.X + 2);
+		int num6 = Math.Max(0, CurrentLocation.Y - 2);
+		int num7 = Math.Min(base.CurrentMap.Height - 1, CurrentLocation.Y + 2);
+		List<Point> list = new List<Point>(24);
+		for (int i = num6; i <= num7; i++)
+		{
+			for (int j = num4; j <= num5; j++)
+			{
+				if (j != CurrentLocation.X || i != CurrentLocation.Y)
+				{
+					Cell cell = base.CurrentMap.GetCell(j, i);
+					if (cell.Valid && (cell.Objects == null || cell.Objects.Count <= 0))
+					{
+						list.Add(new Point(j, i));
+					}
+				}
+			}
+		}
+		if (list.Count == 0)
+		{
+			return false;
+		}
+		int num8 = Math.Min(num3, list.Count);
+		int num9 = 0;
+		for (int k = 0; k < num8; k++)
+		{
+			int index = MapObject.Envir.Random.Next(list.Count);
+			Point location = list[index];
+			list[index] = list[list.Count - 1];
+			list.RemoveAt(list.Count - 1);
+			MonsterObject monster = GetMonster(info);
+			if (monster != null)
+			{
+				monster.Spawn(base.CurrentMap, location);
+				SlaveList.Add(monster);
+				num9++;
+			}
+		}
+		return num9 > 0;
+	}
+
 
         public override ObjectType Race
         {
@@ -718,9 +1024,10 @@ namespace Server.MirObjects
             Respawn = respawn;
 
             if (Respawn.Map == null) return false;
-            if (Respawn.WalkableCells == null || Respawn.WalkableCells.Count == 0) return false;
-
-            var spawnPoint = Respawn.WalkableCells[Envir.Random.Next(Respawn.WalkableCells.Count)];
+            //★11-04 阶段一：改成现场按方框采样，不再依赖预存的可走点副本。
+            //  方框内确实没有可走格时返回 InvalidSpawnPoint(-1,-1)，与旧的「列表为空 → 不刷」等价。
+            Point spawnPoint = Respawn.GetSpawnPoint(Respawn.Map);
+            if (spawnPoint.X < 0) return false;
 
             CurrentLocation = spawnPoint;
 
@@ -2731,6 +3038,7 @@ namespace Server.MirObjects
                 ShockTime = (ShockTime > 0 ? ShockTime - Envir.Time : 0),
                 BindingShotCenter = BindingShotCenter,
                 NoWalkThrough = BlockWalkThrough,   //城门/城墙：告诉客户端「开穿人也不能穿」
+                Level = Info.Level,                 //怪物等级（内挂数字显血 Lv.xx 用，包尾追加字段）
                 Buffs = Buffs.Where(d => d.Info.Visible).Select(e => e.Type).ToList()
             };
         }
@@ -3568,9 +3876,11 @@ namespace Server.MirObjects
             }
         }
 
-        protected virtual void HalfmoonAttack(int damage, int delay = 500, DefenceType defenceType = DefenceType.ACAgility)
+        protected virtual bool HalfmoonAttack(int damage, int delay = 500, DefenceType defenceType = DefenceType.ACAgility)
         {
+            // 20261103 改为返回bool（韩服20261001移植需要；原有调用方忽略返回值不受影响）
             MirDirection dir = Functions.PreviousDir(Direction);
+            bool hitAny = false;
 
             for (int i = 0; i < 4; i++)
             {
@@ -3590,9 +3900,11 @@ namespace Server.MirObjects
 
                     DelayedAction action = new DelayedAction(DelayedType.Damage, Envir.Time + delay, ob, damage, defenceType);
                     ActionList.Add(action);
+                    hitAny = true;
                     break;
                 }
             }
+            return hitAny;
         }
 
         // Sanjian
@@ -3622,8 +3934,10 @@ namespace Server.MirObjects
                 }
             }
         }
-        protected virtual void JumpBack(int distance)
+        protected virtual void JumpBack(int distance, bool random = false)
         {
+            // 20261103 加random参数（韩服20261001移植需要；原有调用方不受影响）
+            if (random && distance > 1) distance = Envir.Random.Next(1, distance + 1);
             MirDirection jumpDir = Functions.ReverseDirection(Direction);
 
             Point location = new Point();

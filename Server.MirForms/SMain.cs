@@ -208,8 +208,22 @@ namespace Server
             box.Text = text.Substring(Math.Min(cut, text.Length));
         }
 
+        // ★在线列表刷新节流（11-04）：InterfaceTimer 是 100ms 一拍，原来每拍都调用本方法，
+        //   300 个假人在线时等于每秒把 300 行删光重建 10 次 —— 列表一直在闪、滚动条一直被顶回去，
+        //   看起来就是「在线列表自己在循环刷新」。现在非强制时最多 0.7 秒刷一次。
+        private const int OnlineRefreshMs = 700;
+        private long _lastOnlineRefresh;
+
         private void ProcessPlayersOnlineTab(bool forced = false)
         {
+            if (!forced)
+            {
+                // 不是「在线玩家」页时不刷（看不见的列表没必要每秒重建 300 行）
+                if (MainTabs.SelectedTab != tabPage4) return;
+                if (Environment.TickCount64 - _lastOnlineRefresh < OnlineRefreshMs) return;
+                _lastOnlineRefresh = Environment.TickCount64;
+            }
+
             // 服务端线程同时在校 Envir.Players，这里先做本地快照，避免"集合已修改/越界"
             List<PlayerObject> players;
             try
@@ -221,16 +235,32 @@ namespace Server
                 return;
             }
 
-            // ★只比数量是不够的：有人下线的同时有人上线，数量不变但列表顺序整体错开，
-            //   下面按位置刷状态就会把 A 的「挂机/假人」标到 B 那一行上
-            //   （这就是"在线状态信息跳到别的玩家身上"）。改成按行的身份（角色 Index）核对。
-            bool rebuild = forced || PlayersOnlineListView.Items.Count != players.Count;
+            // ★① 先过滤掉 Info 还空着的（正在登录/下线的交界），再按角色 Index 排序：
+            //   · 过滤：只有「能显示的行数」才能拿来和 ListView 比。原来比的是 players.Count，
+            //           只要有一个角色 Info 为空（CreateListView 返回 null 被跳过），
+            //           Items.Count 永远少 1 → 每一拍都判定「要重建」→ 无限重建。
+            //   · 排序：顺序固定。原来按 Envir.Players 顺序，删掉一个后面所有行整体上顶，
+            //           位置全变 → 每下线一个人整张表重建一次，选中/滚动位置也跟着跳。
+            List<PlayerObject> visible = new List<PlayerObject>(players.Count);
+            HashSet<int> seen = new HashSet<int>();
+            foreach (PlayerObject p in players)
+            {
+                CharacterInfo info = p?.Info;
+                if (info == null) continue;      // 登录/下线中途，这一拍先不显示
+                if (!seen.Add(info.Index)) continue;
+                visible.Add(p);
+            }
+            visible.Sort((a, b) => a.Info.Index.CompareTo(b.Info.Index));
+
+            // ★② 只比数量是不够的：有人下线的同时有人上线，数量不变但列表顺序整体错开，
+            //   按位置刷状态就会把 A 的「挂机/假人」标到 B 那一行上。按行的身份（角色 Index）核对。
+            bool rebuild = forced || PlayersOnlineListView.Items.Count != visible.Count;
 
             if (!rebuild)
             {
-                for (int i = 0; i < players.Count; i++)
+                for (int i = 0; i < visible.Count; i++)
                 {
-                    CharacterInfo info = players[i]?.Info;
+                    CharacterInfo info = visible[i]?.Info;
                     if (!(PlayersOnlineListView.Items[i].Tag is CharacterInfo rowInfo) ||
                         info == null || rowInfo.Index != info.Index)
                     {
@@ -242,32 +272,29 @@ namespace Server
 
             if (rebuild)
             {
-                // 重建时按角色 Index 还原选中行与滚动位置，避免刷新一下选中就跳走
+                // 重建时按角色 Index 还原选中行与滚动位置（不能按行号：上线/下线会让行号整体移动）
                 int selectedIndex = 0;
                 if (PlayersOnlineListView.SelectedItems.Count > 0 &&
                     PlayersOnlineListView.SelectedItems[0].Tag is CharacterInfo sel)
                     selectedIndex = sel.Index;
 
-                int topRow = 0;
-                try { topRow = PlayersOnlineListView.TopItem?.Index ?? 0; }
-                catch { topRow = 0; }
-
-                int restoreRow = -1;
+                int topIndex = 0;
+                try
+                {
+                    if (PlayersOnlineListView.TopItem?.Tag is CharacterInfo top)
+                        topIndex = top.Index;
+                }
+                catch { }
 
                 PlayersOnlineListView.BeginUpdate();
                 try
                 {
                     PlayersOnlineListView.Items.Clear();
 
-                    for (int i = 0; i < players.Count; i++)
+                    foreach (PlayerObject player in visible)
                     {
-                        ListViewItem item = CreateListView(players[i]);
-                        if (item == null) continue;
-
-                        if (selectedIndex != 0 && item.Tag is CharacterInfo c && c.Index == selectedIndex)
-                            restoreRow = PlayersOnlineListView.Items.Count;
-
-                        PlayersOnlineListView.Items.Add(item);
+                        ListViewItem item = CreateListView(player);
+                        if (item != null) PlayersOnlineListView.Items.Add(item);
                     }
                 }
                 finally
@@ -277,24 +304,44 @@ namespace Server
 
                 try
                 {
-                    if (restoreRow >= 0 && restoreRow < PlayersOnlineListView.Items.Count)
+                    if (selectedIndex != 0)
                     {
-                        PlayersOnlineListView.Items[restoreRow].Selected = true;
-                        PlayersOnlineListView.Items[restoreRow].Focused = true;
+                        foreach (ListViewItem item in PlayersOnlineListView.Items)
+                        {
+                            if (item.Tag is CharacterInfo c && c.Index == selectedIndex)
+                            {
+                                item.Selected = true;
+                                break;
+                            }
+                        }
                     }
 
-                    if (topRow > 0 && topRow < PlayersOnlineListView.Items.Count)
-                        PlayersOnlineListView.TopItem = PlayersOnlineListView.Items[topRow];
+                    if (topIndex != 0)
+                    {
+                        foreach (ListViewItem item in PlayersOnlineListView.Items)
+                        {
+                            if (item.Tag is CharacterInfo c && c.Index == topIndex)
+                            {
+                                PlayersOnlineListView.TopItem = item;
+                                break;
+                            }
+                        }
+                    }
                 }
                 catch { }
+
+                // ★③ 这里绝对不能再设 item.Focused = true：
+                //   设焦点会把焦点拉到 ListView 上，而它在别的标签页里时，WinForms 会顺手把
+                //   TabControl 切到这一页 → 触发 MainTabs_SelectedIndexChanged → 强制重建 → 又设焦点
+                //   → 又切页 …… 真正意义上的死循环（表现为"在线列表自己反复刷、标签页自己跳回来"）。
             }
             else
             {
                 // 身份序列完全对得上，只刷状态列（真人→挂机、挂机→假人 等切换不会触发重建）
                 bool changed = false;
-                for (int i = 0; i < players.Count; i++)
+                for (int i = 0; i < visible.Count; i++)
                 {
-                    string status = GetStatusText(players[i]);
+                    string status = GetStatusText(visible[i]);
                     var sub = PlayersOnlineListView.Items[i].SubItems[5];
                     if (sub == null || sub.Text != status)
                     {
@@ -780,7 +827,9 @@ namespace Server
 
         private void MainTabs_SelectedIndexChanged(object sender, EventArgs e)
         {
-            ProcessPlayersOnlineTab(true);
+            // 只有切到「在线玩家」页才强制重建；切到别的页不再白白重建一次
+            // （以前每切一次都把列表删光重建，选中和滚动位置全被重置）
+            ProcessPlayersOnlineTab(MainTabs.SelectedTab == tabPage4);
             ProcessGuildViewTab(true);
         }
 

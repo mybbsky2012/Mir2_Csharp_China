@@ -194,6 +194,7 @@ namespace Server
 
         public static string NewbieGuild = "新人公会",
                              SkeletonName = "变异骷髅",
+                             Mon637BMob = "海之蜈蚣",   // 20261103 韩服AI移植：Mon637B召唤的小怪名
                              ShinsuName = "神兽",
                              BugBatName = "小蝙蝠",
                              Zuma1 = "祖玛雕像",
@@ -579,6 +580,7 @@ namespace Server
             NewbieGuild = Reader.ReadString("Game", "NewbieGuild", NewbieGuild);
             NewbieGuildMaxSize = Reader.ReadInt32("Game", "NewbieGuildMaxSize", NewbieGuildMaxSize);
             SkeletonName = Reader.ReadString("Game", "SkeletonName", SkeletonName);
+            Mon637BMob = Reader.ReadString("Game", "Mon637BMob", Mon637BMob);
             BugBatName = Reader.ReadString("Game", "BugBatName", BugBatName);
             ShinsuName = Reader.ReadString("Game", "ShinsuName", ShinsuName);
             Zuma1 = Reader.ReadString("Game", "Zuma1", Zuma1);
@@ -910,6 +912,7 @@ namespace Server
             Reader.Write("Game", "NewbieGuild", NewbieGuild);
             Reader.Write("Game", "NewbieGuildMaxSize", NewbieGuildMaxSize);
             Reader.Write("Game", "SkeletonName", SkeletonName);
+            Reader.Write("Game", "Mon637BMob", Mon637BMob);
             Reader.Write("Game", "BugBatName", BugBatName);
             Reader.Write("Game", "ShinsuName", ShinsuName);
 

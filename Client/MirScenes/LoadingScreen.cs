@@ -161,9 +161,30 @@ namespace Client.MirScenes
         /// <summary>撤掉载入画面，并结束这一段载入期（世界已经可以正常绘制）。</summary>
         public static void Hide()
         {
+            if (Armed) Client.Utils.LoginTrace.Mark("载入画面撤下（来源 " + CallerName() + "）");
+
             Armed = false;
             _statusLabel = null;
             DisposeRoot();
+        }
+
+        /// <summary>诊断用：取调用 Hide() 的直接上层方法名，区分是「世界就绪」「超时保护」还是「场景销毁」。</summary>
+        private static string CallerName()
+        {
+            try
+            {
+                System.Diagnostics.StackTrace st = new System.Diagnostics.StackTrace(1, false);
+                if (st.FrameCount <= 0) return "?";
+
+                System.Reflection.MethodBase m = st.GetFrame(0).GetMethod();
+                if (m == null) return "?";
+
+                return (m.DeclaringType != null ? m.DeclaringType.Name + "." : string.Empty) + m.Name;
+            }
+            catch
+            {
+                return "?";
+            }
         }
 
         private static void DisposeRoot()

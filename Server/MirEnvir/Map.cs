@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 ﻿using Server.MirDatabase;
 using Server.MirObjects;
 using S = ServerPackets;
@@ -24,7 +24,11 @@ namespace Server.MirEnvir
         public int Width, Height;
         public Cell[,] Cells;
         public List<Point> WalkableCells;
-        public Door[,] DoorIndex;
+        //★11-04 阶段二：门格索引从 Door[,] 换成稀疏字典。
+        //  原来每张图 new Door[Width, Height]（每格 8 字节），全服 3171 万格 = 242 MB，
+        //  其中 99.99% 是 null；真正有门的格子只有几万个。
+        //  key = y * Width + x。字段上直接初始化，任何路径都不会有空引用。
+        public Dictionary<int, Door> DoorIndex = new Dictionary<int, Door>();
         public List<Door> Doors = new List<Door>();
         public MineSpot[,] Mine;
         public long LightningTime, FireTime;
@@ -59,6 +63,20 @@ namespace Server.MirEnvir
             Door DoorInfo = new Door() { index = DoorIndex, Location = location };
             Doors.Add(DoorInfo);
             return DoorInfo;
+        }
+
+        /// <summary>稀疏门索引的 key：按行优先展开成一维。</summary>
+        private int DoorKey(int x, int y)
+        {
+            return y * Width + x;
+        }
+
+        /// <summary>登记门格：AddDoor 负责复用同 index 的 Door 对象，这里负责把「格子 → 门」记进索引。</summary>
+        private Door RegisterDoor(byte index, Point location)
+        {
+            Door door = AddDoor(index, location);
+            DoorIndex[DoorKey(location.X, location.Y)] = door;
+            return door;
         }
         
         public bool OpenDoor(byte DoorIndex)
@@ -144,7 +162,7 @@ namespace Server.MirEnvir
             offSet += 2;
             Height = BitConverter.ToInt16(fileBytes, offSet);
             Cells = new Cell[Width, Height];
-            DoorIndex = new Door[Width, Height];
+            DoorIndex = new Dictionary<int, Door>();
 
             offSet = 52;
 
@@ -168,7 +186,7 @@ namespace Server.MirEnvir
                     offSet += 4;
 
                     if (fileBytes[offSet] > 0)
-                        DoorIndex[x, y] = AddDoor(fileBytes[offSet], new Point(x, y));
+                        RegisterDoor(fileBytes[offSet], new Point(x, y));
 
                     offSet += 3;
 
@@ -191,7 +209,7 @@ namespace Server.MirEnvir
             Width = w ^ xor;
             Height = h ^ xor;
             Cells = new Cell[Width, Height];
-            DoorIndex = new Door[Width, Height];
+            DoorIndex = new Dictionary<int, Door>();
 
             offSet = 54;
 
@@ -208,7 +226,7 @@ namespace Server.MirEnvir
                     if (Cells[x, y] == null) Cells[x, y] = new Cell { Attribute = CellAttribute.Walk };
                     offSet += 2;
                     if (fileBytes[offSet] > 0)
-                        DoorIndex[x, y] = AddDoor(fileBytes[offSet], new Point(x, y));
+                        RegisterDoor(fileBytes[offSet], new Point(x, y));
                     offSet += 5;
 
                     byte light = fileBytes[offSet++];
@@ -227,7 +245,7 @@ namespace Server.MirEnvir
             offSet += 2;
             Height = BitConverter.ToInt16(fileBytes, offSet);
             Cells = new Cell[Width, Height];
-            DoorIndex = new Door[Width, Height];
+            DoorIndex = new Dictionary<int, Door>();
 
             offSet = 52;
 
@@ -249,7 +267,7 @@ namespace Server.MirEnvir
 
                     offSet += 2;
                     if (fileBytes[offSet] > 0)
-                        DoorIndex[x, y] = AddDoor(fileBytes[offSet], new Point(x, y));
+                        RegisterDoor(fileBytes[offSet], new Point(x, y));
                     offSet += 5;
 
                     byte light = fileBytes[offSet++];
@@ -268,7 +286,7 @@ namespace Server.MirEnvir
             offSet += 2;
             Height = BitConverter.ToInt16(fileBytes, offSet);
             Cells = new Cell[Width, Height];
-            DoorIndex = new Door[Width, Height];
+            DoorIndex = new Dictionary<int, Door>();
 
             offSet = 52;
 
@@ -289,7 +307,7 @@ namespace Server.MirEnvir
                     if (Cells[x, y] == null) Cells[x, y] = new Cell { Attribute = CellAttribute.Walk };
                     offSet += 2;
                     if (fileBytes[offSet] > 0)
-                        DoorIndex[x, y] = AddDoor(fileBytes[offSet], new Point(x, y));
+                        RegisterDoor(fileBytes[offSet], new Point(x, y));
                     offSet += 12;
 
                     byte light = fileBytes[offSet++];
@@ -312,7 +330,7 @@ namespace Server.MirEnvir
             Width = w ^ xor;
             Height = h ^ xor;
             Cells = new Cell[Width, Height];
-            DoorIndex = new Door[Width, Height];
+            DoorIndex = new Dictionary<int, Door>();
 
             offSet = 64;
 
@@ -329,7 +347,7 @@ namespace Server.MirEnvir
                     if (Cells[x, y] == null) Cells[x, y] = new Cell { Attribute = CellAttribute.Walk };
                     offSet += 4;
                     if (fileBytes[offSet] > 0)
-                        DoorIndex[x, y] = AddDoor(fileBytes[offSet], new Point(x, y));
+                        RegisterDoor(fileBytes[offSet], new Point(x, y));
                     offSet += 6;
                 }
         }
@@ -341,7 +359,7 @@ namespace Server.MirEnvir
             offSet += 2;
             Height = BitConverter.ToInt16(fileBytes, offSet);
             Cells = new Cell[Width, Height];
-            DoorIndex = new Door[Width, Height];
+            DoorIndex = new Dictionary<int, Door>();
 
             offSet = 28 + (3 * ((Width / 2) + (Width % 2)) * (Height / 2));
             for (int x = 0; x < Width; x++)
@@ -369,7 +387,7 @@ namespace Server.MirEnvir
             offSet += 2;
             Height = BitConverter.ToInt16(fileBytes, offSet);
             Cells = new Cell[Width, Height];
-            DoorIndex = new Door[Width, Height];
+            DoorIndex = new Dictionary<int, Door>();
 
             offSet = 40;
 
@@ -393,7 +411,7 @@ namespace Server.MirEnvir
             offSet += 4;
             Height = BitConverter.ToInt16(fileBytes, offSet);
             Cells = new Cell[Width, Height];
-            DoorIndex = new Door[Width, Height];
+            DoorIndex = new Dictionary<int, Door>();
 
             offSet = 54;
 
@@ -409,7 +427,7 @@ namespace Server.MirEnvir
                     if (Cells[x, y] == null) Cells[x, y] = new Cell { Attribute = CellAttribute.Walk };
                     offSet += 2;
                     if (fileBytes[offSet] > 0)
-                        DoorIndex[x, y] = AddDoor(fileBytes[offSet], new Point(x, y));
+                        RegisterDoor(fileBytes[offSet], new Point(x, y));
                     offSet += 4;
 
                     byte light = fileBytes[offSet++];
@@ -429,7 +447,7 @@ namespace Server.MirEnvir
             offset += 2;
             Height = BitConverter.ToInt16(Bytes, offset);
             Cells = new Cell[Width, Height];
-            DoorIndex = new Door[Width, Height];
+            DoorIndex = new Dictionary<int, Door>();
 
             offset = 8;
 
@@ -446,7 +464,7 @@ namespace Server.MirEnvir
                     if (Cells[x, y] == null) Cells[x, y] = new Cell { Attribute = CellAttribute.Walk };
                     offset += 2;
                     if (Bytes[offset] > 0)
-                        DoorIndex[x, y] = AddDoor(Bytes[offset], new Point(x, y));
+                        RegisterDoor(Bytes[offset], new Point(x, y));
                     offset += 11;
 
                     byte light = Bytes[offset++];
@@ -503,12 +521,10 @@ namespace Server.MirEnvir
                         MapRespawn info = new MapRespawn(Info.Respawns[i]);
                         if (info.Monster == null) continue;
                         info.Map = this;
-                        info.WalkableCells = WalkableCells.Where(x =>
-                        x.X <= info.Info.Location.X + info.Info.Spread &&
-                        x.X >= info.Info.Location.X - info.Info.Spread &&
-                        x.Y <= info.Info.Location.Y + info.Info.Spread &&
-                        x.Y >= info.Info.Location.Y - info.Info.Spread).ToList();
-
+                        //★11-04 阶段一：不再给每个刷怪点复制一片可走点。
+                        //  原来这里对每个刷怪点 Where().ToList() 一份，全服累计 1.42 亿个 Point = 1.44 GB，
+                        //  而且也是启动慢的主因（0.map 993 个点 × 32.6 万可走点 = 3.2 亿次比较）。
+                        //  取点改由 MapRespawn.GetSpawnPoint 现场按方框采样，语义等价。
                         Respawns.Add(info);
 
                         if ((info.Info.SaveRespawnTime) && (info.Info.RespawnTicks != 0))
@@ -729,11 +745,19 @@ namespace Server.MirEnvir
             return x >= 0 && x < Width && y >= 0 && y < Height && GetCell(x, y).Valid;
         }
 
+        // ==== 20261103 韩服20261001移植：ValidPoint+开门检查 ====
+        public bool CanJump(Point location)
+        {
+            if (!ValidPoint(location)) return false;
+            if (!CheckDoorOpen(location)) return false;
+            return true;
+        }
+
         public bool CheckDoorOpen(Point location)
         {
-            if (DoorIndex[location.X, location.Y] == null) return true;
-            if (DoorIndex[location.X, location.Y].DoorState != DoorState.Open) return false;
-            return true;
+            //★11-04 阶段二：字典查不到 = 这一格没有门。顺带对越界坐标也安全（数组版会抛 IndexOutOfRange）。
+            if (!DoorIndex.TryGetValue(DoorKey(location.X, location.Y), out Door door)) return true;
+            return door.DoorState == DoorState.Open;
         }
 
         public void Process()
@@ -2987,7 +3011,9 @@ namespace Server.MirEnvir
         public byte ErrorCount = 0;
 
         public List<RouteInfo> Route;
-        public List<Point> WalkableCells;
+
+        /// <summary>方框内没有可走格时的返回值。用 -1 而不是 Point.Empty，避免和真实坐标 (0,0) 混淆。</summary>
+        public static readonly Point InvalidSpawnPoint = new Point(-1, -1);
 
         public MapRespawn(RespawnInfo info)
         {
@@ -3001,6 +3027,51 @@ namespace Server.MirEnvir
             MonsterObject ob = MonsterObject.GetMonster(Monster);
             if (ob == null) return true;
             return ob.Spawn(this);
+        }
+
+        /// <summary>
+        /// 取一个可站立的出生点：先在方框内随机试探 30 次，命中不了再按随机起点整框扫一遍。
+        /// 取代原先「每个刷怪点各存一份可走点列表」的做法（那是 1.44 GB 的重复数据）。
+        /// 结果与旧实现等价：方框内确实一格可走都没有时返回 InvalidSpawnPoint。
+        /// </summary>
+        public Point GetSpawnPoint(Map map)
+        {
+            if (map == null) return InvalidSpawnPoint;
+
+            int cx = Info.Location.X, cy = Info.Location.Y, sp = Info.Spread;
+
+            for (int i = 0; i < 30; i++)
+            {
+                int x = cx + Envir.Random.Next(-sp, sp + 1);
+                int y = cy + Envir.Random.Next(-sp, sp + 1);
+                if (CanSpawnAt(map, x, y)) return new Point(x, y);
+            }
+
+            // 兜底：整框扫一遍。用随机起点 + 环绕，避免总落在左上角导致怪全堆在一侧。
+            int side = sp * 2 + 1;
+            int total = side * side;
+            int start = Envir.Random.Next(total);
+
+            for (int k = 0; k < total; k++)
+            {
+                int idx = start + k;
+                if (idx >= total) idx -= total;
+
+                int x = cx - sp + (idx % side);
+                int y = cy - sp + (idx / side);
+
+                if (CanSpawnAt(map, x, y)) return new Point(x, y);
+            }
+
+            return InvalidSpawnPoint;
+        }
+
+        private static bool CanSpawnAt(Map map, int x, int y)
+        {
+            if (x < 0 || y < 0 || x >= map.Width || y >= map.Height) return false;
+
+            Cell cell = map.Cells[x, y];
+            return cell != null && cell.Valid;
         }
 
         public void LoadRoutes()

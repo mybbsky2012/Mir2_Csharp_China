@@ -26,6 +26,8 @@ namespace Server.MirObjects
         }
 
         public long TickTime, StartTime;
+        // ==== 20261103 韩服AI移植：韩服SpellObject带防御类型字段；默认MAC与本服原有硬编码行为一致 ====
+        public DefenceType DefenceType = DefenceType.MAC;
         public MapObject Caster;
         public int Value, TickSpeed, BonusDmg, Healingdmg;
         public Spell Spell;

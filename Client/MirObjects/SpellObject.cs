@@ -588,6 +588,47 @@ namespace Client.MirObjects
                     SoundManager.PlaySound(8306);
                     MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon609N], 597, 8, 1000, CurrentLocation) { Blend = true });
                     break;
+
+                // ==== 20261103 韩服20261001移植：海战怪法术特效（帧数据取自韩服客户端，库号612/635/637） ====
+                case Spell.Mon612NFlame:
+                    BodyLibrary = Libraries.Monsters[(ushort)Monster.Mon612N];
+                    DrawColour = Color.FromArgb(180, 200, 200, 180);
+                    LightColour = Color.White;
+                    Light = 3;
+                    DrawFrame = 476;
+                    FrameInterval = 100;
+                    FrameCount = 11;
+                    Blend = true;
+                    Repeat = true;
+                    SoundManager.PlaySound(8306);
+                    MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon612N], 487, 3, 600, CurrentLocation) { Blend = true });
+                    break;
+                case Spell.Mon635SIceWhirlwind:
+                    BodyLibrary = Libraries.Monsters[(ushort)Monster.Mon635S];
+                    DrawColour = Color.FromArgb(180, 255, 200, 180);
+                    LightColour = Color.White;
+                    Light = 3;
+                    DrawFrame = 661;
+                    FrameInterval = 100;
+                    FrameCount = 14;
+                    Blend = true;
+                    Repeat = true;
+                    SoundManager.PlaySound(8306);
+                    MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon635S], 675, 3, 600, CurrentLocation) { Blend = true });
+                    break;
+                case Spell.Mon637BAreaBall:
+                    BodyLibrary = Libraries.Monsters[(ushort)Monster.Mon637B];
+                    DrawColour = Color.FromArgb(180, 200, 200, 180);
+                    LightColour = Color.White;
+                    Light = 3;
+                    DrawFrame = 1310;
+                    FrameInterval = 100;
+                    FrameCount = 11;
+                    Blend = true;
+                    Repeat = true;
+                    SoundManager.PlaySound(8306);
+                    MapControl.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon637B], 1326, 7, 600, CurrentLocation) { Blend = false, DrawBehind = true });
+                    break;
             }
 
             NextMotion = CMain.Time + FrameInterval;
@@ -661,6 +702,10 @@ namespace Client.MirObjects
                         if (FrameIndex == 0 && CMain.Random.Next(3) == 0) SoundManager.PlaySound(8306);
                         break;
                     case Spell.Mon609NBomb:
+                        if (FrameIndex == 0 && CMain.Random.Next(3) == 0) SoundManager.PlaySound(8306);
+                        break;
+                    // ==== 20261103 韩服20261001移植：火舌循环音效 ====
+                    case Spell.Mon612NFlame:
                         if (FrameIndex == 0 && CMain.Random.Next(3) == 0) SoundManager.PlaySound(8306);
                         break;
                 }

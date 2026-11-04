@@ -5,6 +5,13 @@ public class InIReader
     #region Fields
     private readonly List<string> _contents;
     private readonly string _fileName;
+
+    //★批量写入（11-04）：默认行为完全不变——不调 BeginBatch 时 Write 仍然立即落盘。
+    //BeginBatch 之后 Write 只改内存并标记脏，EndBatch/Flush 时把整份内容合并成一次写盘。
+    //原因：原来每个键都 File.WriteAllLines 整份重写，一次 Settings.Save() ≈120 个键 = 120 次
+    //「开→写→关」，本机 190ms，机械盘/杀软实时扫描时放大到秒级，于是关内挂面板卡几秒。
+    private bool _batching;
+    private bool _dirty;
     #endregion
 
     #region Constructor
@@ -68,6 +75,49 @@ public class InIReader
     }
 
     public void Save()
+    {
+        if (_batching)
+        {
+            _dirty = true;
+            return;
+        }
+
+        WriteToDisk();
+    }
+
+    /// <summary>开始批量写入：Write 只改内存，不落盘</summary>
+    public void BeginBatch()
+    {
+        _batching = true;
+    }
+
+    /// <summary>结束批量写入，有改动则合并成一次写盘</summary>
+    public void EndBatch()
+    {
+        _batching = false;
+
+        if (!_dirty) return;
+
+        _dirty = false;
+        WriteToDisk();
+    }
+
+    /// <summary>有未落盘的改动时立即写盘（批量模式中途要强制落盘时用）</summary>
+    public void Flush()
+    {
+        if (!_dirty) return;
+
+        _dirty = false;
+        WriteToDisk();
+    }
+
+    /// <summary>是否还有未落盘的改动</summary>
+    public bool IsDirty
+    {
+        get { return _dirty; }
+    }
+
+    private void WriteToDisk()
     {
         try
         {
