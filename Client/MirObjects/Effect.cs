@@ -24,6 +24,14 @@ namespace Client.MirObjects
         /// <summary>自定义帧序列（用于素材中间夹空帧的情况，如落雷杀 1770-1809）。非空时按此列表取帧，Count 需等于其长度。</summary>
         public int[] FrameList;
 
+        /// <summary>
+        /// 同一帧重复绘制次数（多层叠加，用于素材本身平均 alpha 偏低、单层画发虚的情况）。
+        /// ★必须用这个字段而不是「new 多个同素材的 Effect」：特效限流（RegisterLimit）会按
+        /// 「同对象 + 同素材 + 300ms」去重，同一次施法里连建的 2~N 层会被静默丢弃，只剩第一层 ——
+        /// 表现为「叠层没生效、黑色描边发虚」。
+        /// </summary>
+        public int Layers = 1;
+
         public bool Blend = true;
         public float Rate = 1F;
         public Point DrawLocation;
@@ -261,10 +269,15 @@ namespace Client.MirObjects
             //素材中间可能夹空帧（如落雷杀 1770-1809），此时按 FrameList 取帧
             int index = (FrameList != null && CurrentFrame < FrameList.Length) ? FrameList[CurrentFrame] : BaseIndex + CurrentFrame;
 
-            if (Blend)
-                Library.DrawBlend(index, DrawLocation, DrawColour, true, Rate);
-            else
-                Library.Draw(index, DrawLocation, DrawColour, true);
+            int layers = Layers < 1 ? 1 : Layers;
+
+            for (int i = 0; i < layers; i++)
+            {
+                if (Blend)
+                    Library.DrawBlend(index, DrawLocation, DrawColour, true, Rate);
+                else
+                    Library.Draw(index, DrawLocation, DrawColour, true);
+            }
         }
 
         public void Clear()

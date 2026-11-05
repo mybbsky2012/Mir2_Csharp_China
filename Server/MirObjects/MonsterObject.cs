@@ -13,6 +13,24 @@ namespace Server.MirObjects
         {
             if (info == null) return null;
 
+            // ==== 20261105 触手系：629 八爪巨兽 / 630 触手 / 640 巨型章鱼的触手 ====
+            // DB 里这三只的 AI 仍是 0（没配专门 AI，所以只会打贴身 1 格、又不移动 = 站着不动什么都不做），
+            // 这里按图库号认领，不动数据库、不动存档。
+            if (info.AI == 0)
+            {
+                switch (info.Image)
+                {
+                    case Monster.Mon629P:
+                        return new Mon629P(info);
+                    case Monster.Mon630P:
+                        return new Mon630P(info);
+                    case Monster.Mon641S:
+                        return new Mon641S(info);
+                    case Monster.Mon640N:
+                        return new Mon640N(info);
+                }
+            }
+
             switch (info.AI)
             {
                 case 3:

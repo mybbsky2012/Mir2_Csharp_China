@@ -4586,6 +4586,47 @@ namespace Server.MirObjects
         {
             if (target == null || !target.IsAttackTarget(this)) return;
 
+            // ==== 20261105 诱惑之光可调参数（服务端「其他选项 → 诱惑之光」页）====
+            // TameSuccessRate = 0  → 完全走下面的原版逻辑（默认值，不改变现有手感）
+            // TameSuccessRate 1~99 → 跳过所有分层随机，每次施法只掷一次骰
+            // TameSuccessRate = 100 → 必定成功（秒招）
+            int tuneRate = Settings.TameSuccessRate;
+            if (tuneRate < 0) tuneRate = 0;
+            else if (tuneRate > 100) tuneRate = 100;
+
+            if (tuneRate > 0)
+            {
+                LevelMagic(magic);
+
+                // 对自己的宝宝放电：照旧只做麻痹，不重新驯服
+                if (target.Master == this)
+                {
+                    target.ShockTime = Envir.Time + (magic.Level * 5 + 10) * 1000;
+                    target.Target = null;
+                    return;
+                }
+
+                // 城门 / 城墙是攻城用的建筑，招成宠物会直接破坏攻城玩法，任何设置下都硬排除
+                if (target is CastleGate || target is CityGate) return;
+
+                // 「不可诱惑」标记：这个库里 1168 只怪（含全部 BOSS）都标了 CanTame = false，
+                // 不放开这一项的话，等级和血量调得再松也照样招不到。
+                if (!target.Info.CanTame && !Settings.TameIgnoreUntameable) return;
+
+                // 等级门槛：勾了「允许高等级怪」就不再看「自身等级 + 2」
+                if (!Settings.TameIgnoreLevelLimit && target.Level > Level + 2) return;
+
+                // 宠物数量上限（与原版同一套算法，避免秒招把宝宝塞爆）
+                var tunePetBonus = Globals.MaxPets - 3;
+                if (Pets.Count(t => !t.Dead && t.Race != ObjectType.Creature) >= magic.Level + tunePetBonus) return;
+
+                // 一次掷骰决定成败：100 时 Random.Next(100) 永远小于 100，必定成功
+                if (Envir.Random.Next(100) >= tuneRate) return;
+
+                TameMonster(target, magic);
+                return;
+            }
+
             if (Envir.Random.Next(4 - magic.Level) > 0)
             {
                 if (Envir.Random.Next(2) == 0) LevelMagic(magic);
@@ -4608,7 +4649,12 @@ namespace Server.MirObjects
                 return;
             }
 
-            if (target.Level > Level + 2 || !target.Info.CanTame) return;
+            // 城门 / 城墙硬排除；「不可诱惑」标记由开关决定（库里绝大多数怪、含 BOSS 都是 false）
+            if (target is CastleGate || target is CityGate) return;
+            if (!target.Info.CanTame && !Settings.TameIgnoreUntameable) return;
+
+            // 等级门槛：勾了「允许高等级怪」就不再看「自身等级 + 2」
+            if (!Settings.TameIgnoreLevelLimit && target.Level > Level + 2) return;
 
             if (Envir.Random.Next(Level + 20 + magic.Level * 5) <= target.Level + 10)
             {
@@ -4624,13 +4670,26 @@ namespace Server.MirObjects
 
             if (Pets.Count(t => !t.Dead && t.Race != ObjectType.Creature) >= magic.Level + petBonus) return;
 
-            int rate = (int)(target.Stats[Stat.HP] / 100);
-            if (rate <= 2) rate = 2;
-            else rate *= 2;
+            // 高血量抗性：勾了「允许高血量怪」就整段跳过（原版 HP 越高、rate 越大、越难招）
+            if (!Settings.TameIgnoreHpPenalty)
+            {
+                int rate = (int)(target.Stats[Stat.HP] / 100);
+                if (rate <= 2) rate = 2;
+                else rate *= 2;
 
-            if (Envir.Random.Next(rate) != 0) return;
+                if (Envir.Random.Next(rate) != 0) return;
+            }
             //else if (Envir.Random.Next(20) == 0) target.Die();
 
+            TameMonster(target, magic);
+        }
+
+        /// <summary>
+        /// 20261105 把「驯服成功」后的收尾从 ElectricShock 里抽出来，
+        /// 原版随机路径和可调成功率路径共用同一段，避免两份逻辑走偏。
+        /// </summary>
+        private void TameMonster(MonsterObject target, UserMagic magic)
+        {
             if (target.Master != null)
             {
                 target.SetHP(target.Stats[Stat.HP] / 10);

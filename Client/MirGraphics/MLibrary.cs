@@ -647,6 +647,18 @@ namespace Client.MirGraphics
         // 这里先把库名切出来存着，省得每次绘制都从路径里算一遍。
         private readonly string _libName;
 
+        //★怪物图库要额外修补「被抠掉的黑底」：
+        //  629/631/640 这类韩服暗色怪，图库制作时是按"接近纯黑就设成透明"去的底，
+        //  怪物身上本来就黑的部位（甲片缝隙、翅膀阴影）也被一起抠掉，
+        //  进游戏就是身上一片片透出地面，看着像"渲染透明过度、黑色没了"。
+        //  ★★必须白名单，不能对 Data\Monster\ 全目录生效（11-05 就是这么写的，踩了坑）：
+        //    623「原始灵魂的残骸」这种**带大片柔雾光晕的火焰**素材，光晕里的缝隙本来就是透明的，
+        //    全局补洞会把它们填成不透明深色点 → 火焰外面绕出一整圈灰黑色「花边」。
+        //    也就是说：补洞只对「黑底抠过头、身上有洞」的暗色怪有意义，其余一律不动（= 11-05 之前的行为）。
+        private static readonly HashSet<int> RepairLibWhitelist = new HashSet<int> { 629, 630, 631, 640, 641 };
+
+        private readonly bool _repairPunchedAlpha;
+
         private MImage[] _images;
         private FrameSet _frames;
         private int[] _indexList;
@@ -685,6 +697,22 @@ namespace Client.MirGraphics
         {
             _fileName = Path.ChangeExtension(filename, Extention);
             _libName = Path.GetFileNameWithoutExtension(_fileName);
+            _repairPunchedAlpha = IsMonsterLibrary(_fileName);
+        }
+
+        /// <summary>
+        /// 是否需要「补回被抠掉的黑底」：只有白名单里的怪物图库才补。
+        /// ★别改回「整个 Data\Monster 目录都补」—— 那是 11-05 的写法，会把 623 火焰的雾气缝隙
+        ///   填成一圈灰黑花边（补洞填色取的是周围不透明像素均值，火焰外面那圈本来就是半透明烟）。
+        /// </summary>
+        private static bool IsMonsterLibrary(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            if (!path.Replace('/', '\\').ToLowerInvariant().Contains("\\data\\monster\\")) return false;
+
+            string name = Path.GetFileNameWithoutExtension(path);
+            int number;
+            return int.TryParse(name, out number) && RepairLibWhitelist.Contains(number);
         }
 
         /// <summary>图库里的图像（帧）总数；微端还没下完时返回 0。
@@ -797,7 +825,7 @@ namespace Client.MirGraphics
                 if ((mi.Width == 0) || (mi.Height == 0))
                     return false;
                 _fStream.Seek(_indexList[index] + 17, SeekOrigin.Begin);
-                mi.CreateTexture(_reader);
+                mi.CreateTexture(_reader, _repairPunchedAlpha);
                 mi.SkinApplied = false;   // 纹理是新建的，皮肤得重新套一次
             }
 
@@ -880,7 +908,7 @@ namespace Client.MirGraphics
                         return Size.Empty;
 
                     _fStream.Seek(_indexList[index] + 17, SeekOrigin.Begin);
-                    mi.CreateTexture(_reader);
+                    mi.CreateTexture(_reader, _repairPunchedAlpha);
                 }
                 return mi.GetTrueSize();
             }
@@ -915,7 +943,7 @@ namespace Client.MirGraphics
                         return Rectangle.Empty;
 
                     _fStream.Seek(_indexList[index] + 17, SeekOrigin.Begin);
-                    mi.CreateTexture(_reader);
+                    mi.CreateTexture(_reader, _repairPunchedAlpha);
                 }
 
                 mi.GetTrueSize();
@@ -1204,7 +1232,7 @@ namespace Client.MirGraphics
             }
         }
 
-        public unsafe void CreateTexture(BinaryReader reader)
+        public unsafe void CreateTexture(BinaryReader reader, bool repairPunchedAlpha = false)
         {
             int w = Width;
             int h = Height;
@@ -1213,6 +1241,9 @@ namespace Client.MirGraphics
             // 原来是把 GZip 流直接灌进 LockRectangle 拿到的指针，解压完就必须扔掉，
             // 不能留到后面用（那就是 VisiblePixel 崩溃的来源）。
             byte[] raw = DecompressImage(reader.ReadBytes(Length));
+
+            //★怪物图库：把「去黑底时被误抠掉的身上部位」补回来
+            if (repairPunchedAlpha) BlackHoleRepair.Repair(raw, w, h);
 
             Image = new Texture(DXManager.Device, w, h, 1, Usage.None, Format.A8R8G8B8, Pool.Managed);
             UploadRaw(raw, Image, w, h);

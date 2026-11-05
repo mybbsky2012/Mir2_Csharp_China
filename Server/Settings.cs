@@ -126,6 +126,15 @@ namespace Server
                            ExpMobLevelDifference = true;
         public static int LineMessageTimer = 10;
 
+        //诱惑之光（20261105 「其他选项 → 诱惑之光」页可调，改完保存立即生效）
+        //  TameSuccessRate = 0  → 完全走原版的多重随机（默认，不影响现有手感）
+        //  TameSuccessRate 1~99 → 每次施法只掷一次骰，按该百分比决定成功
+        //  TameSuccessRate = 100 → 必定成功（秒招）
+        public static int TameSuccessRate = 0;
+        public static bool TameIgnoreLevelLimit = false;   // 允许召唤等级高于「自身等级 + 2」的怪
+        public static bool TameIgnoreHpPenalty = false;    // 无视高血量抗性（原版 HP 越高越难招）
+        public static bool TameIgnoreUntameable = false;   // 允许召唤库里标了「不可诱惑」的怪（BOSS 等，城门/城墙仍硬排除）
+
         //辅助开关（内挂相关，客户端可申请开启，服务器决定是否放行）
         public static bool EnableNoLamp = true,          // 免蜡：夜晚不需要照明道具
                            EnableWalkThrough = true,     // 穿人：可以穿过其他玩家/英雄
@@ -513,6 +522,12 @@ namespace Server
             GameMasterEffect = Reader.ReadBoolean("Optional", "GameMasterEffect", GameMasterEffect);
             LineMessageTimer = Reader.ReadInt32("Optional", "LineMessageTimer", LineMessageTimer);
 
+            //诱惑之光（20261105）
+            TameSuccessRate = Reader.ReadInt32("Optional", "TameSuccessRate", TameSuccessRate);
+            TameIgnoreLevelLimit = Reader.ReadBoolean("Optional", "TameIgnoreLevelLimit", TameIgnoreLevelLimit);
+            TameIgnoreHpPenalty = Reader.ReadBoolean("Optional", "TameIgnoreHpPenalty", TameIgnoreHpPenalty);
+            TameIgnoreUntameable = Reader.ReadBoolean("Optional", "TameIgnoreUntameable", TameIgnoreUntameable);
+
             //辅助开关
             EnableNoLamp = Reader.ReadBoolean("Optional", "EnableNoLamp", EnableNoLamp);
             EnableWalkThrough = Reader.ReadBoolean("Optional", "EnableWalkThrough", EnableWalkThrough);
@@ -862,6 +877,13 @@ namespace Server
             Reader.Write("Optional", "ExpMobLevelDifference", ExpMobLevelDifference);
             Reader.Write("Optional", "GameMasterEffect", GameMasterEffect);
             Reader.Write("Optional", "LineMessageTimer", LineMessageTimer);
+
+            //诱惑之光（20261105）
+            Reader.Write("Optional", "TameSuccessRate", TameSuccessRate);
+            Reader.Write("Optional", "TameIgnoreLevelLimit", TameIgnoreLevelLimit);
+            Reader.Write("Optional", "TameIgnoreHpPenalty", TameIgnoreHpPenalty);
+            Reader.Write("Optional", "TameIgnoreUntameable", TameIgnoreUntameable);
+
             Reader.Write("Optional", "EnableNoLamp", EnableNoLamp);
             Reader.Write("Optional", "EnableWalkThrough", EnableWalkThrough);
             Reader.Write("Optional", "EnableWalkThroughMonster", EnableWalkThroughMonster);

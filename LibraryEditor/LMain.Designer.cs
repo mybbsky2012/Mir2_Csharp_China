@@ -43,6 +43,7 @@ namespace LibraryEditor
             toolStripSeparator1 = new ToolStripSeparator();
             saveToolStripMenuItem = new ToolStripMenuItem();
             saveAsToolStripMenuItem = new ToolStripMenuItem();
+            exportLibToolStripMenuItem = new ToolStripMenuItem();
             toolStripMenuItem2 = new ToolStripSeparator();
             closeToolStripMenuItem = new ToolStripMenuItem();
             functionsToolStripMenuItem = new ToolStripMenuItem();
@@ -153,7 +154,7 @@ namespace LibraryEditor
             // 
             // fileToolStripMenuItem
             // 
-            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { newToolStripMenuItem, openToolStripMenuItem, openDirectToolStripMenuItem, toolStripMenuItem1, openReferenceFileToolStripMenuItem, openReferenceImageToolStripMenuItem, toolStripSeparator1, saveToolStripMenuItem, saveAsToolStripMenuItem, toolStripMenuItem2, closeToolStripMenuItem });
+            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { newToolStripMenuItem, openToolStripMenuItem, openDirectToolStripMenuItem, toolStripMenuItem1, openReferenceFileToolStripMenuItem, openReferenceImageToolStripMenuItem, toolStripSeparator1, saveToolStripMenuItem, saveAsToolStripMenuItem, exportLibToolStripMenuItem, toolStripMenuItem2, closeToolStripMenuItem });
             fileToolStripMenuItem.Image = (Image)resources.GetObject("fileToolStripMenuItem.Image");
             fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             fileToolStripMenuItem.Size = new Size(60, 21);
@@ -226,6 +227,14 @@ namespace LibraryEditor
             saveAsToolStripMenuItem.Text = "另存";
             saveAsToolStripMenuItem.ToolTipText = "另存到一个LIB文件";
             saveAsToolStripMenuItem.Click += saveAsToolStripMenuItem_Click;
+
+            // exportLibToolStripMenuItem
+            //
+            exportLibToolStripMenuItem.Name = "exportLibToolStripMenuItem";
+            exportLibToolStripMenuItem.Size = new Size(148, 22);
+            exportLibToolStripMenuItem.Text = "导出为标准Lib";
+            exportLibToolStripMenuItem.ToolTipText = "把 MLX 库的全部帧另存为 Mir2 标准 .Lib（V3）";
+            exportLibToolStripMenuItem.Click += exportLibToolStripMenuItem_Click;
             // 
             // toolStripMenuItem2
             // 
@@ -910,17 +919,17 @@ namespace LibraryEditor
             // 
             // OpenLibraryDialog
             // 
-            OpenLibraryDialog.Filter = "资源库 (*.Lib;*.Elite;*.ALib;*.EuRe;*.MIX;*.MIZ;*.WTL)|*.Lib;*.Elite;*.ALib;*.EuRe;*.MIX;*.MIZ;*.WTL|Lib 库 (*.Lib)|*.Lib|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|WTL 库 (*.WTL)|*.WTL|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WeMade/Shanda 格式（打开时自动转换为 Lib） (*.WIL;*.WZL;*.MIZ;*.WTL)|*.WIL;*.WZL;*.MIZ;*.WTL|EuRe 库 (*.EuRe)|*.EuRe|所有文件 (*.*)|*.*";
+            OpenLibraryDialog.Filter = "资源库 (*.Lib;*.MLX;*.Elite;*.ALib;*.EuRe;*.Hurricane;*.MIX;*.MIZ;*.WTL)|*.Lib;*.MLX;*.Elite;*.ALib;*.EuRe;*.Hurricane;*.MIX;*.MIZ;*.WTL|Lib 库 (*.Lib)|*.Lib|MLX 库 (*.MLX)|*.MLX|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|WTL 库 (*.WTL)|*.WTL|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WeMade/Shanda 格式（打开时自动转换为 Lib） (*.WIL;*.WZL;*.MIZ;*.WTL)|*.WIL;*.WZL;*.MIZ;*.WTL|EuRe 库 (*.EuRe)|*.EuRe|Hurricane 库 (*.Hurricane)|*.Hurricane|所有文件 (*.*)|*.*";
             OpenLibraryDialog.Title = "打开资源库";
             // 
             // OpenDirectDialog
             // 
-            OpenDirectDialog.Filter = "可直接编辑的原格式 (*.WIL;*.WZL;*.MIZ;*.WTL;*.EuRe)|*.WIL;*.WZL;*.MIZ;*.WTL;*.EuRe|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WTL 库 (*.WTL)|*.WTL|EuRe 库 (*.EuRe)|*.EuRe|所有文件 (*.*)|*.*";
+            OpenDirectDialog.Filter = "可直接编辑的原格式 (*.WIL;*.WZL;*.MIZ;*.WTL;*.EuRe;*.Hurricane;*.MLX;*.Lib)|*.WIL;*.WZL;*.MIZ;*.WTL;*.EuRe;*.Hurricane;*.MLX;*.Lib|WeMade 库 (*.WIL;*.WZL;*.MIZ)|*.WIL;*.WZL;*.MIZ|WTL 库 (*.WTL)|*.WTL|EuRe 库 (*.EuRe)|*.EuRe|Hurricane 库 (*.Hurricane)|*.Hurricane|MLX 库 (*.MLX)|*.MLX|加密lib (Artificial Mir)|*.Lib;*.MLX|所有文件 (*.*)|*.*";
             OpenDirectDialog.Title = "直接打开（不转换）";
             // 
             // SaveLibraryDialog
             // 
-            SaveLibraryDialog.Filter = "资源库 (*.Lib;*.Elite;*.ALib;*.EuRe;*.MIX;*.MIZ)|*.Lib;*.Elite;*.ALib;*.EuRe;*.MIX;*.MIZ|Lib 库 (*.Lib)|*.Lib|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|EuRe 库 (*.EuRe)|*.EuRe|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|所有文件 (*.*)|*.*";
+            SaveLibraryDialog.Filter = "资源库 (*.Lib;*.MLX;*.Elite;*.ALib;*.EuRe;*.Hurricane;*.MIX;*.MIZ)|*.Lib;*.MLX;*.Elite;*.ALib;*.EuRe;*.Hurricane;*.MIX;*.MIZ|Lib 库 (*.Lib)|*.Lib|MLX 库 (*.MLX)|*.MLX|加密lib (Artificial Mir)|*.Lib;*.MLX|Elite 库 (*.Elite)|*.Elite|ALib 库 (*.ALib)|*.ALib|EuRe 库 (*.EuRe)|*.EuRe|Hurricane 库 (*.Hurricane)|*.Hurricane|Mir3 库 (*.MIX;*.MIZ)|*.MIX;*.MIZ|所有文件 (*.*)|*.*";
             SaveLibraryDialog.Title = "保存资源库";
             // 
             // ImportImageDialog
@@ -1024,6 +1033,7 @@ namespace LibraryEditor
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem1;
         private System.Windows.Forms.ToolStripMenuItem saveToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem saveAsToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem exportLibToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripMenuItem2;
         private System.Windows.Forms.ToolStripMenuItem closeToolStripMenuItem;
         private System.Windows.Forms.SplitContainer splitContainer1;

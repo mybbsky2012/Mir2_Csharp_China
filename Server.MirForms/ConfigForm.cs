@@ -10,6 +10,9 @@ namespace Server
         {
             InitializeComponent();
 
+            // 20261105 其他选项里再挂一页「诱惑之光」（代码构建，不动 Designer 文件）
+            BuildTameTab();
+
             VPathTextBox.Text = Settings.VersionPath;
             VersionCheckBox.Checked = Settings.CheckVersion;
             RelogDelayTextBox.Text = Settings.RelogDelay.ToString();
@@ -62,6 +65,13 @@ namespace Server
             WalkThroughNPCCheckBox.Checked = Settings.EnableWalkThroughNPC;
             WalkThroughWallCheckBox.Checked = Settings.EnableWalkThroughWall;
 
+            // 诱惑之光（20261105）
+            TameSuccessRateUpDown.Value = Clamp(Settings.TameSuccessRate, 0, 100);
+            TameIgnoreLevelCheckBox.Checked = Settings.TameIgnoreLevelLimit;
+            TameIgnoreHpCheckBox.Checked = Settings.TameIgnoreHpPenalty;
+            TameIgnoreUntameableCheckBox.Checked = Settings.TameIgnoreUntameable;
+            SyncTameUi();
+
             // 地面物品 / 尸体停留时间
             itemTimeOutTextBox.Text = Settings.ItemTimeOut.ToString();
             playerDiedItemTimeOutTextBox.Text = Settings.PlayerDiedItemTimeOut.ToString();
@@ -87,6 +97,181 @@ namespace Server
 
             OfflineAfkNoConsumableCheckBox.Enabled = on;
             OfflineAfkNoEquipCheckBox.Enabled = on;
+        }
+
+        // 20261105 诱惑之光页的控件（代码构建，见 BuildTameTab）
+        private NumericUpDown TameSuccessRateUpDown;
+        private CheckBox TameIgnoreLevelCheckBox;
+        private CheckBox TameIgnoreHpCheckBox;
+        private CheckBox TameIgnoreUntameableCheckBox;
+        private Label TameRateHintLabel;
+
+        /// <summary>
+        /// 20261105 「其他选项」里新增的第 6 页：诱惑之光参数。
+        /// 用代码构建、不改 Designer 文件，好处是这个页面的控件全集中在这里，
+        /// 后面要加/减项一眼能看完，也不会被设计器重新生成时覆盖。
+        /// </summary>
+        private void BuildTameTab()
+        {
+            var page = new TabPage
+            {
+                Name = "tabPage6",
+                Text = "诱惑之光",
+                Padding = new Padding(5, 7, 5, 7),
+                UseVisualStyleBackColor = true,
+            };
+
+            // ---------- 召唤成功率 ----------
+            var rateGroup = new GroupBox
+            {
+                Text = "召唤成功率",
+                Location = new Point(12, 8),
+                Size = new Size(448, 126),
+            };
+
+            var rateLabel = new Label
+            {
+                Text = "每次施法的成功概率",
+                AutoSize = true,
+                Location = new Point(14, 26),
+            };
+
+            TameSuccessRateUpDown = new NumericUpDown
+            {
+                Location = new Point(122, 23),
+                Size = new Size(72, 26),
+                Minimum = 0,
+                Maximum = 100,
+                Value = 0,
+                TextAlign = HorizontalAlignment.Center,
+            };
+
+            var percentLabel = new Label
+            {
+                Text = "%",
+                AutoSize = true,
+                Location = new Point(200, 27),
+            };
+
+            var quickButton = new Button
+            {
+                Text = "秒招（设为 100）",
+                Location = new Point(236, 21),
+                Size = new Size(128, 29),
+                UseVisualStyleBackColor = true,
+            };
+            quickButton.Click += (o, e) =>
+            {
+                TameSuccessRateUpDown.Value = 100;
+                SyncTameUi();
+            };
+
+            TameRateHintLabel = new Label
+            {
+                AutoSize = false,
+                Location = new Point(14, 60),
+                Size = new Size(420, 58),
+                ForeColor = Color.DimGray,
+            };
+
+            rateGroup.Controls.Add(rateLabel);
+            rateGroup.Controls.Add(TameSuccessRateUpDown);
+            rateGroup.Controls.Add(percentLabel);
+            rateGroup.Controls.Add(quickButton);
+            rateGroup.Controls.Add(TameRateHintLabel);
+
+            // ---------- 召唤限制 ----------
+            var limitGroup = new GroupBox
+            {
+                Text = "召唤限制",
+                Location = new Point(12, 138),
+                Size = new Size(448, 178),
+            };
+
+            TameIgnoreLevelCheckBox = new CheckBox
+            {
+                Text = "允许召唤高等级怪物（无视「自身等级 + 2」）",
+                AutoSize = true,
+                Location = new Point(14, 24),
+            };
+
+            TameIgnoreHpCheckBox = new CheckBox
+            {
+                Text = "允许召唤高血量怪物（无视血量抗性）",
+                AutoSize = true,
+                Location = new Point(14, 54),
+            };
+
+            TameIgnoreUntameableCheckBox = new CheckBox
+            {
+                Text = "允许召唤「不可诱惑」的怪（BOSS 等，城门/城墙除外）",
+                AutoSize = true,
+                Location = new Point(14, 84),
+            };
+
+            var limitHint = new Label
+            {
+                Text = "※ 库里绝大多数怪（含全部 BOSS）都标了「不可诱惑」，要招它们必须勾上面第三项。\r\n"
+                     + "※ 宠物数量上限仍按技能等级走，秒招也不会突破。",
+                AutoSize = false,
+                Location = new Point(14, 112),
+                Size = new Size(420, 56),
+                ForeColor = Color.DimGray,
+            };
+
+            limitGroup.Controls.Add(TameIgnoreLevelCheckBox);
+            limitGroup.Controls.Add(TameIgnoreHpCheckBox);
+            limitGroup.Controls.Add(TameIgnoreUntameableCheckBox);
+            limitGroup.Controls.Add(limitHint);
+
+            // ---------- 底部说明 ----------
+            var footNote = new Label
+            {
+                Text = "三项写入 Configs\\Setup.ini 的 [Optional]，保存后立即生效。\r\n"
+                     + "只影响法师「诱惑之光」，不改数据库、不动存档。",
+                AutoSize = false,
+                Location = new Point(18, 322),
+                Size = new Size(440, 50),
+                ForeColor = Color.DimGray,
+            };
+
+            page.Controls.Add(rateGroup);
+            page.Controls.Add(limitGroup);
+            page.Controls.Add(footNote);
+
+            configTabs.Controls.Add(page);
+
+            TameSuccessRateUpDown.ValueChanged += (o, e) => SyncTameUi();
+        }
+
+        /// <summary>
+        /// 成功率输入框的即时提示：把「0 / 中间值 / 100」三种含义直接写在页面上，
+        /// 省得以后忘了 0 是原版随机、100 是秒招。
+        /// </summary>
+        private void SyncTameUi()
+        {
+            if (TameRateHintLabel == null || TameSuccessRateUpDown == null) return;
+
+            int rate = (int)TameSuccessRateUpDown.Value;
+
+            if (rate <= 0)
+            {
+                TameRateHintLabel.Text = "0 = 原版随机（默认）。命中、麻痹、抵抗、血量抗性四层判定都要过一遍，"
+                                       + "高等级高血量的怪基本招不到。";
+                TameRateHintLabel.ForeColor = Color.DimGray;
+            }
+            else if (rate >= 100)
+            {
+                TameRateHintLabel.Text = "100 = 必定成功（秒招）。每次施法都把射程内选中的那只怪招过来，"
+                                       + "只剩宠物上限和「不可诱惑」标记会拦（要招 BOSS 记得勾第三项）。";
+                TameRateHintLabel.ForeColor = Color.FromArgb(0, 130, 60);
+            }
+            else
+            {
+                TameRateHintLabel.Text = "每次施法 " + rate + "% 成功。值越大越好招，"
+                                       + "调到 100 就是秒招。";
+                TameRateHintLabel.ForeColor = Color.FromArgb(170, 95, 0);
+            }
         }
 
         private void ConfigForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -207,6 +392,13 @@ namespace Server
             Settings.EnableWalkThroughMonster = WalkThroughMonsterCheckBox.Checked;
             Settings.EnableWalkThroughNPC = WalkThroughNPCCheckBox.Checked;
             Settings.EnableWalkThroughWall = WalkThroughWallCheckBox.Checked;
+
+            // 诱惑之光（20261105）：这三个都是静态值，保存即生效 ——
+            // 玩家下一次施法就会走新参数，不用重启服务端、也不用重登。
+            Settings.TameSuccessRate = Clamp((int)TameSuccessRateUpDown.Value, 0, 100);
+            Settings.TameIgnoreLevelLimit = TameIgnoreLevelCheckBox.Checked;
+            Settings.TameIgnoreHpPenalty = TameIgnoreHpCheckBox.Checked;
+            Settings.TameIgnoreUntameable = TameIgnoreUntameableCheckBox.Checked;
 
             // 地面物品 / 尸体停留时间（越界一律夹到合法区间，避免手滑写成 0 或天文数字）
             Settings.ItemTimeOut = Clamp(ParseInt(itemTimeOutTextBox.Text, Settings.ItemTimeOut), 1, 10080);

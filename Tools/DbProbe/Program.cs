@@ -118,7 +118,9 @@ internal static class Program
         {
             var mi = envir.MonsterInfoList[i];
             if (mi == null) continue;
-            if (!((mi.Name != null && mi.Name.Contains(keyword)) ||
+            bool byNum = int.TryParse(keyword, out int kw) && (mi.Index == kw || (int)mi.Image == kw);
+            if (!(byNum ||
+                  (mi.Name != null && mi.Name.Contains(keyword)) ||
                   (mi.GameName != null && mi.GameName.Contains(keyword)))) continue;
             hits.Add(mi);
 
@@ -127,7 +129,7 @@ internal static class Program
             bool dropExists = File.Exists(dropPath);
             long dropSize = dropExists ? new FileInfo(dropPath).Length : -1;
 
-            Console.WriteLine($"[{i}] Name='{mi.Name}' | GameName='{mi.GameName}'");
+            Console.WriteLine($"[{i}] Name='{mi.Name}' | GameName='{mi.GameName}' | Image={(int)mi.Image}");
             Console.WriteLine($"      AI={mi.AI} Lv={mi.Level} HP={mi.Stats[Stat.HP]} DC={mi.Stats[Stat.MinDC]}-{mi.Stats[Stat.MaxDC]} EXP={mi.Experience}");
             Console.WriteLine($"      掉落文件=Drops\\{dropFile} 存在={dropExists} 大小={dropSize}B (DropPath='{mi.DropPath}')");
         }

@@ -111,9 +111,11 @@ namespace LibraryEditor
                 }).BeginInvoke(null, null);
             }
             else if (dropExt == ".LIB" ||
+                     dropExt == ".MLX" ||
                      dropExt == ".ELITE" ||
                      dropExt == ".ALIB" ||
                      dropExt == ".EURE" ||
+                     dropExt == ".HURRICANE" ||
                      dropExt == ".WIL" ||
                      dropExt == ".WZL" ||
                      dropExt == ".MIZ" ||
@@ -447,6 +449,44 @@ namespace LibraryEditor
                 return new ALibLibrary(filename);
             if (ext != null && ext.Equals(".EuRe", StringComparison.OrdinalIgnoreCase))
                 return new EuReLibrary(filename);
+            if (ext != null && ext.Equals(".Hurricane", StringComparison.OrdinalIgnoreCase))
+                return new HurricaneLibrary(filename);
+
+            // MLX（Artificial Mir "MLX" 容器，常伪装成 .Lib）：魔数唯一（仿 PNG 签名），按魔数嗅探最稳。
+            // 含 Ver=8 调色板帧的（items_32bit.Lib 这类）按独立格式「加密lib」打开
+            if (File.Exists(filename))
+            {
+                try
+                {
+                    byte[] mlxHead = new byte[8];
+                    using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+                    {
+                        if (fs.Read(mlxHead, 0, 8) == 8 && Formats.MlxContainer.LooksLikeMlx(mlxHead))
+                        {
+                            try
+                            {
+                                Formats.MlxContainer mc = Formats.MlxContainer.Parse(File.ReadAllBytes(filename));
+                                bool hasPalette = false;
+                                for (int i = 0; i < mc.Frames.Count; i++)
+                                {
+                                    if (mc.Frames[i].Ver == 8) { hasPalette = true; break; }
+                                }
+                                if (hasPalette) return new EncryptedLibLibrary(mc, filename);
+                                return new MlxLibrary(mc, filename);
+                            }
+                            catch
+                            {
+                                // 容器解析异常时交回原路径，由 MlxLibrary 抛出带格式的错误
+                                return new MlxLibrary(filename);
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // 嗅探失败时交给后续路由
+                }
+            }
 
             // Mir3（传奇3）用 .MIX/.MIZ，扩展名与 Mir2 盛大 .MIZ 冲突 —— 必须按魔数嗅探
             if (IsMir3IndexedName(ext) && File.Exists(filename) && IsMir3File(filename))
@@ -457,11 +497,21 @@ namespace LibraryEditor
             {
                 try
                 {
-                    byte[] head = new byte[8];
+                    byte[] head = new byte[10];
                     using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
                     {
-                        if (fs.Read(head, 0, 8) == 8 &&
-                            head[4] == 0x46 && head[5] == 0x45 && head[6] == 0x49 && head[7] == 0x48)
+                        // Hurricane：前 10 字节 XOR 0x5A = "HURRICANE"（扩展名不可信时的兜底嗅探）
+                        if (fs.Read(head, 0, 10) == 10 && Formats.HurricaneContainer.LooksLikeHurricane(head))
+                        {
+                            return new HurricaneLibrary(filename);
+                        }
+                    }
+
+                    using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+                    {
+                        byte[] head8 = new byte[8];
+                        if (fs.Read(head8, 0, 8) == 8 &&
+                            head8[4] == 0x46 && head8[5] == 0x45 && head8[6] == 0x49 && head8[7] == 0x48)
                         {
                             return new EliteLibrary(filename);
                         }
@@ -481,6 +531,8 @@ namespace LibraryEditor
                 if (directExt == ".WIL" || directExt == ".WZL" || directExt == ".MIZ")
                 {
                     if (WeMadeDirectLibrary.CanOpen(filename)) return new WeMadeDirectLibrary(filename);
+                    // 独立 .WZL（无 .WZX 索引，盛大官方客户端数据）：顺序帧记录直读
+                    if (directExt == ".WZL" && WzlStandalone.CanOpen(filename)) return new WzlStandalone(filename);
                 }
                 else if (directExt == ".WTL")
                 {
@@ -513,7 +565,7 @@ namespace LibraryEditor
                 throw new InvalidDataException(
                     "无法识别的资源库格式：" + filename + Environment.NewLine +
                     "文件头 8 字节：" + headHex + Environment.NewLine + Environment.NewLine +
-                    "本编辑器支持：.Lib（Mir2 Library V2/V3）、.Elite、.ALib、.EuRe、Mir3 .MIX/.MIZ。" + Environment.NewLine +
+                    "本编辑器支持：.Lib（Mir2 Library V2/V3）、.MLX（Artificial Mir）、加密lib（Artificial Mir 32bit 调色板库）、.Elite、.ALib、.EuRe、.Hurricane、Mir3 .MIX/.MIZ。" + Environment.NewLine +
                     "WeMade / Shanda 的 .WIL / .WZL / .MIZ / .WTL 默认按原格式就地查看/编辑（保存写回原文件）；" + Environment.NewLine +
                     "需要 .Lib 副本时，在「打开」对话框里选「WeMade/Shanda 格式（打开时自动转换为 Lib）」，或用「功能 → 转换为LIB」。",
                     ex);
@@ -617,7 +669,7 @@ namespace LibraryEditor
                                 if (direct != null) direct.Close();
                                 throw new InvalidDataException(
                                     "「" + Path.GetFileName(filename) + "」不支持直接打开（不转换）。" + Environment.NewLine +
-                                    "可直接打开的原格式：WeMade .WIL / .WZL / .MIZ（需配套 .wix / .wzx / .mix）、.WTL、.EuRe。" + Environment.NewLine +
+                                    "可直接打开的原格式：WeMade .WIL / .WZL / .MIZ（需配套 .wix / .wzx / .mix）、.WTL、.EuRe、.Hurricane。" + Environment.NewLine +
                                     "其它格式请用「文件 → 打开」并转换为 .Lib。");
                             }
                             return new KeyValuePair<string, ILibrary>(target, direct);
@@ -769,7 +821,7 @@ namespace LibraryEditor
         {
             return library != null &&
                    (library is Mir3Library || library is WeMadeDirectLibrary || library is WtlDirectLibrary ||
-                    library is EuReLibrary);
+                    library is EuReLibrary || library is HurricaneLibrary || library is MlxLibrary);
         }
 
         /// <summary>
@@ -780,6 +832,13 @@ namespace LibraryEditor
             if (library is Mir3Library) return ".MIZ";
             if (library is WtlDirectLibrary) return ".WTL";
             if (library is EuReLibrary) return ".EuRe";
+            if (library is HurricaneLibrary) return ".Hurricane";
+            if (library is MlxLibrary)
+            {
+                // MLX 常以 .Lib 扩展名存在：沿用当前扩展名，避免另存时被改坏
+                string e = Path.GetExtension(library.FileName ?? string.Empty);
+                return string.IsNullOrEmpty(e) ? ".Lib" : e;
+            }
             if (library is WeMadeDirectLibrary)
             {
                 string e = Path.GetExtension(library.FileName ?? string.Empty);
@@ -943,6 +1002,51 @@ namespace LibraryEditor
             finally
             {
                 SaveLibraryDialog.Filter = oldFilter;
+                SaveLibraryDialog.Title = oldTitle;
+            }
+        }
+
+        /// <summary>
+        /// 「导出为标准Lib」：把 MLX 库的全部帧解码成 BGRA+gzip，另存为 Mir2 Library V3 格式。
+        /// 仅对 MLX 库可用（其它库本身就是标准格式）。
+        /// </summary>
+        private void exportLibToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MlxLibrary mlx = _library as MlxLibrary;
+            if (mlx == null)
+            {
+                MessageBox.Show("当前打开的不是 MLX 库（Artificial Mir 容器），无需导出。",
+                    "导出为标准Lib", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string oldTitle = SaveLibraryDialog.Title;
+            try
+            {
+                SaveLibraryDialog.Title = "导出为标准 Lib（Mir2 Library V3）";
+                if (SaveLibraryDialog.ShowDialog() != DialogResult.OK) return;
+
+                string target = SaveLibraryDialog.FileName;
+                if (!string.Equals(Path.GetExtension(target), ".Lib", StringComparison.OrdinalIgnoreCase))
+                    target = Path.ChangeExtension(target, ".Lib");
+
+                UpdateFrameGridData();
+
+                ShowBusy(true);
+                try
+                {
+                    int total = mlx.Count;
+                    mlx.ExportToStandardLib(target, (done, t) => ReportConvertProgress(done, Math.Max(t, 1)));
+                    MessageBox.Show(string.Format("导出完成：{0}{1}共 {2} 帧。", target, Environment.NewLine, total),
+                        "导出为标准Lib", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                finally
+                {
+                    ShowBusy(false);
+                }
+            }
+            finally
+            {
                 SaveLibraryDialog.Title = oldTitle;
             }
         }

@@ -5234,6 +5234,36 @@ namespace Client.MirScenes
                         ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon622N], 570, 10, 300, ob) { Blend = false });
                         ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon622N], 770, 10, 300, ob) { Blend = false });
                         break;
+
+                    // ==== 20261105 触手系 629 / 630 / 640：命中效果统一挂在「被打的人」身上 ====
+                    case SpellEffect.Mon629InkSplash:
+                        // 一大团紫墨糊在目标身上（629.Lib 39-44，6 帧）
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon629P], 39, 6, 480, ob) { Blend = true });
+                        break;
+                    case SpellEffect.Mon629InkBall:
+                        // 墨球命中炸开一小团（629.Lib 45-55，11 帧）
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon629P], 45, 11, 450, ob) { Blend = true });
+                        break;
+                    case SpellEffect.Mon629Tentacles:
+                        // 紫色触手丛从自己脚下铺开（629.Lib 56-71，16 帧），画在人物/怪物下层
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon629P], 56, 16, 800, ob) { Blend = true, DrawBehind = true });
+                        break;
+                    case SpellEffect.Mon630SmokeSpike:
+                        // 目标处灰烟炸开 + 红棕尖锥窜起（630.Lib 376-395，20 帧）
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon630P], 376, 20, 700, ob) { Blend = true });
+                        break;
+                    case SpellEffect.Mon630Freeze:
+                        // 命中后挂在玩家身上的冰冻罩（630.Lib 636-641，6 帧）
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon630P], 636, 6, 1000, ob) { Blend = true });
+                        break;
+                    case SpellEffect.Mon640ShardBurst:
+                        // 金屑 + 烟尘爆开（640.Lib 464-472，9 帧）
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon640N], 464, 9, 520, ob) { Blend = true });
+                        break;
+                    case SpellEffect.Mon641WaterHit:
+                        // 641 远程命中的粗水柱砸在目标身上（641.Lib 456-465，方向 0 竖直水柱）
+                        ob.Effects.Add(new Effect(Libraries.Monsters[(ushort)Monster.Mon641S], 456, 10, 420, ob) { Blend = true });
+                        break;
                 }
 
                 return;

@@ -125,18 +125,21 @@ namespace Client.MirObjects
         private const int DimensionalSwordFinalDelay = 1100;
 
         /// <summary>
-        /// 影华连击：素材平均 alpha 只有 ~39%（爆炸段更低，实测 18-44%），单层画必然发虚；
-        /// 叠加多层把有效不透明度拉起来。层数越多越实（也越亮），是「实度」的调节入口之一。
+        /// 影华连击：同一帧叠加层数。素材里「黑色人物残影」本来就是满 alpha(255)，
+        /// 单层 + 顶点色满 alpha 已经是实心黑；层数只影响红色刀光的浓度（越多越亮），
+        /// 需要刀光更浓再往上加，别再加回去补黑边。
         /// </summary>
-        private const int ShadowComboLayers = 4;
+        private const int ShadowComboLayers = 1;
 
         /// <summary>
         /// 影华连击：顶点色调制的 alpha（0-255），越小整段越暗、越透。★「亮度」的唯一调节入口。
+        /// ★必须是 255：之前设 190 时，黑色残影的 alpha 被乘到 190/255≈75%，透出背景就是
+        ///   「黑色都变透明了」。素材的黑色已经是满 alpha，不需要靠叠层去补。
         /// 必须配合 Blend = false（普通 alpha 混合）使用 —— Effect.Blend 默认是 true（加色混合），
         /// 加色混合会把红色刀光叠成高亮，而且 0+背景=背景 会整片吃掉素材里的黑色人物残影，
         /// 这正是之前「太亮、连黑轮廓都没有」的根源。
         /// </summary>
-        private const int ShadowComboDrawAlpha = 190;
+        private const int ShadowComboDrawAlpha = 255;
 
         /// <summary>
         /// 月华乱舞-秘籍：顶点色调制的 alpha（0-255），越小整段越暗、越透。★「亮度」的唯一调节入口。
@@ -2017,15 +2020,18 @@ namespace Client.MirObjects
                                     //2) 素材自身平均 alpha 只有 ~39%（实测），单层画必然半透明，
                                     //   所以按 ShadowComboLayers 叠加多层，把有效不透明度顶到实心。
                                     //总时长与服务端隐藏时长、延迟位移时间完全一致。
-                                    for (int layer = 0; layer < ShadowComboLayers; layer++)
+                                    //★只建一个 Effect，靠 Layers 在 Draw 里重复画 N 遍。
+                                    //  以前是 for 循环 new N 个同素材的 Effect，会被特效限流按
+                                    //  「同对象+同素材+300ms」去重删到只剩 1 个，叠层其实从来没生效过。
                                     {
                                         Effect combo = new Effect(Libraries.Magic_32bit, comboFrames[0], comboFrames.Length, ShadowComboDuration, this)
                                         {
                                             //★显式关掉加色混合（Effect.Blend 默认就是 true）：加色混合会把红色刀光叠成高亮，
                                             //  且 0+背景=背景 会整片吃掉素材里的黑色人物残影 —— 这是「太亮 / 没黑轮廓」的根源。
                                             Blend = false,
-                                            //再用顶点色 alpha 整体压暗（亮度唯一调节入口）
-                                            DrawColour = Color.FromArgb(ShadowComboDrawAlpha, 255, 255, 255)
+                                            //顶点色 alpha：黑色残影的实心程度直接由它决定（190 → 只剩 75%，会透）
+                                            DrawColour = Color.FromArgb(ShadowComboDrawAlpha, 255, 255, 255),
+                                            Layers = ShadowComboLayers
                                         };
                                         combo.FrameList = comboFrames;
                                         Effects.Add(combo);
@@ -2038,12 +2044,13 @@ namespace Client.MirObjects
                                     {
                                         int[] burstFrames = { 1561, 1562, 1563, 1564, 1565, 1566 };
 
-                                        for (int layer = 0; layer < ShadowComboLayers; layer++)
+                                        //★同样只建一个 Effect + Layers，理由同上（限流会去重）。
                                         {
                                             Effect burst = new Effect(Libraries.Magic_32bit, burstFrames[0], burstFrames.Length, ShadowComboBurstDuration, this, CMain.Time + ShadowComboDuration)
                                             {
                                                 Blend = false,
-                                                DrawColour = Color.FromArgb(ShadowComboDrawAlpha, 255, 255, 255)
+                                                DrawColour = Color.FromArgb(ShadowComboDrawAlpha, 255, 255, 255),
+                                                Layers = ShadowComboLayers
                                             };
                                             burst.FrameList = burstFrames;
                                             Effects.Add(burst);
