@@ -1,0 +1,24 @@
+已完成 4m41s两处都改完并部署了。
+一、内观去掉描边（Client/MirGraphics/QualityOutlineGlow.cs）
+DrawPortrait() 里那两行 DrawRim（内圈 3px、外圈 6px 的 8 方向偏移叠画）已删除，DrawRim() 方法本体也一并删掉，只保留 DrawTint 染色；武器仍会沿剪影冒火苗，衣服和头盔只染色。
+上面那张对比图是按代码参数一比一模拟的：左边是改前的效果，金色羽翼外那圈青绿色锯齿重影就是您截图里的“花边”；右边是改后，轮廓干净，本体亮度和颜色没变。现在内观和世界外观 Draw() 的规则一致了（外观在 10-24 就已经去掉描边，内观之前漏改）。
+二、Settings.Save() 批量化（Server/Settings.cs）
+按客户端 11-04 那套结构拆开：
+csharppublic static void Save()
+{
+    Reader.BeginBatch();
+    try { SaveCore(); }
+    finally { Reader.EndBatch(); }      // finally 必须留，否则异常后静默不落盘
+}
+
+顺带发现一个剩下的大头：SaveCore() 最后一句 SaveAwakeAttribute() 自己新建了一个 InIReader，写约 50 个键，每个键都把整份 AwakeningSystem.ini 重写一遍，这 40~50ms 就是批量化后剩下来的主要开销。所以它也改成 BeginBatch / WriteAwakeAttribute(reader) / finally EndBatch。
+实测（新加了 UiShot.exe savetime 模式，在临时目录里跑真实的 Settings.Save()，不碰现网配置）：
+添加到对话版本单次 Save改前340 / 345 / 360 ms只改 Settings.Save61 / 57 / 70 ms连 Awake 也批量化9.0 / 7.3 / 8.5 / 6.9 / 6.0 ms
+数据完整性也核对了：Setup.ini 键数 212 → 212 不变；AwakeningSystem.ini 生成 62 键，与现网文件的键集合完全一致（缺失 0、多出 0）；initest（保存→重载往返）PASS。
+部署
+plaintextClient.dll          04e4dcae31b810a99360c3a85ddf35fc  → 4 处（Build/Release、E:\micromir2、D:\龙之传奇、ClientResources）
+Server.Library.dll  adf3e03710c3c5bfa128af2fd04aa515  → 服务端目录（pdb 一起）
+Server.dll          未变（94a2b08f…，本次改动在 Server.Library 里）
+
+备份在 Back Up\manual-20261106_2005-内观去描边+服务端配置保存批量化\。
+客户端和服务端都要重启才能看到效果：客户端是因为改的是绘制代码，服务端是因为改的是配置保存逻辑。

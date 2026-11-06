@@ -66,6 +66,10 @@ namespace Client.MirObjects
                 if (!CellObjects[i].Dead)
                 {
                     CellObjects[i].Draw();
+                    //★目标高亮（残影修复 11-06）：紧跟在「本体」后面、在同一个格子里画。
+                    //  同一深度 → 后画的前景层/树/墙能正常盖住高亮；
+                    //  只有真正被画出来的对象才轮到这里 → 视野外、已死的对象不会再凭空冒出影子。
+                    CellObjects[i].DrawHighlight();
                     continue;
                 }
 

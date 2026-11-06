@@ -16,7 +16,7 @@ namespace Client.MirGraphics
     /// 装备品质光效（宝物紫 / 圣物蓝 / 神物金）。
     ///
     /// ★v4（10-24 凌晨，按用户确认的效果图实现）：
-    ///   衣服/头盔 = 发光：装备本体加法染色（亮部透出品质色）+ 贴边亮线 + 身后柔光晕
+    ///   衣服/头盔 = 发光：装备本体加法染色（亮部透出品质色）+ 沿剪影上升的火苗
     ///   武器     = 魔幻火焰：沿武器真实剪影（VisibleMask 采样）向上舔的火舌 + 上升火星
     ///
     /// 火苗贴的是「武器/装备自己的剪影点」，不再是在包围盒里乱飘；
@@ -143,11 +143,10 @@ namespace Client.MirGraphics
         }
 
         /// <summary>
-        /// 内观立绘（静态图）★v3（10-24 02:xx）：
-        ///   - 修掉悬空光斑（剪影采样改 VisibleBounds）；
-        ///   - 双层外发光 + 轻染色，且整体随时间「呼吸」流动（用户要求：流畅的发光效果）；
-        ///   - 需要场景每帧重绘（NeedAnimate），否则面板静止时效果冻住。
-        /// 外观 Draw() 参数不动。
+        /// 内观立绘（静态图）★v4（11-06）：
+        ///   - 去掉 8 方向偏移描边（DrawRim），只保留染色 —— 与外观 Draw() 口径统一；
+        ///   - 有武器时沿剪影冒火苗，衣服/头盔只染色；
+        ///   - 染色透明度随时间「呼吸」，需要场景每帧重绘（NeedAnimate）。
         /// </summary>
         public static void DrawPortrait(MLibrary lib, int frameIndex, Point location, byte grade, bool withFlame)
         {
@@ -160,12 +159,10 @@ namespace Client.MirGraphics
             // 呼吸节奏：约 1.9 秒一个周期，0→1→0 平滑往复
             double pulse = (Math.Sin(CMain.Time / 300.0) + 1.0) / 2.0;
 
-            if (!withFlame)
-            {
-                DrawRim(lib, frameIndex, location, colour, 3, 70 + (int)(50 * pulse));   // 内圈亮光
-                DrawRim(lib, frameIndex, location, colour, 6, 34 + (int)(32 * pulse));   // 外圈柔光
-            }
-
+            //★描边已去掉（11-06，与外观 Draw() 统一）：不要轮廓线，只要「本身在发光」。
+            //  原 DrawRim 是把整张立绘在圆周 8 个方向各偏移一次、两层共叠 16 遍，
+            //  内观素材是硬边（alpha 只有 0/255），叠出来就是一圈锯齿重影；
+            //  顶点色又走乘法调制，金色装备×蓝色品质色会变成暗绿碎片 —— 用户截图里的「绿色花边」。
             DrawTint(lib, frameIndex, location, colour, 56 + (int)(26 * pulse));
 
             if (withFlame)
@@ -205,35 +202,10 @@ namespace Client.MirGraphics
             }
         }
 
-        /// <summary>
-        /// 8 方向偏移叠画，只让剪影外沿溢出品质色。
-        /// ★ 用普通 alpha 混合（不是加法）：亮背景上也不会烧成白色。
-        /// </summary>
-        private static void DrawRim(MLibrary lib, int frameIndex, Point location, Color colour, int radius, int alpha)
-        {
-            bool oldBlend = DXManager.Blending;
-            float oldRate = DXManager.BlendingRate;
-            BlendMode oldMode = DXManager.BlendingMode;
-
-            DXManager.SetBlend(false);
-
-            try
-            {
-                for (int i = 0; i < 8; i++)
-                {
-                    double angle = Math.PI * 2 * i / 8;
-                    int dx = (int)Math.Round(Math.Cos(angle) * radius);
-                    int dy = (int)Math.Round(Math.Sin(angle) * radius);
-
-                    lib.Draw(frameIndex, new Point(location.X + dx, location.Y + dy),
-                             Color.FromArgb(alpha, colour), true);
-                }
-            }
-            finally
-            {
-                DXManager.SetBlend(oldBlend, oldRate, oldMode);
-            }
-        }
+        //★DrawRim（8 方向偏移叠画）已删除（11-06）：
+        //  内观素材是硬边，16 层偏移副本叠出来是一圈锯齿重影，且顶点色乘法调制会让金饰变暗绿，
+        //  正是用户反馈的「内观描边透明花边」。内观现在只做 DrawTint 染色。
+        //  世界外观 Draw() 早在 10-24 也已经是「只染色 + 剪影火苗」，两边口径现在一致。
 
         /// <summary>
         /// 沿真实剪影向上舔的火舌 + 火星。

@@ -208,6 +208,11 @@ namespace Client.MirScenes.Dialogs
 
         public void NewText(List<string> lines, bool resetIndex = true)
         {
+            //★11-06：TextLabel 原来固定 40 格，公告超过 40 行后往下翻页 _index+19 会越过数组上界，
+            //  直接 IndexOutOfRange 把客户端打崩。这里按行数扩容。
+            if (lines.Count > TextLabel.Length)
+                TextLabel = new MirLabel[lines.Count];
+
             if (resetIndex)
             {
                 _index = 0;

@@ -1256,6 +1256,90 @@ namespace Server.MirEnvir
 
             //假人系统：随机上下线巡检（内部自带 1 秒节流）
             FakePlayerManager.Process();
+
+            //内存治理（20261106）：定期全堆压缩，把 GC 缓存的空闲段还给系统。
+            //MemCompactMinutes = 0 时完全不干预（默认关）。
+            if (Settings.MemCompactMinutes > 0 && Time >= _nextMemCompact)
+            {
+                _nextMemCompact = Time + (long)Settings.MemCompactMinutes * Settings.Minute;
+                CompactHeaps(true);
+            }
+        }
+
+        private long _nextMemCompact;
+
+        /// <summary>
+        /// 全堆压缩（20261106 内存治理）：LOH Compact + 带压缩的 Full Blocking GC。
+        /// 2 万假人建档、日志峰值这类「冲高后留下一堆空闲段」的场景，压缩后
+        /// 提交内存（任务管理器看到的那一项）会明显回落。代价是压缩瞬间一次停顿。
+        /// </summary>
+        /// <param name="log">true = 把前后差值写进日志，方便观察省了多少</param>
+        public static void CompactHeaps(bool log)
+        {
+            long before = GC.GetTotalMemory(false);
+            var proc = System.Diagnostics.Process.GetCurrentProcess();
+            long commitBefore = proc.PrivateMemorySize64;
+
+            System.Runtime.GCSettings.LargeObjectHeapCompactionMode =
+                System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(2, GCCollectionMode.Forced, true, true);
+
+            if (log)
+                MessageQueue.Enqueue(string.Format(
+                    "[内存] 已全堆压缩：托管堆 {0:N0}→{1:N0} MB，提交内存 {2:N0}→{3:N0} MB",
+                    before >> 20, GC.GetTotalMemory(false) >> 20,
+                    commitBefore >> 20, System.Diagnostics.Process.GetCurrentProcess().PrivateMemorySize64 >> 20));
+        }
+
+        /// <summary>
+        /// 开服内存分布报告（20261106）：只读不改，把每一块数据的规模打进日志，
+        /// 用来回答「内存到底花在哪」——先看报告再决定砍哪里，别凭感觉猜。
+        /// 在 StartEnvir 末尾调用（此时地图/物品库/假人档案都已就绪，网络未开）。
+        /// </summary>
+        public void LogMemoryReport()
+        {
+            try
+            {
+                var proc = System.Diagnostics.Process.GetCurrentProcess();
+                GCMemoryInfo gcInfo = GC.GetGCMemoryInfo();
+
+                MessageQueue.Enqueue("──── 内存分布报告（开服完成）────");
+                MessageQueue.Enqueue(string.Format(
+                    "工作集 {0:N0} MB｜私有内存 {1:N0} MB｜托管堆 {2:N0} MB｜提交内存 {3:N0} MB（含 GC 预留，可被 [Memory] CompactMinutes 压缩回收）",
+                    proc.WorkingSet64 >> 20, proc.PrivateMemorySize64 >> 20,
+                    GC.GetTotalMemory(false) >> 20, gcInfo.TotalCommittedBytes >> 20));
+
+                long mapCells = 0;
+                foreach (Map map in MapList)
+                {
+                    if (map?.Cells == null) continue;
+                    mapCells += (long)map.Cells.GetLength(0) * map.Cells.GetLength(1);
+                }
+
+                long dropCount = 0;
+                foreach (MonsterInfo mi in MonsterInfoList)
+                    dropCount += mi.Drops != null ? mi.Drops.Count : 0;
+
+                MessageQueue.Enqueue(string.Format(
+                    "地图 {0} 张（{1:N0} 万格，格子是类对象，粗估 {2:N0} MB）｜怪物 {3} 只（掉落表 {4:N0} 条）",
+                    MapList.Count, mapCells / 10000.0, mapCells * 40L >> 20,
+                    MonsterInfoList.Count, dropCount));
+
+                MessageQueue.Enqueue(string.Format(
+                    "物品库 {0}｜技能库 {1}｜任务 {2}｜NPC {3}（脚本 {4} 个）｜行会 {5}｜账号 {6}｜角色 {7}",
+                    ItemInfoList.Count, MagicInfoList.Count, QuestInfoList.Count,
+                    NPCInfoList.Count, Scripts.Count, GuildList.Count,
+                    AccountList.Count, CharacterList.Count));
+
+                MessageQueue.Enqueue(string.Format(
+                    "假人档案 {0} 个（每个 = 账号 + 角色档案 + 背包装备，粗估 {1:N0} MB；上线峰值另计在线对象）",
+                    FakePlayerManager.RecordCount,
+                    (long)FakePlayerManager.RecordCount * 5 / 1024));
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue("[内存报告] 生成失败：" + ex.Message);
+            }
         }
 
         /// <summary>
@@ -2247,6 +2331,9 @@ namespace Server.MirEnvir
             FakePlayerManager.Init();
 
             MessageQueue.Enqueue("正在部署游戏环境......");
+
+            //内存治理（20261106）：开服完成即打一份分布报告，回答「内存花在哪」
+            LogMemoryReport();
         }
         private void StartNetwork()
         {

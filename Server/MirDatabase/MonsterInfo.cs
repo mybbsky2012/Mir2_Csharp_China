@@ -298,20 +298,60 @@ namespace Server.MirDatabase
             }
             else
             {
-                info.Item = Envir.GetItemInfo(parts[1]);
+                int next;
+                info.Item = ResolveItem(parts, out next);
                 if (info.Item == null) return null;
 
-                if (parts.Length > 2)
+                //物品名后面允许跟一个 Q：任务物品，只有接了对应任务才会掉
+                if (next < parts.Length && parts[next].ToUpper() == "Q")
                 {
-                    string dropRequirement = parts[2];
-                    if (dropRequirement.ToUpper() == "Q")
-                    {
-                        info.QuestRequired = true;
-                    }
+                    info.QuestRequired = true;
                 }
             }
 
             return info;
+        }
+
+        /// <summary>
+        /// 解析掉落行里的物品名，并给出「物品名之后第一个词的索引」。
+        ///
+        /// ★掉落文件是按空格切词的，而物品库里确实存在名字**带空格**的物品
+        ///   （例如「飞燕刺客体力仙丹 (小)」「翊仙道士体力仙丹 (小)」）。
+        ///   原来只拿 parts[1] 去查，只能查到「飞燕刺客体力仙丹」，查不到这个物品，
+        ///   整行被当成坏行丢弃，启动日志里就是
+        ///   「未能加载 xxx 所需物品: 1/4 飞燕刺客体力仙丹 (小)」，这件东西永远不掉。
+        ///
+        /// 这里在单 token 查不到时，把后面的词依次拼回去（从长到短）再查。
+        /// 拼接**不加空格**：Envir.GetItemInfo 比较前会把库里的名字去掉空格。
+        ///
+        /// ★返回值 next 必须指向物品名之后的第一个词（1 + 名字用掉的词数），
+        ///   否则后面的 Q 标记会被误当成名字的一部分而永远读不到（会变成所有任务物品都乱掉）。
+        /// </summary>
+        private static ItemInfo ResolveItem(string[] parts, out int next)
+        {
+            next = 2;   //只用了 parts[1] 当名字时，下一个词从 2 开始
+
+            ItemInfo item = Envir.GetItemInfo(parts[1]);
+            if (item != null) return item;
+
+            //只有一个词，不可能再拼出别的名字
+            if (parts.Length <= 2) return null;
+
+            int max = Math.Min(parts.Length - 1, 6);   //最多拼 6 个词，再多基本是数据写错了
+
+            for (int count = max; count >= 2; count--)
+            {
+                string name = string.Empty;
+                for (int t = 1; t <= count; t++) name += parts[t];
+
+                item = Envir.GetItemInfo(name);
+                if (item == null) continue;
+
+                next = 1 + count;
+                return item;
+            }
+
+            return null;
         }
 
         public static void Load(List<DropInfo> list, string name, string path, byte type = 0, bool createIfNotExists = true)

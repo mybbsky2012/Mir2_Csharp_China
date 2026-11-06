@@ -78,9 +78,16 @@ namespace Server.MirObjects
         }
 
         private static readonly List<BotRecord> Records = new List<BotRecord>();
+
+        /// <summary>假人档案总数（20261106 只读门面：内存报告等外部统计用，不暴露内部集合）</summary>
+        public static int RecordCount => Records.Count;
         private static readonly List<string> ChatLines = new List<string>();
         private static readonly List<BotEquipSet> EquipSets = new List<BotEquipSet>();
         private static readonly HashSet<string> MissingEquipNames = new HashSet<string>();
+
+        // 20261106 假人名称：配置文件里的名字（Configs/FakePlayerNames.txt）+ 真实角色重名表
+        private static readonly List<string> ConfigNames = new List<string>();
+        private static readonly HashSet<string> RealCharacterNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         private static readonly List<int> HuntMaps = new List<int>();
         private static readonly List<int> TownMaps = new List<int>();
@@ -90,6 +97,9 @@ namespace Server.MirObjects
 
         private static long _nextTick;
         private static bool _started;
+
+        // 20261106 分批登录游标：-1 = 没有待登录的批次；0..Count-1 = 下一个待处理下标
+        private static int _pendingLoginIndex = -1;
 
         // ---------------- 对外状态 ----------------
         public static bool Enabled { get; private set; }
@@ -115,6 +125,192 @@ namespace Server.MirObjects
         }
 
         // ==================================================================================
+        //  20261106 真人同屏可见上限（[FakePlayer] VisibleCap）
+        //
+        //  每个真人维护一个「已显示假人」集合：集合未满 → 假人正常发出现包；
+        //  满了之后新进入视野的假人不发出现包，客户端根本不知道它存在（同屏卡的主因）。
+        //  名额回收：
+        //    · 假人走出真人视野 / 死亡 / 下线 → RemoveFromSight 立即让位；
+        //    · 每 3 秒兜底校验一次，清理漏网的失效名额（假人传送、尸体消失等不走 Remove 的路径）。
+        // ==================================================================================
+        private sealed class PlayerBotSight
+        {
+            public readonly Dictionary<uint, FakePlayerObject> Shown = new Dictionary<uint, FakePlayerObject>();
+            // 20261106 渐显：拿到名额但还没发出现包的假人排队，按时间节奏放波
+            public readonly List<FakePlayerObject> Pending = new List<FakePlayerObject>();
+            public HumanObject Player;      // 释放出现包时用
+            public long SightStart;         // 注册表建立时刻（渐显节奏的计时起点）
+            public bool FirstWaveDone;      // 首波（直接给 2 个）是否已放
+            public long NextValidate;
+        }
+
+        private static readonly Dictionary<uint, PlayerBotSight> SightByPlayer = new Dictionary<uint, PlayerBotSight>();
+
+        /// <summary>
+        /// 假人进入真人视野时询问：这个假人能不能显示给该玩家？false = 超出同屏上限，不发出现包。
+        /// </summary>
+        public static bool TryShowToPlayer(FakePlayerObject bot, HumanObject player)
+        {
+            if (bot == null || player == null || player is FakePlayerObject) return true;   // 假人之间互看与否无所谓，直接放行
+            if (Settings.FakePlayerVisibleCap <= 0) return true;                            // ≤0 视为不限制
+
+            PlayerBotSight sight;
+            if (!SightByPlayer.TryGetValue(player.ObjectID, out sight))
+            {
+                sight = new PlayerBotSight { Player = player, SightStart = Envir.Time };
+                SightByPlayer[player.ObjectID] = sight;
+            }
+
+            // 周期校验：回收已不在视野内 / 已死亡 / 已下线的假人名额
+            if (Envir.Time >= sight.NextValidate)
+            {
+                sight.NextValidate = Envir.Time + 3000;
+
+                List<uint> stale = null;
+                foreach (KeyValuePair<uint, FakePlayerObject> kv in sight.Shown)
+                {
+                    FakePlayerObject b = kv.Value;
+                    if (b == null || b.Dead || b.CurrentMap != player.CurrentMap ||
+                        !Functions.InRange(b.CurrentLocation, player.CurrentLocation, Globals.DataRange))
+                    {
+                        if (stale == null) stale = new List<uint>();
+                        stale.Add(kv.Key);
+                    }
+                }
+
+                if (stale != null)
+                    for (int i = 0; i < stale.Count; i++)
+                        sight.Shown.Remove(stale[i]);
+            }
+
+            if (sight.Shown.ContainsKey(bot.ObjectID)) return true;     // 已经显示过，继续显示（滞回：不闪现闪没）
+
+            if (sight.Shown.Count >= Settings.FakePlayerVisibleCap) return false;
+
+            sight.Shown[bot.ObjectID] = bot;
+
+            // 20261106 组队成员立即显示（打怪要看着队友），其余排队渐显
+            if (bot.GroupMembers != null && bot.GroupMembers == player.GroupMembers)
+                ShowBotNow(bot, player);
+            else
+                sight.Pending.Add(bot);
+
+            return true;
+        }
+
+        /// <summary>立刻给玩家发某个假人的出现包（组队成员 / 渐显释放都用它）</summary>
+        private static void ShowBotNow(FakePlayerObject bot, HumanObject player)
+        {
+            player.Enqueue(bot.GetInfoEx(player));
+            bot.SendHealth(player);
+        }
+
+        /// <summary>
+        /// 20261106 渐显释放：每个真人每秒放一波排队的出现包。
+        /// 节奏（用户指定）：首波 2 个 → 前 10 秒每秒 1 个（10 秒时约 10 个）→
+        /// 之后每 10 秒 +1/秒 递增，到 ShowRampMax 封顶 —— 屏幕上的人是慢慢多起来的。
+        /// 释放前逐个复核有效性（死亡/出视野/换图的直接让出名额，不发出现包）。
+        /// </summary>
+        private static void ProcessPendingShows()
+        {
+            foreach (KeyValuePair<uint, PlayerBotSight> kv in SightByPlayer)
+            {
+                PlayerBotSight sight = kv.Value;
+
+                if (sight.Pending.Count == 0)
+                {
+                    sight.FirstWaveDone = false;    // 排队清空后重置节奏，下次进图又是"先两三个"
+                    continue;
+                }
+
+                HumanObject player = sight.Player;
+                if (player == null)
+                {
+                    sight.Pending.Clear();
+                    continue;
+                }
+
+                // 20261106 渐显节奏（按注册起时刻算）：
+                //   首波 2 个 → 前 10 秒每秒 1 个 → 之后每 10 秒 +1/秒，封顶 ShowRampMax
+                long elapsed = Envir.Time - sight.SightStart;
+                int rate;
+                if (elapsed < 10000)
+                    rate = 1;
+                else
+                    rate = Math.Min(1 + (int)((elapsed - 10000) / 10000),
+                                    Math.Max(1, Settings.FakePlayerShowRampMax));
+
+                if (!sight.FirstWaveDone)
+                {
+                    rate = Math.Max(rate, 2);       // 首波直接出现 2 个（"先看见几个"）
+                    sight.FirstWaveDone = true;
+                }
+
+                int count = Math.Min(sight.Pending.Count, rate);
+                int released = 0;
+
+                for (int i = 0; i < sight.Pending.Count && released < count; )
+                {
+                    FakePlayerObject bot = sight.Pending[i];
+                    sight.Pending.RemoveAt(i);
+
+                    bool valid = bot != null && !bot.Dead && bot.Node != null &&
+                                 bot.CurrentMap == player.CurrentMap &&
+                                 Functions.InRange(bot.CurrentLocation, player.CurrentLocation, Globals.DataRange);
+
+                    if (!valid)
+                    {
+                        sight.Shown.Remove(bot.ObjectID);   // 已失效，名额让给别人
+                        continue;
+                    }
+
+                    ShowBotNow(bot, player);
+                    released++;
+                }
+                // 波大小由上面的 rate 按时间算，无需再更新状态
+            }
+        }
+
+        /// <summary>假人离开真人视野 / 死亡时回收名额</summary>
+        public static void RemoveFromSight(FakePlayerObject bot, HumanObject player)
+        {
+            if (bot == null || player == null) return;
+
+            PlayerBotSight sight;
+            if (SightByPlayer.TryGetValue(player.ObjectID, out sight))
+                sight.Shown.Remove(bot.ObjectID);
+        }
+
+        /// <summary>清理已下线玩家的视野注册表（挂在每秒巡检里）</summary>
+        private static void CleanupSightRegistry()
+        {
+            if (SightByPlayer.Count == 0) return;
+
+            // 收集当前在线真人（非假人）的 ObjectID
+            HashSet<uint> onlineIds = new HashSet<uint>();
+            for (int i = 0; i < Envir.Players.Count; i++)
+            {
+                PlayerObject p = Envir.Players[i];
+                if (p == null || p is FakePlayerObject) continue;
+                onlineIds.Add(p.ObjectID);
+            }
+
+            List<uint> dead = null;
+            foreach (KeyValuePair<uint, PlayerBotSight> kv in SightByPlayer)
+            {
+                if (!onlineIds.Contains(kv.Key))
+                {
+                    if (dead == null) dead = new List<uint>();
+                    dead.Add(kv.Key);
+                }
+            }
+
+            if (dead != null)
+                for (int i = 0; i < dead.Count; i++)
+                    SightByPlayer.Remove(dead[i]);
+        }
+
+        // ==================================================================================
         //  启动 / 停止
         // ==================================================================================
         /// <summary>由 Envir.StartEnvir() 调用（此时地图、物品、技能表都已就绪）</summary>
@@ -134,6 +330,7 @@ namespace Server.MirObjects
 
             LoadChatLines();
             LoadEquipSets();
+            LoadBotNames();      // 20261106 必须先于 BuildRecords：配置名称 + 真实角色重名表
             LoadSpawnPoints();   // 必须先于 BuildHuntMaps：配了登录点就让假人主要待在那些图上
             BuildHuntMaps();
             PrioritizeSpawnMaps();
@@ -148,13 +345,28 @@ namespace Server.MirObjects
             BuildRecords();
 
             int ok = 0;
-            for (int i = 0; i < Records.Count; i++)
-                if (Login(Records[i])) ok++;
 
-            _started = true;
-            _nextTick = Envir.Time + 1000;
+            // 20261106 分批登录：建档照旧在启动时同步完成（快，纯内存），
+            //   真正的 Login（找图找点、落地图、广播）放到 Process 里每秒一批做，
+            //   服务器启动不再被 2 万次 Login 卡住。LoginBatch<=0 保留一次性全登的旧行为。
+            if (Settings.FakePlayerLoginBatch <= 0)
+            {
+                for (int i = 0; i < Records.Count; i++)
+                    if (Login(Records[i])) ok++;
 
-            MessageQueue.Instance.Enqueue($"[假人] 已生成 {ok}/{Records.Count} 个假人，活动地图 {HuntMaps.Count} 张，在线 {OnlineCount} 人");
+                _started = true;
+                _nextTick = Envir.Time + 1000;
+
+                MessageQueue.Instance.Enqueue($"[假人] 已生成 {ok}/{Records.Count} 个假人，活动地图 {HuntMaps.Count} 张，在线 {OnlineCount} 人");
+            }
+            else
+            {
+                _pendingLoginIndex = 0;
+                _started = true;
+                _nextTick = Envir.Time + 1000;
+
+                MessageQueue.Instance.Enqueue($"[假人] 已建档 {Records.Count} 个（活动地图 {HuntMaps.Count} 张），正在按每秒 {Settings.FakePlayerLoginBatch} 个分批登录，不影响服务器启动");
+            }
         }
 
         /// <summary>关服 / 重新初始化时清理</summary>
@@ -178,6 +390,10 @@ namespace Server.MirObjects
             HuntMaps.Clear();
             SpawnPoints.Clear();
             SpawnMaps.Clear();
+            ConfigNames.Clear();          // 20261106 名称缓存一并清掉（@假人 reset 重新生成时会重读）
+            RealCharacterNames.Clear();
+            SightByPlayer.Clear();        // 20261106 视野注册表一并清掉
+            _pendingLoginIndex = -1;      // 20261106 分批登录游标一并复位
             _started = false;
         }
 
@@ -213,6 +429,37 @@ namespace Server.MirObjects
             // 性能探针：每秒采一次样（假人 Process 耗时 / 大脑耗时 / 主循环周期峰值）
             FakePlayerPerf.Sample(Envir.LastRunTime);
 
+            CleanupSightRegistry();   // 20261106 视野注册表：真人下线后移除条目
+            ProcessPendingShows();    // 20261106 渐显：每秒放一波排队中的假人出现包
+
+            // 20261106 分批登录：每秒登 LoginBatch 个，直到建档的假人全部上线
+            if (_pendingLoginIndex >= 0)
+            {
+                int batch = Settings.FakePlayerLoginBatch;
+                int i = _pendingLoginIndex;
+
+                for (; i < Records.Count && batch > 0; i++)
+                {
+                    BotRecord rec = Records[i];
+                    if (rec.Online) continue;
+
+                    // ForceRelogin 的重登由下面的常规逻辑处理，这里跳过别抢
+                    if (rec.ForceRelogin) continue;
+
+                    batch--;
+                    Login(rec);
+                }
+
+                _pendingLoginIndex = i;
+
+                if (_pendingLoginIndex >= Records.Count)
+                {
+                    _pendingLoginIndex = -1;
+                    MessageQueue.Instance.Enqueue($"[假人] 分批登录完成，在线 {OnlineCount}/{Records.Count} 人");
+                }
+                // 20261106 分批登录的每 10 秒进度条不再写日志（用户要求：假人登录信息不进日志栏）
+            }
+
             for (int i = 0; i < Records.Count; i++)
             {
                 BotRecord rec = Records[i];
@@ -239,6 +486,10 @@ namespace Server.MirObjects
                 }
                 else
                 {
+                    // 20261106 分批登录还没跑完时，初始上线交给上面的批次逻辑，
+                    //   这里只处理「随机上下线」的重登（NextLoginTime 已被 Logout 设到未来）
+                    if (_pendingLoginIndex >= 0) continue;
+
                     if (Envir.Time < rec.NextLoginTime) continue;
                     Login(rec);
                 }
@@ -538,6 +789,9 @@ namespace Server.MirObjects
             // 名字尽量不重复
             HashSet<string> used = new HashSet<string>();
 
+            // 20261106 配置名称先用：按文件顺序分给前面的假人，不够的部分走随机生成
+            int configNameIdx = 0;
+
             // 登录点：先打乱一次，再按顺序轮流分给每个假人 ——
             // 这样 50 个假人会**均匀**铺到配置的各个点上，而不是随机全挤到同一个点。
             int[] spawnOrder = null;
@@ -581,7 +835,15 @@ namespace Server.MirObjects
                 int max = Math.Max(min, Settings.FakePlayerLevelMax);
                 rec.Level = (ushort)Envir.Random.Next(min, max + 1);
 
-                rec.Name = MakeName(used);
+                if (configNameIdx < ConfigNames.Count)
+                {
+                    rec.Name = ConfigNames[configNameIdx++];
+                    used.Add(rec.Name);   // 占住名字，防止随机段又撞上
+                }
+                else
+                {
+                    rec.Name = MakeName(used);
+                }
 
                 BuildAccountInfo(rec);
 
@@ -589,23 +851,142 @@ namespace Server.MirObjects
             }
         }
 
+        // ==================================================================================
+        //  假人名称（20261106，Configs/FakePlayerNames.txt）
+        //  - 文件不存在：按当前假人数量（Count）自动生成对应数量的随机名称写入文件并直接使用
+        //  - 文件存在但去掉注释后为空：全部走随机生成
+        //  - 名字数量不足 Count：配置的先用，剩余随机补齐
+        // ==================================================================================
+        private static void LoadBotNames()
+        {
+            ConfigNames.Clear();
+
+            // 真实角色重名表（大小写不敏感）：取名时 O(1) 查重。
+            // 之前 MakeName 每次调 Envir.GetCharacterInfo 是线性扫描，2 万假人扛不住。
+            RealCharacterNames.Clear();
+            for (int i = 0; i < Envir.CharacterList.Count; i++)
+                RealCharacterNames.Add(Envir.CharacterList[i].Name);
+
+            string path = Settings.FakePlayerNameFile;
+            if (string.IsNullOrWhiteSpace(path)) return;
+
+            try
+            {
+                if (!Path.IsPathRooted(path))
+                    path = Path.Combine(Settings.ConfigPath, path);
+
+                if (!File.Exists(path))
+                {
+                    // 初始生成：按假人数量生成对应数量的随机名称，写进文件留给服主改
+                    System.Text.StringBuilder sb = new System.Text.StringBuilder();
+                    sb.AppendLine("# 假人名称文件：每行一个名字，假人按行取用；# ; // 开头是注释。");
+                    sb.AppendLine("# 本次启动按假人数量自动生成了 " + ConfigCount + " 个随机名称，可以直接改，改完 @假人 reset 生效。");
+                    sb.AppendLine("# 名字数量不够假人数量时，不够的部分自动走随机生成；文件清空则全部随机。");
+                    sb.AppendLine();
+
+                    HashSet<string> generated = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                    for (int i = 0; i < ConfigCount; i++)
+                    {
+                        string name = RandomBotName(generated);
+
+                        // 极小概率连续撞名失败，兜底加序号，保证一定凑够 Count 个
+                        if (name == null)
+                        {
+                            int n = 1;
+                            do { name = "行者" + n++; } while (!generated.Add(name));
+                        }
+                        else
+                        {
+                            generated.Add(name);
+                        }
+
+                        sb.AppendLine(name);
+                    }
+
+                    File.WriteAllText(path, sb.ToString());
+                    MessageQueue.Instance.Enqueue($"[假人] 未找到名称文件，已按假人数量生成 {ConfigCount} 个随机名称 → {path}");
+                }
+
+                HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (string raw in File.ReadAllLines(path))
+                {
+                    string line = raw.Trim();
+
+                    if (line.Length == 0) continue;
+                    if (line.StartsWith("#") || line.StartsWith(";") || line.StartsWith("//")) continue;
+
+                    // 文件内部去重；跟真实角色重名的直接丢弃（那种名字本来就注册不出来）
+                    if (!seen.Add(line)) continue;
+                    if (RealCharacterNames.Contains(line)) continue;
+
+                    ConfigNames.Add(line);
+                }
+
+                if (ConfigNames.Count > 0)
+                    MessageQueue.Instance.Enqueue($"[假人] 已从名称文件加载 {ConfigNames.Count} 个名字（假人数量 {ConfigCount}，不足部分随机补齐）");
+                else
+                    MessageQueue.Instance.Enqueue("[假人] 名称文件为空（或全是注释），假人名称全部随机生成");
+            }
+            catch (Exception ex)
+            {
+                ConfigNames.Clear();
+                MessageQueue.Instance.Enqueue($"[假人] 名称文件读取失败：{ex.Message}（名称全部随机生成）");
+            }
+        }
+
+        /// <summary>从字符池随机拼一个未被占用的假人名；撞名返回 null（调用方重试）</summary>
+        private static string RandomBotName(HashSet<string> used)
+        {
+            string[] first =
+            {
+                "风", "云", "雷", "龙", "战", "天", "海", "刀", "剑", "影",
+                "玄", "冰", "火", "狂", "醉", "紫", "青", "银", "血", "铁",
+                "孤", "长", "无", "夜", "月", "雪", "小", "老", "大", "圣",
+                "魔", "神", "幽", "冷", "傲", "疾", "破", "断", "追", "逐",
+                "啸", "鸣", "荒", "澜", "尘", "汐", "焰", "霜", "曜", "冥",
+                "燃", "苍", "澈", "凛", "晴", "岚", "曦", "楚",
+            };
+
+            string[] second =
+            {
+                "星辰", "之痕", "无双", "天下", "追风", "逐月", "惊雷", "若尘", "清歌", "一刀",
+                "屠龙", "破军", "逍遥", "忘忧", "流年", "拾光", "不悔", "长歌", "微凉", "半夏",
+                "千寻", "万古", "如故", "归尘", "逐鹿", "听雨", "观澜", "问天", "朝歌", "暮雪",
+                "孤影", "断念", "傲雪", "冷月", "疾风", "落霞", "残阳", "惊鸿", "踏月", "凌霄",
+                "沧海", "桑田", "浮生", "烟雨", "疏影", "暗香", "平生", "故人", "旧梦", "山河",
+                "万里", "未央",
+            };
+
+            string[] third =
+            {
+                "者", "客", "仙", "魔", "神", "圣", "王", "爷", "哥", "姐",
+                "侠", "魂", "灵", "歌", "剑", "刀", "枪", "弓", "扇", "雨",
+                "风", "雪", "月", "花", "云", "星", "光", "尘", "霜", "焰",
+                "梦", "泪", "笑", "痴", "缘", "忆",
+            };
+
+            // 三字名占七成（空间 58×52×36≈10.9 万），两字名占三成（58×52≈3016）——
+            // 合计 11 万+ 的组合空间，撑得起 2 万假人
+            string name = Envir.Random.Next(100) < 30
+                ? first[Envir.Random.Next(first.Length)] + second[Envir.Random.Next(second.Length)]
+                : first[Envir.Random.Next(first.Length)] + second[Envir.Random.Next(second.Length)] + third[Envir.Random.Next(third.Length)];
+
+            if (used.Contains(name)) return null;
+            if (RealCharacterNames.Contains(name)) return null;
+
+            return name;
+        }
+
         private static string MakeName(HashSet<string> used)
         {
-            string[] first = { "风", "云", "雷", "龙", "战", "天", "海", "刀", "剑", "影", "玄", "冰", "火", "狂",
-                               "醉", "紫", "青", "银", "血", "铁", "孤", "长", "无", "夜", "月", "雪", "小", "老", "大" };
-
-            string[] second = { "星辰", "之痕", "无双", "天下", "追风", "逐月", "惊雷", "若尘", "清歌", "一刀",
-                                "屠龙", "破军", "逍遥", "忘忧", "流年", "拾光", "不悔", "长歌", "微凉", "半夏",
-                                "千寻", "万古", "如故", "归尘", "逐鹿", "听雨", "观澜", "问天", "朝歌", "暮雪" };
-
-            for (int attempt = 0; attempt < 60; attempt++)
+            // 20261106 重试 60 → 300：名字池大、命中率低不下来，300 次足够；实在不行走序号兜底
+            for (int attempt = 0; attempt < 300; attempt++)
             {
-                string name = first[Envir.Random.Next(first.Length)] + second[Envir.Random.Next(second.Length)];
+                string name = RandomBotName(used);
 
-                if (used.Contains(name)) continue;
-
-                // 不能和真实角色重名
-                if (Envir.GetCharacterInfo(name) != null) continue;
+                if (name == null) continue;
 
                 used.Add(name);
                 return name;
@@ -737,7 +1118,10 @@ namespace Server.MirObjects
                 if (rec.Info.Player != null)
                 {
                     rec.FailCount++;
-                    MessageQueue.Instance.Enqueue($"[假人] {rec.Name} 上次对象未回收（Info.Player 占用），跳过本次");
+                    // 20261106 限流：这个假人每秒都会重试一次，连败时不能每秒写一条把日志刷爆。
+                    // 前 3 次照报（能看见问题），之后每 60 次（约 1 分钟）报一条，并带上累计次数。
+                    if (rec.FailCount <= 3 || rec.FailCount % 60 == 0)
+                        MessageQueue.Instance.Enqueue($"[假人] {rec.Name} 上次对象未回收（Info.Player 占用），跳过本次（第 {rec.FailCount} 次）");
                     return false;
                 }
             }
@@ -770,10 +1154,25 @@ namespace Server.MirObjects
                 return false;
             }
 
-            // 配了登录点 → 就落在那个点上（万一站不住，才退回「图上随机找点」）
-            Point spawn = rec.HasSpawn && map.ValidPoint(rec.Spawn.Location)
-                ? rec.Spawn.Location
-                : PickSpawnPoint(map);
+            // 20261106 秒飞登录：假人一上线直接随机落在图上任意可走位置（避开安全区），
+            //   不再从登录点走过去 —— 安全区只保留 3~5 个假人撑场面，其余全部"秒飞"散到全图。
+            Point spawn;
+            if (ShouldStayInSafeZone(map))
+            {
+                // 留守安全区的少数派：优先站登录点（通常就在安全区里），否则用安全区中心点
+                spawn = (rec.HasSpawn && map.ValidPoint(rec.Spawn.Location) && map.GetSafeZone(rec.Spawn.Location) != null)
+                    ? rec.Spawn.Location
+                    : PickSafeZonePoint(map);
+
+                if (spawn == Point.Empty) spawn = PickSpawnPoint(map);   // 图上没有安全区 → 照常随机落
+            }
+            else
+            {
+                spawn = PickSpawnPoint(map);     // 秒飞：图上随机可走点（自带避开安全区）
+
+                if (spawn == Point.Empty)        // 兜底：随机不到就登录点周边散开
+                    spawn = ScatterAround(map, rec.HasSpawn ? rec.Spawn.Location : Point.Empty);
+            }
 
             if (spawn == Point.Empty)
             {
@@ -801,7 +1200,9 @@ namespace Server.MirObjects
             catch (Exception ex)
             {
                 rec.FailCount++;
-                MessageQueue.Instance.Enqueue($"[假人] {rec.Name} 创建失败：{ex.Message}");
+                // 20261106 限流（同上）：创建异常同样每秒重试，只报前 3 次 + 每分钟一条
+                if (rec.FailCount <= 3 || rec.FailCount % 60 == 0)
+                    MessageQueue.Instance.Enqueue($"[假人] {rec.Name} 创建失败：{ex.Message}（第 {rec.FailCount} 次）");
                 return false;
             }
 
@@ -931,6 +1332,66 @@ namespace Server.MirObjects
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 20261106 秒飞登录：这个假人登录时是否留在安全区。
+        /// 安全区配额 3~5 个（每次判定随机取配额），当前该图安全区里的在线假人已满配额 → false（秒飞散走）。
+        /// 扫一遍在线假人的记录做计数（2 万记录 × 纯整数比较，单次约零点几毫秒，可忽略）。
+        /// </summary>
+        private static bool ShouldStayInSafeZone(Map map)
+        {
+            if (map?.Info == null) return false;
+            if (FindSafeZone(map) == null) return false;    // 这张图没有安全区，谈不上留守
+
+            int quota = 3 + Envir.Random.Next(3);           // 3~5 个
+
+            int count = 0;
+            for (int i = 0; i < Records.Count; i++)
+            {
+                BotRecord r = Records[i];
+                if (r == null || !r.Online || r.Info == null) continue;
+                if (r.Info.CurrentMapIndex != map.Info.Index) continue;
+                if (map.GetSafeZone(r.Info.CurrentLocation) == null) continue;
+
+                count++;
+                if (count >= quota) return false;           // 已经够数了，后来的都飞走
+            }
+
+            return true;                                    // 安全区还没住满，这个假人留下来
+        }
+
+        /// <summary>20261106 取该图安全区的中心点（留守安全区的假人落这里）</summary>
+        private static Point PickSafeZonePoint(Map map)
+        {
+            SafeZoneInfo sz = FindSafeZone(map);
+            return (sz != null && map.ValidPoint(sz.Location)) ? sz.Location : Point.Empty;
+        }
+
+        /// <summary>
+        /// 20261106 登录散场：在 center 周边 6~30 格随机挑一个可站立、且不在安全区的点。
+        /// 40 次挑不到（小图/被墙围死）就退回原点，保证登录不失败。
+        /// </summary>
+        private static Point ScatterAround(Map map, Point center)
+        {
+            if (map == null || map.WalkableCells == null || map.WalkableCells.Count == 0) return center;
+
+            for (int i = 0; i < 40; i++)
+            {
+                int dist = Envir.Random.Next(6, 31);
+                double ang = Envir.Random.Next(360) * Math.PI / 180.0;
+                Point p = new Point(
+                    center.X + (int)(Math.Cos(ang) * dist),
+                    center.Y + (int)(Math.Sin(ang) * dist));
+
+                if (!map.ValidPoint(p)) continue;
+                if (p == center) continue;
+                if (map.GetSafeZone(p) != null) continue;   // 别落回安全区
+
+                return p;
+            }
+
+            return center;
         }
 
         private static Point PickSpawnPoint(Map map)

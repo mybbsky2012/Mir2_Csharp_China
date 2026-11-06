@@ -16,6 +16,28 @@ namespace UiShot
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            // savetime：只量 Settings.Save() 的耗时（验证 11-06 的批量写入），不建窗体。
+            // 用法：在带 Configs\Setup.ini 的目录里执行 UiShot.exe savetime
+            if (args.Length > 0 && args[0] == "savetime")
+            {
+                Server.Settings.Load();
+                string ini = Path.Combine(".", "Configs", "Setup.ini");
+                int before = CountKeys(ini);
+
+                for (int i = 0; i < 5; i++)
+                {
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    Server.Settings.Save();
+                    sw.Stop();
+                    Console.WriteLine("Save #" + (i + 1) + ": " + sw.Elapsed.TotalMilliseconds.ToString("F1") + " ms");
+                }
+
+                int after = CountKeys(ini);
+                Console.WriteLine("Setup.ini 键数: 保存前 " + before + " → 保存后 " + after);
+                Console.WriteLine(after >= before ? "SAVETIME PASS" : "SAVETIME FAIL");
+                Environment.Exit(after >= before ? 0 : 2);
+            }
+
             string output = args.Length > 0 ? args[0] : "shot.png";
             int pageIndex = args.Length > 1 ? int.Parse(args[1]) : -1;
 
@@ -142,6 +164,19 @@ namespace UiShot
 
             // 绝不走 Close()：那会触发 Settings.Save()
             Environment.Exit(0);
+        }
+
+        private static int CountKeys(string ini)
+        {
+            if (!File.Exists(ini)) return 0;
+            int n = 0;
+            foreach (string line in File.ReadAllLines(ini))
+            {
+                string t = line.Trim();
+                if (t.Length == 0 || t.StartsWith(";") || t.StartsWith("[")) continue;
+                if (t.Contains('=')) n++;
+            }
+            return n;
         }
 
         private static IEnumerable<T> FindAll<T>(Control root) where T : Control

@@ -221,7 +221,7 @@ public class Mon637B : MonsterObject
 					{
 						if (MapObject.Envir.Random.Next(100) < 80 && HalfmoonAttack(attackPower, 1200))
 						{
-							PoisonTarget(Target, 5, 5L, PoisonType.Frozen, 1000L, noResist: true, ignoreDefence: false);
+							PoisonTarget(Target, 5, 5L, PoisonType.Frozen, 1000L, noResist: false, ignoreDefence: false);
 							break;
 						}
 						DelayedAction item = new DelayedAction(DelayedType.Damage, MapObject.Envir.Time + 1200, Target, attackPower, DefenceType.AC, false);
@@ -286,7 +286,7 @@ public class Mon637B : MonsterObject
 					int attackPower3 = GetAttackPower(Stats[Stat.MinDC], Stats[Stat.MaxDC]);
 					if (attackPower3 != 0 && MapObject.Envir.Random.Next(100) < 80 && SinglePullAttack(attackPower3, DefenceType.AC, 1200, 7, levelLimit: false) && MapObject.Envir.Random.Next(100) < 80 && SpawnSlaves(Mon637BMob, 3, maintainCount: true))
 					{
-						PoisonTarget(Target, 1, 5L, PoisonType.Frozen, 1000L, noResist: true, ignoreDefence: false);
+						PoisonTarget(Target, 1, 5L, PoisonType.Frozen, 1000L, noResist: false, ignoreDefence: false);
 					}
 				}
 				break;

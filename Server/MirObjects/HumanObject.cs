@@ -146,6 +146,11 @@ namespace Server.MirObjects
         {
             get
             {
+                // 20261106 PoisonLockMagicOnly：控制毒（麻痹/狮子吼麻痹/冰冻/眩晕）只锁魔法（见 CanCast），
+                // 不再拦物理普攻。关闭时维持原版：毒同时锁物理和魔法。
+                if (Settings.PoisonLockMagicOnly)
+                    return !Dead && Envir.Time >= ActionTime && Envir.Time >= AttackTime && Mount.CanAttack;
+
                 return !Dead && Envir.Time >= ActionTime && Envir.Time >= AttackTime && !CurrentPoison.HasFlag(PoisonType.Paralysis) && !CurrentPoison.HasFlag(PoisonType.LRParalysis) && !CurrentPoison.HasFlag(PoisonType.Frozen) && !CurrentPoison.HasFlag(PoisonType.Dazed) && Mount.CanAttack;
             }
         }
@@ -4715,7 +4720,8 @@ namespace Server.MirObjects
 
             if (!Settings.PetSave)
             {
-                target.TameTime = Envir.Time + (Settings.Minute * 60);
+                // 脱主时间可调（20261106 「特殊设置 → 诱惑之光」页）；0 = 永不脱主
+                target.TameTime = Settings.TameExpireTime(Envir.Time);
             }
 
             target.Broadcast(new S.ObjectName { ObjectID = target.ObjectID, Name = target.Name });

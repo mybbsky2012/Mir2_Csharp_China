@@ -37,6 +37,9 @@ namespace Server.MirEnvir
         public List<NPCObject> NPCs = new List<NPCObject>();
         public List<SpellObject> Spells = new List<SpellObject>();
         public List<PlayerObject> Players = new List<PlayerObject>();
+        // 20261106 只含真人的短列表（不含假人）：广播/雷电/火焰这些"逐玩家"的热路径只扫它，
+        //   不再遍历混着 2 万假人的 Players 大列表 —— 一图 5000 假人 + 5 真人时，广播扫描从 5005 次降到 5 次。
+        public List<PlayerObject> RealPlayers = new List<PlayerObject>();
         public List<MapRespawn> Respawns = new List<MapRespawn>();
         public List<DelayedAction> ActionList = new List<DelayedAction>();
         public List<HeroObject> Heroes = new List<HeroObject>();
@@ -777,9 +780,9 @@ namespace Server.MirEnvir
             if ((Info.Lightning) && Envir.Time > LightningTime)
             {
                 LightningTime = Envir.Time + Envir.Random.Next(3000, 15000);
-                for (int i = Players.Count - 1; i >= 0; i--)
+                for (int i = RealPlayers.Count - 1; i >= 0; i--)   // 20261106 只在真人身边生成（原来按全部玩家逐个生成，假人多的图会刷出海量闪电）
                 {
-                    PlayerObject player = Players[i];
+                    PlayerObject player = RealPlayers[i];
                     Point location;
                     if (Envir.Random.Next(4) == 0)
                     {
@@ -809,9 +812,9 @@ namespace Server.MirEnvir
             if ((Info.Fire) && Envir.Time > FireTime)
             {
                 FireTime = Envir.Time + Envir.Random.Next(3000, 15000);
-                for (int i = Players.Count - 1; i >= 0; i--)
+                for (int i = RealPlayers.Count - 1; i >= 0; i--)   // 20261106 同上，只围绕真人
                 {
-                    PlayerObject player = Players[i];
+                    PlayerObject player = RealPlayers[i];
                     Point location;
                     if (Envir.Random.Next(4) == 0)
                     {
@@ -2854,7 +2857,9 @@ namespace Server.MirEnvir
         {
             if (ob.Race == ObjectType.Player)
             {
-                Players.Add((PlayerObject)ob);
+                PlayerObject playerOb = (PlayerObject)ob;
+                Players.Add(playerOb);
+                if (!(playerOb is FakePlayerObject)) RealPlayers.Add(playerOb);   // 20261106 真人专用列表同步维护
             }
 
             if (ob.Race == ObjectType.Merchant) NPCs.Add((NPCObject)ob);
@@ -2866,7 +2871,12 @@ namespace Server.MirEnvir
 
         public void RemoveObject(MapObject ob)
         {
-            if (ob.Race == ObjectType.Player) Players.Remove((PlayerObject)ob);
+            if (ob.Race == ObjectType.Player)
+            {
+                PlayerObject playerOb = (PlayerObject)ob;
+                Players.Remove(playerOb);
+                RealPlayers.Remove(playerOb);   // 20261106 与 Players 同步增删
+            }
             if (ob.Race == ObjectType.Merchant) NPCs.Remove((NPCObject)ob);
             if (ob.Race == ObjectType.Spell) Spells.Remove((SpellObject)ob);
             if (ob.Race == ObjectType.Hero) Heroes.Remove((HeroObject)ob);
@@ -2931,11 +2941,10 @@ namespace Server.MirEnvir
         {
             if (p == null) return;
 
-            for (int i = Players.Count - 1; i >= 0; i--)
+            // 20261106 只扫真人短列表：假人收包直接丢弃，扫它们纯属浪费（见 RealPlayers 注释）
+            for (int i = RealPlayers.Count - 1; i >= 0; i--)
             {
-                PlayerObject player = Players[i];
-
-                if (player is FakePlayerObject) continue;   // 假人没有客户端，别白扫（见 MapObject.Broadcast）
+                PlayerObject player = RealPlayers[i];
 
                 if (Functions.InRange(location, player.CurrentLocation, Globals.DataRange))
                     player.Enqueue(p);                   
@@ -2946,11 +2955,9 @@ namespace Server.MirEnvir
         {
             if (p == null) return;
 
-            for (int i = Players.Count - 1; i >= 0; i--)
+            for (int i = RealPlayers.Count - 1; i >= 0; i--)
             {
-                PlayerObject player = Players[i];
-
-                if (player is FakePlayerObject) continue;   // 同上
+                PlayerObject player = RealPlayers[i];
 
                 if (Functions.InRange(location, player.CurrentLocation, Globals.DataRange))
                     player.Enqueue(p);

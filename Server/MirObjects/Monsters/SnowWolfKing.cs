@@ -190,7 +190,8 @@ namespace Server.MirObjects.Monsters
 
                     if (!Settings.PetSave)
                     {
-                        mob.TameTime = Envir.Time + (Settings.Minute * 60);
+                        // 脱主时间可调（20261106 「特殊设置 → 诱惑之光」页）；0 = 永不脱主
+                        mob.TameTime = Settings.TameExpireTime(Envir.Time);
                     }
 
                     mob.Broadcast(new S.ObjectName { ObjectID = mob.ObjectID, Name = mob.Name });

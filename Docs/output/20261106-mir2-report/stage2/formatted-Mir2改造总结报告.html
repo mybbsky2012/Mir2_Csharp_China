@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="docx-page-size" content="A4">
+<title>Mir2 服务端与客户端改造总结报告</title>
+<style>
+@page {
+  margin: var(--sp-2-5cm-2-3cm-2-5cm-3-1cm);
+  @bottom-center { content: counter(page); }
+}
+@page cover {
+  @bottom-center { content: none; }
+}
+section[role="cover"] { page: cover; }
+
+:root {
+  --fs-cover: 30pt;
+  --fs-sub: 13pt;
+  --fs-lead: 11.5pt;
+  --fs-note: 11pt;
+  --fs-xs: 9.5pt;
+  --sp-page: 2.5cm 2.3cm 2.5cm 3.1cm;
+  --sp-top: 5.5cm;
+  --sp-bottom: 2cm;
+  --sp-xs: 0.3em;
+  --sp-xs2: 0.32em;
+  --sp-s: 0.4em;
+  --sp-sm: 0.5em;
+  --sp-m: 0.55em;
+  --sp-m2: 0.6em;
+  --sp-l: 0.75em;
+  --sp-l2: 0.8em;
+  --sp-1: 1em;
+  --sp-3: 1.1em;
+  --sp-4: 1.2em;
+  --sp-5: 1.4em;
+  --sp-6: 1.6em;
+  --sp-7: 1.9em;
+  --sp-8: 2.4em;
+  --sp-9: 2.6em;
+  --sp-cell-y: 0.28em 0;
+  --sp-th: 0.42em 0.5em;
+  --sp-td: 0.4em 0.5em;
+  --sp-card: 0.6em 0 1.2em 0;
+  --sp-code: 0.6em 0.8em;
+  --sp-callout: 0.6em 0.9em;
+  --sp-table: 0.7em 0 1.1em 0;
+  --sp-cardpad: 0.9em 1em;
+  --sp-list: 0.3em 0 0.8em 0;
+
+  --sp-2-5cm-2-3cm-2-5cm-3-1cm: 2.5cm 2.3cm 2.5cm 3.1cm;
+  --sp-0-55em: 0.55em;
+  --sp-5-5cm: 5.5cm;
+  --sp-2cm: 2cm;
+  --sp-1-4em: 1.4em;
+  --sp-0-5em: 0.5em;
+  --sp-2-6em: 2.6em;
+  --sp-1-2em: 1.2em;
+  --sp-0-28em-0: 0.28em 0;
+  --sp-1-6cm: 1.6cm;
+  --sp-1-6em: 1.6em;
+  --sp-0-3em: 0.3em;
+  --sp-1-9em: 1.9em;
+  --sp-0-75em: 0.75em;
+  --sp-0-28em: 0.28em;
+  --sp-1em: 1em;
+  --sp-0-4em: 0.4em;
+  --sp-0-3em-0-0-8em-0: 0.3em 0 0.8em 0;
+  --sp-2-4em: 2.4em;
+  --sp-0-32em: 0.32em;
+  --sp-0-7em-0-1-1em-0: 0.7em 0 1.1em 0;
+  --sp-0-42em-0-5em: 0.42em 0.5em;
+  --sp-0-4em-0-5em: 0.4em 0.5em;
+  --sp-0-6em-0-1-2em-0: 0.6em 0 1.2em 0;
+  --sp-0-9em-1em: 0.9em 1em;
+  --sp-0-5em-0-1em-0: 0.5em 0 1em 0;
+  --sp-0-6em-0-8em: 0.6em 0.8em;
+  --sp-0-6em-0-9em: 0.6em 0.9em;
+  --sp-0-6em-0-1em-0: 0.6em 0 1em 0;
+  --color-primary: #1a4f8b;
+  --color-primary-light: #eaf1f9;
+  --color-text: #1c1c1c;
+  --color-muted: #5f6b7a;
+  --color-border: #c9d3de;
+  --color-highlight: #f4f7fa;
+  --color-code-bg: #f5f6f8;
+  --ff-heading: "SimHei", "黑体", sans-serif;
+  --ff-body: "SimSun", "宋体", serif;
+  --ff-mono: "Consolas", "Courier New", monospace;
+  --fs-h1: 18pt;
+  --fs-h2: 14pt;
+  --fs-h3: 12pt;
+  --fs-body: 12pt;
+  --fs-small: 10.5pt;
+  --fs-cover-title: 30pt;
+  --lh-body: 1.75;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  max-width: 15.6cm;
+  margin-left: auto;
+  margin-right: auto;
+  font-family: var(--ff-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+p {
+  font-family: var(--ff-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  text-indent: 2em;
+  margin-bottom: var(--sp-0-55em);
+  text-align: justify;
+}
+
+/* 封面 */
+.cover-wrap {
+  padding-top: var(--sp-5-5cm);
+  padding-bottom: var(--sp-2cm);
+  text-align: left;
+}
+.cover-kicker {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-note);
+  letter-spacing: 0.18em;
+  color: var(--color-primary);
+  text-indent: 0;
+  margin-bottom: var(--sp-1-4em);
+}
+.cover-title {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-cover-title);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-text);
+  text-indent: 0;
+  margin-bottom: var(--sp-0-5em);
+}
+.cover-sub {
+  font-family: var(--ff-body);
+  font-size: var(--fs-sub);
+  color: var(--color-muted);
+  text-indent: 0;
+  margin-bottom: var(--sp-2-6em);
+}
+.cover-meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--sp-1-2em);
+}
+.cover-meta-table td {
+  font-family: var(--ff-body);
+  font-size: var(--fs-small);
+  color: var(--color-muted);
+  padding: var(--sp-0-28em-0);
+  border-bottom: 1px solid var(--color-border);
+  text-indent: 0;
+}
+.cover-meta-table td:first-child {
+  width: 3.2cm;
+  color: var(--color-primary);
+  font-family: var(--ff-heading);
+}
+
+/* 目录 */
+.toc-wrap { padding-top: var(--sp-1-6cm); }
+.toc-title {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  text-indent: 0;
+  color: var(--color-text);
+  margin-bottom: var(--sp-1-2em);
+}
+.toc-list, .toc-list ol {
+  list-style: none;
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+.toc-list > li {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-body);
+  margin-bottom: var(--sp-0-55em);
+  text-indent: 0;
+}
+.toc-list ol { padding-left: var(--sp-1-6em); }
+.toc-list ol li {
+  font-family: var(--ff-body);
+  font-size: var(--fs-note);
+  color: var(--color-muted);
+  margin-bottom: var(--sp-0-3em);
+  text-indent: 0;
+}
+.toc-list a { color: inherit; text-decoration: none; }
+
+/* 正文 */
+h1 {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-indent: 0;
+  margin-top: var(--sp-1-9em);
+  margin-bottom: var(--sp-0-75em);
+  padding-bottom: var(--sp-0-28em);
+  border-bottom: 2px solid var(--color-primary);
+}
+h2 {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--color-text);
+  text-indent: 0;
+  margin-top: var(--sp-1-4em);
+  margin-bottom: var(--sp-0-55em);
+  padding-left: var(--sp-0-55em);
+  border-left: 4px solid var(--color-primary);
+}
+h3 {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  color: var(--color-text);
+  text-indent: 0;
+  margin-top: var(--sp-1em);
+  margin-bottom: var(--sp-0-4em);
+}
+
+ul, ol {
+  font-family: var(--ff-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  margin: var(--sp-0-3em-0-0-8em-0);
+  padding-left: var(--sp-2-4em);
+}
+li { margin-bottom: var(--sp-0-32em); text-align: justify; }
+
+/* 表格 */
+table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--sp-0-7em-0-1-1em-0);
+  font-family: var(--ff-body);
+  font-size: var(--fs-small);
+}
+table.data-table th {
+  background: var(--color-primary-light);
+  color: var(--color-text);
+  font-family: var(--ff-heading);
+  font-weight: 700;
+  border: 1px solid var(--color-border);
+  padding: var(--sp-0-42em-0-5em);
+  text-align: left;
+  text-indent: 0;
+}
+table.data-table td {
+  border: 1px solid var(--color-border);
+  padding: var(--sp-0-4em-0-5em);
+  vertical-align: top;
+  text-indent: 0;
+  line-height: 1.55;
+}
+table.data-table tr:nth-child(even) td { background: var(--color-highlight); }
+
+/* 摘要块 */
+table.abstract-card {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--sp-0-6em-0-1-2em-0);
+}
+table.abstract-card td {
+  background: var(--color-primary-light);
+  border-left: 4px solid var(--color-primary);
+  padding: var(--sp-0-9em-1em);
+}
+table.abstract-card p {
+  font-size: var(--fs-lead);
+  text-indent: 2em;
+  margin-bottom: var(--sp-0-5em);
+}
+table.abstract-card p:last-child { margin-bottom: 0; }
+
+/* 代码 */
+table.code-block {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--sp-0-5em-0-1em-0);
+}
+table.code-block td {
+  background: var(--color-code-bg);
+  border: 1px solid var(--color-border);
+  padding: var(--sp-0-6em-0-8em);
+}
+table.code-block p {
+  font-family: var(--ff-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  text-indent: 0;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* 提示条 */
+p.callout {
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-highlight);
+  padding: var(--sp-0-6em-0-9em);
+  text-indent: 0;
+  font-size: var(--fs-note);
+  margin: var(--sp-0-6em-0-1em-0);
+}
+
+table.code-block th {
+  background: var(--color-highlight);
+  color: var(--color-muted);
+  font-family: var(--ff-heading);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  padding: var(--sp-th);
+}
+table.abstract-card th {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-family: var(--ff-heading);
+  font-size: var(--fs-note);
+  font-weight: 700;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  padding: var(--sp-th);
+}
+</style>
+</head>
+<body>
+
+<section role="cover">
+  <div class="cover-wrap">
+    <p class="cover-kicker">技术交付报告</p>
+    <p class="cover-title">Mir2 服务端与客户端<br>改造总结报告</p>
+    <p class="cover-sub">客户端同屏治理 · 假人日志静音 · 服务端内存治理</p>
+    <table class="cover-meta-table"><thead><tr><th>代码示例</th></tr></thead><tbody><tr><td>工程</td><td>Mir2（Crystal 血统）服务端 + 微端客户端</td></tr><tr><td>报告日期</td><td>2026 年 11 月 6 日</td></tr><tr><td>覆盖范围</td><td>2 万假人规模化改造收尾阶段（含此前交付项追溯）</td></tr><tr><td>交付状态</td><td>客户端已部署；服务端已编译待部署</td></tr></tbody></table>
+  </div>
+</section>
+
+<section role="cover">
+  <div class="toc-wrap">
+    <p class="toc-title">目 录</p>
+    <ol class="toc-list">
+      <li><a href="#section-1">摘要</a></li>
+      <li><a href="#section-2">一、本轮交付概览</a></li>
+      <li><a href="#section-3">二、客户端：只显示 1 格内玩家</a>
+        <ol>
+          <li><a href="#section-3-1">2.1 背景与目标</a></li>
+          <li><a href="#section-3-2">2.2 显示规则</a></li>
+          <li><a href="#section-3-3">2.3 实现要点</a></li>
+          <li><a href="#section-3-4">2.4 改动清单</a></li>
+          <li><a href="#section-3-5">2.5 验证结果</a></li>
+          <li><a href="#section-3-6">2.6 取舍与已知副作用</a></li>
+        </ol>
+      </li>
+      <li><a href="#section-4">三、假人日志静音</a>
+        <ol>
+          <li><a href="#section-4-1">3.1 三条通道与拦截点</a></li>
+          <li><a href="#section-4-2">3.2 本轮修复</a></li>
+          <li><a href="#section-4-3">3.3 验证结果</a></li>
+        </ol>
+      </li>
+      <li><a href="#section-5">四、服务端内存治理</a>
+        <ol>
+          <li><a href="#section-5-1">4.1 结构分析</a></li>
+          <li><a href="#section-5-2">4.2 内存分布报告</a></li>
+          <li><a href="#section-5-3">4.3 定时全堆压缩</a></li>
+          <li><a href="#section-5-4">4.4 使用说明与风险</a></li>
+          <li><a href="#section-5-5">4.5 下一步</a></li>
+        </ol>
+      </li>
+      <li><a href="#section-6">五、此前已交付改动（追溯）</a></li>
+      <li><a href="#section-7">六、部署清单与生效方式</a></li>
+      <li><a href="#section-8">七、待决事项</a></li>
+      <li><a href="#section-9">附录 A：自测工具</a></li>
+      <li><a href="#section-10">附录 B：新增与相关配置项</a></li>
+      <li><a href="#section-11">附录 C：关键代码位置</a></li>
+    </ol>
+  </div>
+</section>
+
+<section role="body" data-page-restart="1">
+
+<h1 id="section-1">摘要</h1>
+
+<p>本阶段完成三项改造，均以「不改协议、不改战斗判定、改动可单独回滚」为前提：</p>
+
+<table class="abstract-card executive-summary"><thead><tr><th>执行摘要</th></tr></thead><tbody><tr><td>
+<p><strong>一、客户端同屏治理。</strong>内挂新增「只显示1格内玩家」，并加入队友、行会、鼠标指向、当前目标的常显白名单。这是应对 2 万假人同屏时客户端渲染卡顿最直接的一刀——不改服务端、不动协议，纯本地不画。</p>
+<p><strong>二、假人日志静音。</strong>复核并补全服务端三处日志闸门，假人的聊天、登录、退出不再进入图形界面的「聊天日志」与「日志」页签；同时修掉假人登录失败日志"每秒一条"的刷屏点。</p>
+<p><strong>三、服务端内存治理。</strong>新增开服内存分布报告与可配置的定时全堆压缩，为把常驻内存压到 200MB 量级提供测量手段和调节旋钮。</p>
+</td></tr></tbody></table>
+
+<p>三项改动均通过自动化排雷自测（客户端 31 项、日志 9 项，全部通过）。客户端已部署到 E:\micromir2，服务端产物已编译、待部署。</p>
+
+<h1 id="section-2">一、本轮交付概览</h1>
+
+<table class="data-table"><thead><tr><th style="width:1.2cm">序号</th><th style="width:6.4cm">交付项</th><th>影响面</th><th style="width:2.6cm">状态</th></tr></thead><tbody><tr><td>1</td><td>客户端「只显示1格内玩家」+ 常显白名单</td><td>客户端渲染、鼠标命中判定的可见性</td><td>已部署</td></tr><tr><td>2</td><td>假人日志静音复核 + 失败日志限流</td><td>服务端图形界面日志与聊天日志</td><td>已编译待部署</td></tr><tr><td>3</td><td>内存分布报告 + 定时全堆压缩</td><td>服务端启动日志、运行时内存</td><td>已编译待部署</td></tr><tr><td>4</td><td>两个自动化排雷工具</td><td>工程自测资产</td><td>已入库</td></tr></tbody></table>
+
+<h1 id="section-3">二、客户端：只显示 1 格内玩家</h1>
+
+<h2 id="section-3-1">2.1 背景与目标</h2>
+
+<p>2 万假人进入视野后，客户端需要为每个角色绘制身体、武器、头、翅膀、坐骑、品质光效、名字、血条、伤害数字，以及其释放的技能特效。服务端虽然有可见数量上限（VisibleCap）限制单个真人能看见的假人数量，但客户端自身没有任何按距离或数量降级的逻辑——只要包发过来，就按满配角色全量渲染。</p>
+
+<p>目标很明确：<strong>按距离丢弃绘制，但保留完整的游戏逻辑</strong>。看不见的人不需要画，也不应该被点到，否则免 shift 状态下点地面会变成原地打人。</p>
+
+<h2 id="section-3-2">2.2 显示规则</h2>
+
+<p>勾选后（内挂 → 其他 → 「只显示1格内玩家」），各类对象的行为如下表。</p>
+
+<table class="data-table"><thead><tr><th style="width:7.4cm">对象</th><th>行为</th></tr></thead><tbody><tr><td>自己</td><td>始终显示</td></tr><tr><td>身边 1 格内的玩家（含 8 个斜向，切比雪夫距离 ≤ 1）</td><td>显示</td></tr><tr><td>队友（组队名单内）</td><td>任意距离常显</td></tr><tr><td>同会成员（双方行会名非空且相同）</td><td>任意距离常显</td></tr><tr><td>鼠标指向的玩家</td><td>常显</td></tr><tr><td>当前目标 / 魔法锁定 / 施法对象</td><td>常显</td></tr><tr><td>其他远处玩家</td><td>整条不画：身体、武器、头、翅膀、坐骑、品质光效、名字、对话气泡、血条、毒、伤害数字，以及其技能特效；同时不可点中</td></tr><tr><td>怪物 / NPC / 地面物品 / 宝宝 / 英雄</td><td>不受影响</td></tr></tbody></table>
+
+<p>白名单的取舍理由：队友和同会看不见会直接打乱跑位与救人；目标看不见则锁定后凭空消失，反而不安全；鼠标指向的人若看不见，点人就没有任何反馈。</p>
+
+<p>行会比对特意要求<strong>双方行会名非空</strong>——两个都没有行会的玩家不能因为都是空串就互相常显。</p>
+
+<h2 id="section-3-3">2.3 实现要点</h2>
+
+<p><strong>唯一判定出口。</strong>所有绘制入口共用一个属性判定，避免出现"身体藏了名字还飘着"这类漏网：</p>
+
+<table class="code-block"><thead><tr><th>代码示例</th></tr></thead><tbody><tr><td>
+<p>public bool NearPlayerFiltered</p>
+<p>{</p>
+<p>    get</p>
+<p>    {</p>
+<p>        if (!Settings.NearPlayerOnly) return false;</p>
+<p>        if (User == null) return false;</p>
+<p>        if (!(this is PlayerObject) || this == User) return false;</p>
+<p>        if (this is HeroObject || this is UserHeroObject) return false;</p>
+<p>        if (NearPlayerKeepVisible) return false;   // 常显白名单，必须在距离判定之前</p>
+<p>&nbsp;</p>
+<p>        return Math.Abs(Movement.X - User.Movement.X) &gt; 1</p>
+<p>            || Math.Abs(Movement.Y - User.Movement.Y) &gt; 1;</p>
+<p>    }</p>
+<p>}</p>
+</td></tr></tbody></table>
+
+<p><strong>闸门必须在方法第一句。</strong>六个绘制入口（Draw、DrawBehindEffects、DrawEffects、DrawBlend、DrawName、MouseOver）全部在方法体第一句返回，否则等于先完整画了一遍再丢弃，白费算力。这一点有专门的自动化断言守着。</p>
+
+<p><strong>世界层是缓存贴图。</strong>客户端世界层整屏渲染到 RenderTarget 并缓存，只调用场景重绘不会重画地图，用户会以为"勾了没反应"。因此勾选时同步把地图控件的贴图有效标记置为 false，强制重建。</p>
+
+<h2 id="section-3-4">2.4 改动清单</h2>
+
+<table class="data-table"><thead><tr><th style="width:6.2cm">文件</th><th>改动</th></tr></thead><tbody><tr><td>Client/Settings.cs</td><td>新增 NearPlayerOnly（[Game] NearPlayerOnly，默认 false）+ 读取/写回</td></tr><tr><td>Client/MirObjects/MapObject.cs</td><td>新增 NearPlayerFiltered（统一判定）与 NearPlayerKeepVisible（常显白名单）</td></tr><tr><td>Client/MirObjects/PlayerObject.cs</td><td>六个绘制/命中入口首句返回</td></tr><tr><td>Client/MirScenes/GameScene.cs</td><td>对象绘制循环整条跳过；两处技能特效循环按 Owner 过滤；鼠标对象名字绘制过滤</td></tr><tr><td>Client/MirScenes/Dialogs/AutoPlayDialog.cs</td><td>内挂「其他」页 (26,340) 勾选框；写回配置 + 落盘 + 场景重绘 + 世界层缓存失效；开启/关闭提示；原提示压缩为两段</td></tr><tr><td>Tools/NearPlayerTest</td><td>31 项排雷自测（新增）</td></tr></tbody></table>
+
+<h2 id="section-3-5">2.5 验证结果</h2>
+
+<p>排雷工具 Tools/NearPlayerTest 共 31 项，全部通过，覆盖以下方面：</p>
+
+<ul>
+<li>配置项默认值、[Game] 读取、写回三项（默认关闭，老玩家行为零变化）</li>
+<li>7×7 邻域 49 格真值表：1 格内（含斜向、同格）可见，2 格起隐藏</li>
+<li>四类不该隐藏的情况：关开关、自己、怪物、英雄</li>
+<li>六个绘制入口的闸门都在方法第一句</li>
+<li>两处场景特效循环都按 Owner 过滤</li>
+<li>常显闸位于距离判定之前；四个动态目标齐全；队友查组队名单；行会要求双方非空</li>
+<li>面板控件无重叠、提示不越过内容区底线（430）</li>
+<li>编译产物 Client.dll 确含新开关（防"改了源码没重编"）</li>
+<li>Server / Shared 未被污染</li>
+</ul>
+
+<h2 id="section-3-6">2.6 取舍与已知副作用</h2>
+
+<p><strong>鼠标扫过远处玩家会短暂闪现。</strong>因为鼠标指向属常显，扫到谁谁出现一帧。这是"看得到才点得到"的必要代价；若觉得扎眼，可以去掉鼠标指向常显，只保留目标、锁定、队友、行会。</p>
+
+<p><strong>远处队友会显示但怪物不会。</strong>这是刻意设计：怪物、掉落、NPC 是玩法必需，玩家不是。</p>
+
+<p>该功能只省客户端绘制，<strong>服务端该发的包一个不少</strong>，带宽不变；真正的总量闸门仍是服务端可见数量上限，两者互补。</p>
+
+<h1 id="section-4">三、假人日志静音</h1>
+
+<h2 id="section-4-1">3.1 三条通道与拦截点</h2>
+
+<p>服务端图形界面有两个文本框：「聊天日志」与「日志」。假人刷屏会同时污染这两处，2 万规模下会把界面拖死。</p>
+
+<table class="data-table"><thead><tr><th style="width:4.2cm">场景</th><th style="width:5.4cm">拦截位置</th><th>做法</th></tr></thead><tbody><tr><td>假人聊天 / 喊话 / 私聊</td><td>PlayerObject.Chat 第一句</td><td>全服唯一聊天日志写入点，前置「不是假人才写」判断</td></tr><tr><td>假人退出</td><td>PlayerObject.StopGame</td><td>退出原因写日志处同样包住；退出原因生成方法全服唯一调用点</td></tr><tr><td>假人登录</td><td>FakePlayerManager.Login</td><td>正常登录路径不写任何日志</td></tr></tbody></table>
+
+<h2 id="section-4-2">3.2 本轮修复</h2>
+
+<p>复核时发现真正的刷屏点不在正常流程，而在<strong>失败路径</strong>：假人登录的两条日志——「上次对象未回收」与「创建失败」——位于每次重试都会执行的分支里。这个假人每秒重试一次、连败 5 次才报废，意味着单个坏假人能在 5 秒内连刷 5 条，2 万规模下很容易堆满日志。</p>
+
+<p>改为限流：前 3 次照报（能看见问题），之后每 60 次报一条，并带上累计次数。</p>
+
+<table class="code-block"><thead><tr><th>代码示例</th></tr></thead><tbody><tr><td>
+<p>rec.FailCount++;</p>
+<p>if (rec.FailCount &lt;= 3 || rec.FailCount % 60 == 0)</p>
+<p>    MessageQueue.Instance.Enqueue($"[假人] {rec.Name} 上次对象未回收（Info.Player 占用），跳过本次（第 {rec.FailCount} 次）");</p>
+</td></tr></tbody></table>
+
+<h2 id="section-4-3">3.3 验证结果</h2>
+
+<p>排雷工具 Tools/BotLogFilterTest 共 9 项，全部通过：</p>
+
+<ul>
+<li>聊天日志写入口全服只有 1 个，且被「假人排除」判断紧贴包住（中间夹了别的语句会报错）</li>
+<li>假人发言确实统一走统一聊天方法，AI 里没有直接写日志</li>
+<li>退出日志同样被紧贴包住；退出原因方法只有一个调用点</li>
+<li>登录方法里的失败日志全部限流</li>
+<li>假人管理器的日志一律带「假人」前缀，不冒充玩家上下线文案</li>
+<li>真人下线日志未被误伤（判断方向是「不是假人才写」）</li>
+<li>服务端产物比源码新</li>
+</ul>
+
+<h1 id="section-5">四、服务端内存治理</h1>
+
+<h2 id="section-5-1">4.1 结构分析</h2>
+
+<p>在动手之前先算账。服务端内存的大头有三块：</p>
+
+<table class="data-table"><thead><tr><th style="width:3.4cm">大头</th><th style="width:3.6cm">规模估算</th><th>说明</th></tr></thead><tbody><tr><td>2 万假人档案</td><td>约 100~300MB</td><td>每个假人一份账号与角色档案；角色档案含 86 格背包、14 格装备、10 格交易、40 格任务、16 格精炼共 166 个物品槽，外加十多个列表</td></tr><tr><td>地图</td><td>格数 × 约 40 字节</td><td>地图格子用二维数组存储，但格子类型是<strong>类</strong>而非结构体，每格一个对象；总量取决于地图规模</td></tr><tr><td>GC 预留</td><td>峰值的 30~50%</td><td>运行时在分配峰值后默认不把空闲段还给系统，任务管理器看到的数字会明显高于存活对象</td></tr></tbody></table>
+
+<p>结论：能否压到 200MB，取决于测量结果，不能凭感觉改。</p>
+
+<h2 id="section-5-2">4.2 内存分布报告</h2>
+
+<p>新增开服内存报告，在开服完成（地图、物品库、假人档案均已就绪、网络未开）时打印一次，内容形如：</p>
+
+<table class="code-block"><thead><tr><th>代码示例</th></tr></thead><tbody><tr><td>
+<p>──── 内存分布报告（开服完成）────</p>
+<p>工作集 xxx MB｜私有内存 xxx MB｜托管堆 xxx MB｜提交内存 xxx MB（含 GC 预留）</p>
+<p>地图 xx 张（xx 万格，格子是类对象，粗估 xx MB）｜怪物 xx 只（掉落表 xx 条）</p>
+<p>物品库 xx｜技能库 xx｜任务 xx｜NPC xx（脚本 xx 个）｜行会 xx｜账号 xx｜角色 xx</p>
+<p>假人档案 xx 个（每个 = 账号 + 角色档案 + 背包装备，粗估 xx MB）</p>
+</td></tr></tbody></table>
+
+<p>报告只读不改，用于一次性定位"内存花在哪"。</p>
+
+<h2 id="section-5-3">4.3 定时全堆压缩</h2>
+
+<p>新增配置 [Memory] CompactMinutes（默认 0 表示关闭，钳制范围 0~1440 分钟）。大于 0 时，主循环每 N 分钟执行一次全堆压缩：</p>
+
+<table class="code-block"><thead><tr><th>代码示例</th></tr></thead><tbody><tr><td>
+<p>System.Runtime.GCSettings.LargeObjectHeapCompactionMode =</p>
+<p>    System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;</p>
+<p>GC.Collect(2, GCCollectionMode.Forced, true, true);</p>
+</td></tr></tbody></table>
+
+<p>压缩完成后日志会打前后差值，便于观察实际省下多少，例如：</p>
+
+<table class="code-block"><thead><tr><th>代码示例</th></tr></thead><tbody><tr><td>
+<p>[内存] 已全堆压缩：托管堆 850→620 MB，提交内存 1100→760 MB</p>
+</td></tr></tbody></table>
+
+<h2 id="section-5-4">4.4 使用说明与风险</h2>
+
+<ul>
+<li><strong>建议值 30~60 分钟一次。</strong>压缩瞬间会有一次完整垃圾回收停顿（几十到几百毫秒），设得太密会影响手感。</li>
+<li><strong>默认关闭</strong>，不改变现有服务器行为。</li>
+<li>配置文件必须在<strong>服务端停止状态</strong>下修改，否则关闭时回写会覆盖手工改动（该项目既有约定）。</li>
+</ul>
+
+<h2 id="section-5-5">4.5 下一步</h2>
+
+<p>拿到开服报告后再定方案：</p>
+
+<ul>
+<li>若大头在地图格子 → 方向是把格子类型结构体化或惰性化，工程量中等。</li>
+<li>若大头在假人档案 → 方向是"离线假人只保留轻量档案，背包装备上线时按需生成"，省得最多，但要兼顾角色保存逻辑，需要单独设计。</li>
+</ul>
+
+<h1 id="section-6">五、此前已交付改动（追溯）</h1>
+
+<table class="data-table"><thead><tr><th style="width:3.6cm">主题</th><th>内容</th></tr></thead><tbody><tr><td>中毒锁复核</td><td>开关只在攻击判定分流，施法仍锁魔法，怪物侧与移动锁未动</td></tr><tr><td>配置页重组</td><td>中毒锁页改名「特殊设置」，内嵌「诱惑之光」「特殊限制」两个子页</td></tr><tr><td>对话框非模态</td><td>全站模态对话框改为非模态（显示 + 指定所有者），多窗口互不干扰</td></tr><tr><td>假人规模</td><td>上限 300 → 20000；名称池扩容至约 11 万组合；支持名称文件（不足随机补齐，文件不存在则按数量生成）</td></tr><tr><td>在线列表</td><td>改虚拟模式（虚拟列表尺寸 + 按需取项）；预编译控件库需单独重编并三处拷贝</td></tr><tr><td>2 万假人性能</td><td>无真人地图分级休眠（跳过行为决策、保留回城复活）；真人短列表替换全量扫描；可见数量上限限制同屏假人</td></tr><tr><td>登录体验</td><td>初始化只建档、每秒分批登录、渐显波次、登录散场、安全区配额、随机点秒飞</td></tr><tr><td>假人行为</td><td>活动范围 60 与追击范围 16 拆分；被看就文静</td></tr><tr><td>假人聊天</td><td>说话间隔配置（默认 10 秒，±30% 抖动）</td></tr></tbody></table>
+
+<h1 id="section-7">六、部署清单与生效方式</h1>
+
+<table class="data-table"><thead><tr><th style="width:2.4cm">端</th><th style="width:7.2cm">产物</th><th>状态</th></tr></thead><tbody><tr><td>客户端</td><td>E:\micromir2\Client.dll</td><td>已部署（13:28 编译）；旧文件备份为 Client.dll.bak_nearplayer_20261106；部署时客户端未运行</td></tr><tr><td>服务端</td><td>D:\mir2-20241027\Build\Server\Release\Server.Library.dll</td><td>已编译（14:18，0 错误）；运行目录未知，待提供后备份覆盖</td></tr></tbody></table>
+
+<p>注意事项：</p>
+
+<ol>
+<li>服务端只需替换 Server.Library.dll 一个文件，不需要替换 Server.exe。</li>
+<li>替换前必须先停服，运行中文件被占用。</li>
+<li>客户端配置文件尚未写入 NearPlayerOnly（默认关闭），勾选后自动落盘。</li>
+</ol>
+
+<h1 id="section-8">七、待决事项</h1>
+
+<table class="data-table"><thead><tr><th style="width:1.2cm">序号</th><th style="width:5.6cm">事项</th><th>说明</th></tr></thead><tbody><tr><td>1</td><td>服务端运行目录未知</td><td>日志静音与内存报告尚未真正生效，需要路径才能部署</td></tr><tr><td>2</td><td>200MB 内存目标待测量</td><td>需要一次开服的内存分布报告，才能判断该动地图还是动假人档案</td></tr><tr><td>3</td><td>客户端渲染层三处根因未动</td><td>主循环逻辑更新无节流；混合绘制每次打断批处理；品质光效每角色最多约 44 次绘制</td></tr><tr><td>4</td><td>鼠标指向常显的闪现</td><td>是否保留待确认</td></tr></tbody></table>
+
+<h1 id="section-9">附录 A：自测工具</h1>
+
+<table class="code-block"><thead><tr><th>代码示例</th></tr></thead><tbody><tr><td>
+<p>export DOTNET_ROOT=/c/Users/86191/.dotnet</p>
+<p>cd Tools/NearPlayerTest &amp;&amp; dotnet run -c Release -- "D:\mir2-20241027" "D:\mir2-20241027\Build\Client\Release\Client.dll"</p>
+<p>cd Tools/BotLogFilterTest &amp;&amp; dotnet run -c Release -- "D:\mir2-20241027"</p>
+</td></tr></tbody></table>
+
+<table class="data-table"><thead><tr><th style="width:4.6cm">工具</th><th style="width:1.6cm">项数</th><th>覆盖</th></tr></thead><tbody><tr><td>Tools/NearPlayerTest</td><td>31</td><td>配置项、邻域真值表、六个绘制闸门、场景循环、面板布局、产物校验、污染检查</td></tr><tr><td>Tools/BotLogFilterTest</td><td>9</td><td>日志写入口唯一性、闸门紧贴、限流、前缀规范、真人不受影响、产物新旧</td></tr></tbody></table>
+
+<h1 id="section-10">附录 B：新增与相关配置项</h1>
+
+<table class="data-table"><thead><tr><th style="width:3.4cm">配置</th><th style="width:4.4cm">位置</th><th style="width:1.8cm">默认</th><th>说明</th></tr></thead><tbody><tr><td>NearPlayerOnly</td><td>客户端 [Game]</td><td>false</td><td>只显示 1 格内玩家</td></tr><tr><td>CompactMinutes</td><td>服务端 [Memory]</td><td>0</td><td>定时全堆压缩间隔（分钟），0 关闭</td></tr><tr><td>ChatIntervalMs</td><td>服务端 [FakePlayer]</td><td>10000</td><td>假人说话间隔（毫秒，±30% 抖动）</td></tr><tr><td>VisibleCap</td><td>服务端 [FakePlayer]</td><td>50</td><td>每个真人视野内最多显示的假人数</td></tr><tr><td>LoginBatch</td><td>服务端 [FakePlayer]</td><td>100</td><td>每秒分批登录的假人数</td></tr><tr><td>ShowRampMax</td><td>服务端 [FakePlayer]</td><td>20</td><td>客户端每秒渐显封顶</td></tr></tbody></table>
+
+<h1 id="section-11">附录 C：关键代码位置</h1>
+
+<table class="data-table"><thead><tr><th style="width:4.4cm">功能</th><th>位置</th></tr></thead><tbody><tr><td>客户端过滤判定</td><td>Client/MirObjects/MapObject.cs：NearPlayerFiltered、NearPlayerKeepVisible</td></tr><tr><td>客户端绘制闸门</td><td>Client/MirObjects/PlayerObject.cs：Draw、DrawEffects、DrawBlend、DrawName、MouseOver</td></tr><tr><td>客户端场景循环</td><td>Client/MirScenes/GameScene.cs：对象循环与两处特效循环</td></tr><tr><td>客户端开关面板</td><td>Client/MirScenes/Dialogs/AutoPlayDialog.cs：内挂第 3 页</td></tr><tr><td>聊天日志闸门</td><td>Server/MirObjects/PlayerObject.cs：Chat</td></tr><tr><td>退出日志闸门</td><td>Server/MirObjects/PlayerObject.cs：StopGame</td></tr><tr><td>假人登录限流</td><td>Server/MirObjects/Player/FakePlayerManager.cs：Login</td></tr><tr><td>内存报告与压缩</td><td>Server/MirEnvir/Envir.cs：LogMemoryReport、CompactHeaps</td></tr></tbody></table>
+
+</section>
+</body>
+</html>

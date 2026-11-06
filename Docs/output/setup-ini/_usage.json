@@ -1,0 +1,3941 @@
+[
+ [
+  "General",
+  "VersionPath",
+  ".\\Mir2.Exe",
+  "VersionPath",
+  2,
+  [
+   [
+    "Server.MirForms/ConfigForm.cs",
+    18
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    402
+   ]
+  ]
+ ],
+ [
+  "General",
+  "CheckVersion",
+  "False",
+  "CheckVersion",
+  6,
+  [
+   [
+    "Back Up/manual-20261022_0045-整理背包与守护石背包使用/source/MirConnection.cs",
+    839
+   ],
+   [
+    "Back Up/manual-20261025_0830-登出触发与离线挂机/source/MirConnection.cs",
+    839
+   ],
+   [
+    "Back Up/manual-20261026_2315-邮箱一键删除邮件/MirConnection.cs",
+    842
+   ]
+  ]
+ ],
+ [
+  "General",
+  "RelogDelay",
+  "50",
+  "RelogDelay",
+  10,
+  [
+   [
+    "Back Up/manual-20261022_0045-整理背包与守护石背包使用/source/MirConnection.cs",
+    985
+   ],
+   [
+    "Back Up/manual-20261022_0045-整理背包与守护石背包使用/source/MirConnection.cs",
+    987
+   ],
+   [
+    "Back Up/manual-20261025_0830-登出触发与离线挂机/source/MirConnection.cs",
+    985
+   ]
+  ]
+ ],
+ [
+  "General",
+  "GMPassword",
+  "@95470547",
+  "GMPassword",
+  13,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    19
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    19
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    19
+   ]
+  ]
+ ],
+ [
+  "General",
+  "Multithreaded",
+  "True",
+  "Multithreaded",
+  25,
+  [
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MapObject.cs",
+    355
+   ],
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MapObject.cs",
+    374
+   ],
+   [
+    "Back Up/manual-20261025_2224-在线列表状态列/SMain.cs",
+    75
+   ]
+  ]
+ ],
+ [
+  "General",
+  "ThreadLimit",
+  "2",
+  "ThreadLimit",
+  11,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    156
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    157
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Map.cs",
+    46
+   ]
+  ]
+ ],
+ [
+  "General",
+  "TestServer",
+  "False",
+  "TestServer",
+  406,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1186
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    2247
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    2274
+   ]
+  ]
+ ],
+ [
+  "General",
+  "EnforceDBChecks",
+  "True",
+  "EnforceDBChecks",
+  4,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    461
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    474
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Envir.cs",
+    536
+   ]
+  ]
+ ],
+ [
+  "General",
+  "MonsterProcessWhenAlone",
+  "False",
+  "MonsterProcessWhenAlone",
+  3,
+  [
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MonsterObject.cs",
+    1605
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/MonsterObject.cs",
+    1924
+   ],
+   [
+    "Server/MirObjects/MonsterObject.cs",
+    1949
+   ]
+  ]
+ ],
+ [
+  "General",
+  "Language",
+  "Chinese",
+  null,
+  0,
+  []
+ ],
+ [
+  "General",
+  "DuraLossRate",
+  "30",
+  "DuraLossRate",
+  9,
+  [
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/HumanObject.cs",
+    9564
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/HumanObject.cs",
+    9564
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/HumanObject.cs",
+    9580
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "IPAddress",
+  "0.0.0.0",
+  "IPAddress",
+  13,
+  [
+   [
+    "Back Up/manual-20261021_2010-修复启动崩溃与收包闪退/source/Network.cs",
+    51
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    1995
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2001
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "Port",
+  "7000",
+  "Port",
+  8,
+  [
+   [
+    "Back Up/manual-20261021_2010-修复启动崩溃与收包闪退/source/Network.cs",
+    51
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    1995
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    2115
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "TimeOut",
+  "30000",
+  "TimeOut",
+  21,
+  [
+   [
+    "Back Up/manual-20261021_2010-修复启动崩溃与收包闪退/source/Network.cs",
+    78
+   ],
+   [
+    "Back Up/manual-20261021_2010-修复启动崩溃与收包闪退/source/Network.cs",
+    250
+   ],
+   [
+    "Back Up/manual-20261021_2010-修复启动崩溃与收包闪退/source/Network.cs",
+    294
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "MaxUser",
+  "500",
+  "MaxUser",
+  6,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2190
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    2318
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Envir.cs",
+    2464
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "MaxIP",
+  "5",
+  "MaxIP",
+  4,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2163
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    2291
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Envir.cs",
+    2437
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "MaxPacket",
+  "50",
+  "MaxPacket",
+  4,
+  [
+   [
+    "Back Up/manual-20261022_0045-整理背包与守护石背包使用/source/MirConnection.cs",
+    203
+   ],
+   [
+    "Back Up/manual-20261025_0830-登出触发与离线挂机/source/MirConnection.cs",
+    203
+   ],
+   [
+    "Back Up/manual-20261026_2315-邮箱一键删除邮件/MirConnection.cs",
+    203
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "StartHTTPService",
+  "True",
+  "StartHTTPService",
+  12,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    596
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    626
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    678
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "HTTPIPAddress",
+  "http://0.0.0.0:5679/",
+  "HTTPIPAddress",
+  5,
+  [
+   [
+    "Server/Utils/HttpServer.cs",
+    15
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    46
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    452
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "HTTPTrustedIPAddress",
+  "0.0.0.0",
+  "HTTPTrustedIPAddress",
+  4,
+  [
+   [
+    "Server/Utils/HttpService.cs",
+    295
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    47
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    455
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "HttpTransport",
+  "auto",
+  "HttpTransport",
+  3,
+  [
+   [
+    "Server/Utils/HttpService.cs",
+    95
+   ],
+   [
+    "Server/Utils/HttpService.cs",
+    97
+   ],
+   [
+    "Tools/HttpBenchHost/Program.cs",
+    26
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "EnableResourceService",
+  "True",
+  "EnableResourceService",
+  16,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    596
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    601
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    678
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "ResourcePath",
+  ".\\ClientResources\\",
+  "ResourcePath",
+  22,
+  [
+   [
+    "Back Up/manual-20261025_0940-微端与补丁地址池/source/AMain.cs",
+    536
+   ],
+   [
+    "Back Up/manual-20261025_1115-Old残留文件清理崩溃修复/source/AMain.cs",
+    536
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    611
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "ResourceAllowAnyIP",
+  "True",
+  "ResourceAllowAnyIP",
+  6,
+  [
+   [
+    "Server/Utils/HttpService.cs",
+    293
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    45
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    449
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "ResourceMaxConcurrent",
+  "64",
+  "ResourceMaxConcurrent",
+  5,
+  [
+   [
+    "Server/Utils/HttpServer.cs",
+    1611
+   ],
+   [
+    "Server/Utils/HttpService.cs",
+    61
+   ],
+   [
+    "Server/Utils/HttpService.cs",
+    84
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "ResourceWriteTimeout",
+  "300",
+  "ResourceWriteTimeout",
+  2,
+  [
+   [
+    "Server/Utils/HttpService.cs",
+    787
+   ],
+   [
+    "Tools/HttpBenchHost/Program.cs",
+    32
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "ResourceBufferKB",
+  "64",
+  "ResourceBufferKB",
+  2,
+  [
+   [
+    "Server/Utils/HttpService.cs",
+    776
+   ],
+   [
+    "Tools/HttpBenchHost/Program.cs",
+    33
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "ResourceVerboseLog",
+  "False",
+  "ResourceVerboseLog",
+  4,
+  [
+   [
+    "Server/Utils/HttpServer.cs",
+    1535
+   ],
+   [
+    "Server/Utils/HttpServer.cs",
+    1544
+   ],
+   [
+    "Server/Utils/HttpService.cs",
+    282
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "ResourceMaxKBps",
+  "0",
+  "ResourceMaxKBps",
+  3,
+  [
+   [
+    "Server/Utils/HttpService.cs",
+    740
+   ],
+   [
+    "Server/Utils/HttpService.cs",
+    793
+   ],
+   [
+    "Server/Utils/HttpService.cs",
+    794
+   ]
+  ]
+ ],
+ [
+  "Network",
+  "HTTPQueryKey",
+  "",
+  "HTTPQueryKey",
+  9,
+  [
+   [
+    "Server/Utils/HttpServer.cs",
+    620
+   ],
+   [
+    "Server/Utils/HttpServer.cs",
+    620
+   ],
+   [
+    "Server/Utils/HttpServer.cs",
+    697
+   ]
+  ]
+ ],
+ [
+  "Permission",
+  "AllowNewAccount",
+  "True",
+  "AllowNewAccount",
+  10,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2224
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2308
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    2352
+   ]
+  ]
+ ],
+ [
+  "Permission",
+  "AllowChangePassword",
+  "True",
+  "AllowChangePassword",
+  6,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2357
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    2485
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Envir.cs",
+    2631
+   ]
+  ]
+ ],
+ [
+  "Permission",
+  "AllowLogin",
+  "True",
+  "AllowLogin",
+  10,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2414
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2503
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    2542
+   ]
+  ]
+ ],
+ [
+  "Permission",
+  "AllowNewCharacter",
+  "True",
+  "AllowNewCharacter",
+  6,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2552
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    2680
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Envir.cs",
+    2826
+   ]
+  ]
+ ],
+ [
+  "Permission",
+  "AllowDeleteCharacter",
+  "True",
+  "AllowDeleteCharacter",
+  6,
+  [
+   [
+    "Back Up/manual-20261022_0045-整理背包与守护石背包使用/source/MirConnection.cs",
+    910
+   ],
+   [
+    "Back Up/manual-20261025_0830-登出触发与离线挂机/source/MirConnection.cs",
+    910
+   ],
+   [
+    "Back Up/manual-20261026_2315-邮箱一键删除邮件/MirConnection.cs",
+    913
+   ]
+  ]
+ ],
+ [
+  "Permission",
+  "AllowStartGame",
+  "True",
+  "AllowStartGame",
+  6,
+  [
+   [
+    "Back Up/manual-20261022_0045-整理背包与守护石背包使用/source/MirConnection.cs",
+    942
+   ],
+   [
+    "Back Up/manual-20261025_0830-登出触发与离线挂机/source/MirConnection.cs",
+    942
+   ],
+   [
+    "Back Up/manual-20261026_2315-邮箱一键删除邮件/MirConnection.cs",
+    945
+   ]
+  ]
+ ],
+ [
+  "Permission",
+  "AllowCreateAssassin",
+  "True",
+  "AllowCreateAssassin",
+  6,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2607
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    2735
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Envir.cs",
+    2881
+   ]
+  ]
+ ],
+ [
+  "Permission",
+  "AllowCreateArcher",
+  "True",
+  "AllowCreateArcher",
+  6,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2608
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    2736
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Envir.cs",
+    2882
+   ]
+  ]
+ ],
+ [
+  "Permission",
+  "RequireStoragePassword",
+  "True",
+  null,
+  0,
+  []
+ ],
+ [
+  "Permission",
+  "MaxResolution",
+  "2560",
+  "AllowedResolution",
+  15,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1179
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    1182
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    1182
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "SafeZoneBorder",
+  "True",
+  "SafeZoneBorder",
+  6,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Map.cs",
+    555
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Map.cs",
+    562
+   ],
+   [
+    "Server/MirEnvir/Map.cs",
+    581
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "SafeZoneHealing",
+  "True",
+  "SafeZoneHealing",
+  6,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Map.cs",
+    584
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Map.cs",
+    593
+   ],
+   [
+    "Server/MirEnvir/Map.cs",
+    612
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "GatherOrbsPerLevel",
+  "True",
+  "GatherOrbsPerLevel",
+  16,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    4168
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    4184
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    4194
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "ExpMobLevelDifference",
+  "True",
+  "ExpMobLevelDifference",
+  8,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    2464
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    2490
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/HumanObject.cs",
+    2490
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "GameMasterEffect",
+  "True",
+  "GameMasterEffect",
+  3,
+  [
+   [
+    "Server/MirDatabase/BuffInfo.cs",
+    86
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    61
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    489
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "LineMessageTimer",
+  "10",
+  "LineMessageTimer",
+  10,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    555
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    796
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    637
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "EnableNoLamp",
+  "True",
+  "EnableNoLamp",
+  17,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14232
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    14345
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    14345
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "EnableWalkThrough",
+  "True",
+  "EnableWalkThrough",
+  27,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    2512
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14233
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    2538
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "EnableWalkThroughMonster",
+  "True",
+  "EnableWalkThroughMonster",
+  44,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    2514
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14233
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14238
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "EnableWalkThroughNPC",
+  "True",
+  "EnableWalkThroughNPC",
+  44,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    2516
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14233
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14239
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "EnableWalkThroughWall",
+  "False",
+  "EnableWalkThroughWall",
+  46,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    2514
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14233
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14240
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "EnableOverWeight",
+  "True",
+  "EnableOverWeight",
+  17,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14235
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    14348
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    14348
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "EnableMountTai",
+  "True",
+  "EnableMountTai",
+  17,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    14236
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    14349
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    14349
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "CleanZeroDuraOnLogin",
+  "True",
+  "CleanZeroDuraOnLogin",
+  4,
+  [
+   [
+    "Server/MirObjects/ZeroDuraCleaner.cs",
+    211
+   ],
+   [
+    "Tools/ZeroDuraTest/Program.cs",
+    119
+   ],
+   [
+    "Tools/ZeroDuraTest/Program.cs",
+    142
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "TameSuccessRate",
+  "100",
+  "TameSuccessRate",
+  10,
+  [
+   [
+    "Server/MirObjects/HumanObject.cs",
+    4598
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    71
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    501
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "TameIgnoreLevelLimit",
+  "True",
+  "TameIgnoreLevelLimit",
+  11,
+  [
+   [
+    "Server/MirObjects/HumanObject.cs",
+    4622
+   ],
+   [
+    "Server/MirObjects/HumanObject.cs",
+    4662
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    72
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "TameIgnoreHpPenalty",
+  "True",
+  "TameIgnoreHpPenalty",
+  10,
+  [
+   [
+    "Server/MirObjects/HumanObject.cs",
+    4679
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    73
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    503
+   ]
+  ]
+ ],
+ [
+  "Optional",
+  "TameIgnoreUntameable",
+  "True",
+  "TameIgnoreUntameable",
+  11,
+  [
+   [
+    "Server/MirObjects/HumanObject.cs",
+    4619
+   ],
+   [
+    "Server/MirObjects/HumanObject.cs",
+    4659
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    74
+   ]
+  ]
+ ],
+ [
+  "Database",
+  "SaveDelay",
+  "1",
+  "SaveDelay",
+  11,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    553
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    777
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    635
+   ]
+  ]
+ ],
+ [
+  "Database",
+  "CredxGold",
+  "30",
+  "CredxGold",
+  7,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    2913
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    3041
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/Envir.cs",
+    3187
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "DropRate",
+  "0",
+  "DropRate",
+  31,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    11908
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    11946
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    12021
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "ExpRate",
+  "200",
+  "ExpRate",
+  29,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    839
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    881
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    842
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "ItemTimeOut",
+  "2",
+  "ItemTimeOut",
+  11,
+  [
+   [
+    "Back Up/manual-20261019_2345-物品过滤/Server/ItemObject.cs",
+    58
+   ],
+   [
+    "Back Up/manual-20261019_2345-物品过滤/Server/ItemObject.cs",
+    85
+   ],
+   [
+    "Back Up/manual-20261019_2345-物品过滤/Server/ItemObject.cs",
+    112
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "PlayerDiedItemTimeOut",
+  "120",
+  "PlayerDiedItemTimeOut",
+  5,
+  [
+   [
+    "Back Up/manual-20261019_2345-物品过滤/Server/ItemObject.cs",
+    56
+   ],
+   [
+    "Server/MirObjects/ItemObject.cs",
+    56
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    81
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "CorpseTime",
+  "180",
+  "CorpseTime",
+  9,
+  [
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MonsterObject.cs",
+    613
+   ],
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MonsterObject.cs",
+    614
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/MonsterObject.cs",
+    919
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "PetSave",
+  "False",
+  "PetSave",
+  87,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    4373
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    285
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    287
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "MaxBossTames",
+  "1",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "PKDelay",
+  "12",
+  "PKDelay",
+  2,
+  [
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MapObject.cs",
+    227
+   ],
+   [
+    "Server/MirObjects/MapObject.cs",
+    227
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "MonsterRecallEnabled",
+  "True",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "MonsterRecallRange",
+  "12",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "MonsterRecallCooldown",
+  "5000",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "NewbieGuild",
+  "新人公会",
+  "NewbieGuild",
+  80,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    574
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    941
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    3399
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "NewbieGuildMaxSize",
+  "1000",
+  "NewbieGuildMaxSize",
+  2,
+  [
+   [
+    "Server/MirDatabase/GuildInfo.cs",
+    59
+   ],
+   [
+    "Server/MirDatabase/GuildInfo.cs",
+    155
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "SkeletonName",
+  "变异骷髅",
+  "SkeletonName",
+  38,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    4669
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    5372
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    5384
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "BugBatName",
+  "小蝙蝠",
+  "BugBatName",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    465
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    465
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    478
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "ShinsuName",
+  "神兽",
+  "ShinsuName",
+  39,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    4669
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    5416
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    5428
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Zuma1",
+  "祖玛雕像",
+  "Zuma1",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    466
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    466
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    479
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Zuma2",
+  "祖玛卫士",
+  "Zuma2",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    467
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    467
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    480
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Zuma3",
+  "祖玛弓箭手",
+  "Zuma3",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    468
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    468
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    481
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Zuma4",
+  "楔蛾",
+  "Zuma4",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    469
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    469
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    482
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Zuma5",
+  "祖玛弓箭手3",
+  "Zuma5",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    470
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    470
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    483
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Zuma6",
+  "祖玛雕像3",
+  "Zuma6",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    471
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    471
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    484
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Zuma7",
+  "祖玛卫士3",
+  "Zuma7",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    472
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    472
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    485
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Turtle1",
+  "红龟",
+  "Turtle1",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    473
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    473
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    486
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Turtle2",
+  "绿龟",
+  "Turtle2",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    474
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    474
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    487
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Turtle3",
+  "蓝龟",
+  "Turtle3",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    475
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    475
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    488
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Turtle4",
+  "塔龟",
+  "Turtle4",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    476
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    476
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    489
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Turtle5",
+  "寿龟",
+  "Turtle5",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    477
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    477
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    490
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "BoneMonster1",
+  "骷髅士兵",
+  "BoneMonster1",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    478
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    478
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    491
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "BoneMonster2",
+  "骷髅武士",
+  "BoneMonster2",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    479
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    479
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    492
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "BoneMonster3",
+  "骷髅弓箭手",
+  "BoneMonster3",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    480
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    480
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    493
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "BoneMonster4",
+  "骷髅武将",
+  "BoneMonster4",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    481
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    481
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    494
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "BehemothMonster1",
+  "抱脸虫1",
+  "BehemothMonster1",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    482
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    482
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    495
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "BehemothMonster2",
+  "抱脸虫2",
+  "BehemothMonster2",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    483
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    483
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    496
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "BehemothMonster3",
+  "抱脸虫3",
+  "BehemothMonster3",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    484
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    484
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    497
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HellKnight1",
+  "玄冰守护将",
+  "HellKnight1",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    485
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    485
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    498
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HellKnight2",
+  "魔焰守护将",
+  "HellKnight2",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    486
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    486
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    499
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HellKnight3",
+  "暗黑守护将",
+  "HellKnight3",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    487
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    487
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    500
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HellKnight4",
+  "光明守护将",
+  "HellKnight4",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    488
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    488
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    501
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HellBomb1",
+  "冰弹",
+  "HellBomb1",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    489
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    489
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    502
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HellBomb2",
+  "雷弹",
+  "HellBomb2",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    490
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    490
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    503
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HellBomb3",
+  "焰弹",
+  "HellBomb3",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    491
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    491
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    504
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "GeneralMeowMeowMob1",
+  "铁锤猫卫",
+  "GeneralMeowMeowMob1",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    502
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    502
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    515
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "GeneralMeowMeowMob2",
+  "黑锤猫卫",
+  "GeneralMeowMeowMob2",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    503
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    503
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    516
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "GeneralMeowMeowMob3",
+  "陵庙刀卫",
+  "GeneralMeowMeowMob3",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    504
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    504
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    517
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "GeneralMeowMeowMob4",
+  "陵庙巫师",
+  "GeneralMeowMeowMob4",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    505
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    505
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    518
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "KingHydraxMob",
+  "大蟒",
+  "KingHydraxMob",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    506
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    506
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    519
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Mon409BMob1",
+  "魔风旋",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "Mon409BMob2",
+  "魔角大巫",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "Mon409BBombMob",
+  "岩弹",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "SnowWolfKingMob",
+  "雪狼",
+  "SnowWolfKingMob",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    510
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    510
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    523
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "CallScrollMob",
+  "冰蛇",
+  "CallScrollMob",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    511
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    511
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    524
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "ShardMaidenMob1",
+  "地宫勇士",
+  "ShardMaidenMob1",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    512
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    512
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    525
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "ShardMaidenMob2",
+  "地宫修道者",
+  "ShardMaidenMob2",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    513
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    513
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    526
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "ShardMaidenMob3",
+  "冰封学者",
+  "ShardMaidenMob3",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    514
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    514
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    527
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "ShardMaidenMob4",
+  "冰封贤者",
+  "ShardMaidenMob4",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    515
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    515
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    528
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Mon570BMob",
+  "江白1",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "Mon573BMob",
+  "飞燕魔蛛",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "Mon580BMob",
+  "冰墙1",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "Mon603BMob",
+  "变异骨怪",
+  null,
+  0,
+  []
+ ],
+ [
+  "Game",
+  "Mon637BMob",
+  "海之蜈蚣",
+  "Mon637BMob",
+  1,
+  [
+   [
+    "Server/MirObjects/Monsters/Mon637B.cs",
+    17
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "WhiteSnake",
+  "白蛇",
+  "WhiteSnake",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    492
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    492
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    505
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "AngelName",
+  "月灵",
+  "AngelName",
+  38,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    4669
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    5721
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    5733
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "BombSpiderName",
+  "炸弹蜘蛛",
+  "BombSpiderName",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    494
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    494
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    507
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "CloneName",
+  "Clone",
+  "CloneName",
+  67,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    5243
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    5250
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    313
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "FishMonster",
+  "巨型多角虫",
+  "FishingMonster",
+  27,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    10768
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    10881
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    10881
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "AssassinCloneName",
+  "AssassinClone",
+  "AssassinCloneName",
+  39,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    6489
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    6495
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    293
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "VampireName",
+  "血蛛",
+  "VampireName",
+  24,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8124
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8137
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    8150
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "ToadName",
+  "火蟾",
+  "ToadName",
+  24,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8124
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8137
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    8150
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "SnakeTotemName",
+  "蛇柱",
+  "SnakeTotemName",
+  24,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8124
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8137
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    8150
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "SnakesName",
+  "魅蛇",
+  "SnakesName",
+  1,
+  [
+   [
+    "Server/MirObjects/Monsters/SnakeTotem.cs",
+    134
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "StoneName",
+  "蜘蛛柱",
+  "StoneName",
+  40,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    7062
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    7064
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    7067
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "AncientBatName",
+  "恶魔蝙蝠",
+  "AncientBatName",
+  1,
+  [
+   [
+    "Server/MirObjects/Monsters/AncientBringer.cs",
+    164
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "TucsonGeneralEgg",
+  "瘟疫统领",
+  "TucsonGeneralEgg",
+  1,
+  [
+   [
+    "Server/MirObjects/Monsters/TucsonEgg.cs",
+    204
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "GroupInviteDelay",
+  "2000",
+  "GroupInviteDelay",
+  13,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    9144
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    9257
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    9257
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "TradeDelay",
+  "2000",
+  "TradeDelay",
+  13,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    10249
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    10362
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    10362
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "TeleportToNPCCost",
+  "3000",
+  "TeleportToNPCCost",
+  26,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1067
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    7530
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    1070
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HeroName",
+  "Hero",
+  "HeroName",
+  0,
+  []
+ ],
+ [
+  "Game",
+  "HornedCommanderMob1",
+  "魔风旋",
+  "HornedCommanderMob1",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    507
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    507
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    520
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HornedCommanderMob2",
+  "魔角大巫",
+  "HornedCommanderMob2",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    508
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    508
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    521
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HornedCommanderBombMob",
+  "岩弹",
+  "HornedCommanderBombMob",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    509
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    509
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    522
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Mon570NMirrorImageMob",
+  "江白1",
+  "Mon570NMirrorImageMob",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    516
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    516
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    529
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "Mon573NMob",
+  "飞燕魔蛛",
+  "Mon573NMob",
+  9,
+  [
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    517
+   ],
+   [
+    "Back Up/manual-20261026_1520-地图热重载/Envir.cs",
+    517
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/Envir.cs",
+    530
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HighLevelExpRate",
+  "90",
+  "HighLevelExpRate",
+  55,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    842
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    843
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    882
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "HighLevelExpRateMinLevel",
+  "60",
+  "HighLevelExpRateMinLevel",
+  27,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    842
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    882
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    845
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "DeathExpLossRate",
+  "0",
+  "DeathExpLossRate",
+  28,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    667
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    669
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    670
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "CloneSmartSkill",
+  "True",
+  "CloneSmartSkill",
+  2,
+  [
+   [
+    "Back Up/manual-20261028_2320-分身智能技能/HumanWizard.cs",
+    92
+   ],
+   [
+    "Server/MirObjects/Monsters/HumanWizard.cs",
+    173
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "CloneSkillMpCost",
+  "30",
+  "CloneSkillMpCost",
+  4,
+  [
+   [
+    "Back Up/manual-20261028_2320-分身智能技能/HumanWizard.cs",
+    508
+   ],
+   [
+    "Server/MirObjects/Monsters/HumanWizard.cs",
+    649
+   ],
+   [
+    "Tools/CloneProbe/Program.cs",
+    72
+   ]
+  ]
+ ],
+ [
+  "Game",
+  "PetDieWithMaster",
+  "False",
+  "PetDieWithMaster",
+  3,
+  [
+   [
+    "Server/MirObjects/PlayerObject.cs",
+    368
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    75
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    507
+   ]
+  ]
+ ],
+ [
+  "Rested",
+  "Period",
+  "60",
+  "RestedPeriod",
+  26,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    467
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    473
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    470
+   ]
+  ]
+ ],
+ [
+  "Rested",
+  "BuffLength",
+  "10",
+  "RestedBuffLength",
+  26,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1419
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1420
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    1422
+   ]
+  ]
+ ],
+ [
+  "Rested",
+  "ExpBonus",
+  "5",
+  "RestedExpBonus",
+  13,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1424
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    1427
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    1427
+   ]
+  ]
+ ],
+ [
+  "Rested",
+  "MaxBonus",
+  "24",
+  "RestedMaxBonus",
+  13,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1420
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    1423
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    1423
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "HealRing",
+  "Healing",
+  "HealRing",
+  24,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    1860
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    1922
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    2016
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "FireRing",
+  "FireBall",
+  "FireRing",
+  24,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    1860
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    1921
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    2015
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "BlinkSkill",
+  "Blink",
+  "BlinkSkill",
+  24,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    1860
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    1923
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    2017
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "MagicResistWeight",
+  "10",
+  "MagicResistWeight",
+  12,
+  [
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MapObject.cs",
+    496
+   ],
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MapObject.cs",
+    509
+   ],
+   [
+    "Server/MirObjects/MapObject.cs",
+    489
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "PoisonResistWeight",
+  "10",
+  "PoisonResistWeight",
+  19,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8812
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    8838
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/HumanObject.cs",
+    8838
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "CriticalRateWeight",
+  "10",
+  "CriticalRateWeight",
+  13,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8584
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    8610
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/HumanObject.cs",
+    8610
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "CriticalDamageWeight",
+  "10",
+  "CriticalDamageWeight",
+  13,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8587
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    8613
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/HumanObject.cs",
+    8613
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "FreezingAttackWeight",
+  "10",
+  "FreezingAttackWeight",
+  4,
+  [
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MapObject.cs",
+    535
+   ],
+   [
+    "Server/MirObjects/MapObject.cs",
+    528
+   ],
+   [
+    "Server.MirForms/BalanceConfigForm.cs",
+    80
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "PoisonAttackWeight",
+  "10",
+  "PoisonAttackWeight",
+  30,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    6654
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    6732
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8234
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "HealthRegenWeight",
+  "10",
+  "HealthRegenWeight",
+  10,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    597
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    602
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/HumanObject.cs",
+    602
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "ManaRegenWeight",
+  "10",
+  "ManaRegenWeight",
+  10,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    603
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    608
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/HumanObject.cs",
+    608
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "MaxLuck",
+  "10",
+  "MaxLuck",
+  30,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    1012
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    632
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    1024
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "SealDelay",
+  "60",
+  "ItemSealDelay",
+  13,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    7189
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    7302
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    7302
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "PvpCanResistMagic",
+  "False",
+  "PvpCanResistMagic",
+  2,
+  [
+   [
+    "Server.MirForms/BalanceConfigForm.cs",
+    86
+   ],
+   [
+    "Server.MirForms/BalanceConfigForm.cs",
+    338
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "PvpCanResistPoison",
+  "False",
+  "PvpCanResistPoison",
+  36,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    6654
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    6732
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    8233
+   ]
+  ]
+ ],
+ [
+  "Items",
+  "PvpCanFreeze",
+  "False",
+  "PvpCanFreeze",
+  12,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    7834
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    7860
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/HumanObject.cs",
+    7860
+   ]
+  ]
+ ],
+ [
+  "PKTown",
+  "PKTownMapName",
+  "3",
+  "PKTownMapName",
+  26,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    250
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1451
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    253
+   ]
+  ]
+ ],
+ [
+  "PKTown",
+  "PKTownPositionX",
+  "848",
+  "PKTownPositionX",
+  26,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    251
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1452
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    254
+   ]
+  ]
+ ],
+ [
+  "PKTown",
+  "PKTownPositionY",
+  "677",
+  "PKTownPositionY",
+  26,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    251
+   ],
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    1452
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    254
+   ]
+  ]
+ ],
+ [
+  "DropGold",
+  "DropGold",
+  "True",
+  "DropGold",
+  5,
+  [
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MonsterObject.cs",
+    1111
+   ],
+   [
+    "Back Up/manual-20261104_1020-地图内存阶段一二/MonsterObject.cs",
+    1421
+   ],
+   [
+    "Server/MirObjects/MonsterObject.cs",
+    1446
+   ]
+  ]
+ ],
+ [
+  "DropGold",
+  "MaxDropGold",
+  "2000",
+  "MaxDropGold",
+  12,
+  [
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MonsterObject.cs",
+    1117
+   ],
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MonsterObject.cs",
+    1117
+   ],
+   [
+    "Back Up/manual-20261020_0005-数字显血绝对值/MonsterObject.cs",
+    1120
+   ]
+  ]
+ ],
+ [
+  "Bonus",
+  "RangeAccuracyBonus",
+  "0",
+  "RangeAccuracyBonus",
+  8,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/HumanObject.cs",
+    2956
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/HumanObject.cs",
+    2982
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/HumanObject.cs",
+    2982
+   ]
+  ]
+ ],
+ [
+  "IntelligentCreatures",
+  "CreatureBlackStoneName",
+  "蓝色生物石",
+  "CreatureBlackStoneName",
+  13,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    11860
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    11973
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    11973
+   ]
+  ]
+ ],
+ [
+  "Observe",
+  "AllowObserve",
+  "False",
+  "AllowObserve",
+  21,
+  [
+   [
+    "Back Up/manual-20261019_2230-四石头/PlayerObject.cs",
+    2495
+   ],
+   [
+    "Back Up/manual-20261019_2315-石头装备化/PlayerObject.cs",
+    2498
+   ],
+   [
+    "Back Up/manual-20261019_2325-石头进石头格/PlayerObject.cs",
+    2498
+   ]
+  ]
+ ],
+ [
+  "Archive",
+  "InactiveCharacterMonths",
+  "12",
+  "ArchiveInactiveCharacterAfterMonths",
+  4,
+  [
+   [
+    "Server/MirDatabase/AccountInfo.cs",
+    128
+   ],
+   [
+    "Server/MirDatabase/AccountInfo.cs",
+    130
+   ],
+   [
+    "Server/MirDatabase/AccountInfo.cs",
+    135
+   ]
+  ]
+ ],
+ [
+  "Archive",
+  "DeletedCharacterMonths",
+  "1",
+  "ArchiveDeletedCharacterAfterMonths",
+  2,
+  [
+   [
+    "Server/MirDatabase/AccountInfo.cs",
+    121
+   ],
+   [
+    "Server/MirDatabase/AccountInfo.cs",
+    123
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "Enabled",
+  "True",
+  "FakePlayerEnabled",
+  27,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    116
+   ],
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    1783
+   ],
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    1887
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "Count",
+  "300",
+  "FakePlayerCount",
+  3,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    118
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    321
+   ],
+   [
+    "Server.MirForms/ConfigForm.cs",
+    391
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "LevelMin",
+  "32",
+  "FakePlayerLevelMin",
+  2,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    552
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    834
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "LevelMax",
+  "45",
+  "FakePlayerLevelMax",
+  2,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    553
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    835
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "Maps",
+  "0,1,2,3",
+  "FakePlayerMaps",
+  2,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    409
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    688
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "Chat",
+  "True",
+  "FakePlayerChat",
+  2,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    117
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    320
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "RandomLogin",
+  "True",
+  "FakePlayerRandomLogin",
+  2,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    202
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    477
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "ChatFile",
+  "FakePlayerChat.txt",
+  "FakePlayerChatFile",
+  2,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    1707
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    2219
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "EquipFile",
+  "FakePlayerEquip.txt",
+  "FakePlayerEquipFile",
+  3,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    1390
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    1902
+   ],
+   [
+    "Tools/AmuletProbe/Program.cs",
+    49
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "PK",
+  "True",
+  "FakePlayerPK",
+  6,
+  [
+   [
+    "Back Up/manual-20261025_1600-假人StepTo空引用防御/source/FakePlayerBrain.cs",
+    374
+   ],
+   [
+    "Back Up/manual-20261025_1600-假人StepTo空引用防御/source/FakePlayerBrain.cs",
+    874
+   ],
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    1810
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "PKChance",
+  "6",
+  "FakePlayerPKChance",
+  2,
+  [
+   [
+    "Back Up/manual-20261025_1600-假人StepTo空引用防御/source/FakePlayerBrain.cs",
+    374
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerBrain.cs",
+    379
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "Follow",
+  "True",
+  "FakePlayerFollow",
+  4,
+  [
+   [
+    "Back Up/manual-20261025_1600-假人StepTo空引用防御/source/FakePlayerBrain.cs",
+    448
+   ],
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    1810
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerBrain.cs",
+    453
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "Spawns",
+  "",
+  "FakePlayerSpawns",
+  2,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    267
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    546
+   ]
+  ]
+ ],
+ [
+  "FakePlayer",
+  "SpawnFile",
+  "FakePlayerSpawns.txt",
+  "FakePlayerSpawnFile",
+  2,
+  [
+   [
+    "Back Up/manual-20261025_1816-假人离线挂机互斥/FakePlayerManager.cs",
+    270
+   ],
+   [
+    "Server/MirObjects/Player/FakePlayerManager.cs",
+    549
+   ]
+  ]
+ ],
+ [
+  "Hero",
+  "SmartAI",
+  "True",
+  "SmartHeroAI",
+  5,
+  [
+   [
+    "Back Up/manual-20261025_1707-超级祝福油/HeroObject.cs",
+    1040
+   ],
+   [
+    "Back Up/manual-20261026_2000-修理神水+内挂三页/HeroObject.cs",
+    1047
+   ],
+   [
+    "Back Up/manual-20261028_2300-英雄技能AI/HeroObject.cs",
+    1101
+   ]
+  ]
+ ],
+ [
+  "Hero",
+  "AutoSkill",
+  "True",
+  "HeroAutoSkill",
+  8,
+  [
+   [
+    "Back Up/manual-20261025_1707-超级祝福油/HeroObject.cs",
+    320
+   ],
+   [
+    "Back Up/manual-20261026_2000-修理神水+内挂三页/HeroObject.cs",
+    320
+   ],
+   [
+    "Back Up/manual-20261028_2300-英雄技能AI/HeroObject.cs",
+    328
+   ]
+  ]
+ ],
+ [
+  "Hero",
+  "DodgePercent",
+  "30",
+  "HeroDodgePercent",
+  5,
+  [
+   [
+    "Back Up/manual-20261025_1707-超级祝福油/HeroObject.cs",
+    1043
+   ],
+   [
+    "Back Up/manual-20261026_2000-修理神水+内挂三页/HeroObject.cs",
+    1050
+   ],
+   [
+    "Back Up/manual-20261028_2300-英雄技能AI/HeroObject.cs",
+    1104
+   ]
+  ]
+ ],
+ [
+  "Hero",
+  "PushMinSurround",
+  "3",
+  "HeroPushMinSurround",
+  5,
+  [
+   [
+    "Back Up/manual-20261025_1707-超级祝福油/HeroObject.cs",
+    1053
+   ],
+   [
+    "Back Up/manual-20261026_2000-修理神水+内挂三页/HeroObject.cs",
+    1060
+   ],
+   [
+    "Back Up/manual-20261028_2300-英雄技能AI/HeroObject.cs",
+    1114
+   ]
+  ]
+ ],
+ [
+  "Hero",
+  "PushCooldownMs",
+  "8000",
+  "HeroPushCooldownMs",
+  5,
+  [
+   [
+    "Back Up/manual-20261025_1707-超级祝福油/HeroObject.cs",
+    1067
+   ],
+   [
+    "Back Up/manual-20261026_2000-修理神水+内挂三页/HeroObject.cs",
+    1074
+   ],
+   [
+    "Back Up/manual-20261028_2300-英雄技能AI/HeroObject.cs",
+    1128
+   ]
+  ]
+ ],
+ [
+  "OfflineAFK",
+  "Enabled",
+  "True",
+  "OfflineAfkEnabled",
+  40,
+  [
+   [
+    "Back Up/manual-20261026_2315-邮箱一键删除邮件/PlayerObject.cs",
+    161
+   ],
+   [
+    "Back Up/manual-20261026_2315-邮箱一键删除邮件/PlayerObject.cs",
+    164
+   ],
+   [
+    "Back Up/manual-20261026_2315-邮箱一键删除邮件/PlayerObject.cs",
+    314
+   ]
+  ]
+ ],
+ [
+  "OfflineAFK",
+  "NoConsumableDura",
+  "True",
+  "OfflineAfkNoConsumableDura",
+  23,
+  [
+   [
+    "Back Up/manual-20261026_2315-邮箱一键删除邮件/PlayerObject.cs",
+    161
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/PlayerObject.cs",
+    161
+   ],
+   [
+    "Back Up/manual-20261028_2300-英雄技能AI/HeroObject.cs",
+    35
+   ]
+  ]
+ ],
+ [
+  "OfflineAFK",
+  "NoEquipDura",
+  "True",
+  "OfflineAfkNoEquipDura",
+  25,
+  [
+   [
+    "Back Up/manual-20261026_2315-邮箱一键删除邮件/PlayerObject.cs",
+    164
+   ],
+   [
+    "Back Up/manual-20261027_0000-英雄BUFF存盘/PlayerObject.cs",
+    164
+   ],
+   [
+    "Back Up/manual-20261028_2300-英雄技能AI/HeroObject.cs",
+    38
+   ]
+  ]
+ ]
+]

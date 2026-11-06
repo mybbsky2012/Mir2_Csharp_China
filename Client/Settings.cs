@@ -165,6 +165,8 @@ namespace Client
             SimpleMonster = false,
             // 免shift（内挂第 3 页）：点玩家/宝宝不再需要按住 Shift 就直接攻击
             NoShift = false,
+            // 只显示身边 1 格内的玩家（内挂第 3 页）：纯本地渲染过滤，防同屏大量玩家卡屏
+            NearPlayerOnly = false,
             DisplayBodyName = false,
             NewMove = false,
             // 地面物品名字过滤：只显示 Data\ItemFilter.txt 列表里匹配到的物品（内挂面板勾选）
@@ -399,6 +401,7 @@ namespace Client
             SimplePlayer = Reader.ReadBoolean("Game", "SimplePlayer", SimplePlayer);
             SimpleMonster = Reader.ReadBoolean("Game", "SimpleMonster", SimpleMonster);
             NoShift = Reader.ReadBoolean("Game", "NoShift", NoShift);
+            NearPlayerOnly = Reader.ReadBoolean("Game", "NearPlayerOnly", NearPlayerOnly);
             QualityEffectOn = Reader.ReadBoolean("Game", "QualityEffect", QualityEffectOn);
             MonsterEffectOn = Reader.ReadBoolean("Game", "MonsterEffect", MonsterEffectOn);
             LogoutCombatDelay = Reader.ReadBoolean("Game", "LogoutCombatDelay", LogoutCombatDelay);
@@ -652,6 +655,7 @@ namespace Client
             Reader.Write("Game", "SimplePlayer", SimplePlayer);
             Reader.Write("Game", "SimpleMonster", SimpleMonster);
             Reader.Write("Game", "NoShift", NoShift);
+            Reader.Write("Game", "NearPlayerOnly", NearPlayerOnly);
             Reader.Write("Game", "QualityEffect", QualityEffectOn);
             Reader.Write("Game", "MonsterEffect", MonsterEffectOn);
             Reader.Write("Game", "LogoutCombatDelay", LogoutCombatDelay);

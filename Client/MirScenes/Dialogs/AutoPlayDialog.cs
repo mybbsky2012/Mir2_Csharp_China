@@ -61,6 +61,9 @@ namespace Client.MirScenes.Dialogs
         // 免shift（纯本地输入判定：点玩家/宝宝不再需要按住 Shift）
         public MirCheckBox NoShiftBox;
 
+        // 只显示身边 1 格内的玩家（纯本地渲染过滤，防同屏大量玩家卡屏）
+        public MirCheckBox NearPlayerBox;
+
         public MirLabel HintLabel;
 
         public AutoPlayDialog()
@@ -605,9 +608,29 @@ namespace Client.MirScenes.Dialogs
                     : "怪物简装已关闭");
             };
 
-            Reg(P, CreateHint(336, "自动捡物：未开总开关只捡脚下；开了主动去捡但只捡过滤表内物品。右列需服务器开放。", 30));
-            Reg(P, CreateHint(368, "简装只改本地显示：怪物攻击、掉落、名字血条全部照常；卫士·弓箭手·练功师保持原样。", 28));
-            Reg(P, CreateHint(398, "免shift只改本地点人的判定：点玩家/宝宝照打，点地面照走。", 22));
+            // ── 只显示 1 格内玩家（第 5 行）────────────────────
+            // 纯本地渲染过滤：勾上后，超出自己身边 1 格（含斜向 8 格）的其他玩家整条不画，
+            // 怪物/NPC/掉落/宝宝/英雄照常显示。防同屏大量玩家（尤其假人）把帧数拖垮。
+            // 常显白名单（MapObject.NearPlayerKeepVisible）：队友、同会、鼠标指向、当前目标/魔法锁定。
+            NearPlayerBox = Reg(P, CreateBox(26, 340, "只显示1格内玩家", Settings.NearPlayerOnly));
+            NearPlayerBox.Click += (o, e) =>
+            {
+                Settings.NearPlayerOnly = NearPlayerBox.Checked;
+                Settings.Save();
+
+                // 立刻生效：世界层（MapControl）是整屏缓存到 RenderTarget 的，只 Redraw 场景不重画地图，
+                // 勾上后会「看着没反应」，要等下次有人走动才刷新。
+                GameScene.Scene.Redraw();
+                if (GameScene.Scene.MapControl != null && !GameScene.Scene.MapControl.IsDisposed)
+                    GameScene.Scene.MapControl.TextureValid = false;
+
+                GameScene.Scene.OutputMessage(Settings.NearPlayerOnly
+                    ? "只显示1格内玩家已开启：1 格以外的玩家不显示；队友、同会、鼠标指向、当前目标（含魔法锁定）仍然常显（怪物、NPC、掉落、宝宝、英雄照常；仅本地显示，不影响别人和战斗判定）"
+                    : "只显示1格内玩家已关闭：恢复正常显示视野内所有玩家");
+            };
+
+            Reg(P, CreateHint(360, "自动捡物：未开总开关只捡脚下；开了主动去捡但只捡过滤表内物品。右列需服务器开放。", 28));
+            Reg(P, CreateHint(392, "1格内玩家：队友/行会/指向/目标常显。简装、免shift只改本地：攻击掉落照常，点玩家照打。", 32));
         }
         // ══════════════════════════════════════════════════
         // 控件工厂
@@ -842,6 +865,7 @@ namespace Client.MirScenes.Dialogs
             if (NoShiftBox != null && !NoShiftBox.IsDisposed) NoShiftBox.Checked = Settings.NoShift;
             if (SimplePlayerBox != null && !SimplePlayerBox.IsDisposed) SimplePlayerBox.Checked = Settings.SimplePlayer;
             if (SimpleMonsterBox != null && !SimpleMonsterBox.IsDisposed) SimpleMonsterBox.Checked = Settings.SimpleMonster;
+            if (NearPlayerBox != null && !NearPlayerBox.IsDisposed) NearPlayerBox.Checked = Settings.NearPlayerOnly;
 
             NoLampBox.Enabled = GameScene.NoLampAllowed;
             WalkThroughBox.Enabled = GameScene.WalkThroughAllowed || GameScene.WalkThroughMonsterAllowed

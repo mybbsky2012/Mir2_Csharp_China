@@ -60,6 +60,10 @@ namespace Client.MirScenes
         private bool _playerOptionsRestored;
         private readonly int _playerOptionsRestoreTime = unchecked(Environment.TickCount + 1500);
 
+        //★11-06 登录公告：收到 S.UpdateNotice 时世界还没画出来（载入画面盖着），
+        //  先暂存，等世界就绪（角色+地板）再弹，保证「进游戏那一刻」一定看得到（见 TryShowPendingLoginNotice）。
+        private Notice _pendingLoginNotice;
+
         private bool hasHero;
         public bool HasHero
         {
@@ -1269,6 +1273,9 @@ namespace Client.MirScenes
                 if (CMain.Time - LoadingScreen.ShownTime >= LoadingScreen.MinShowTime)
                     LoadingScreen.Hide();
             }
+
+            //★11-06 登录公告：世界就绪后立刻弹出暂存的公告（内部自带一次性保护）
+            TryShowPendingLoginNotice();
 
             if (User == null)
                 return;
@@ -10820,7 +10827,34 @@ namespace Client.MirScenes
 
         public void ShowNotice(S.UpdateNotice p)
         {
-            NoticeDialog.Update(p.Notice);
+            //★11-06：以前收到包就直接 NoticeDialog.Update（Visible=true），此时载入画面还盖着，
+            //  公告窗在黑屏底下提前点亮；一旦这条链路任何一环时序有差，玩家看到的就是“没有公告”。
+            //  现在只暂存，由 Process 在世界就绪后统一弹出（TryShowPendingLoginNotice），
+            //  时机=进游戏那一刻（载入画面撤下的同时），和其它私服的体验一致。
+            Client.Utils.LoginTrace.Mark("收到登录公告 len=" +
+                (p.Notice == null || p.Notice.Message == null ? 0 : p.Notice.Message.Length));
+
+            _pendingLoginNotice = p.Notice;
+        }
+
+        /// <summary>
+        /// 世界就绪（角色+地板画出来）后把暂存的登录公告弹出来。只弹一次，弹完即清。
+        /// </summary>
+        private void TryShowPendingLoginNotice()
+        {
+            if (_pendingLoginNotice == null) return;
+            if (MapControl == null || MapControl.IsDisposed || User == null || !MapControl.FloorValid) return;
+
+            Notice notice = _pendingLoginNotice;
+            _pendingLoginNotice = null;
+
+            NoticeDialog.Update(notice);
+            if (NoticeDialog.Visible)
+            {
+                NoticeDialog.BringToFront();
+                Client.Utils.LoginTrace.Mark("登录公告弹出 lines=" +
+                    notice.Message.Split(new[] { "\r\n" }, StringSplitOptions.None).Length);
+            }
         }
 
         #region Disposable
@@ -10992,6 +11026,11 @@ namespace Client.MirScenes
                 nextAction = value;
             }
         }
+
+        /// <summary>
+        /// 缓存贴图重建时检测到「加法混合状态泄漏」的次数（只用来限流日志，最多记 5 次）。
+        /// </summary>
+        private int _blendLeakCount;
 
         public CellInfo[,] M2CellInfo;
         public List<Door> Doors = new List<Door>();
@@ -11351,6 +11390,25 @@ namespace Client.MirScenes
         {
             if (User == null) return;
 
+            //★残影防护（11-06）：重建缓存贴图前先把加法混合强制关掉。
+            //  只要绘制路径里有一处 SetBlend(true) 之后抛异常或提前 return（DrawBlend、DrawTinted、
+            //  特效剪影采样都可能），DXManager.Blending 就会一直停在 true；那这次重建剩下的绘制
+            //  全部走加法混合（半透明发黄），并且被烤进这张缓存贴图 —— 表现就是怪物/NPC 的
+            //  「黄色虚影」随镜头滚动、直到下一次重建才消失。这里兜底复位，顺带记一次日志，
+            //  方便回头找真正泄漏的绘制点。
+            if (DXManager.Blending)
+            {
+                DXManager.SetBlend(false);
+
+                if (Settings.LogErrors && _blendLeakCount < 5)
+                {
+                    _blendLeakCount++;
+                    CMain.SaveError(string.Format(
+                        "[渲染] 场景重建时检测到加法混合状态泄漏，已强制复位（第 {0} 次，地图 {1}）",
+                        _blendLeakCount, FileName));
+                }
+            }
+
             if (!FloorValid)
                 DrawFloor();
 
@@ -11413,7 +11471,8 @@ namespace Client.MirScenes
                 }
             }
 
-            if (MapObject.MouseObject != null && !(MapObject.MouseObject is ItemObject))
+            if (MapObject.MouseObject != null && !(MapObject.MouseObject is ItemObject)
+                && !MapObject.MouseObject.NearPlayerFiltered)
                 MapObject.MouseObject.DrawName();
 
             int offSet = 0; 
@@ -11610,6 +11669,7 @@ namespace Client.MirScenes
                 for (int i = Effects.Count - 1; i >= 0; i--)
                 {
                     if (!Effects[i].DrawBehind) continue;
+                    if (Effects[i].Owner != null && Effects[i].Owner.NearPlayerFiltered) continue;
                     Effects[i].Draw();
                 }
             }
@@ -11819,22 +11879,19 @@ namespace Client.MirScenes
 
             DXManager.SetOpacity(oldOpacity);
 
-            if (Settings.HighlightTarget)
-            {
-                if (MapObject.MouseObject != null && !MapObject.MouseObject.Dead && MapObject.MouseObject != MapObject.TargetObject && MapObject.MouseObject.Blend)
-                    MapObject.MouseObject.DrawBlend();
-
-                if (MapObject.TargetObject != null)
-                    MapObject.TargetObject.DrawBlend();
-
-                // 魔法锁定：锁定对象单独提亮（只是视觉标记，不挂 TargetObject，普攻/近战不会追着它打）
-                if (Settings.MagicLock && MapObject.LockObject != null && !MapObject.LockObject.Dead && MapObject.LockObject.Blend &&
-                    MapObject.LockObject != MapObject.TargetObject && MapObject.LockObject != MapObject.MouseObject)
-                    MapObject.LockObject.DrawBlend();
-            }
+            //★目标高亮已下移到 CellInfo.DrawObjects()（MapObject.DrawHighlight，紧跟本体绘制）。
+            //  原来在这里统一补画 MouseObject / TargetObject / LockObject，问题有三：
+            //   1) 画在所有对象之后 → 高亮浮在树、墙、前景层之上，看起来像"跟着地图走的黄影"；
+            //   2) TargetObject 没有存活判断 → 目标死了还继续描；
+            //   3) 不判断对象本帧是否真的被画出来 → 视野外/被过滤的对象也会凭空出现一只亮影子。
+            //  下移后遮挡关系和可见性都由绘制本身保证，同一个对象也只会画一次。详见 MapObject.DrawHighlight()。
 
             for (int i = 0; i < Objects.Count; i++)
             {
+                // 内挂「只显示 1 格内玩家」：被过滤的玩家连名字/对话/血条/毒/伤害数字一起跳过，
+                // 不然人会消失但名字血条还在天上飘。
+                if (Objects[i].NearPlayerFiltered) continue;
+
                 Objects[i].DrawEffects(Settings.Effect);
 
                 if (Settings.NameView && !(Objects[i] is ItemObject) && !Objects[i].Dead)
@@ -11852,6 +11909,7 @@ namespace Client.MirScenes
                 for (int i = Effects.Count - 1; i >= 0; i--)
                 {
                     if (Effects[i].DrawBehind) continue;
+                    if (Effects[i].Owner != null && Effects[i].Owner.NearPlayerFiltered) continue;
                     Effects[i].Draw();
                 }
             }

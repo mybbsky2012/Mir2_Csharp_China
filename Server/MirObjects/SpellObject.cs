@@ -991,9 +991,9 @@ namespace Server.MirObjects
             Packet p;
             if (CurrentMap == null) return;
 
-            for (int i = CurrentMap.Players.Count - 1; i >= 0; i--)
+            for (int i = CurrentMap.RealPlayers.Count - 1; i >= 0; i--)   // 20261106 只发真人（假人收包即弃）
             {
-                PlayerObject player = CurrentMap.Players[i];
+                PlayerObject player = CurrentMap.RealPlayers[i];
                 if (Functions.InRange(CurrentLocation, player.CurrentLocation, Globals.DataRange))
                 {
                     if ((Caster == null) || (player == null)) continue;

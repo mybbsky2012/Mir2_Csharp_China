@@ -44,7 +44,8 @@ namespace Server.MirObjects
         private const int ViewRange = 9;        // 找怪半径（切比雪夫距离，格）
         private const int LootRange = 6;        // 找地面物品半径
         private const int PotionLootRange = 6;  // 身上没药时，最多跑这么远去找地上的药水
-        private const int HomeRange = 16;       // 离出生点超过这个距离就往回走
+        private const int ChaseRange = 16;      // 追怪上限：离目标超过这个距离就当没看见（20261106 从 HomeRange 拆出，避免跟着放宽）
+        private const int HomeRange = 60;       // 巡游牵引：离出生点超过这个距离才往回走（20261106 16→60：让假人在整张图上跑动，而不是围着安全区转圈）
         private const int FollowRange = 4;      // 组队跟随时，离队长超过这么多格就追上去
         private const int FollowLureRange = 12; // 跟随时，最多打离队长这么远的怪（再远就不追了，免得把人丢了）
         private const int FollowCatchupRange = 13;  // 离队长超过这么多格 → 放下手上的活先追人（比上面大 1 格做迟滞）
@@ -99,6 +100,8 @@ namespace Server.MirObjects
         private long _nextHPCheck;             // 下次检查「这怪到底打不打得动」
         private long _dodgeUntil;              // 躲避期（血量过低时后撤走位）
 
+        private bool _freshLogin;              // 20261106 刚上线：第一轮巡游先往远处散，不在落点扎堆
+
         private Spell _attackSpell = Spell.None;   // 本职业的主力攻击技能（近战职业为 None）
         private Spell _healSpell = Spell.None;     // 治病（道士）
         private bool _thrusting;                   // 是否会刺杀（战士隔位）
@@ -108,10 +111,12 @@ namespace Server.MirObjects
         {
             Player = player;
 
-            _roamTarget = player.CurrentLocation;
+            _roamTarget = Point.Empty;   // 20261106 登场即随机跑图（PickRoamTarget 挑远处目标），不在落点/安全区扎堆
             _homePoint = player.CurrentLocation;
 
-            _nextChat = Envir.Time + Envir.Random.Next(60000, 300000);   // 1~5 分钟后开口
+            _freshLogin = true;          // 第一轮 RoamUpdate 往远处散
+
+            _nextChat = Envir.Time + NextChatDelay();   // 说话间隔由 Setup.ini [FakePlayer] ChatIntervalMs 控制（默认 10 秒）
             _nextMapHop = Envir.Time + Envir.Random.Next(600000, 1800000); // 10~30 分钟后考虑换图
 
             PickSpells();
@@ -767,7 +772,7 @@ namespace Server.MirObjects
             }
 
             // 离得太远就当没看见（避免追着怪跑遍全图）
-            if (dist > HomeRange)
+            if (dist > ChaseRange)
             {
                 _target = null;
                 return;
@@ -1030,12 +1035,36 @@ namespace Server.MirObjects
                 return;
             }
 
+            // 20261106 被看就文静：假人在真人视野内时多站少走 ——
+            //   客户端卡的主因是同屏人物"都在动"（每步动画+移动包），
+            //   把"被围观的假人"变成都市里闲站的玩家，画面照样热闹，渲染却轻了。
+            bool watched = Settings.FakePlayerCrowdCalm && IsWatchedByRealPlayer();
+
+            // 20261106 登场散场：刚上线的假人第一轮直接挑 20~50 格外的目标跑过去，
+            //   不发呆、不围着登录点/安全区转 —— "一上线就随机跑图去了"。
+            //   例外：出生点在安全区里的（留守安全区的 3~5 个"撑场面"假人）正常小范围活动。
+            if (_freshLogin)
+            {
+                _freshLogin = false;
+
+                Map loginMap = Player.CurrentMap;
+                bool inSafeZone = loginMap != null && loginMap.GetSafeZone(Player.CurrentLocation) != null;
+
+                if (!inSafeZone)
+                {
+                    PickRoamTarget(20, 50);
+                    _nextRoam = Envir.Time + RoamDelay;
+                }
+            }
+
             // 已经走到目标点附近 → 有概率原地发呆几秒
             if (_roamTarget == Point.Empty || Functions.InRange(p.CurrentLocation, _roamTarget, 1))
             {
-                if (_roamTarget != Point.Empty && Envir.Random.Next(100) < 35)
+                if (_roamTarget != Point.Empty && Envir.Random.Next(100) < (watched ? 75 : 35))
                 {
-                    _idleUntil = Envir.Time + Envir.Random.Next(2500, 16000);
+                    _idleUntil = Envir.Time + (watched
+                        ? Envir.Random.Next(4000, 20000)     // 被看：一站 4~20 秒
+                        : Envir.Random.Next(2500, 16000));   // 没人看：照旧 2.5~16 秒
                     _roamTarget = p.CurrentLocation;
                     return;
                 }
@@ -1043,7 +1072,7 @@ namespace Server.MirObjects
 
             if (Envir.Time >= _nextRoam || _roamTarget == Point.Empty)
             {
-                _nextRoam = Envir.Time + RoamDelay;
+                _nextRoam = Envir.Time + (watched ? RoamDelay * 2 : RoamDelay);   // 被看：换目标间隔翻倍
                 PickRoamTarget();
             }
 
@@ -1082,16 +1111,58 @@ namespace Server.MirObjects
             }
         }
 
+        /// <summary>
+        /// 20261106 这个假人是否在某个真人的视野内（DataRange+2 留点余量）。
+        /// 每图真人很少，直接扫 Map.RealPlayers 短列表，成本可忽略。
+        /// </summary>
+        private bool IsWatchedByRealPlayer()
+        {
+            Map map = Player?.CurrentMap;
+            if (map == null) return false;
+
+            List<PlayerObject> realPlayers = map.RealPlayers;
+
+            for (int i = 0; i < realPlayers.Count; i++)
+            {
+                PlayerObject rp = realPlayers[i];
+                if (rp == null || rp.Dead) continue;
+
+                if (Functions.InRange(rp.CurrentLocation, Player.CurrentLocation, Globals.DataRange + 2))
+                    return true;
+            }
+
+            return false;
+        }
+
         private void PickRoamTarget()
+        {
+            PickRoamTarget(0, 13);
+        }
+
+        /// <summary>20261106 带距离环的版本：minDist>0 时挑「离当前位置 minDist~maxDist 格」的点（登场散场用）</summary>
+        private void PickRoamTarget(int minDist, int maxDist)
         {
             Map map = Player.CurrentMap;
             if (map == null) return;
 
-            for (int i = 0; i < 14; i++)
+            for (int i = 0; i < 20; i++)
             {
-                Point loc = new Point(
-                    Player.CurrentLocation.X + Envir.Random.Next(-13, 14),
-                    Player.CurrentLocation.Y + Envir.Random.Next(-13, 14));
+                Point loc;
+                if (minDist > 0)
+                {
+                    // 环形取样：保证目标离当前位置足够远
+                    int dist = Envir.Random.Next(minDist, maxDist + 1);
+                    double ang = Envir.Random.Next(360) * Math.PI / 180.0;
+                    loc = new Point(
+                        Player.CurrentLocation.X + (int)(Math.Cos(ang) * dist),
+                        Player.CurrentLocation.Y + (int)(Math.Sin(ang) * dist));
+                }
+                else
+                {
+                    loc = new Point(
+                        Player.CurrentLocation.X + Envir.Random.Next(-13, 14),
+                        Player.CurrentLocation.Y + Envir.Random.Next(-13, 14));
+                }
 
                 if (!map.ValidPoint(loc)) continue;
                 if (loc == Player.CurrentLocation) continue;
@@ -1756,12 +1827,21 @@ namespace Server.MirObjects
         // ==================================================================================
         //  聊天 / 喊话
         // ==================================================================================
+        /// <summary>20261106 下次说话间隔：配置值 ±30% 抖动，避免全体假人同一秒刷屏</summary>
+        private static long NextChatDelay()
+        {
+            int baseMs = Settings.FakePlayerChatIntervalMs;
+            if (baseMs < 500) baseMs = 500;
+
+            return (long)(baseMs * (0.7 + Envir.Random.Next(61) / 100.0));   // 0.70 ~ 1.30 倍
+        }
+
         private void ChatUpdate()
         {
             if (!FakePlayerManager.ChatEnabled) return;
             if (Envir.Time < _nextChat) return;
 
-            _nextChat = Envir.Time + Envir.Random.Next(60000, 300000);
+            _nextChat = Envir.Time + NextChatDelay();
 
             // 不在战斗中才聊（在打架还打字很假）
             if (_state == FakeBotState.Combat) return;

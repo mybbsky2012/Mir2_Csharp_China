@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="docx-page-size" content="A4">
+<title>Mir2 服务端 Setup.ini 配置说明</title>
+<style>
+@page {
+  margin: var(--sp-2-5cm-2-3cm-2-5cm-3-1cm);
+  @bottom-center { content: counter(page); }
+}
+@page cover {
+  @bottom-center { content: none; }
+}
+section[role="cover"] { page: cover; }
+
+:root {
+  --fs-cover: 30pt;
+  --fs-sub: 13pt;
+  --fs-lead: 11.5pt;
+  --fs-note: 11pt;
+  --fs-xs: 9.5pt;
+  --sp-page: 2.5cm 2.3cm 2.5cm 3.1cm;
+  --sp-top: 5.5cm;
+  --sp-bottom: 2cm;
+  --sp-xs: 0.3em;
+  --sp-xs2: 0.32em;
+  --sp-s: 0.4em;
+  --sp-sm: 0.5em;
+  --sp-m: 0.55em;
+  --sp-m2: 0.6em;
+  --sp-l: 0.75em;
+  --sp-l2: 0.8em;
+  --sp-1: 1em;
+  --sp-3: 1.1em;
+  --sp-4: 1.2em;
+  --sp-5: 1.4em;
+  --sp-6: 1.6em;
+  --sp-7: 1.9em;
+  --sp-8: 2.4em;
+  --sp-9: 2.6em;
+  --sp-cell-y: 0.28em 0;
+  --sp-th: 0.42em 0.5em;
+  --sp-td: 0.4em 0.5em;
+  --sp-card: 0.6em 0 1.2em 0;
+  --sp-code: 0.6em 0.8em;
+  --sp-callout: 0.6em 0.9em;
+  --sp-table: 0.7em 0 1.1em 0;
+  --sp-cardpad: 0.9em 1em;
+  --sp-list: 0.3em 0 0.8em 0;
+
+  --sp-2-5cm-2-3cm-2-5cm-3-1cm: 2.5cm 2.3cm 2.5cm 3.1cm;
+  --sp-0-55em: 0.55em;
+  --sp-5-5cm: 5.5cm;
+  --sp-2cm: 2cm;
+  --sp-1-4em: 1.4em;
+  --sp-0-5em: 0.5em;
+  --sp-2-6em: 2.6em;
+  --sp-1-2em: 1.2em;
+  --sp-0-28em-0: 0.28em 0;
+  --sp-1-6cm: 1.6cm;
+  --sp-1-6em: 1.6em;
+  --sp-0-3em: 0.3em;
+  --sp-1-9em: 1.9em;
+  --sp-0-75em: 0.75em;
+  --sp-0-28em: 0.28em;
+  --sp-1em: 1em;
+  --sp-0-4em: 0.4em;
+  --sp-0-3em-0-0-8em-0: 0.3em 0 0.8em 0;
+  --sp-2-4em: 2.4em;
+  --sp-0-32em: 0.32em;
+  --sp-0-7em-0-1-1em-0: 0.7em 0 1.1em 0;
+  --sp-0-42em-0-5em: 0.42em 0.5em;
+  --sp-0-4em-0-5em: 0.4em 0.5em;
+  --sp-0-6em-0-1-2em-0: 0.6em 0 1.2em 0;
+  --sp-0-9em-1em: 0.9em 1em;
+  --sp-0-5em-0-1em-0: 0.5em 0 1em 0;
+  --sp-0-6em-0-8em: 0.6em 0.8em;
+  --sp-0-6em-0-9em: 0.6em 0.9em;
+  --sp-0-6em-0-1em-0: 0.6em 0 1em 0;
+  --color-primary: #1a4f8b;
+  --color-primary-light: #eaf1f9;
+  --color-text: #1c1c1c;
+  --color-muted: #5f6b7a;
+  --color-border: #c9d3de;
+  --color-highlight: #f4f7fa;
+  --color-code-bg: #f5f6f8;
+  --ff-heading: "SimHei", "黑体", sans-serif;
+  --ff-body: "SimSun", "宋体", serif;
+  --ff-mono: "Consolas", "Courier New", monospace;
+  --fs-h1: 18pt;
+  --fs-h2: 14pt;
+  --fs-h3: 12pt;
+  --fs-body: 12pt;
+  --fs-small: 10.5pt;
+  --fs-cover-title: 30pt;
+  --lh-body: 1.75;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  max-width: 15.6cm;
+  margin-left: auto;
+  margin-right: auto;
+  font-family: var(--ff-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+p {
+  font-family: var(--ff-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  text-indent: 2em;
+  margin-bottom: var(--sp-0-55em);
+  text-align: justify;
+}
+
+/* 封面 */
+.cover-wrap {
+  padding-top: var(--sp-5-5cm);
+  padding-bottom: var(--sp-2cm);
+  text-align: left;
+}
+.cover-kicker {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-note);
+  letter-spacing: 0.18em;
+  color: var(--color-primary);
+  text-indent: 0;
+  margin-bottom: var(--sp-1-4em);
+}
+.cover-title {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-cover-title);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--color-text);
+  text-indent: 0;
+  margin-bottom: var(--sp-0-5em);
+}
+.cover-sub {
+  font-family: var(--ff-body);
+  font-size: var(--fs-sub);
+  color: var(--color-muted);
+  text-indent: 0;
+  margin-bottom: var(--sp-2-6em);
+}
+.cover-meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--sp-1-2em);
+}
+.cover-meta-table td {
+  font-family: var(--ff-body);
+  font-size: var(--fs-small);
+  color: var(--color-muted);
+  padding: var(--sp-0-28em-0);
+  border-bottom: 1px solid var(--color-border);
+  text-indent: 0;
+}
+.cover-meta-table td:first-child {
+  width: 3.2cm;
+  color: var(--color-primary);
+  font-family: var(--ff-heading);
+}
+
+/* 目录 */
+.toc-wrap { padding-top: var(--sp-1-6cm); }
+.toc-title {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  text-indent: 0;
+  color: var(--color-text);
+  margin-bottom: var(--sp-1-2em);
+}
+.toc-list, .toc-list ol {
+  list-style: none;
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+}
+.toc-list > li {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-body);
+  margin-bottom: var(--sp-0-55em);
+  text-indent: 0;
+}
+.toc-list ol { padding-left: var(--sp-1-6em); }
+.toc-list ol li {
+  font-family: var(--ff-body);
+  font-size: var(--fs-note);
+  color: var(--color-muted);
+  margin-bottom: var(--sp-0-3em);
+  text-indent: 0;
+}
+.toc-list a { color: inherit; text-decoration: none; }
+
+/* 正文 */
+h1 {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  color: var(--color-primary);
+  text-indent: 0;
+  margin-top: var(--sp-1-9em);
+  margin-bottom: var(--sp-0-75em);
+  padding-bottom: var(--sp-0-28em);
+  border-bottom: 2px solid var(--color-primary);
+}
+h2 {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  color: var(--color-text);
+  text-indent: 0;
+  margin-top: var(--sp-1-4em);
+  margin-bottom: var(--sp-0-55em);
+  padding-left: var(--sp-0-55em);
+  border-left: 4px solid var(--color-primary);
+}
+h3 {
+  font-family: var(--ff-heading);
+  font-size: var(--fs-h3);
+  font-weight: 700;
+  color: var(--color-text);
+  text-indent: 0;
+  margin-top: var(--sp-1em);
+  margin-bottom: var(--sp-0-4em);
+}
+
+ul, ol {
+  font-family: var(--ff-body);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  margin: var(--sp-0-3em-0-0-8em-0);
+  padding-left: var(--sp-2-4em);
+}
+li { margin-bottom: var(--sp-0-32em); text-align: justify; }
+
+/* 表格 */
+table.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--sp-0-7em-0-1-1em-0);
+  font-family: var(--ff-body);
+  font-size: var(--fs-small);
+}
+table.data-table th {
+  background: var(--color-primary-light);
+  color: var(--color-text);
+  font-family: var(--ff-heading);
+  font-weight: 700;
+  border: 1px solid var(--color-border);
+  padding: var(--sp-0-42em-0-5em);
+  text-align: left;
+  text-indent: 0;
+}
+table.data-table td {
+  border: 1px solid var(--color-border);
+  padding: var(--sp-0-4em-0-5em);
+  vertical-align: top;
+  text-indent: 0;
+  line-height: 1.55;
+}
+table.data-table tr:nth-child(even) td { background: var(--color-highlight); }}}}}}}}
+
+/* 提示条 */
+p.callout {
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-highlight);
+  padding: var(--sp-0-6em-0-9em);
+  text-indent: 0;
+  font-size: var(--fs-note);
+  margin: var(--sp-0-6em-0-1em-0);
+}}}
+</style>
+</head>
+<body>
+<section role="cover">
+  <div class="cover-wrap">
+    <p class="cover-kicker">运维参考手册</p>
+    <p class="cover-title">Mir2 服务端<br>Setup.ini 配置说明</p>
+    <p class="cover-sub">201 个配置项逐条中文释义 · 含失效项与风险项标注</p>
+    <table class="cover-meta-table"><thead><tr><th>文档信息</th></tr></thead><tbody>
+    <tr><td>对应工程</td><td>Mir2（Crystal 血统）服务端</td></tr>
+    <tr><td>解析源码</td><td>Server\Settings.cs、Shared\Functions\IniReader.cs</td></tr>
+    <tr><td>样本文件</td><td>Tools\MonsterLightProbe\Configs\Setup.ini（201 个键 / 17 段）</td></tr>
+    <tr><td>编写日期</td><td>2026 年 11 月 6 日</td></tr>
+    </tbody></table>
+  </div>
+</section>
+
+<section role="cover">
+  <div class="toc-wrap">
+    <p class="toc-title">目 录</p>
+    <ol class="toc-list"><li><a href="#s1">一、这份文档怎么用</a></li><li><a href="#s2">二、[General] 常规设置</a></li><li><a href="#s3">三、[Network] 网络与 HTTP</a></li><li><a href="#s4">四、[Permission] 权限开关</a></li><li><a href="#s5">五、[Optional] 可选玩法</a></li><li><a href="#s6">六、[Database] 数据库</a></li><li><a href="#s7">七、[Game] 游戏规则</a></li><li><a href="#s8">八、[Rested] 休息经验</a></li><li><a href="#s9">九、[Items] 物品</a></li><li><a href="#s10">十、其它小段（PKTown / DropGold / Bonus / 灵宠 / 观战 / 归档）</a></li><li><a href="#s11">十一、[FakePlayer] 假人系统</a></li><li><a href="#s12">十二、[Hero] 英雄 AI</a></li><li><a href="#s13">十三、[OfflineAFK] 离线挂机</a></li><li><a href="#s14">十四、速查：问题项与未写入项</a></li><li><a href="#s15">附录 A：与代码默认值的差异</a></li></ol>
+  </div>
+</section>
+
+<section role="body" data-page-restart="1">
+<h1 id="s1">一、这份文档怎么用</h1>
+<h2 id="s1-1">1.1 这个文件在哪、谁在读</h2>
+<p>服务端每次启动（以及界面上点「重新加载配置」时）会读取 <strong>Configs\Setup.ini</strong>，把每一项灌进 Settings 类的静态字段。路径由 Settings.cs 里的 ConfigPath 决定，写死为程序目录下的 Configs，不跟 ini 放在一起也不会被读到。</p>
+<p>解析器是 Shared/Functions/IniReader.cs。它有三个必须知道的行为：</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>段名与键名严格区分大小写</strong></td><td>—</td><td>—</td><td>比对用的是 String.CompareOrdinal，[General] 写成 [general] 或 General 就会整段失效，且不报错，直接退回默认值。</td></tr><tr><td><strong>读不到就静默用默认值，并顺手写回文件</strong></td><td>—</td><td>—</td><td>ReadXxx(section, key, Default, writeWhenNull = true)：键缺失或值非法时，取代码里的默认值，然后把这个默认值追加写进 Setup.ini。所以服务端跑过一次后，文件里会多出一批你没写过的键。</td></tr><tr><td><strong>布尔值只认 True / False</strong></td><td>—</td><td>—</td><td>bool.TryParse 不接受 1 / 0 / yes / no / 开 / 关。写 1 会被当成非法值，直接回落默认值（多数默认是 False），这是最常见的「改了没反应」。</td></tr></tbody></table>
+<p class="callout">另外两点：值里不要再出现等号（解析按第一个 = 切分，后面的部分会被截断）；注释行统一用分号开头，且注释行不要写等号。</p>
+<h2 id="s1-2">1.2 改完怎么生效</h2>
+<p>绝大多数项在「重新加载配置」或重启服务端后生效，不需要重新编译。有几类例外：网络监听类（Port、IPAddress、StartHTTPService、HTTPIPAddress、HttpTransport、资源服务相关）在服务进程启动时绑定端口，必须<strong>重启</strong>服务端；MainUser 上限、线程数同理。</p>
+<p>还有一类是「客户端也读」的：Port、MaxResolution 由客户端 Configs\Setup.ini 的同名项配合，只改服务端不改客户端会出现连不上或被压分辨率。</p>
+<h2 id="s1-3">1.3 本文的标注约定</h2>
+<p>每个段一张表，四列：键名、配置文件里的当前值、代码里的默认值、中文说明。说明里出现下面两种标记时要注意：</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>已失效</strong></td><td>—</td><td>—</td><td>代码里没有任何地方引用这个键（或引用处被注释掉了）。改了不会有任何效果，属于历史遗留或从别的分支合并进来但没实现的功能。</td></tr><tr><td><strong>【注意】</strong></td><td>—</td><td>—</td><td>改这个会明显改变手感、经济或安全性，动之前先想清楚后果。</td></tr></tbody></table>
+<p class="callout">本文的「当前值」取自工程内最新的一份样本：Tools\MonsterLightProbe\Configs\Setup.ini（2026-11-06，201 个键）。你实际服务器上的 Configs\Setup.ini 可能被服务端自动补写过，以自己那份为准。</p>
+<h1 id="s2">二、[General] 常规设置</h1>
+<h2 id="s2-1">2.1 段内各项</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>VersionPath</strong></td><td>.\Mir2.Exe</td><td>.\Mir2.Exe</td><td>客户端版本文件的相对路径。CheckVersion 打开时，服务端按这个路径去读客户端版本号做比对；关着就只是个摆设。</td></tr><tr><td><strong>CheckVersion</strong></td><td>False</td><td>True</td><td>是否校验客户端版本。False = 任意版本客户端都能登（开发、内测常用）；True = 版本不符直接拒绝登录。</td></tr><tr><td><strong>RelogDelay</strong></td><td>50</td><td>—</td><td>同账号重复登录的最小间隔（毫秒）。<strong>已失效</strong>：MirConnection.cs 里校验这一段被注释掉了，改了不起作用。</td></tr><tr><td><strong>GMPassword</strong></td><td>@95470547</td><td>@9396399</td><td>GM 命令密码，客户端发 GM 命令时校验。<strong>【注意】</strong>这是全服权限最高的一把钥匙，泄露等于人人能刷装备；别提交到公开仓库，开服前务必换成强密码。</td></tr><tr><td><strong>Multithreaded</strong></td><td>True</td><td>True</td><td>是否启用多线程处理（地图、怪物按线程分摊）。关掉 = 全服单线程跑，人多必卡。</td></tr><tr><td><strong>ThreadLimit</strong></td><td>2</td><td>2</td><td>并行线程数上限。经验值取 CPU 物理核数减一：2 核填 1~2，8 核填 6~7。填太大会因为线程调度反而更慢。</td></tr><tr><td><strong>TestServer</strong></td><td>False</td><td>False</td><td><strong>【注意】</strong>测试服模式。True 时玩家一上线就自动执行 @GAMEMASTER（人人 GM），并且 @LEVEL、@CHANGEGENDER 这类命令对非 GM 也放行。正式服必须 False，写成 True 等于全服开挂。</td></tr><tr><td><strong>EnforceDBChecks</strong></td><td>True</td><td>True</td><td>启动时强制校验数据库完整性（物品、怪物、魔法之间的引用关系）。建议保持 True，坏数据早发现；代价是启动慢几十秒。</td></tr><tr><td><strong>MonsterProcessWhenAlone</strong></td><td>False</td><td>False</td><td>地图上没有真人时怪物是否继续跑 AI。False = 无人地图冻结（省 CPU，适合大世界）；True = 怪物照常活动。假人服有假人在图里，两种都能跑。</td></tr><tr><td><strong>Language</strong></td><td>Chinese</td><td>—</td><td>服务端语言标记。<strong>已失效</strong>：本分支不读这个键，服务端语言实际来自 Configs\Language.ini。</td></tr><tr><td><strong>DuraLossRate</strong></td><td>30</td><td>30</td><td>装备持久消耗倍率（百分比）。100 = 原版速度，30 ≈ 三分之一速度，0 = 完全不掉持久。被怪打全身掉、攻击只掉武器，都乘这个系数。</td></tr></tbody></table>
+<h1 id="s3">三、[Network] 网络与 HTTP</h1>
+<h2 id="s3-1">3.1 连接与人数</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>IPAddress</strong></td><td>0.0.0.0</td><td>127.0.0.1</td><td>游戏端口监听地址。0.0.0.0 = 所有网卡（对外开服）；127.0.0.1 = 只允许本机连（配合中转/测试）。</td></tr><tr><td><strong>Port</strong></td><td>7000</td><td>7000</td><td>游戏主端口，登录与游戏共用。客户端 Configs\Setup.ini 的 Port 必须一致。<strong>【注意】</strong>改端口后要同步开防火墙入站规则。</td></tr><tr><td><strong>TimeOut</strong></td><td>30000</td><td>—</td><td>连接超时（毫秒）。30000 = 30 秒没响应就断开；网络抖动大的服可以放到 60000。</td></tr><tr><td><strong>MaxUser</strong></td><td>500</td><td>—</td><td>同时在线人数上限（含假人）。假人 300 的话，这个值至少要比「真人预期峰值 + 300」大。</td></tr><tr><td><strong>MaxIP</strong></td><td>5</td><td>—</td><td>同一 IP 允许同时在线的角色数。网吧/公司网要放大；想防多开就调小。</td></tr><tr><td><strong>MaxPacket</strong></td><td>50</td><td>—</td><td>收包上限。<strong>【注意】</strong>口径是「5 秒窗口内累计收到的数据包个数」，超过就判定为刷包外挂：断线并封该 IP 24 小时。50 相当于平均每秒 10 包，真人走位快、连招密时容易误判，建议 100~150。</td></tr></tbody></table>
+<h2 id="s3-2">3.2 HTTP 服务</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>StartHTTPService</strong></td><td>True</td><td>False</td><td>是否开启内置 HTTP 服务。微端资源下发、账号查询接口、服务端状态页都跑在它上面；关掉则客户端无法按需下载资源。</td></tr><tr><td><strong>HTTPIPAddress</strong></td><td>http://0.0.0.0:5679/</td><td>http:</td><td>HTTP 监听地址，形如 http://0.0.0.0:5679/。端口不能与游戏 Port 相同。</td></tr><tr><td><strong>HTTPTrustedIPAddress</strong></td><td>0.0.0.0</td><td>127.0.0.1</td><td>受信 IP。账号查询接口只允许这些地址访问；0.0.0.0 表示不限制（此时安全全靠 HTTPQueryKey）。</td></tr><tr><td><strong>HttpTransport</strong></td><td>auto</td><td>auto</td><td>HTTP 监听实现方式。auto = 先试内核态 http.sys（性能最好、需要管理员权限与 URL 预留），失败自动回落纯 Socket；也可写死 httpsys 或 socket。</td></tr><tr><td><strong>HTTPQueryKey</strong></td><td></td><td>—</td><td>账号查询接口 /accountinfo 的密钥（10~30 位）。留空 = 该接口一律拒绝；网页端调用时带 &key=此值。</td></tr></tbody></table>
+<h2 id="s3-3">3.3 微端资源服务</h2>
+<p>这一组只在 EnableResourceService = True 时有意义，作用是让客户端按需下载缺失的 Data 资源，不必整包更新。</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>EnableResourceService</strong></td><td>True</td><td>False</td><td>资源服务总开关。</td></tr><tr><td><strong>ResourcePath</strong></td><td>.\ClientResources\</td><td>@".\ClientResources\</td><td>资源根目录（相对服务端目录）。客户端请求的相对路径会拼在这个目录下，务必不要指到系统目录。</td></tr><tr><td><strong>ResourceAllowAnyIP</strong></td><td>True</td><td>False</td><td>是否允许任意 IP 下载资源。False = 只允许 HTTPTrustedIPAddress 里的地址，适合只对内网/自己人开微端。</td></tr><tr><td><strong>ResourceMaxConcurrent</strong></td><td>64</td><td>64</td><td>同时传输的请求数上限。首次开服、集中更新时就是带宽峰值，按上行带宽定，别照抄 64。</td></tr><tr><td><strong>ResourceWriteTimeout</strong></td><td>300</td><td>300</td><td>单个请求最长传输秒数，超时断开并清理连接，防止半死连接长期占坑。</td></tr><tr><td><strong>ResourceBufferKB</strong></td><td>64</td><td>64</td><td>流式发送的分块大小（KB）。大文件多时 64~128 比较合适，太小会增加系统调用次数。</td></tr><tr><td><strong>ResourceVerboseLog</strong></td><td>False</td><td>False</td><td>是否逐条记录资源下发日志。高并发时务必关，日志本身就会把磁盘和 CPU 拖满。</td></tr><tr><td><strong>ResourceMaxKBps</strong></td><td>0</td><td>0</td><td>资源下发总限速（KB/s）。0 = 不限。窄带宽服务器一定要设，否则玩家下载资源会把游戏包挤掉，表现为集体卡顿。</td></tr></tbody></table>
+<h1 id="s4">四、[Permission] 权限开关</h1>
+<h2 id="s4-1">4.1 开关类</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>AllowNewAccount</strong></td><td>True</td><td>True</td><td>是否允许注册新账号。关掉 = 只能由 GM 在数据库工具里建号，适合「邀请制」服。</td></tr><tr><td><strong>AllowChangePassword</strong></td><td>True</td><td>—</td><td>是否允许玩家自己改密码。</td></tr><tr><td><strong>AllowLogin</strong></td><td>True</td><td>—</td><td>是否允许登录。关掉 = 维护模式，玩家连不上。</td></tr><tr><td><strong>AllowNewCharacter</strong></td><td>True</td><td>—</td><td>是否允许新建角色。</td></tr><tr><td><strong>AllowDeleteCharacter</strong></td><td>True</td><td>—</td><td>是否允许删除角色（配合 [Archive] 段决定删掉的角色留多久）。</td></tr><tr><td><strong>AllowStartGame</strong></td><td>True</td><td>—</td><td>是否允许真正进入游戏。关掉 = 只能停在选人界面，适合做「只开放登录看公告」的场景。</td></tr><tr><td><strong>AllowCreateAssassin</strong></td><td>True</td><td>—</td><td>是否允许创建刺客。关掉不影响已有刺客角色。</td></tr><tr><td><strong>AllowCreateArcher</strong></td><td>True</td><td>—</td><td>是否允许创建弓箭手。</td></tr><tr><td><strong>RequireStoragePassword</strong></td><td>True</td><td>—</td><td>仓库密码开关。<strong>已失效</strong>：本分支没有实现仓库密码，代码里没有任何引用，改了不会让仓库上锁。</td></tr><tr><td><strong>MaxResolution</strong></td><td>2560</td><td>1920</td><td>客户端可用分辨率宽度上限（像素）。客户端请求超过这个值会被压回；2560 = 放开到 2K 屏。注意客户端 Configs 里也有同名项，两边要一致。</td></tr></tbody></table>
+<h1 id="s5">五、[Optional] 可选玩法</h1>
+<h2 id="s5-1">5.1 地图与规则</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>SafeZoneBorder</strong></td><td>True</td><td>False</td><td>安全区是否显示边界（脚下的安全区标记）。</td></tr><tr><td><strong>SafeZoneHealing</strong></td><td>True</td><td>—</td><td>安全区内是否自动回血回蓝。关掉 = 安全区只保护不治疗。</td></tr><tr><td><strong>GatherOrbsPerLevel</strong></td><td>True</td><td>—</td><td>冥想珠（元素珠）是否随等级自动成长：开启后每升一级自动涨珠，不用再手动放冥想技能；关掉则只能靠施法维持。</td></tr><tr><td><strong>ExpMobLevelDifference</strong></td><td>True</td><td>—</td><td>打低级怪是否按等级差衰减经验。开启时：人物等级比怪物高 10 级以上，每多 1 级扣掉本次经验的十五分之一；关闭则打多低的怪都拿全经验（快餐服常关）。</td></tr><tr><td><strong>GameMasterEffect</strong></td><td>True</td><td>—</td><td>GM 上线是否带特殊光环。人多时建议关，光环是额外的绘制开销。</td></tr><tr><td><strong>LineMessageTimer</strong></td><td>10</td><td>10</td><td>全服公告（LineMessage）在屏幕上停留的分钟数。10 = 一条公告挂 10 分钟后自动撤下。</td></tr></tbody></table>
+<h2 id="s5-2">5.2 穿行与手感</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>EnableNoLamp</strong></td><td>True</td><td>true,</td><td>免蜡：夜晚和洞穴不需要照明道具。</td></tr><tr><td><strong>EnableWalkThrough</strong></td><td>True</td><td>—</td><td>穿人：可以走过其他玩家和英雄。</td></tr><tr><td><strong>EnableWalkThroughMonster</strong></td><td>True</td><td>—</td><td>穿怪：可以走过普通怪物。</td></tr><tr><td><strong>EnableWalkThroughNPC</strong></td><td>True</td><td>—</td><td>穿 NPC：可以走过商人、守卫等 NPC。</td></tr><tr><td><strong>EnableWalkThroughWall</strong></td><td>False</td><td>—</td><td>穿城门与城墙。<strong>【注意】</strong>攻城时建议保持 False，开了以后门堵不住人，攻城战直接失去意义。</td></tr><tr><td><strong>EnableOverWeight</strong></td><td>True</td><td>—</td><td>超负重：负重超限仍可跑动、可穿脱装备。关掉 = 原版（超重只能走、捡不了东西）。</td></tr><tr><td><strong>EnableMountTai</strong></td><td>True</td><td>—</td><td>泰山：被攻击时不后仰、不打断跑动与施法。开了手感更顺，但也意味着「被打不会断技能」。</td></tr><tr><td><strong>CleanZeroDuraOnLogin</strong></td><td>True</td><td>True</td><td>登录（以及召唤英雄）时清理「持久为 0 却还占格子」的残留物品。物品定义的持久改过之后，老实例会卡在 0 持久清不掉，靠这个开关自愈。</td></tr></tbody></table>
+<h2 id="s5-3">5.3 诱惑之光（宝宝）</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>TameSuccessRate</strong></td><td>100</td><td>0</td><td>诱惑之光成功率（%）。0 = 走原版的多重随机（默认，不影响手感）；1~99 = 每次施法只掷一次骰，按该百分比判定；100 = 必定成功（秒招）。当前值是 100，等于所有可招的怪都能一次招走。</td></tr><tr><td><strong>TameIgnoreLevelLimit</strong></td><td>True</td><td>False</td><td>允许召唤等级高于「自身等级 + 2」的怪。</td></tr><tr><td><strong>TameIgnoreHpPenalty</strong></td><td>True</td><td>False</td><td>无视高血量抗性（原版 HP 越高越难招）。</td></tr><tr><td><strong>TameIgnoreUntameable</strong></td><td>True</td><td>False</td><td>允许召唤库里标了「不可诱惑」的怪（BOSS 等）。城门、城墙仍然硬排除，不受此开关影响。</td></tr></tbody></table>
+<p class="callout">这四项改完保存即生效，也可以在服务端界面「其他选项 → 诱惑之光」页里调，两条路改的是同一份数据。</p>
+<h1 id="s6">六、[Database] 数据库</h1>
+<h2 id="s6-1">6.1 段内各项</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>SaveDelay</strong></td><td>1</td><td>5</td><td>自动存盘间隔（分钟）。1 = 每分钟把角色、行会、账号落一次盘。越小越安全（崩服丢的进度少），越吃磁盘 IO。</td></tr><tr><td><strong>CredxGold</strong></td><td>30</td><td>30</td><td>游戏商城（GameShop）里 Credit 商品折算金币的系数：金币价 = 1000 × 该值。30 表示 1000 点券折 30000 金币。</td></tr></tbody></table>
+<h1 id="s7">七、[Game] 游戏规则</h1>
+<h2 id="s7-1">7.1 经验、掉落与尸体</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>DropRate</strong></td><td>0</td><td>1</td><td>爆率倍数。<strong>【注意】</strong>代码里的算法是 rate = Chance / DropRate，所以它是倍率不是百分比：1 = 原版，2 = 约两倍，0.5 = 约一半。当前值是 0，属于非法值（除零后溢出），等效于「几乎什么都不掉」，建议改回 1 或你要的倍数。</td></tr><tr><td><strong>ExpRate</strong></td><td>200</td><td>—</td><td>全局经验倍数。当前 200 = 200 倍。</td></tr><tr><td><strong>HighLevelExpRate</strong></td><td>90</td><td>1</td><td>高等级额外经验倍率，在 ExpRate 之上再乘一次。1 = 无加成。<strong>【注意】</strong>这里是倍数不是百分比，当前值 90 意味着 60 级以上在 200 倍之外再乘 90 倍，合计 18000 倍。如果本意是「额外 90%」，应写 1.9。</td></tr><tr><td><strong>HighLevelExpRateMinLevel</strong></td><td>60</td><td>60</td><td>触发上面那档倍率的最低等级。</td></tr><tr><td><strong>DeathExpLossRate</strong></td><td>0</td><td>0</td><td>死亡掉经验百分比（0 = 关闭）。扣除「当前等级升级所需经验」的该百分比，GM 不受影响。</td></tr><tr><td><strong>ItemTimeOut</strong></td><td>2</td><td>30</td><td>地面普通掉落物的消失时间（分钟）。当前 2 分钟，等于物品掉地上两分钟就没了，玩家跑回来常常已经消失。</td></tr><tr><td><strong>PlayerDiedItemTimeOut</strong></td><td>120</td><td>—</td><td>玩家死亡掉落物（尸体包）的消失时间（分钟）。120 = 两小时后才消失，给捡尸留足时间。</td></tr><tr><td><strong>CorpseTime</strong></td><td>180</td><td>—</td><td>怪物尸体停留时间（秒）。也受界面「其他选项」里的同项控制，两处改的是同一个值。</td></tr><tr><td><strong>PetSave</strong></td><td>False</td><td>False</td><td>宠物、召唤物是否存档保留。False = 下线就没，True = 下次上线还在。</td></tr><tr><td><strong>PetDieWithMaster</strong></td><td>False</td><td>False</td><td>主人死亡时宠物是否一起死。关闭 = 主人躺尸，宝宝还能继续打（分身宠物不受此项影响）。</td></tr></tbody></table>
+<h2 id="s7-2">7.2 战斗、交易与冷却</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>PKDelay</strong></td><td>12</td><td>—</td><td>PK 值（灰名/黄名）衰减计时（秒）。代码是「PKPointTime = 现在 + PKDelay 秒」，所以填 12 是 12 秒一个档位，不是分钟。</td></tr><tr><td><strong>GroupInviteDelay</strong></td><td>2000</td><td>—</td><td>组队邀请的冷却（毫秒）。2000 = 两秒内不能重复邀请，防刷屏。</td></tr><tr><td><strong>TradeDelay</strong></td><td>2000</td><td>—</td><td>交易请求的冷却（毫秒）。2000 = 两秒内不能重复发起交易。</td></tr><tr><td><strong>TeleportToNPCCost</strong></td><td>3000</td><td>3000</td><td>NPC 传送费用（金币）。0 = 免费。</td></tr><tr><td><strong>CloneSmartSkill</strong></td><td>True</td><td>True</td><td>分身是否智能选技能。False = 退回原版，分身只会雷电术。</td></tr><tr><td><strong>CloneSkillMpCost</strong></td><td>30</td><td>30</td><td>分身施法消耗主人法力的百分比。100 = 与主人自己施法一致，0 = 不耗蓝。</td></tr></tbody></table>
+<h2 id="s7-3">7.3 新手与公会</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>NewbieGuild</strong></td><td>新人公会</td><td>新人公会</td><td>新人公会名。新角色会自动加入这个公会；行会系统里对它有特殊处理（不会成为敌对目标）。</td></tr><tr><td><strong>NewbieGuildMaxSize</strong></td><td>1000</td><td>—</td><td>新人公会人数上限。假人多、新手多的服要放大，否则新手进不了会。</td></tr></tbody></table>
+<h2 id="s7-4">7.4 召唤物与怪物名称映射</h2>
+<p>这一段全是「名字」，不是数值。它们指向怪物库（Monster）里的 Name 字段：技能要召出什么怪、Boss 要放什么小怪、柱子/图腾用什么模型，都从这里取。<strong>名字写错或怪物库里没有同名条目，表现是技能放不出来、或者放出来什么都没有</strong>，而且日志里通常不会报错，很难查。改这些之前先在数据库工具里确认目标怪物名存在。</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>SkeletonName</strong></td><td>变异骷髅</td><td>—</td><td>道士「骷髅召唤」召出的怪。</td></tr><tr><td><strong>BugBatName</strong></td><td>小蝙蝠</td><td>—</td><td>虫系/蝙蝠类召唤物。</td></tr><tr><td><strong>ShinsuName</strong></td><td>神兽</td><td>—</td><td>道士「神兽」召唤。</td></tr><tr><td><strong>Zuma1</strong></td><td>祖玛雕像</td><td>—</td><td>祖玛系 Boss 召唤的第一种怪。</td></tr><tr><td><strong>Zuma2</strong></td><td>祖玛卫士</td><td>—</td><td>祖玛系 Boss 召唤的第二种怪。</td></tr><tr><td><strong>Zuma3</strong></td><td>祖玛弓箭手</td><td>—</td><td>祖玛系 Boss 召唤的第三种怪。</td></tr><tr><td><strong>Zuma4</strong></td><td>楔蛾</td><td>—</td><td>祖玛系 Boss 召唤的第四种怪。</td></tr><tr><td><strong>Zuma5</strong></td><td>祖玛弓箭手3</td><td>—</td><td>带「3」后缀的祖玛强化变体一。</td></tr><tr><td><strong>Zuma6</strong></td><td>祖玛雕像3</td><td>—</td><td>带「3」后缀的祖玛强化变体二。</td></tr><tr><td><strong>Zuma7</strong></td><td>祖玛卫士3</td><td>—</td><td>带「3」后缀的祖玛强化变体三。</td></tr><tr><td><strong>Turtle1</strong></td><td>红龟</td><td>—</td><td>龟系召唤第一种（红龟）。</td></tr><tr><td><strong>Turtle2</strong></td><td>绿龟</td><td>—</td><td>龟系召唤第二种（绿龟）。</td></tr><tr><td><strong>Turtle3</strong></td><td>蓝龟</td><td>—</td><td>龟系召唤第三种（蓝龟）。</td></tr><tr><td><strong>Turtle4</strong></td><td>塔龟</td><td>—</td><td>龟系召唤第四种（塔龟）。</td></tr><tr><td><strong>Turtle5</strong></td><td>寿龟</td><td>—</td><td>龟系召唤第五种（寿龟）。</td></tr><tr><td><strong>BoneMonster1</strong></td><td>骷髅士兵</td><td>—</td><td>骨系召唤一阶（骷髅士兵）。</td></tr><tr><td><strong>BoneMonster2</strong></td><td>骷髅武士</td><td>—</td><td>骨系召唤二阶（骷髅武士）。</td></tr><tr><td><strong>BoneMonster3</strong></td><td>骷髅弓箭手</td><td>—</td><td>骨系召唤三阶（骷髅弓箭手）。</td></tr><tr><td><strong>BoneMonster4</strong></td><td>骷髅武将</td><td>—</td><td>骨系召唤四阶（骷髅武将）。</td></tr><tr><td><strong>BehemothMonster1</strong></td><td>抱脸虫1</td><td>—</td><td>抱脸虫一阶，Behemoth 类 Boss 召唤。</td></tr><tr><td><strong>BehemothMonster2</strong></td><td>抱脸虫2</td><td>—</td><td>抱脸虫二阶。</td></tr><tr><td><strong>BehemothMonster3</strong></td><td>抱脸虫3</td><td>—</td><td>抱脸虫三阶。</td></tr><tr><td><strong>HellKnight1</strong></td><td>玄冰守护将</td><td>—</td><td>守护将系列之一（玄冰）。</td></tr><tr><td><strong>HellKnight2</strong></td><td>魔焰守护将</td><td>—</td><td>守护将系列之二（魔焰）。</td></tr><tr><td><strong>HellKnight3</strong></td><td>暗黑守护将</td><td>—</td><td>守护将系列之三（暗黑）。</td></tr><tr><td><strong>HellKnight4</strong></td><td>光明守护将</td><td>—</td><td>守护将系列之四（光明）。</td></tr><tr><td><strong>HellBomb1</strong></td><td>冰弹</td><td>—</td><td>Boss 技能弹体：冰弹。</td></tr><tr><td><strong>HellBomb2</strong></td><td>雷弹</td><td>—</td><td>Boss 技能弹体：雷弹。</td></tr><tr><td><strong>HellBomb3</strong></td><td>焰弹</td><td>—</td><td>Boss 技能弹体：焰弹。</td></tr><tr><td><strong>GeneralMeowMeowMob1</strong></td><td>铁锤猫卫</td><td>—</td><td>猫卫系列一（铁锤猫卫）。</td></tr><tr><td><strong>GeneralMeowMeowMob2</strong></td><td>黑锤猫卫</td><td>—</td><td>猫卫系列二（黑锤猫卫）。</td></tr><tr><td><strong>GeneralMeowMeowMob3</strong></td><td>陵庙刀卫</td><td>—</td><td>陵庙守卫系列一（刀卫）。</td></tr><tr><td><strong>GeneralMeowMeowMob4</strong></td><td>陵庙巫师</td><td>—</td><td>陵庙守卫系列二（巫师）。</td></tr><tr><td><strong>KingHydraxMob</strong></td><td>大蟒</td><td>—</td><td>KingHydrax 类 Boss 召唤的怪（大蟒）。</td></tr><tr><td><strong>SnowWolfKingMob</strong></td><td>雪狼</td><td>—</td><td>雪狼王召唤的怪。</td></tr><tr><td><strong>CallScrollMob</strong></td><td>冰蛇</td><td>—</td><td>召唤卷轴召出的怪（冰蛇）。</td></tr><tr><td><strong>ShardMaidenMob1</strong></td><td>地宫勇士</td><td>—</td><td>冰宫系列一（地宫勇士）。</td></tr><tr><td><strong>ShardMaidenMob2</strong></td><td>地宫修道者</td><td>—</td><td>冰宫系列二（地宫修道者）。</td></tr><tr><td><strong>ShardMaidenMob3</strong></td><td>冰封学者</td><td>—</td><td>冰宫系列三（冰封学者）。</td></tr><tr><td><strong>ShardMaidenMob4</strong></td><td>冰封贤者</td><td>—</td><td>冰宫系列四（冰封贤者）。</td></tr><tr><td><strong>Mon637BMob</strong></td><td>海之蜈蚣</td><td>—</td><td>怪物 637B 召唤的小怪（海之蜈蚣，20261103 韩服 AI 移植时加的）。</td></tr><tr><td><strong>WhiteSnake</strong></td><td>白蛇</td><td>—</td><td>白蛇类 Boss 召唤的怪。</td></tr><tr><td><strong>AngelName</strong></td><td>月灵</td><td>—</td><td>月灵（道士系的召唤物）。</td></tr><tr><td><strong>BombSpiderName</strong></td><td>炸弹蜘蛛</td><td>—</td><td>炸弹蜘蛛，蜘蛛类自爆召唤。</td></tr><tr><td><strong>CloneName</strong></td><td>Clone</td><td>—</td><td>法师「分身」的默认名字。</td></tr><tr><td><strong>Mon570NMirrorImageMob</strong></td><td>江白1</td><td>—</td><td>怪物 570N 的镜像分身怪。</td></tr><tr><td><strong>Mon573NMob</strong></td><td>飞燕魔蛛</td><td>—</td><td>怪物 573N 召唤的怪。</td></tr><tr><td><strong>FishMonster</strong></td><td>巨型多角虫</td><td>巨型多角虫</td><td>钓鱼时水域刷出的怪。</td></tr><tr><td><strong>AssassinCloneName</strong></td><td>AssassinClone</td><td>—</td><td>刺客分身的名字。</td></tr><tr><td><strong>VampireName</strong></td><td>血蛛</td><td>—</td><td>吸血系召唤（血蛛）。</td></tr><tr><td><strong>ToadName</strong></td><td>火蟾</td><td>—</td><td>火蟾。</td></tr><tr><td><strong>SnakeTotemName</strong></td><td>蛇柱</td><td>—</td><td>蛇柱（蛇系图腾）。</td></tr><tr><td><strong>SnakesName</strong></td><td>魅蛇</td><td>—</td><td>魅蛇。</td></tr><tr><td><strong>StoneName</strong></td><td>蜘蛛柱</td><td>—</td><td>蜘蛛柱，也是弓箭技能「地柱钉」生成的柱子。</td></tr><tr><td><strong>AncientBatName</strong></td><td>恶魔蝙蝠</td><td>—</td><td>恶魔蝙蝠。</td></tr><tr><td><strong>TucsonGeneralEgg</strong></td><td>瘟疫统领</td><td>—</td><td>虫卵孵化出的统领（瘟疫统领）。</td></tr><tr><td><strong>HornedCommanderMob1</strong></td><td>魔风旋</td><td>—</td><td>角斗指挥官系列召唤一（魔风旋）。</td></tr><tr><td><strong>HornedCommanderMob2</strong></td><td>魔角大巫</td><td>—</td><td>角斗指挥官系列召唤二（魔角大巫）。</td></tr><tr><td><strong>HornedCommanderBombMob</strong></td><td>岩弹</td><td>—</td><td>角斗指挥官系列弹体（岩弹）。</td></tr></tbody></table>
+<h2 id="s7-5">7.5 本段的失效项</h2>
+<p>下面这些键在 Setup.ini 里存在、看着像功能开关，但代码里全工程搜不到引用（或引用处已注释）。改了没有任何效果，遇到「功能不生效」时先对照这张表排除。</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>MaxBossTames</strong></td><td>1</td><td>—</td><td>已失效。全工程无引用，早期版本用来限制「每人能招几只 BOSS 宝宝」，现在由其他逻辑接管。</td></tr><tr><td><strong>MonsterRecallEnabled</strong></td><td>True</td><td>—</td><td>已失效。本分支没有实现「怪物召回」功能，整组三个键都没有代码引用。</td></tr><tr><td><strong>MonsterRecallRange</strong></td><td>12</td><td>—</td><td>已失效，同上。</td></tr><tr><td><strong>MonsterRecallCooldown</strong></td><td>5000</td><td>—</td><td>已失效，同上。</td></tr><tr><td><strong>Mon409BMob1</strong></td><td>魔风旋</td><td>—</td><td>已失效。与 HornedCommanderMob1 同名同义，但代码引用的是 HornedCommander 那组，这一组是历史残留。</td></tr><tr><td><strong>Mon409BMob2</strong></td><td>魔角大巫</td><td>—</td><td>已失效，同上。</td></tr><tr><td><strong>Mon409BBombMob</strong></td><td>岩弹</td><td>—</td><td>已失效，同上。</td></tr><tr><td><strong>Mon570BMob</strong></td><td>江白1</td><td>—</td><td>已失效。代码只引用 570N 的镜像怪（Mon570NMirrorImageMob），B 版无引用。</td></tr><tr><td><strong>Mon573BMob</strong></td><td>飞燕魔蛛</td><td>—</td><td>已失效。代码只引用 Mon573NMob。</td></tr><tr><td><strong>Mon580BMob</strong></td><td>冰墙1</td><td>—</td><td>已失效，无引用。</td></tr><tr><td><strong>Mon603BMob</strong></td><td>变异骨怪</td><td>—</td><td>已失效，无引用。</td></tr><tr><td><strong>HeroName</strong></td><td>Hero</td><td>—</td><td>已失效。只有 Settings 自己读和写，没有任何地方使用；英雄名实际由角色数据决定。</td></tr></tbody></table>
+<h1 id="s8">八、[Rested] 休息经验</h1>
+<h2 id="s8-1">8.1 段内各项</h2>
+<p>这一组是「休息得经验加成」：角色<strong>站在安全区</strong>时每秒累计一点计数，攒够一定点数就换成「精力充沛」状态，在该状态下打怪有额外经验。</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>Period</strong></td><td>60</td><td>60</td><td>在安全区每累计多少分钟折算 1 点休息点。0 = 关闭整套机制。</td></tr><tr><td><strong>BuffLength</strong></td><td>10</td><td>—</td><td>每点休息点折算的「精力充沛」时长（分钟）。</td></tr><tr><td><strong>ExpBonus</strong></td><td>5</td><td>—</td><td>「精力充沛」状态下的经验加成（百分比）。5 = 多 5%。</td></tr><tr><td><strong>MaxBonus</strong></td><td>24</td><td>—</td><td>最多能攒多少点。时长上限 = BuffLength × MaxBonus，当前 10 × 24 = 240 分钟。</td></tr></tbody></table>
+<h1 id="s9">九、[Items] 物品</h1>
+<h2 id="s9-1">9.1 特殊戒指技能名</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>HealRing</strong></td><td>Healing</td><td>Healing</td><td>治愈戒指附带的技能名（对应技能库里的名字）。</td></tr><tr><td><strong>FireRing</strong></td><td>FireBall</td><td>—</td><td>火焰戒指附带的技能名。</td></tr><tr><td><strong>BlinkSkill</strong></td><td>Blink</td><td>—</td><td>瞬移戒指附带的技能名。</td></tr></tbody></table>
+<p>这三个名字必须与技能库（Magic）里的技能名完全一致，写错的表现是戴上戒指不涨技能、或者技能列表里出现一个空条目。</p>
+<h2 id="s9-2">9.2 随机属性权重</h2>
+<p>装备洗练、随机附加属性时按权重抽取，权重越大越容易抽到，0 = 抽不到。整组数值是相对关系，改一项等于改所有项的占比。</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>MagicResistWeight</strong></td><td>10</td><td>10</td><td>魔法躲避（魔法抵抗）权重。</td></tr><tr><td><strong>PoisonResistWeight</strong></td><td>10</td><td>—</td><td>毒物躲避权重。</td></tr><tr><td><strong>CriticalRateWeight</strong></td><td>10</td><td>—</td><td>暴击率权重。</td></tr><tr><td><strong>CriticalDamageWeight</strong></td><td>10</td><td>—</td><td>暴击伤害权重。</td></tr><tr><td><strong>FreezingAttackWeight</strong></td><td>10</td><td>—</td><td>冰冻攻击权重。</td></tr><tr><td><strong>PoisonAttackWeight</strong></td><td>10</td><td>—</td><td>毒攻击权重。</td></tr><tr><td><strong>HealthRegenWeight</strong></td><td>10</td><td>—</td><td>体力恢复权重。</td></tr><tr><td><strong>ManaRegenWeight</strong></td><td>10</td><td>—</td><td>魔力恢复权重。</td></tr></tbody></table>
+<h2 id="s9-3">9.3 其它</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>MaxLuck</strong></td><td>10</td><td>—</td><td>幸运值上限。诅咒下限取同值的负数，所以这一项同时决定「最多几点幸运、最多几点诅咒」。当前 10。</td></tr><tr><td><strong>SealDelay</strong></td><td>60</td><td>60</td><td>物品封印额外时长（分钟）。封印到期时间 = 物品自身封印时间 + 该值，用来给全服封印统一加一道冷却。</td></tr><tr><td><strong>PvpCanResistMagic</strong></td><td>False</td><td>False</td><td>PVP 时魔法能否被「魔法躲避」抵挡。False = 打人必中，躲避只在打怪时生效。</td></tr><tr><td><strong>PvpCanResistPoison</strong></td><td>False</td><td>—</td><td>PVP 时中毒能否被「毒物躲避」抵挡。</td></tr><tr><td><strong>PvpCanFreeze</strong></td><td>False</td><td>—</td><td>PVP 时能否被冰冻。False = 玩家之间不会被冻住，防止被无限连。</td></tr></tbody></table>
+<h1 id="s10">十、其它小段（PKTown / DropGold / Bonus / 灵宠 / 观战 / 归档）</h1>
+<h2 id="s10-1">10.1 [PKTown] 红名村</h2>
+<p>红名（PK 值超标）角色被守卫击杀或被抓后，会被传送到这里「关起来」，需要洗 PK 值才能离开。</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>PKTownMapName</strong></td><td>3</td><td>3</td><td>红名村所在的地图，可写地图序号（3）或地图文件名。</td></tr><tr><td><strong>PKTownPositionX</strong></td><td>848</td><td>848</td><td>红名村出生点 X 坐标。</td></tr><tr><td><strong>PKTownPositionY</strong></td><td>677</td><td>—</td><td>红名村出生点 Y 坐标。</td></tr></tbody></table>
+<h2 id="s10-2">10.2 [DropGold] 掉落金钱</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>DropGold</strong></td><td>True</td><td>True</td><td>怪物是否掉落金币。关掉 = 金币只能靠任务、回收、商城，适合自建经济体系。</td></tr><tr><td><strong>MaxDropGold</strong></td><td>2000</td><td>2000</td><td>单次掉落的金币上限（单堆）。</td></tr></tbody></table>
+<h2 id="s10-3">10.3 [Bonus] 远程命中</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>RangeAccuracyBonus</strong></td><td>0</td><td>0</td><td>远程命中率加成（百分比）。命中率 = 100 + 该值 - 距离衰减，0 = 原版手感；调大等于让弓箭、法师更不容易打空。</td></tr></tbody></table>
+<h2 id="s10-4">10.4 [IntelligentCreatures] 灵宠</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>CreatureBlackStoneName</strong></td><td>蓝色生物石</td><td>蓝色生物石</td><td>灵宠用的「黑石/蓝石」物品名（喂食、进化消耗的那块石头）。必须与物品库里的名字一致。</td></tr></tbody></table>
+<h2 id="s10-5">10.5 [Observe] 观战</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>AllowObserve</strong></td><td>False</td><td>—</td><td>是否允许普通玩家观战（GM 始终可以）。观战是只读跟随，开启后要注意别让人用来偷看 BOSS 刷新。</td></tr></tbody></table>
+<h2 id="s10-6">10.6 [Archive] 角色归档</h2>
+<p>归档 = 从主库移到 Archive 目录，角色数据还在，可以恢复，但不占主库内存和加载时间。两项都做了「最小 1 个月」的下限保护。</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>InactiveCharacterMonths</strong></td><td>12</td><td>12</td><td>角色连续多少个月没登录就自动归档。</td></tr><tr><td><strong>DeletedCharacterMonths</strong></td><td>1</td><td>1</td><td>已删除的角色保留多少个月后彻底归档（这是找回的最后期限）。</td></tr></tbody></table>
+<h1 id="s11">十一、[FakePlayer] 假人系统</h1>
+<h2 id="s11-1">11.1 规模与登录</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>Enabled</strong></td><td>True</td><td>False</td><td>假人系统总开关。</td></tr><tr><td><strong>Count</strong></td><td>300</td><td>50</td><td>生成多少个假人。0 = 不生成；代码里上限 300，写更大也按 300 算。</td></tr><tr><td><strong>LevelMin</strong></td><td>32</td><td>32</td><td>随机等级下限（含）。</td></tr><tr><td><strong>LevelMax</strong></td><td>45</td><td>45</td><td>随机等级上限（含）。</td></tr><tr><td><strong>Maps</strong></td><td>0,1,2,3</td><td>—</td><td>假人练级地图，写地图序号或文件名，逗号分隔。留空 = 自动挑「有怪物刷新点」的地图，按序号取前 20 张。</td></tr><tr><td><strong>RandomLogin</strong></td><td>True</td><td>True</td><td>假人是否随机上下线。False = Count 个假人一直在线（在线人数好看，但常驻内存更高）。</td></tr><tr><td><strong>Spawns</strong></td><td></td><td>—</td><td>内联登录点，格式 地图:X,Y，多个用分号隔开。留空 = 只读登录点文件；两项都空 = 在活动地图上随机登录。</td></tr><tr><td><strong>SpawnFile</strong></td><td>FakePlayerSpawns.txt</td><td>FakePlayerSpawns.txt</td><td>登录点文件（相对 Configs 目录），每行一个「地图 X Y」。</td></tr></tbody></table>
+<h2 id="s11-2">11.2 行为</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>Chat</strong></td><td>True</td><td>True</td><td>假人是否说话、喊话。</td></tr><tr><td><strong>ChatFile</strong></td><td>FakePlayerChat.txt</td><td>FakePlayerChat.txt</td><td>台词文件（相对 Configs 目录），每行一句，以 # ; // 开头的行会被忽略。留空 = 用内置台词库。</td></tr><tr><td><strong>EquipFile</strong></td><td>FakePlayerEquip.txt</td><td>FakePlayerEquip.txt</td><td>装备方案文件（相对 Configs 目录）。文件不存在会自动生成一份模板，照着改即可。</td></tr><tr><td><strong>PK</strong></td><td>True</td><td>False</td><td>假人之间是否在野外随机 PK（互相切磋）。False = 只打怪。</td></tr><tr><td><strong>PKChance</strong></td><td>6</td><td>6</td><td>每轮判定「要不要挑个人打」的概率（%）。6 = 每轮 6% 概率开打。</td></tr><tr><td><strong>Follow</strong></td><td>True</td><td>True</td><td>是否允许假人接受组队邀请、跟随队长换图打怪（队长阵亡时它会自行下线重登）。</td></tr></tbody></table>
+<h1 id="s12">十二、[Hero] 英雄 AI</h1>
+<h2 id="s12-1">12.1 段内各项</h2>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>SmartAI</strong></td><td>True</td><td>True</td><td>英雄智能战斗：主人打谁我打谁、卡住会绕路、残血会躲、被围会击退脱身。关掉 = 原版呆站。</td></tr><tr><td><strong>AutoSkill</strong></td><td>True</td><td>True</td><td>英雄自主施法，不再要求玩家给技能设快捷键。关掉 = 只放设过键的技能。</td></tr><tr><td><strong>DodgePercent</strong></td><td>30</td><td>30</td><td>血量低于该百分比时开始「且退且打」（风筝）。30 = 三成血开始走位。</td></tr><tr><td><strong>PushMinSurround</strong></td><td>3</td><td>3</td><td>贴身敌人达到这个数量才发动「击退脱围」。3 = 被三只围住才推。</td></tr><tr><td><strong>PushCooldownMs</strong></td><td>8000</td><td>8000</td><td>两次击退脱围的最小间隔（毫秒）。8000 = 八秒一次，防止无脑推怪。</td></tr></tbody></table>
+<h1 id="s13">十三、[OfflineAFK] 离线挂机</h1>
+<h2 id="s13-1">13.1 段内各项</h2>
+<p>离线挂机 = 玩家断线后角色继续留在线上练级。死亡 5 秒后会自动回城复活，不会一直躺尸占地图。</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>Enabled</strong></td><td>True</td><td>True</td><td>是否允许离线挂机。关掉 = 断线即下线。</td></tr><tr><td><strong>NoConsumableDura</strong></td><td>True</td><td>True</td><td>挂机时不扣消耗类物品的持久与电量（气血石、魔血石、照明物），回血照常给。</td></tr><tr><td><strong>NoEquipDura</strong></td><td>True</td><td>True</td><td>挂机时不扣装备持久（含武器，被怪打也不磨损）。</td></tr></tbody></table>
+<p class="callout">这两项「不扣持久」是挂机玩家的主要收益点，开之前想清楚经济影响：等于挂机完全零成本。</p>
+<h1 id="s14">十四、速查：问题项与未写入项</h1>
+<h2 id="s14-1">14.1 一眼看出的问题项</h2>
+<p>按代码实际行为核对这份样本文件，下面几项要么是非法值、要么与直觉相反，建议开服前逐条确认：</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>DropRate = 0</strong></td><td>—</td><td>—</td><td>除零后溢出，等效「几乎不掉落」。应改为 1（原版）或目标倍数。</td></tr><tr><td><strong>HighLevelExpRate = 90</strong></td><td>—</td><td>—</td><td>是倍数不是百分比。90 表示 60 级以上额外 90 倍，叠加 ExpRate 200 后是 18000 倍。若本意「额外 90%」，应写 1.9。</td></tr><tr><td><strong>TameSuccessRate = 100</strong></td><td>—</td><td>—</td><td>必定招中。所有可招的怪一次就到手，包括本来极难招的。</td></tr><tr><td><strong>ItemTimeOut = 2</strong></td><td>—</td><td>—</td><td>地上物品两分钟消失，远低于默认 30 分钟。玩家打完一波怪回头捡，常常已经没了。</td></tr><tr><td><strong>MaxPacket = 50</strong></td><td>—</td><td>—</td><td>5 秒 50 包，高强度操作下可能被误判刷包并封 IP 24 小时。建议 100~150。</td></tr><tr><td><strong>RelogDelay / Language / RequireStoragePassword / MaxBossTames / MonsterRecall* / Mon4xxB* / HeroName</strong></td><td>—</td><td>—</td><td>全部已失效，改了没有任何效果，可以删掉减少干扰。</td></tr></tbody></table>
+<h2 id="s14-2">14.2 代码支持但这份文件里没写的项</h2>
+<p>下面这些键在当前样本里没有，但代码里都有默认值，属于<strong>按默认值生效</strong>。需要调的时候自己往对应段里加一行即可（服务端启动时也会自动补写一部分）。</p>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>ChatIntervalMs</strong></td><td>—</td><td>10000</td><td>默认 10000（10 秒）。假人说话/喊话的间隔，实际会在正负 30% 内抖动。</td></tr><tr><td><strong>NameFile</strong></td><td>—</td><td>FakePlayerNames.txt</td><td>默认 FakePlayerNames.txt。假人名文件，每行一个名字；文件不存在时按 Count 自动生成初始名。</td></tr><tr><td><strong>IdleIntervalMs</strong></td><td>—</td><td>5000</td><td>默认 5000。无人地图里假人的处理间隔下限（毫秒），实际取该值到两倍之间随机。</td></tr><tr><td><strong>VisibleCap</strong></td><td>—</td><td>50</td><td>默认 50。每个真人视野内最多显示的假人数。超出部分不发出现包，玩家看不见，这是减轻客户端同屏压力最有效的一项。</td></tr><tr><td><strong>LoginBatch</strong></td><td>—</td><td>100</td><td>默认 100。启动或重置后每秒分批登录的假人数。0 = 一次性全部登录（旧行为，启动会明显卡顿）。</td></tr><tr><td><strong>ShowRampMax</strong></td><td>—</td><td>20</td><td>默认 20。渐显：每个真人每秒最多「出现」几个假人（按 1、2、4 翻倍到该值封顶）。</td></tr><tr><td><strong>CrowdCalm</strong></td><td>—</td><td>True</td><td>默认 True。被看就文静：假人在真人视野内多站少走，降低客户端同屏动画压力。</td></tr></tbody></table>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>CompactMinutes</strong></td><td>—</td><td>0</td><td>默认 0（关闭）。定时全堆压缩的间隔分钟数。20~60 适合假人常驻的服，把 GC 缓存的空闲段还给系统；代价是压缩瞬间一次 Full GC 停顿（几十到几百毫秒）。</td></tr></tbody></table>
+<table class="data-table"><thead><tr><th style="width:4.0cm">键名</th><th style="width:2.8cm">当前值</th><th style="width:1.6cm">默认</th><th>说明</th></tr></thead><tbody><tr><td><strong>PoisonLockMagicOnly</strong></td><td>—</td><td>False</td><td>默认 False。中特殊毒后只锁魔法攻击，不锁物理平砍。</td></tr></tbody></table>
+<h1 id="s15">附录 A：与代码默认值的差异</h1>
+<p>下表只列「文件里的值」与「代码默认值」不一致的项，方便回溯这台服被调过什么。默认值一列取自 Settings.cs 的字段初始值，值被截断的地方以源码为准。</p>
+<table class="data-table"><thead><tr><th style="width:3.2cm">段</th><th style="width:5.2cm">键名</th><th style="width:3.6cm">文件值</th><th>代码默认值</th></tr></thead><tbody><tr><td>Database</td><td><strong>SaveDelay</strong></td><td>1</td><td>5</td></tr><tr><td>FakePlayer</td><td><strong>Count</strong></td><td>300</td><td>50</td></tr><tr><td>FakePlayer</td><td><strong>Enabled</strong></td><td>True</td><td>False</td></tr><tr><td>FakePlayer</td><td><strong>Maps</strong></td><td>0,1,2,3</td><td></td></tr><tr><td>FakePlayer</td><td><strong>PK</strong></td><td>True</td><td>False</td></tr><tr><td>Game</td><td><strong>DropRate</strong></td><td>0</td><td>1</td></tr><tr><td>Game</td><td><strong>HighLevelExpRate</strong></td><td>90</td><td>1</td></tr><tr><td>Game</td><td><strong>ItemTimeOut</strong></td><td>2</td><td>30</td></tr><tr><td>General</td><td><strong>CheckVersion</strong></td><td>False</td><td>True</td></tr><tr><td>General</td><td><strong>GMPassword</strong></td><td>@95470547</td><td>@9396399</td></tr><tr><td>Network</td><td><strong>EnableResourceService</strong></td><td>True</td><td>False</td></tr><tr><td>Network</td><td><strong>HTTPIPAddress</strong></td><td>http://0.0.0.0:5679/</td><td>http:</td></tr><tr><td>Network</td><td><strong>HTTPTrustedIPAddress</strong></td><td>0.0.0.0</td><td>127.0.0.1</td></tr><tr><td>Network</td><td><strong>IPAddress</strong></td><td>0.0.0.0</td><td>127.0.0.1</td></tr><tr><td>Network</td><td><strong>ResourceAllowAnyIP</strong></td><td>True</td><td>False</td></tr><tr><td>Network</td><td><strong>ResourcePath</strong></td><td>.\ClientResources\</td><td>@".\ClientResources\</td></tr><tr><td>Network</td><td><strong>StartHTTPService</strong></td><td>True</td><td>False</td></tr><tr><td>Optional</td><td><strong>EnableNoLamp</strong></td><td>True</td><td>true,</td></tr><tr><td>Optional</td><td><strong>SafeZoneBorder</strong></td><td>True</td><td>False</td></tr><tr><td>Optional</td><td><strong>TameIgnoreHpPenalty</strong></td><td>True</td><td>False</td></tr><tr><td>Optional</td><td><strong>TameIgnoreLevelLimit</strong></td><td>True</td><td>False</td></tr><tr><td>Optional</td><td><strong>TameIgnoreUntameable</strong></td><td>True</td><td>False</td></tr><tr><td>Optional</td><td><strong>TameSuccessRate</strong></td><td>100</td><td>0</td></tr><tr><td>Permission</td><td><strong>MaxResolution</strong></td><td>2560</td><td>1920</td></tr></tbody></table>
+</section>
+</body>
+</html>

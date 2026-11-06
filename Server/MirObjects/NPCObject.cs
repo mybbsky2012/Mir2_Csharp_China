@@ -369,9 +369,9 @@ namespace Server.MirObjects
         public void Show()
         {
             Visible = true;
-            for (int i = CurrentMap.Players.Count - 1; i >= 0; i--)
+            for (int i = CurrentMap.RealPlayers.Count - 1; i >= 0; i--)   // 20261106 只通知真人（假人不显示 NPC，收包即弃）
             {
-                PlayerObject player = CurrentMap.Players[i];
+                PlayerObject player = CurrentMap.RealPlayers[i];
 
                 if (Functions.InRange(CurrentLocation, player.CurrentLocation, Globals.DataRange))
                 {

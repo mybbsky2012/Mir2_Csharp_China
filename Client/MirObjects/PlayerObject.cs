@@ -5596,6 +5596,9 @@ namespace Client.MirObjects
 
         public override void Draw()
         {
+            // 内挂「只显示 1 格内玩家」：超范围的人整条不画（身体/武器/头/翅膀/坐骑/品质光效）
+            if (NearPlayerFiltered) return;
+
             DrawBehindEffects(Settings.Effect);
 
             //影华连击：释放技能时人物**完全不显示**（不是半透明「隐身」），技能播完由服务端下发位移（正前方 2 格）。
@@ -5669,6 +5672,8 @@ namespace Client.MirObjects
 
         public override void DrawBehindEffects(bool effectsEnabled)
         {
+            if (NearPlayerFiltered) return;
+
             for (int i = 0; i < Effects.Count; i++)
             {
                 if (!Effects[i].DrawBehind) continue;
@@ -5680,6 +5685,8 @@ namespace Client.MirObjects
 
         public override void DrawEffects(bool effectsEnabled)
         {
+            if (NearPlayerFiltered) return;
+
             for (int i = 0; i < Effects.Count; i++)
             {
                 if (Effects[i].DrawBehind) continue;
@@ -5774,9 +5781,18 @@ namespace Client.MirObjects
 
         public override void DrawBlend()
         {
-            DXManager.SetBlend(true, 0.3F);
-            Draw();
-            DXManager.SetBlend(false);
+            if (NearPlayerFiltered) return;
+
+            DXManager.SetBlend(true, MapObject.HighlightRate);
+            try
+            {
+                Draw();
+            }
+            finally
+            {
+                //★残影防护（11-06）：与 MapObject.DrawBlend 同理，异常时也要把混合状态复位。
+                DXManager.SetBlend(false);
+            }
         }
         public void DrawBody()
         {
@@ -6118,6 +6134,10 @@ namespace Client.MirObjects
 
         public override bool MouseOver(Point p)
         {
+            // 内挂「只显示 1 格内玩家」：看不见的人也不参与鼠标命中。
+            // 否则鼠标指着空地看着没对象，实际却命中了被隐藏的玩家 —— 免shift 下点地面会变成打人。
+            if (NearPlayerFiltered) return false;
+
             return MapControl.MapLocation == CurrentLocation || BodyLibrary != null && BodyLibrary.VisiblePixel(DrawFrame + ArmourOffSet, p.Subtract(FinalDrawLocation), false);
         }
 
@@ -6183,6 +6203,8 @@ namespace Client.MirObjects
 
         public override void DrawName()
         {
+            if (NearPlayerFiltered) return;
+
             CreateLabel();
 
             if (GuildLabel != null && !string.IsNullOrEmpty(GuildName))
