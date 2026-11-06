@@ -19,6 +19,7 @@ namespace Client.MirGraphics
             Prguse2 = new MLibrary(Settings.DataPath + "Prguse2"),
             Prguse3 = new MLibrary(Settings.DataPath + "Prguse3"),
             PrguseEx = new MLibrary(Settings.DataPath + "PrguseEx"),   // 整宽底栏（自适应分辨率用）
+            UISkin = new MLibrary(Settings.DataPath + "UI_32bit"),     // 可选皮肤底栏/血球（有就用，没有走 Prguse）
             StateitemEffect = new MLibrary(Settings.DataPath + "StateitemEffect"),
             BuffIcon = new MLibrary(Settings.DataPath + "BuffIcon"),
             Help = new MLibrary(Settings.DataPath + "Help"),
@@ -37,6 +38,26 @@ namespace Client.MirGraphics
             MagicC = new MLibrary(Settings.DataPath + "MagicC"),
             GuildSkill = new MLibrary(Settings.DataPath + "GuildSkill"),
             Weather = new MLibrary(Settings.DataPath + "Weather");
+
+        /// <summary>
+        /// 可选 UI 皮肤库（Data\UI_32bit.Lib）：有就用它的底栏和血球，没有就完全走 Prguse。
+        /// 只在本地存在该文件时才认，避免微端为一个可选皮肤反复排队下载。
+        /// </summary>
+        public static bool HasUISkin
+        {
+            get
+            {
+                try
+                {
+                    if (!System.IO.File.Exists(Settings.DataPath + "UI_32bit.Lib")) return false;
+                    return UISkin != null && UISkin.ImageCount > 0;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
 
         public static readonly MLibrary
             Background = new MLibrary(Settings.DataPath + "Background");
@@ -1170,6 +1191,7 @@ namespace Client.MirGraphics
 
             return false;
         }
+
     }
 
     public sealed class MImage

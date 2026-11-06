@@ -78,7 +78,7 @@ namespace Client.MirScenes.Dialogs
             {
                 Index = 13,
                 Library = Libraries.Prguse,
-                Location = new Point(1024, this.Size.Height - 104),
+                Location = new Point(this.Size.Width, this.Size.Height - 104),
                 Parent = this,
                 Visible = false
             };
@@ -383,7 +383,7 @@ namespace Client.MirScenes.Dialogs
                 ForeColour = Color.Yellow,
                 OutLineColour = Color.Black,
                 Parent = this,
-                Location = new Point(!ResolutionHelper.IsLegacySmall(Settings.Resolution) ? 899 : 675, !ResolutionHelper.IsLegacySmall(Settings.Resolution) ? -448 : -280),
+                Location = new Point(!ResolutionHelper.IsLegacySmall(Settings.Resolution) ? Size.Width - 125 : 675, !ResolutionHelper.IsLegacySmall(Settings.Resolution) ? -448 : -280),
                 Visible = Settings.ModeView
             };
 
@@ -403,10 +403,116 @@ namespace Client.MirScenes.Dialogs
                 ForeColour = Color.LimeGreen,
                 OutLineColour = Color.Black,
                 Parent = this,
-                Location = new Point(!ResolutionHelper.IsLegacySmall(Settings.Resolution) ? 899 : 675, !ResolutionHelper.IsLegacySmall(Settings.Resolution) ? -463 : -295),
+                Location = new Point(!ResolutionHelper.IsLegacySmall(Settings.Resolution) ? Size.Width - 125 : 675, !ResolutionHelper.IsLegacySmall(Settings.Resolution) ? -463 : -295),
                 Visible = Settings.ModeView
             };
+
+            // ★可选皮肤：Data 目录里有 UI_32bit.Lib 就用它的底栏 + 血球，没有就完全走原来的 Prguse。
+            //   只在「画什么」上分流：控件尺寸、位置、所有锚定 MainDialog 的面板一律不动，
+            //   所以底栏宽度还是现在的逻辑宽度（1024 / 800），不需要改布局。
+            if (Libraries.HasUISkin)
+            {
+                UseUISkin = true;
+                DrawImage = false;                  // 底栏改由 DrawUISkinBar 分段绘制
+                BeforeDraw += DrawUISkinBar;
+
+                // 底栏图是 158 高、控件是 Prguse 那张的可见高度（150/152），
+                // 竖直方向按「底边对齐」摆，所以血球也要跟着往上挪同样的差，
+                // 否则血球会落在球框外面。（Size 取不到时不动，保持原位更安全）
+                int barDelta = Size.Height > 100 ? Size.Height - SkinBarHeight : 0;
+                HealthOrb.Location = new Point(SkinOrbX, barDelta + SkinOrbY);
+
+                // 底栏上的两个圆钮换成皮肤图（原 Prguse 是 40×38，皮肤是 36×36，
+                // 位置右移 2、下移 1 让圆心不变）
+                GameShopButton.Library = Libraries.UISkin;
+                GameShopButton.Index = SkinShopIndex;
+                GameShopButton.HoverIndex = SkinShopIndex + 1;
+                GameShopButton.PressedIndex = SkinShopIndex + 2;
+                GameShopButton.Location = new Point(GameShopButton.Location.X + 2, GameShopButton.Location.Y + 1);
+
+                MenuButton.Library = Libraries.UISkin;
+                MenuButton.Index = SkinMenuIndex;
+                MenuButton.HoverIndex = SkinMenuIndex + 1;
+                MenuButton.PressedIndex = SkinMenuIndex + 2;
+                MenuButton.Location = new Point(MenuButton.Location.X + 2, MenuButton.Location.Y + 1);
+            }
         }
+
+        #region UI_32bit 皮肤底栏
+
+        // 皮肤底栏（UI_32bit.Lib 索引 8，800×158）的分段参数：
+        //   0..250   龙 + 血球 + "Mir" 牌 + 栏杆起始，固定不动
+        //   250..450 中间栏杆，200 宽一段循环平铺（柱距对齐，接缝看不出）
+        //   640..800 右侧按钮区，固定并贴控件右边缘
+        // 这样 800 宽的原图能铺满 1024（宽屏逻辑宽度）而不拉伸球和按钮。
+        // ★索引 8 = 带 "Mir" 牌那张（和旧库 0 号同款）；9 是同一张但牌子留空（可放自定标志），
+        //   真想换只改这一行即可。
+        private const int SkinBarIndex = 8;
+        private const int SkinBarHeight = 158;
+        private const int SkinLeftW = 250;
+        private const int SkinTileX = 250;
+        private const int SkinTileW = 200;
+        private const int SkinRightW = 190;     // ★160→190：右段左边从源 640 提到 610，多带 30px 石板，
+                                                //   拱门左侧的切痕不再压在中段平铺的接缝上
+        private const int SkinBarFullW = 800;
+
+        // 血球图（索引 5，104×80，左红右蓝）在底栏原图里的位置。
+        // ★原图里烘的玻璃球体是 x 11..88 / y 35..118（球心约 50,76），球图 104×80 的球体中心在 (50,39.5)
+        //   → 想让它正好套进绳环，图的左上角要落在 (0,37)；对齐高光（原图 33,57 / 球图 35,21）也是 36~37。
+        //   原来写 30 就是偏高 7px，球的下沿会露出后面那层灰玻璃球。
+        private const int SkinOrbIndex = 5;
+        private const int SkinOrbIndexHpOnly = 4;   // 战士 <26 级只显示一个红球
+        private const int SkinOrbX = 0;
+        private const int SkinOrbY = 37;
+
+        // 龙爪上那颗绿色龙珠：底栏原图那里烘的是灰球，皮肤库把它单独拆成了索引 15（28×23，off 96,31），
+        // 按原图自带的偏移叠上去正好盖住灰球。
+        private const int SkinBallIndex = 15;
+        private const int SkinBallX = 96;
+        private const int SkinBallY = 31;
+
+        // 底栏圆钮：商城 60-62、游戏菜单 63-65（常态 / 悬停 / 按下），各 36×36
+        private const int SkinShopIndex = 60;
+        private const int SkinMenuIndex = 63;
+
+        /// <summary>是否启用 UI_32bit 皮肤底栏/血球。</summary>
+        public bool UseUISkin { get; private set; }
+
+        /// <summary>
+        /// 用 UI_32bit.Lib 的底栏图分段拼出当前逻辑宽度：左段固定 + 中段平铺 + 右段贴右。
+        /// 竖直方向按「底边贴屏幕底」摆放，所以 158 高的新图比原来 152 高的 Prguse 图往上多出 6px，
+        /// 正好压在屏幕下沿，不会切掉栏杆底座。
+        /// </summary>
+        private void DrawUISkinBar(object sender, EventArgs e)
+        {
+            if (!UseUISkin || Libraries.UISkin == null) return;
+
+            int width = Size.Width;
+            if (width < SkinLeftW + SkinRightW) width = SkinBarFullW;
+
+            int left = DisplayLocation.X;
+            int top = DisplayLocation.Y + Size.Height - SkinBarHeight;
+
+            Libraries.UISkin.Draw(SkinBarIndex, new Rectangle(0, 0, SkinLeftW, SkinBarHeight),
+                                  new Point(left, top), Color.White, false);
+
+            // 龙珠单独叠在左段上（原图此处是灰球）
+            Libraries.UISkin.Draw(SkinBallIndex, new Point(left + SkinBallX, top + SkinBallY), Color.White, false);
+
+            int x = SkinLeftW;
+            while (x < width - SkinRightW)
+            {
+                int n = Math.Min(SkinTileW, width - SkinRightW - x);
+                Libraries.UISkin.Draw(SkinBarIndex, new Rectangle(SkinTileX, 0, n, SkinBarHeight),
+                                      new Point(left + x, top), Color.White, false);
+                x += n;
+            }
+
+            Libraries.UISkin.Draw(SkinBarIndex, new Rectangle(SkinBarFullW - SkinRightW, 0, SkinRightW, SkinBarHeight),
+                                  new Point(left + width - SkinRightW, top), Color.White, false);
+        }
+
+        #endregion
 
         public void Process()
         {
@@ -504,7 +610,9 @@ namespace Client.MirScenes.Dialogs
 
         private void HealthOrb_BeforeDraw(object sender, EventArgs e)
         {
-            if (Libraries.Prguse == null) return;
+            // 皮肤库优先：UI_32bit 的 #5 是 104×80 左红右蓝，和 Prguse #4 同尺寸同构图
+            MLibrary orbLib = UseUISkin ? Libraries.UISkin : Libraries.Prguse;
+            if (orbLib == null) return;
 
             int height;
             if (User != null && User.HP != User.Stats[Stat.HP])
@@ -515,18 +623,18 @@ namespace Client.MirScenes.Dialogs
             if (height < 0) height = 0;
             if (height > 80) height = 80;
 
-            int orbImage = 4;
+            int orbImage = UseUISkin ? SkinOrbIndex : 4;
 
             bool hpOnly = false;
 
             if (HPOnly)
             {
                 hpOnly = true;
-                orbImage = 6;
+                orbImage = UseUISkin ? SkinOrbIndexHpOnly : 6;
             }
 
             Rectangle r = new Rectangle(0, 80 - height, hpOnly ? 100 : 50, height);
-            Libraries.Prguse.Draw(orbImage, r, new Point(((Settings.ScreenWidth / 2) - (Size.Width / 2)), HealthOrb.DisplayLocation.Y + 80 - height), Color.White, false);
+            orbLib.Draw(orbImage, r, new Point(HealthOrb.DisplayLocation.X, HealthOrb.DisplayLocation.Y + 80 - height), Color.White, false);
 
             if (hpOnly) return;
 
@@ -539,7 +647,7 @@ namespace Client.MirScenes.Dialogs
             if (height > 80) height = 80;
             r = new Rectangle(51, 80 - height, 50, height);
 
-            Libraries.Prguse.Draw(4, r, new Point(((Settings.ScreenWidth / 2) - (Size.Width / 2)) + 51, HealthOrb.DisplayLocation.Y + 80 - height), Color.White, false);
+            orbLib.Draw(orbImage, r, new Point(HealthOrb.DisplayLocation.X + 51, HealthOrb.DisplayLocation.Y + 80 - height), Color.White, false);
         }
 
         private void ExperienceBar_BeforeDraw(object sender, EventArgs e)

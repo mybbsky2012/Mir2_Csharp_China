@@ -16,6 +16,7 @@ namespace LibraryEditor
     /// V2 Library
     /// Uses DXT5 Images
     /// Supports Frames (When at LibVersion 3)
+    /// 另支持 V4/V5 的「帧表前置 + 顺序负载」布局（新版客户端 UI 皮肤库，见 TryInitializeV5）。
     /// </summary>
     public sealed class MLibraryV2 : ILibrary
     {
@@ -30,6 +31,18 @@ namespace LibraryEditor
         public List<int> IndexList = new List<int>();
         public int Count { get; set; }
         private bool _initialized;
+
+        // ---------------- V5（帧表前置布局）状态 ----------------
+        private bool _isV5;
+        private int _v5Unknown1, _v5Unknown2;
+        private byte _v5Flag;
+        private int _v5LoadCount;          // 打开时的帧数（用于判断派生字段是否需要重算）
+
+        /// <summary>当前库是否按 V5 布局打开（保存时写回同一布局）。</summary>
+        public bool IsV5 { get { return _isV5; } }
+
+        /// <summary>实际读到的版本号。</summary>
+        public int ReadVersion { get; private set; }
 
         private BinaryReader _reader;
         private FileStream _stream;
@@ -51,6 +64,7 @@ namespace LibraryEditor
         {
             int CurrentVersion;
             _initialized = true;
+            _isV5 = false;
 
             if (!File.Exists(FileName))
                 return;
@@ -59,6 +73,11 @@ namespace LibraryEditor
             _buffered = new BufferedStream(_stream, 1 << 20);
             _reader = new BinaryReader(_buffered);
             CurrentVersion = _reader.ReadInt32();
+            ReadVersion = CurrentVersion;
+
+            // V4/V5：帧表写在文件头、负载顺序排在其后（没有索引表）。校验不过才回落到旧版解析。
+            if (CurrentVersion >= 4 && TryInitializeV5())
+                return;
 
             // 版本 1（Artificial Mir Monster 等，帧负载为 DXT1）与 2/3 同构，直接支持；
             // 仅低于 1 的才拒绝。探测 DecodePayload 会自动识别 DXT1/gzip/BGRA/565。
@@ -69,6 +88,20 @@ namespace LibraryEditor
             }
 
             Count = _reader.ReadInt32();
+
+            // 旧布局的合法性兜底：版本号被“假通过”时 Count 会是垃圾值（V5 库的 0x04 字段曾被
+            // 当成帧数，分配三百万个槽再读三百万个 int，最后 seek 越界崩在 EndOfStream）。
+            // 每帧至少 4 字节索引，超过文件长度/4 必然不是真的帧数。
+            if (Count < 0 || Count > _stream.Length / 4)
+            {
+                MessageBox.Show("版本错误，文件头帧数非法（" + Count.ToString() + "），可能是不受支持的新版布局：" +
+                                Environment.NewLine + FileName,
+                                "打开失败", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1);
+                Count = 0;
+                Images = new List<MImage>();
+                IndexList = new List<int>();
+                return;
+            }
 
             // 预分配容量：上万帧的库靠 List 自动扩容会反复搬移大数组
             Images = new List<MImage>(Count > 0 ? Count : 0);
@@ -135,6 +168,223 @@ namespace LibraryEditor
             }
         }
 
+        // ==================== V5（帧表前置布局） ====================
+
+        private const int V5TableStart = 13;   // int 版本 + int A + int B + byte 标志
+        private const int V5RecordSize = 17;   // 6×int16 + byte + int32，与旧版帧头同构（无 mask）
+
+        /// <summary>
+        /// V5 布局（新版客户端 UI 皮肤库，如 18MB 的 UI.Lib）：
+        ///   0x00 int  版本号（实测 5）
+        ///   0x04 int  派生字段 A（实测 = (17×帧数 + 8) × 256）
+        ///   0x08 int  派生字段 B（实测 = 帧数 × 256）
+        ///   0x0C byte 标志位（实测 0）
+        ///   0x0D     帧表：帧数 × 17 字节 &lt;w,h,ox,oy,sx,sy:int16&gt;&lt;shadow:byte&gt;&lt;len:int32&gt;
+        ///   表尾 4 字节 0，随后各帧负载按帧序依次排列（gzip → w×h×4 BGRA）。
+        /// 没有索引表、没有 mask 层、没有动作帧段，文件末尾就是最后一帧负载。
+        /// 帧数依旧不能直接读（B 字段只是「帧数×256」的派生值），所以用
+        /// 「帧表长度 + 各帧 len 之和 + 固定开销 == 文件长度」反推并校验；
+        /// 校验不过就返回 false，交给旧版解析，绝不猜。
+        /// </summary>
+        private bool TryInitializeV5()
+        {
+            long fileLen = _stream.Length;
+            if (fileLen < V5TableStart + 4) return false;
+
+            byte[] head = new byte[9];
+            if (ReadAt(4, head, 9) != 9) return false;
+
+            int unknown1 = BitConverter.ToInt32(head, 0);
+            int unknown2 = BitConverter.ToInt32(head, 4);
+            byte flag = head[8];
+
+            List<int> candidates = V5CountCandidates(unknown2, fileLen);
+
+            for (int c = 0; c < candidates.Count; c++)
+            {
+                int count = candidates[c];
+                if (count < 0) continue;
+
+                long tableBytes = (long)count * V5RecordSize;
+                long dataStart = V5TableStart + tableBytes + 4;
+                if (dataStart > fileLen) continue;
+
+                if (tableBytes > int.MaxValue) continue;
+
+                byte[] table = new byte[tableBytes];
+                if (table.Length > 0 && ReadAt(V5TableStart, table, table.Length) != table.Length) continue;
+
+                long sum = 0;
+                bool bad = false;
+
+                for (int i = 0; i < count; i++)
+                {
+                    int o = i * V5RecordSize;
+                    short w = BitConverter.ToInt16(table, o);
+                    short h = BitConverter.ToInt16(table, o + 2);
+                    int ln = BitConverter.ToInt32(table, o + 13);
+
+                    // 帧尺寸上限取 4096：UI 皮肤/地图集都不会更大，超了说明帧数猜错、表位置对不上
+                    if (w < 0 || h < 0 || w > 4096 || h > 4096 || ln < 0 || ln > fileLen)
+                    {
+                        bad = true;
+                        break;
+                    }
+                    sum += ln;
+                }
+
+                if (bad) continue;
+
+                // 最强的一条：帧表 + 4 字节 + 全部负载 = 文件长度（末尾不多不少）
+                if (dataStart + sum != fileLen) continue;
+
+                if (count > 0)
+                {
+                    byte[] gz = new byte[2];
+                    if (ReadAt(dataStart, gz, 2) != 2 || gz[0] != 0x1F || gz[1] != 0x8B) continue;
+                }
+
+                // 校验通过，开始装载
+                Count = count;
+                _v5LoadCount = count;
+                _isV5 = true;
+                _v5Unknown1 = unknown1;
+                _v5Unknown2 = unknown2;
+                _v5Flag = flag;
+
+                Images = new List<MImage>(count);
+                IndexList = new List<int>(count);
+
+                // 帧头全在表里，数据区只有负载：不能像旧版那样「读到帧头顺带读负载」，
+                // 必须按表里的 len 去数据区顺序取，否则第一个字节就是 gzip 魔数 1F 8B。
+                _buffered.Position = dataStart;
+
+                for (int i = 0; i < count; i++)
+                {
+                    int o = i * V5RecordSize;
+
+                    short w = BitConverter.ToInt16(table, o);
+                    short h = BitConverter.ToInt16(table, o + 2);
+                    short ox = BitConverter.ToInt16(table, o + 4);
+                    short oy = BitConverter.ToInt16(table, o + 6);
+                    short sx = BitConverter.ToInt16(table, o + 8);
+                    short sy = BitConverter.ToInt16(table, o + 10);
+                    byte shadow = table[o + 12];
+                    int ln = BitConverter.ToInt32(table, o + 13);
+
+                    IndexList.Add((int)_buffered.Position);   // 顺序负载：记下每帧数据偏移（诊断用）
+
+                    byte[] payload;
+                    try
+                    {
+                        payload = ln > 0 ? _reader.ReadBytes(ln) : new byte[0];
+                    }
+                    catch (EndOfStreamException)
+                    {
+                        payload = new byte[0];
+                    }
+
+                    if (payload == null) payload = new byte[0];
+
+                    // V5 记录里没有 mask 层：Shadow 的 bit7 不能当标记，这里直接给字段赋值
+                    Images.Add(new MImage(payload, w, h)
+                    {
+                        X = ox,
+                        Y = oy,
+                        ShadowX = sx,
+                        ShadowY = sy,
+                        Shadow = shadow,
+                        Length = ln,
+                    });
+                }
+
+                return true;
+            }
+
+            _buffered.Position = 4;   // 交回旧版解析：流位置必须回到「版本号之后」
+            return false;
+        }
+
+        /// <summary>
+        /// 帧数候选：先按 B 字段（帧数×256）推，再扫描表尾那 4 个 0 之后的第一个 gzip 头反推。
+        /// 两个候选都要过 V5 的长度校验才算数。
+        /// </summary>
+        private List<int> V5CountCandidates(int unknown2, long fileLen)
+        {
+            var list = new List<int>(2);
+
+            if (unknown2 > 0 && unknown2 % 256 == 0)
+            {
+                int c = unknown2 / 256;
+                if (c > 0 && (long)c * V5RecordSize + V5TableStart + 4 <= fileLen)
+                    list.Add(c);
+            }
+
+            // 帧表的第一个字节紧跟在 13 字节头之后，数据区起点 = 13 + count*17 + 4
+            long gzipPos = FindGzipStart(V5TableStart + V5RecordSize);
+            if (gzipPos > 0)
+            {
+                long diff = gzipPos - 4 - V5TableStart;
+                if (diff > 0 && diff % V5RecordSize == 0)
+                {
+                    int c = (int)(diff / V5RecordSize);
+                    if (!list.Contains(c)) list.Add(c);
+                }
+            }
+
+            return list;
+        }
+
+        /// <summary>从指定偏移向后找第一个 gzip 头（1F 8B）。</summary>
+        private long FindGzipStart(long from)
+        {
+            const int Chunk = 1 << 20;
+            const long ScanLimit = 64L << 20;   // 帧表最多扫 64MB（≈390 万帧），避免在超大文件上白扫
+            byte[] buf = new byte[Chunk + 1];
+
+            long pos = from;
+            long len = Math.Min(_stream.Length, from + ScanLimit);
+
+            while (pos + 1 < len)
+            {
+                int want = (int)Math.Min(Chunk + 1L, len - pos);
+                int n = ReadAt(pos, buf, want);
+                if (n < 2) break;
+
+                for (int i = 0; i + 1 < n; i++)
+                {
+                    if (buf[i] == 0x1F && buf[i + 1] == 0x8B)
+                        return pos + i;
+                }
+
+                if (n <= Chunk) break;
+                pos += Chunk;
+            }
+
+            return -1;
+        }
+
+        /// <summary>绝对位置读取（走 _buffered，避免和它内部缓冲失步）。返回实际读到的字节数。</summary>
+        private int ReadAt(long pos, byte[] buffer, int count)
+        {
+            if (pos < 0 || pos >= _stream.Length || count <= 0) return 0;
+
+            long left = _stream.Length - pos;
+            if (count > left) count = (int)left;
+
+            _buffered.Position = pos;
+
+            int total = 0;
+            while (total < count)
+            {
+                int n = _buffered.Read(buffer, total, count - total);
+                if (n <= 0) break;
+                total += n;
+            }
+
+            return total;
+        }
+
         public void Close()
         {
             // BinaryReader.Dispose 会连带释放 BufferedStream 与底层 FileStream
@@ -158,6 +408,13 @@ namespace LibraryEditor
         public void Save()
         {
             Close();
+
+            // 按 V5 布局打开的库，保存写回同一布局（不偷偷降级成 V3，否则原引擎读不了）
+            if (_isV5)
+            {
+                SaveV5();
+                return;
+            }
 
             MemoryStream stream = new MemoryStream();
             BinaryWriter writer = new BinaryWriter(stream);
@@ -202,6 +459,87 @@ namespace LibraryEditor
             writer.Close();
             writer.Dispose();
             Close();
+        }
+
+        /// <summary>
+        /// 按 V5 布局整体重写：13 字节头 + 帧表 + 4 个 0 + 顺序负载。
+        /// 帧表里的派生字段原样回写；只有帧数变了（增删帧）才按实测公式重算，
+        /// 避免把原库里的值改坏。
+        /// </summary>
+        private void SaveV5()
+        {
+            Count = Images.Count;
+
+            byte[] header = new byte[V5TableStart + (long)Count * V5RecordSize + 4];
+            int unknown1 = _v5Unknown1;
+            int unknown2 = _v5Unknown2;
+
+            if (Count != _v5LoadCount)
+            {
+                // 实测关系：B = 帧数×256，A = (17×帧数 + 8)×256
+                if (_v5LoadCount == 0 || _v5Unknown2 == _v5LoadCount * 256)
+                    unknown2 = Count * 256;
+                if (_v5LoadCount == 0 || _v5Unknown1 == (_v5LoadCount * V5RecordSize + 8) * 256)
+                    unknown1 = (Count * V5RecordSize + 8) * 256;
+            }
+
+            int p = 0;
+            WriteInt(header, ref p, ReadVersion > 0 ? ReadVersion : 5);
+            WriteInt(header, ref p, unknown1);
+            WriteInt(header, ref p, unknown2);
+            header[p++] = _v5Flag;
+
+            for (int i = 0; i < Count; i++)
+            {
+                MImage mi = Images[i];
+                if (mi == null) mi = Images[i] = new MImage(new byte[0], 0, 0);
+
+                byte[] fb = mi.FBytes ?? new byte[0];
+
+                WriteShort(header, ref p, mi.Width);
+                WriteShort(header, ref p, mi.Height);
+                WriteShort(header, ref p, mi.X);
+                WriteShort(header, ref p, mi.Y);
+                WriteShort(header, ref p, mi.ShadowX);
+                WriteShort(header, ref p, mi.ShadowY);
+                header[p++] = (byte)(mi.Shadow & 0x7F);   // 无 mask 段，bit7 必须清零
+                WriteInt(header, ref p, fb.Length);
+            }
+
+            // 表尾 4 个 0 已经在 header 里（数组初始化即为 0）
+            IndexList.Clear();
+
+            _stream = File.Create(FileName);
+
+            using (var writer = new BinaryWriter(new BufferedStream(_stream, 1 << 20)))
+            {
+                writer.Write(header, 0, header.Length);
+
+                long offset = header.Length;
+                for (int i = 0; i < Count; i++)
+                {
+                    byte[] fb = Images[i].FBytes ?? new byte[0];
+                    IndexList.Add((int)offset);
+                    if (fb.Length > 0) writer.Write(fb);
+                    offset += fb.Length;
+                }
+
+                writer.Flush();
+            }
+
+            Close();
+        }
+
+        private static void WriteInt(byte[] buffer, ref int pos, int value)
+        {
+            BitConverter.GetBytes(value).CopyTo(buffer, pos);
+            pos += 4;
+        }
+
+        private static void WriteShort(byte[] buffer, ref int pos, short value)
+        {
+            BitConverter.GetBytes(value).CopyTo(buffer, pos);
+            pos += 2;
         }
 
         private void CheckImage(int index)

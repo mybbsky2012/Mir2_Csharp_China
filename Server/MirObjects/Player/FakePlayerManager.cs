@@ -170,7 +170,12 @@ namespace Server.MirObjects
                 foreach (KeyValuePair<uint, FakePlayerObject> kv in sight.Shown)
                 {
                     FakePlayerObject b = kv.Value;
-                    if (b == null || b.Dead || b.CurrentMap != player.CurrentMap ||
+                    // ★Info/CurrentMap 判空：假人下线走 CleanUp() 会把 Info 置 null，
+                    //   但对象可能还留在本表里（下线时未必走到视野 Remove 路径），
+                    //   这里一旦碰 b.CurrentLocation 就是 NRE。Info 没了 → 名额直接回收。
+                    if (b == null || b.Info == null || player.Info == null ||
+                        b.CurrentMap == null || player.CurrentMap == null || b.Dead ||
+                        b.CurrentMap != player.CurrentMap ||
                         !Functions.InRange(b.CurrentLocation, player.CurrentLocation, Globals.DataRange))
                     {
                         if (stale == null) stale = new List<uint>();
@@ -254,7 +259,9 @@ namespace Server.MirObjects
                     FakePlayerObject bot = sight.Pending[i];
                     sight.Pending.RemoveAt(i);
 
-                    bool valid = bot != null && !bot.Dead && bot.Node != null &&
+                    bool valid = bot != null && !bot.Dead && bot.Node != null && bot.Info != null &&
+                                 player.Info != null &&
+                                 bot.CurrentMap != null && player.CurrentMap != null &&
                                  bot.CurrentMap == player.CurrentMap &&
                                  Functions.InRange(bot.CurrentLocation, player.CurrentLocation, Globals.DataRange);
 
@@ -279,6 +286,22 @@ namespace Server.MirObjects
             PlayerBotSight sight;
             if (SightByPlayer.TryGetValue(player.ObjectID, out sight))
                 sight.Shown.Remove(bot.ObjectID);
+        }
+
+        /// <summary>
+        /// ★假人下线时调用：把它从所有玩家的视野注册表（Shown 名额 + Pending 渐显队列）里摘掉。
+        /// 不摘的话，下线假人（CleanUp 已把 Info 置 null）会残留在他人的 Shown 里，
+        /// 周期校验一访问 CurrentLocation 就是 NRE——名额要等 3 秒校验才自然过期。
+        /// </summary>
+        public static void RemoveBotEverywhere(FakePlayerObject bot)
+        {
+            if (bot == null) return;
+
+            foreach (KeyValuePair<uint, PlayerBotSight> kv in SightByPlayer)
+            {
+                kv.Value.Shown.Remove(bot.ObjectID);
+                kv.Value.Pending.Remove(bot);
+            }
         }
 
         /// <summary>清理已下线玩家的视野注册表（挂在每秒巡检里）</summary>
@@ -1281,6 +1304,10 @@ namespace Server.MirObjects
                     MessageQueue.Instance.Enqueue($"[假人] {rec.Name} 下线异常：{ex.Message}");
                 }
             }
+
+            // ★下线即摘名额：StopGame 只会对视野内玩家发 Remove，视野外残留的注册名额清不掉，
+            //   Info 置 null 后就是 TryShowToPlayer 的 NRE 源头
+            RemoveBotEverywhere(bot);
 
             rec.Bot = null;
             rec.Online = false;

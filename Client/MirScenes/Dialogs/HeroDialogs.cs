@@ -251,6 +251,19 @@ namespace Client.MirScenes.Dialogs
         public MirButton CloseButton, RotateButton;
         public MirItemCell[] Grid;
 
+        // ★可选皮肤（Data 里有 UI_32bit.Lib 时）：两个格子用皮肤索引 18 的双格面板（100×50）。
+        //   格子位置和 Prguse 版一样（12 起、步距 35），只是面板高 12px，格子跟着下移。
+        //   面板右侧烘死了 ↻ / × 两个小图标 → 按钮不画图，只当热区盖上去，
+        //   点击行为和 Prguse 版完全一致（↻ 横竖切换、× 关闭）。
+        private const int SkinPanelIndex = 18;
+        private const int SkinPanelWidth = 100;
+        private const int SkinPanelHeight = 50;
+        private const int SkinCellX = 12;
+        private const int SkinCellY = 12;
+        private const int SkinCellPitch = 35;
+        public bool UseUISkin { get; private set; }
+        private bool _skinVertical;
+
         public HeroBeltDialog()
         {
             Index = 1921;
@@ -314,18 +327,139 @@ namespace Client.MirScenes.Dialogs
                 };
             }
 
+            // ★皮肤模式：换成索引 18 的双格面板（100×50，格子 12/12 起、步距 35）
+            if (Libraries.HasUISkin)
+            {
+                UseUISkin = true;
+                Library = Libraries.UISkin;
+                Index = SkinPanelIndex;          // Index 变了会自动把 Size 更新成 100×50
+
+                for (int i = 0; i < Grid.Length; i++)
+                    Grid[i].Location = new Point(SkinCellX + i * SkinCellPitch, SkinCellY);
+
+                for (int i = 0; i < Key.Length; i++)
+                    Key[i].Location = new Point(SkinCellX + i * SkinCellPitch + 2, SkinCellY);
+
+                ApplySkinLayout(false);
+            }
+        }
+
+        /// <summary>
+        /// 皮肤模式的横/竖两套摆位：
+        ///   横排 = 皮肤索引 18（100×50），两个按钮只当热区盖在烘好的 ↻/× 上；
+        ///   竖排 = 皮肤库里没有独立素材，按用户要求直接用 Prguse 的竖排（1943），按钮也是 Prguse 那套。
+        /// </summary>
+        private void ApplySkinLayout(bool vertical)
+        {
+            _skinVertical = vertical;
+
+            if (vertical)
+            {
+                Library = Libraries.Prguse;
+                Index = 1943;                       // Prguse 竖排 40×101
+                DrawImage = true;
+                AutoSize = true;
+                Size = new Size(40, 101);
+                Location = new Point(0, 446);       // 和 Prguse 版 Flip 一致
+
+                for (int i = 0; i < Grid.Length; i++)
+                    Grid[i].Location = new Point(3, i * 35 + 12);
+
+                for (int i = 0; i < Key.Length; i++)
+                    Key[i].Location = new Point(-1, 11 + i * 35);
+
+                CloseButton.Location = new Point(3, 82);
+                RotateButton.Location = new Point(19, 82);
+                MakePrguseButton(CloseButton, 1935, 1936, 1937);
+                MakePrguseButton(RotateButton, 1938, 1939, 1940);
+            }
+            else
+            {
+                Library = Libraries.UISkin;
+                Index = SkinPanelIndex;             // 100×50
+                DrawImage = true;
+                AutoSize = true;
+                Size = new Size(SkinPanelWidth, SkinPanelHeight);
+
+                for (int i = 0; i < Grid.Length; i++)
+                    Grid[i].Location = new Point(SkinCellX + i * SkinCellPitch, SkinCellY);
+
+                for (int i = 0; i < Key.Length; i++)
+                    Key[i].Location = new Point(SkinCellX + i * SkinCellPitch + 2, SkinCellY);
+
+                CloseButton.Location = new Point(81, 33);
+                RotateButton.Location = new Point(81, 12);
+                MakeHotzone(CloseButton);
+                MakeHotzone(RotateButton);
+
+                // 从竖排切回来：恢复 Prguse 版的原始停靠位
+                Location = new Point(GameScene.Scene.MainDialog.Location.X + 475, Settings.ScreenHeight - 150);
+            }
+
+            ClampToScreen();
+        }
+
+        /// <summary>按钮改成「透明热区」：不画图，只负责点中烘在皮肤画面里的那个小图标。</summary>
+        private static void MakeHotzone(MirButton button)
+        {
+            button.Library = Libraries.UISkin;
+            button.Index = -1;
+            button.HoverIndex = -1;
+            button.PressedIndex = -1;
+            button.DrawImage = false;
+            button.AutoSize = false;
+            button.Size = new Size(18, 16);
+            button.Visible = true;
+        }
+
+        /// <summary>恢复成 Prguse 的可见按钮（竖排用）。</summary>
+        private static void MakePrguseButton(MirButton button, int normal, int hover, int pressed)
+        {
+            button.Library = Libraries.Prguse;
+            button.Index = normal;
+            button.HoverIndex = hover;
+            button.PressedIndex = pressed;
+            button.DrawImage = true;
+            button.AutoSize = true;
+            button.Visible = true;
+        }
+
+        /// <summary>竖排比横排高得多，切换后如果会顶出屏幕就拉回来（不然按钮点不到）。</summary>
+        private void ClampToScreen()
+        {
+            int x = Location.X;
+            int y = Location.Y;
+
+            if (x + Size.Width > Settings.ScreenWidth) x = Settings.ScreenWidth - Size.Width;
+            if (y + Size.Height > Settings.ScreenHeight) y = Settings.ScreenHeight - Size.Height;
+            if (x < 0) x = 0;
+            if (y < 0) y = 0;
+
+            Location = new Point(x, y);
         }
 
         private void BeltPanel_BeforeDraw(object sender, EventArgs e)
         {
-            //if Transparent return
+            if (!UseUISkin)
+            {
+                if (Libraries.Prguse != null)
+                    Libraries.Prguse.Draw(Index == 1921 ? 1934 : 1946, DisplayLocation, Color.White, false, 0.5F);
+                return;
+            }
 
-            if (Libraries.Prguse != null)
-                Libraries.Prguse.Draw(Index == 1921 ? 1934 : 1946, DisplayLocation, Color.White, false, 0.5F);
+            // 竖排借用了 Prguse 的素材，原版的半透明底图也要一起补上，否则面板没有暗色衬底
+            if (_skinVertical && Libraries.Prguse != null)
+                Libraries.Prguse.Draw(1946, DisplayLocation, Color.White, false, 0.5F);
         }
 
         public void Flip()
         {
+            if (UseUISkin)
+            {
+                ApplySkinLayout(!_skinVertical);
+                return;
+            }
+
             //0,70 LOCATION
             if (Index == 1921)
             {
