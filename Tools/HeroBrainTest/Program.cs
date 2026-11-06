@@ -22,6 +22,7 @@ internal static class Program
         CatalogTests();
         ImplementationTests();
         RankingTests();
+        RotationTests();
         FilterTests();
         ScenarioTests();
 
@@ -198,6 +199,96 @@ internal static class Program
         var broken = new UserMagic(Spell.FireBall);
         broken.Info = null;
         Check("Info 为 null 的技能被忽略", Rank(new[] { broken, fireBall }, HeroSpellKind.Single, 0, 1).Count == 1);
+    }
+
+    //＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝ 同档轮换（弓手 无我闪 ⇄ 天日闪）＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+    /// <summary>
+    /// 弓手原来只会放无我闪：两本都是单体远程箭，天日闪评分 28.22 永远排第二，TryCast 只取第一名。
+    /// 现在改成同档轮换 —— 放完一本换另一本，但绝不为了换花样去用明显更弱的技能。
+    /// </summary>
+    private static void RotationTests()
+    {
+        Section("同档轮换（无我闪 ⇄ 天日闪）");
+
+        // 真实数值：天日闪 Level3=16 pow3 mpow8 rng9；无我闪 Level3=21 pow2 mpow6 rng9
+        UserMagic MakeStraight() => M(Spell.StraightShot, level3: 16, power: 3, mpower: 8, range: 9);
+        UserMagic MakeDouble() => M(Spell.DoubleShot, level3: 21, power: 2, mpower: 6, range: 9);
+
+        double sStraight = HeroSpellBook.Score(MakeStraight());
+        double sDouble = HeroSpellBook.Score(MakeDouble());
+
+        Check($"无我闪评分高于天日闪但不悬殊（{sDouble:F2} vs {sStraight:F2}）",
+            sDouble > sStraight && sStraight / sDouble >= HeroSpellBook.RotationBand);
+
+        var arrows = new[] { MakeStraight(), MakeDouble() };
+
+        // 没轮换时：永远是评分更高的无我闪
+        var ranked = Rank(arrows, HeroSpellKind.Single, 0, 5);
+        Check("不轮换时永远只放无我闪（这就是原来的问题）",
+            ranked.Count == 2 && ranked[0].Spell == Spell.DoubleShot);
+
+        // 刚放过无我闪 → 这一发换天日闪
+        var rotated = Rank(arrows, HeroSpellKind.Single, 0, 5);
+        HeroSpellBook.ApplyRotation(rotated, Spell.DoubleShot);
+        Check("放了无我闪之后，天日闪排到第一", rotated.Count == 2 && rotated[0].Spell == Spell.StraightShot);
+
+        // 刚放过天日闪 → 这一发回无我闪
+        rotated = Rank(arrows, HeroSpellKind.Single, 0, 5);
+        HeroSpellBook.ApplyRotation(rotated, Spell.StraightShot);
+        Check("放了天日闪之后，无我闪排到第一", rotated.Count == 2 && rotated[0].Spell == Spell.DoubleShot);
+
+        // 三本同档：A→B→C→A 循环，第一名不会被永久跳过
+        var three = new[]
+        {
+            M(Spell.DoubleShot, level3: 21, power: 2, mpower: 6, range: 9),        // 29.89
+            M(Spell.StraightShot, level3: 16, power: 3, mpower: 8, range: 9),      // 28.22
+            M(Spell.VampireShot, level3: 19, power: 2, mpower: 7, range: 9),       // 同档第三本
+        };
+        var cycle = Rank(three, HeroSpellKind.Single, 0, 5);
+        Check("三本同档全在候选里", cycle.Count == 3);
+
+        cycle = Rank(three, HeroSpellKind.Single, 0, 5);
+        HeroSpellBook.ApplyRotation(cycle, cycle[1].Spell);
+        Check("在第二本之后轮到第三本", cycle[0].Spell == Spell.StraightShot);
+
+        cycle = Rank(three, HeroSpellKind.Single, 0, 5);
+        HeroSpellBook.ApplyRotation(cycle, Spell.StraightShot);   // 排名最后的那个
+        Check("在最后一本之后绕回第一本（循环不丢第一名）", cycle[0].Spell == Spell.DoubleShot);
+
+        // 明显更强的技能：轮换不能把它挤掉
+        var withRare = new[]
+        {
+            M(Spell.SkyThunderShot, level3: 60, power: 30, mpower: 60, range: 9),  // 落雷杀，评分远高
+            MakeStraight(),
+            MakeDouble(),
+        };
+        var rareFirst = Rank(withRare, HeroSpellKind.Single, 0, 5);
+        Check("落雷杀评分远高于两本基础箭", rareFirst[0].Spell == Spell.SkyThunderShot);
+        HeroSpellBook.ApplyRotation(rareFirst, Spell.DoubleShot);
+        Check("★学了落雷杀后轮换不会用弱箭顶掉它", rareFirst[0].Spell == Spell.SkyThunderShot);
+
+        // 明显更强的技能排在后面（只可能是快捷键顺序压着）→ 轮换不许把它顶上来
+        var keyed = M(Spell.DoubleShot, key: 17, level3: 21, power: 2, mpower: 6, range: 9);   // 栏位 1
+        var strong = M(Spell.SkyThunderShot, level3: 60, power: 30, mpower: 60, range: 9);     // 更强但没设键
+        var mixed = Rank(new[] { keyed, strong, MakeStraight() }, HeroSpellKind.Single, 0, 5);
+        Check("设了键的无我闪排第一（玩家栏位优先）", mixed[0].Spell == Spell.DoubleShot);
+        HeroSpellBook.ApplyRotation(mixed, Spell.DoubleShot);
+        Check("★轮换不会把没设键的更强技能顶上来（保持玩家栏位意图）", mixed[0].Spell == Spell.StraightShot);
+
+        // 上一发不在候选里（技能被删/超射程）→ 顺序不变
+        var untouched = Rank(arrows, HeroSpellKind.Single, 0, 5);
+        HeroSpellBook.ApplyRotation(untouched, Spell.MeteorStrike);
+        Check("上一发不在候选里时不动顺序", untouched[0].Spell == Spell.DoubleShot);
+
+        // 只有一本 → 只有它
+        var single = Rank(new[] { MakeDouble() }, HeroSpellKind.Single, 0, 5);
+        HeroSpellBook.ApplyRotation(single, Spell.DoubleShot);
+        Check("只学了一本时还是只有它", single.Count == 1 && single[0].Spell == Spell.DoubleShot);
+
+        // 空列表 / null 不崩
+        HeroSpellBook.ApplyRotation(new List<UserMagic>(), Spell.DoubleShot);
+        HeroSpellBook.ApplyRotation(null, Spell.DoubleShot);
+        Check("空候选不崩", true);
     }
 
     //＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝ 过滤条件 ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝

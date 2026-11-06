@@ -51,6 +51,14 @@ namespace Server.MirDatabase
 
         public List<CharacterInfo> Characters = new List<CharacterInfo>();
 
+        /// <summary>
+        /// 本次加载中被自动归档掉的角色数（纯运行时标记，不落盘）。
+        /// ★Envir.LoadAccounts 用它区分两种「0 角色账号」：
+        ///   读进来就是 0 角色的真空号可以丢；因为归档才变空的账号必须留着 ——
+        ///   账号仓库 Storage、金币 Gold、充值 Credit 都在账号上，.MirCA 里没有这些。
+        /// </summary>
+        public int ArchivedCharacters;
+
         public UserItem[] Storage = new UserItem[80];
         public bool HasExpandedStorage;
         public DateTime ExpandedStorageExpiryDate;
@@ -118,24 +126,14 @@ namespace Server.MirDatabase
             {
                 var info = new CharacterInfo(reader, Envir.LoadVersion, Envir.LoadCustomVersion) { AccountInfo = this };
 
-                if (info.Deleted && info.DeleteDate.AddMonths(Settings.ArchiveDeletedCharacterAfterMonths) <= Envir.Now)
+                if (ShouldArchive(info, out string archiveReason))
                 {
-                    MessageQueue.Enqueue($"玩家 {info.Name} 由于已删除角色 {Settings.ArchiveDeletedCharacterAfterMonths} 月已存档处理");
-                    Envir.SaveArchivedCharacter(info);
-                    continue;
-                }
+                    MessageQueue.Enqueue($"玩家 {info.Name} 由于{archiveReason}已归档处理");
 
-                if (info.LastLoginDate == DateTime.MinValue && info.CreationDate.AddMonths(Settings.ArchiveInactiveCharacterAfterMonths) <= Envir.Now)
-                {
-                    MessageQueue.Enqueue($"玩家 {info.Name} 由于 {Settings.ArchiveInactiveCharacterAfterMonths} 月未登录已存档处理");
-                    Envir.SaveArchivedCharacter(info);
-                    continue;
-                }
-                
-                if (info.LastLoginDate > DateTime.MinValue && info.LastLoginDate.AddMonths(Settings.ArchiveInactiveCharacterAfterMonths) <= Envir.Now)
-                {
-                    MessageQueue.Enqueue($"玩家 {info.Name} 由于 {Settings.ArchiveInactiveCharacterAfterMonths} 月未激活已存档处理");
-                    Envir.SaveArchivedCharacter(info);
+                    //★11-06：自动归档改成幂等，重复启动不会再堆出第 2、3 份副本
+                    Envir.ArchiveCharacterOnce(info);
+
+                    ArchivedCharacters++;
                     continue;
                 }
 
@@ -174,6 +172,34 @@ namespace Server.MirDatabase
                     Envir.CheckRankUpdate(Characters[i]);
                 }
             }
+        }
+
+        /// <summary>
+        /// 判定一个角色是否该在加载时自动归档（三条原规则合并，行为不变，只是把原因一并带出来写日志）。
+        /// </summary>
+        private static bool ShouldArchive(CharacterInfo info, out string reason)
+        {
+            reason = null;
+
+            if (info.Deleted && info.DeleteDate.AddMonths(Settings.ArchiveDeletedCharacterAfterMonths) <= Envir.Now)
+            {
+                reason = $"已删除角色 {Settings.ArchiveDeletedCharacterAfterMonths} 月";
+                return true;
+            }
+
+            if (info.LastLoginDate == DateTime.MinValue && info.CreationDate.AddMonths(Settings.ArchiveInactiveCharacterAfterMonths) <= Envir.Now)
+            {
+                reason = $"{Settings.ArchiveInactiveCharacterAfterMonths} 月未登录";
+                return true;
+            }
+
+            if (info.LastLoginDate > DateTime.MinValue && info.LastLoginDate.AddMonths(Settings.ArchiveInactiveCharacterAfterMonths) <= Envir.Now)
+            {
+                reason = $"{Settings.ArchiveInactiveCharacterAfterMonths} 月未激活";
+                return true;
+            }
+
+            return false;
         }
 
         public void Save(BinaryWriter writer)

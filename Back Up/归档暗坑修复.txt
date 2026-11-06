@@ -1,0 +1,210 @@
+WorkBuddy
+已经查完，社交关系这三块都过了一遍，并用真实账号库副本跑了实测。
+
+一句话结论
+好友会真的把库写坏（已复现）；结婚和师徒不会坏库，但会让对方一登录就崩，而这一崩会触发全服重启。​
+
+1. 好友列表 —— 真·坏库
+Server/MirDatabase/CharacterInfo.cs:540
+
+csharp
+
+writer.Write(Friends.Count);              // 声明的条数 = 全部
+for (int i = 0; i < Friends.Count; i++)
+{
+    if (Friends[i].Info == null) continue; // 但悬空的跳过不写
+    Friends[i].Save(writer);
+}
+FriendInfo.Info 是懒加载的 Envir.GetCharacterInfo(Index)，只扫 Envir.CharacterList。角色一旦归档就不在那个列表里（手动归档是 CharacterList.Remove，自动归档则在加载时用 continue 跳过，从未加进去），于是查不到人，返回 null，这条就被跳过，但数量照样写了进去。
+
+实测结果（内存往返，不碰现网）：给一个角色塞 1 条指向不存在 Index 的好友，保存后读回直接
+
+plaintext
+
+EndOfStreamException: Unable to read beyond the end of the stream.
+更糟的是会传染：存档逐角色写入，中间没有长度前缀，第一个角色错位后，同账号后面所有角色全读成垃圾。整个账号库读不完 → 开不了服，或者角色全没了。
+
+2. 结婚 —— 不坏库，但登录必崩
+Married 存的是裸 int，写完不会错位，这一块不会坏库。
+
+但 GetRelationship() 是登录流程里必调的（PlayerObject.cs:1547）：
+
+csharp
+
+CharacterInfo Lover = Envir.GetCharacterInfo(Info.Married);
+PlayerObject player = Envir.GetPlayer(Lover.Name);   // Lover 为 null → NRE
+配偶被归档 → 玩家一登录就空引用。
+
+3. 师徒 —— 同样不坏库，两条路都炸
+登录时 1550 行分叉，两条都是雷：
+
+师徒期到了 → MentorBreak()，13959``GetPlayer(partner.Name) 空引用，13997``partner.Mentor = 0 也空引用
+没到 → GetMentor()，14161``mentor.Name 空引用
+也就是说只要 Mentor != 0 且对方被归档，登录必崩，跟到不到期无关。
+
+全仓库 14 处 GetCharacterInfo(Info.Married/Info.Mentor)，只有 4 处判了空。有意思的是 LogoutRelationship / LogoutMentor 这两个下线方法都判了 —— 作者显然知道会缺人，只漏了上行的读路径。
+
+4. 为什么这比坏库还急
+plaintext
+
+登录 NRE → ProcessPacket 无 try/catch → Envir 主循环 catch
+        → innerRestart = true → StopNetwork + StopEnvir + SaveAccounts
+        → 全服掉线重来
+而这次重启的 SaveAccounts 会把所有「有悬空好友」的角色写成坏档 → 下次启动账号库读不出 → 开不了服。玩家要是一直重登，就是无限重启循环。
+
+5. 现网现在的状况
+plaintext
+
+账号 15 个 / 角色 25 个
+好友条目悬空      : 0
+配偶指向已不存在  : 0
+师徒指向已不存在  : 0
+保存会写出错位档的角色 : 0 / 25
+刚归档的 4 个（mybbsky / wwww / 射不死你 / 顶顶顶顶）没有出现在任何人的好友、配偶、师徒里，所以现在开服是安全的。但这纯属运气 —— 下次归档一个好友较多的角色就会中招。
+
+好消息：RESTOREPLAYER 恢复后角色 Index 不变，好友、夫妻、师徒关系会自动接回来，不用重建。
+
+6. 顺带还扫出三个
+CleanUp()（停服时跑）​：Lover.Married = 0 没判空。这条异常抛在 StopEnvir 里，会跳过后面的 SaveAccounts —— 等于停服时整个服不存档。同一段的师徒分支判了，婚姻分支没判。
+邮件：MailInfo.Send() 里 RecipientInfo.Mail.Add 没判空，给已归档角色寄东西会崩（加载时反而判了 null）。
+归档动作本身不清理任何引用：只写文件 + 把角色从列表摘掉，别人的好友列表原样留着。
+建议（等你点头再动）
+
+添加到对话
+改动	位置	作用
+先筛出有效好友再写数量	CharacterInfo.Save	一行堵死坏库
+归档前清引用	ARCHIVEPLAYER + 自动归档	删好友条目、夫妻师徒置 0
+四处加判空	GetRelationship / GetMentor / MentorBreak / CleanUp	登录不崩
+单角色 try/catch	LoadAccounts	一个档烂了不拖垮整库
+我倾向四项一起做：第二项治根，第一项是兜底（万一还有别的路径把好友弄悬空），第三项保证即便有漏网也不会把服务端带崩，第四项是最后的安全网。
+
+诊断工具留在 Tools/RelationProbe（只读，--corrupt 走纯内存），没动任何产品代码，服务端也还是关着的。要修的话跟我说一声。
+
+查看所有产物 (157)
+
+
+
+
+
+
+21:21
+修
+
+21:23
+
+
+
+WorkBuddy
+四项都修完了，编译、实测、部署全部完成。
+
+改了什么
+① 好友 —— 堵死坏库
+CharacterInfo.Save() 里那行 if (Friends[i].Info == null) continue; 直接删掉了。
+
+关键发现：FriendInfo.Save 只写 Index / Blocked / Memo，根本不碰 Info，那个跳过纯属多余。照写之后：
+
+数量与条目天然一致 → 不再错位
+悬空好友原样留在档里 → 角色以后 @RESTOREPLAYER 恢复（Index 不变）时，好友关系自动接回，不用重新加
+顺手给 Memo 加了 ?? string.Empty（null 会让 BinaryWriter 写 -1，读回来 ReadString 抛 IOException，同样能毁掉整个库）。
+
+② 结婚 / 师徒 —— 不再崩，并且自动解除
+登录时的三个必炸点全部补上，而且不是简单跳过：
+
+GetRelationship()：配偶查不到 → 自动解除婚姻、摘掉左戒指的 WeddingRing、发系统提示、写日志
+GetMentor()：师父查不到 → 自动解除师徒、清 MentorExp（日志里记下未结算的经验数）
+MentorBreak()：对方查不到 → 清零后直接返回，不再往下取 .Name
+为什么选择“自动解除”而不是“保留不管”：离婚流程要求双方面对面，被归档的角色永远上不了线，保留的话玩家会永久卡在“已结婚”状态——既不能再婚，也离不了。归档文件里仍然保留着原来的 Married 值，真要恢复可以人工补。
+
+另外把剩下 8 处未判空的调用点也扫了一遍：@配偶 聊天、换图通知、传送、心心相映/衣钵相传加成、NPC 离婚、怪物结算师徒伤害、技能熟练度加成。其中 HumanObject:8703 还顺带发现一个原有的 bug——player.CurrentMap 前面没有判 player != null，对方只是离线就会崩。
+
+③ 停服时不存档
+CleanUp() 的婚姻分支补了判空。这个比看起来严重：它在 StopEnvir 里跑，抛异常会跳过紧随其后的 SaveAccounts() —— 表现是关服时整个服没存盘。同一段的师徒分支本来就有判空，只有婚姻漏了。
+
+④ 坏档兜底 —— 换了思路
+原计划“单角色 try/catch 跳过坏档”技术上不成立：账号库是无长度前缀的顺序流，一个角色读歪了，流位置就已经错位，后面只会继续读到垃圾，try/catch 跳过这一条并不能让下一条回到正轨。
+
+所以改成真正有效的两层：
+
+保留上一版：SaveAccounts / EndSaveAccounts 原来把 Account.db.o 直接删掉，现在先复制成 .bak 再删
+读坏自动回退：LoadAccounts 拆成“入口 + 核心”，读失败时把坏档另存为 .corrupt-时间戳（留证据），用 .bak 覆盖后重读一次；只重试一次，还不行就抛给人工处理
+验证
+plaintext
+
+RelationProbe --corrupt    4 / 4    悬空好友完整往返，条目保留，不再传染同账号
+RelationProbe --bak        2 / 2    12 字节垃圾库 → 自动回退 .bak 成功
+ArchiveFixTest            34 / 34   归档全流程没被这次改动破坏
+修复前后对比很直观：
+
+plaintext
+
+修复前  读回直接抛 EndOfStreamException
+修复后  写: Married=123456 Friends=1
+        读: Married=123456 Friends=1
+现网盘点仍是 15 账号 / 25 角色，悬空引用全 0。
+
+已部署
+
+添加到对话
+文件	MD5
+Server.Library.dll	c750f6fe…b2ce58b
+Server.Library.pdb	8314e615…70277a1
+Server.dll	95712a59…0896aa8d
+Server.pdb	96a98a62…2cf548f
+逐字节与 Build 一致，中文字符串按 UTF-16LE 字节核实确实进了 dll。备份在 Back Up\manual-20261106_2128-社交关系归档修复\。
+
+服务端可以直接开。​ 第一次存档之后，服务端目录里会自动出现 Server.MirADB.bak，那是上一版的保险。
+
+还有一个没动的：给已归档角色寄邮件时，MailInfo.Send() 里 RecipientInfo.Mail.Add 没有判空，会崩（加载邮件时反而判了）。这个不在这次范围内，要修的话说一声，一起带上会更完整。
+
+
+
+邮件这个已经修好，并且部署完成。
+
+改了什么
+Server/MirDatabase/MailInfo.cs
+
+Send() 从 void 改成 bool。收件人查不到时不再继续调用 Mail.Add：
+
+csharp
+
+if (RecipientInfo == null)
+{
+    MessageQueue.Instance.Enqueue(
+        $"邮件投递失败 #{MailID}（{Sender ?? "(无)"} → 角色ID {RecipientIndex}）：" +
+        $"收件人已不在角色列表（可能已归档/删除），未投出 金币 {Gold}、物品 {Items.Count} 件");
+    return false;
+}
+返回 false 这个设计是有用的：原来的 void 让调用方无从判断，现在至少能区分“投出去了”和“人没了”。现有 8 个调用点写成 mail.Send(); 丢弃返回值，照样编译，行为不变。
+
+Save() 顺手补了两处 null 防御：Sender 和 Message 都加了 ?? string.Empty。这是同一类问题：BinaryWriter.Write((string)null) 会写 -1，读回来 ReadString 直接抛 IOException，整个账号库都读不完。而 new MailInfo(int) 这个构造根本不初始化 Sender，只要有一处忘了赋值，存档就会坏。
+
+为什么值得修
+这 8 个调用点中，有三个位于主循环或对象线程上：
+
+拍卖结算给买家（CurrentBuyerInfo）
+装备租赁到期退给物主（owner）
+交易退款、仓库密码错误补偿（Envir.MailCharacter）
+这些都是“东西已经不在玩家身上了，只能靠邮件送回去”的场景。收件人正好被归档时，原来会直接空引用，导致 Envir 主循环重启、全服掉线；现在只是记一条日志，写明多少金币、几件东西没投出去，方便你手工补。
+
+玩家之间寄信那条 SendMail(name, ...) 上游已经用 GetCharacterInfo(name) 判断过，查不到会提示“找不到玩家”，所以实际只可能被极小概率的竞态触发。
+
+验证
+新增 RelationProbe --mail，4 项：
+
+plaintext
+
+[PASS] ★收件人已归档时，Send() 返回 false，不再抛 NullReferenceException
+[PASS] 正常收件人照常投递
+[PASS] 已发送的邮件再 Send 不会重复进收件箱
+[PASS] Sender/Message 为 null 时存档不再写 -1（读回空串）
+前三项回归也重跑了：--corrupt 4/4、--bak 2/2、ArchiveFixTest 34/34，都没受影响。
+
+已部署
+文件	MD5
+Server.Library.dll	66563d06…fd3b877f
+Server.Library.pdb	abaf0b49…34ff09ab
+Server.dll	254e7b2a…46522b43
+Server.pdb	c728b69b…cb2d027e
+与 Build 逐字节一致，邮件投递失败 等中文串按 UTF-16LE 核实确实在 dll 里。备份在 Back Up\manual-20261106_2135-邮件归档投递修复\。
+
+至此，这一轮和归档相关的四类问题都处理完了：好友（坏库）、夫妻、师徒（登录崩）、邮件（投递崩）​，再加上停服不存档和坏档回退。服务端关着，随时可以开。

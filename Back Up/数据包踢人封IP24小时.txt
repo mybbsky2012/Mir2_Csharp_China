@@ -1,0 +1,91 @@
+一、“发现大量数据包…最后数据包为: Magic.” → 被踢 + 封 IP 24 小时
+服务端进程没崩（PID 1540，20:03 启动，仍在响应，CrashLogs 里也没有今天的新文件）。你看到的是连接被断开，而且同一段代码还顺手把这个 IP 封了 24 小时。
+
+原因链：
+
+英雄技能在客户端没有任何冷却/重复判定：UseSpell() 里只要 actor == Hero 就直接 MapControl.UseMagic(...)，那里 Network.Enqueue(new C.Magic {...})。​按一次发一个包，按住快捷键时系统自动重复（约 30 次/秒）也照发不误。
+服务端 MirConnection 按“5 秒内收到的数据包数 > Setup.ini 的 MaxPacket=50”判定异常，命中的处理是：
+csharp
+
+Envir.UpdateIPBlock(IPAddress, TimeSpan.FromHours(24));   // ← 24 小时
+MessageQueue.Enqueue($"{IPAddress} 发现大量数据包…最后数据包为: …");
+Disconnecting = true;
+封禁表 IPBlocks 只活在内存里，只能重启服务端清。@CLEARIPBLOCKS 那条 GM 命令要先进游戏才能敲——被墙的时候根本进不去，等于解不了锁。如果家里是 NAT/一 IP 多端，连 GM 号一起关在门外。
+改了两处（已编译）：
+
+位置	改动
+Client/MirScenes/GameScene.cs（MapControl.UseMagic）	英雄技能发包加 250ms 最小间隔，按住键最多 4 包/秒；被丢的都是服务端本来就会拒绝的“冷却中”施法
+Server/MirNetwork/MirConnection.cs	超包不再封 24 小时，改成和 MaxIP 那条一致的 IPBlockSeconds（默认 5 秒）+ 断开
+部署状态：
+
+Client.dll 03f13686e8b1b29a417a567d50b3952f ✅ 已同步 4 处（Build/Release、E:\micromir2、D:\龙之传奇、服务端 ClientResources）
+Server.Library.dll ❌ 被运行中的进程占用，拷不进去（Device or resource busy）
+请把服务端关掉，回我一句“关了”，我立刻把 Server.Library.dll 拷进去；你重启服务端时那个 24 小时封禁也会一起清掉（内存字典不落盘），然后客户端重开即可。
+
+二、角色库归档体检（只读，没动代码）
+写了个只读工具 Tools/ArchiveProbe（对副本跑，AccountInfo 的构造函数里就带归档逻辑，直接对现网库跑会真的挪角色）。结论：
+
+现状：15 个账号 / 25 个角色，按 12 个月规则当前没有人即将被归档。
+
+Archive 目录 10 个文件、4 个角色，每个都是“已删除 + 超 1 个月”，归档规则本身正常：
+
+角色	归档份数	当初为什么被归档	能否恢复
+射不死你 Lv15	3	已删除，删于 10-01	❌
+顶顶顶顶 Lv13	3	已删除	❌
+mybbsky Lv26	2	已删除，删于 09-28	❌
+wwww Lv33	2	已删除，删于 09-28	❌
+四个全都没法用 @RESTOREPLAYER 恢复，因为 GetArchivedCharacter() 写的是 files.Length != 1 → return null——同名文件必须恰好 1 个，现在全是 2~3 个，只能手工处理。
+
+暗坑清单（按危险度排）：
+
+归档在加载期执行，但账号库要等下一次 SaveAccounts 才落盘。落在中间的每次重启都会把同一角色再归档一份——现网这 4 个名字全部命中（10-28 23:54、10-29 06:08、11-01 14:26、11-01 16:00、11-02 15:46，每次启动一份）。这就是“份数变多 → 恢复永久失效”的来源。
+文件名没有分隔符：{角色名}{_MMddyyyy_HHmmss}.MirCA，而查询用 GetFiles("{name}*.MirCA") 做前缀匹配。所以「小李」会同时命中「小李飞刀」的档 → 两份 → 两个都不能恢复。
+恢复后不移动/不删除归档文件，下次再归档就是第 2 份，一样永久失效。
+GetArchivedCharacter 没有 Directory.Exists 检查：Archive 目录不存在时（新服从没归档过）DirectoryInfo.GetFiles 直接抛 DirectoryNotFoundException，@LOADPLAYER / @RESTOREPLAYER 会把这个异常抛进主循环。
+角色被归档光之后，整个账号会被丢掉：LoadAccounts() 里 if (i > 0 && NextAccount.Characters.Count == 0) continue;。玩家 12 个月没来 → 角色进 Archive，账号连同仓库物品、金币一起从账号库消失，回来时提示的是“账号不存在”，而且 .MirCA 里只有角色、没有仓库/金币。
+归档时间戳是 UTC（Envir.Now 基于 DateTime.UtcNow），比本地早 8 小时。文件名 _11012026_142617 实际对应本地 11-01 22:26，对着日志查会错开 8 小时。
+另外：@BACKUPPLAYER 对在线角色直接备份，也生成同名文件，和归档文件混在一个目录里——同样会触发“多份 → 不可恢复”。
+待验证：@RESTOREPLAYER 只 account.Characters.Add + Envir.CharacterList.Add，没把 Heroes 补进全局 HeroList，恢复出来的角色带的英雄可能查不到（GetHeroInfo 走的就是 HeroList）。这条我没实测。
+要修的话我建议按这个顺序：恢复时能指定完整文件名（或改用 GetFiles 后按名字精确比对 + 取最新一份）→ 归档落盘后再从账号摘人（或立刻 SaveAccounts）→ Archive 目录/前缀/UTC 三个防御。等你发话，我现在一行代码都没改。
+
+
+
+
+
+现象：不是服务端崩了 —— 进程一直在，CrashLogs 没有新文件。是客户端被主动踢了。
+
+根因链：
+
+英雄技能在客户端 MapControl.UseMagic 里没有任何冷却或重复判定，按住快捷键（系统自动重复）约 30 包/秒。
+服务端 MirConnection 有个 5 秒滚动窗口计数器，超过 MaxPacket = 50 就判「发现大量数据包」→ 断开 + UpdateIPBlock(IP, 24 小时)。
+封禁表只在内存里 —— 所以只能重启服务端才解得开，这也是为什么重启后就好了。
+两端都改了（双保险）：
+
+客户端：英雄技能发包加 250ms 最小间隔（≤4 次/秒），正常手感不受影响。
+服务端：超包不再封 24 小时，改成 IPBlockSeconds（默认 5 秒）+ 断开。就算客户端换了别的版本，也不会再把自己锁在门外。
+客户端 Client.dll 四处也确认一致：03f13686…d50b3952f（Build、E:/micromir2、D:/龙之传奇、服务端 ClientResources）。
+
+现在可以直接开服了，重启后 IP 封禁表是空的，你能正常进。
+
+有一个遗留点想问你：MirConnection 里还有另一条 24 小时封禁 —— 第 239 行「已断开连接-无效数据包」，是协议解析失败（客户端/服务端版本不一致、或者网络把包截断了）走的分支。它的后果和这次一模一样：一次异常就锁 24 小时。要不要也一起降到 5 秒？要改的话得再关一次服重编一次。
+
+
+已完成 50s改好了，编译通过（0 错误）。但服务端现在正在运行（PID 15904，内存 2 GB），要覆盖 Server.Library.dll，得先关服。
+改了什么
+Server/MirNetwork/MirConnection.cs:237，无效数据包那条分支：
+csharp// 原来
+Envir.UpdateIPBlock(IPAddress, TimeSpan.FromHours(24));
+
+// 现在
+Envir.UpdateIPBlock(IPAddress, TimeSpan.FromSeconds(Settings.IPBlockSeconds));  // 默认 5 秒
+
+顺手做了两件事：
+
+把封禁调用包进 try/catch。这条分支本身就在网络回调线程的 catch 里，如果 UpdateIPBlock 再抛异常，就会直接把接收回调打断，比不封更糟。
+日志里带上封禁时长：{IP} 已断开连接-无效数据包（封禁 5 秒），以后看日志就能分清是哪条分支。
+
+这样三条封禁路径现在统一了：
+添加到对话分支原因改前改后无效数据包包解不开 / 版本不一致 / 截断24 小时5 秒大量数据包5 秒内超过 50 包24 小时 → 5 秒5 秒超过 MaxIP同一 IP 连接数超限5 秒5 秒
+有一点需要说明：我没有为这种情况单独设更长的时长。理由是：能正常连上、正常握手，走到数据包解析才出错，说明这个 IP 前面的 TCP 连接是通的，多半是缓冲错位、版本不匹配或线路抖动；这类问题封 5 秒已经足够让对方重连并重新同步，再封久就是纯粹误伤。真有人恶意灌垃圾包，他每 5 秒被踢一次，也拿不到任何好处。
+产物
+只有 Server.Library.dll 变了（66563d06 → 055831d2），Server.dll 和上一版完全一样。源码已备份到 Back Up\manual-20261106_2140-无效数据包封禁降级\。

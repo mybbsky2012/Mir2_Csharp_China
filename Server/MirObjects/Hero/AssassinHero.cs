@@ -79,7 +79,8 @@ namespace Server.MirObjects
             if (SurroundedCount >= 2 && TryCast(HeroSpellKind.Aoe)) return;
 
             // 单体主力：影华连击 / 拔刀术-秘籍 / 猛毒剑气 / 血风击 / 烈风击 / 迁移剑 … 自动挑最高级
-            if (TryCast(HeroSpellKind.Single)) return;
+            // rotate：同档（评分差 10% 内）的换着放（影华连击 ⇄ 影华连击-秘籍 之类），不降输出
+            if (TryCast(HeroSpellKind.Single, rotate: true)) return;
         }
 
         protected override void ProcessTarget()

@@ -147,6 +147,18 @@ namespace Server.MirObjects
         private readonly Dictionary<Spell, long> _castFailUntil = new Dictionary<Spell, long>();
         /// <summary>伏击型 buff（烈火身/月影术）下一次允许补放的时间。</summary>
         private readonly Dictionary<Spell, long> _ambushNext = new Dictionary<Spell, long>();
+        /// <summary>
+        /// 同档轮换游标：记录每一类上一次真正放出去的是哪本技能。
+        /// 弓手的 无我闪/天日闪 威力相当，只按评分排序的话天日闪永远排第二、一次都放不出来，
+        /// 所以这两本按「上一发不是哪本，这一发就换哪本」交替使用（见 TryCast 的 rotate 参数）。
+        /// </summary>
+        private readonly Dictionary<HeroSpellKind, Spell> _lastRotated = new Dictionary<HeroSpellKind, Spell>();
+        /// <summary>
+        /// 同档轮换的共用冷却：两本技能各自记 CastTime 的话，「这本在冷却就换那本」等于把施法间隔
+        /// 砍半（输出直接翻倍）。这里再按「上一次真正放出去的时间 + 那本的施法延迟」统一闸一次，
+        /// 保证轮换只改变放哪本、不改变放多快。
+        /// </summary>
+        private readonly Dictionary<HeroSpellKind, long> _rotateReady = new Dictionary<HeroSpellKind, long>();
 
         protected int TargetDistance;
         public override GuildObject MyGuild
@@ -1245,12 +1257,23 @@ namespace Server.MirObjects
         //   ③ 开关型（烈火/半月/狂风/双龙/天务）已经开着就绝不再点一次，也不主动关；
         //   ④ 增益/防护缺什么补什么，长 buff（金刚不坏/万效符/血龙印）不重复叠。
         // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-        protected bool TryCast(HeroSpellKind kind, MapObject castTarget = null)
+        /// <param name="rotate">
+        /// true = 同档轮换：上一发放过哪本，这一发就优先换一本威力相当的（弓手 无我闪 ⇄ 天日闪）。
+        /// 只会和「评分不低于最强那本 90%」的技能轮换，明显更强的技能永远优先，输出不会因为换花样下降。
+        /// </param>
+        protected bool TryCast(HeroSpellKind kind, MapObject castTarget = null, bool rotate = false)
         {
             // 先核对上一拍排出去的技能到底放出去没有（见 _castFailUntil 的注释）
             CheckPendingCast();
 
             if (!CanCast) return false;
+
+            // 轮换组共用冷却（见 _rotateReady 注释）：换着放也不能比单本技能的间隔更快
+            if (rotate)
+            {
+                long ready;
+                if (_rotateReady.TryGetValue(kind, out ready) && Envir.Time < ready) return false;
+            }
 
             MapObject target = castTarget;
             int distance;
@@ -1274,6 +1297,8 @@ namespace Server.MirObjects
 
             List<UserMagic> candidates = HeroSpellBook.Rank(Info.Magics, kind, SurroundedCount, distance,
                 b => target.HasBuff(b), IsToggleActive, Settings.HeroAutoSkill);
+
+            if (rotate) ApplyRotation(kind, candidates);
 
             for (int i = 0; i < candidates.Count; i++)
             {
@@ -1305,6 +1330,12 @@ namespace Server.MirObjects
 
                 bool cast = CastSelected(magic, target);
 
+                if (cast)
+                {
+                    _lastRotated[kind] = magic.Spell;
+                    _rotateReady[kind] = Envir.Time + magic.GetDelay();
+                }
+
                 if (cast && profile != null && profile.Ambush)
                     _ambushNext[magic.Spell] = Envir.Time + HeroSpellBook.AmbushCooldownMs;
 
@@ -1312,6 +1343,18 @@ namespace Server.MirObjects
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 同档轮换：在「评分不低于第一名 90%」的技能里，按排名顺序循环取「上一发的下一本」。
+        /// 具体规则见 <see cref="HeroSpellBook.ApplyRotation"/>。
+        /// </summary>
+        private void ApplyRotation(HeroSpellKind kind, List<UserMagic> candidates)
+        {
+            Spell last;
+            if (!_lastRotated.TryGetValue(kind, out last)) return;
+
+            HeroSpellBook.ApplyRotation(candidates, last);
         }
 
         /// <summary>

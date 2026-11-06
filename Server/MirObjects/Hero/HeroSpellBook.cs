@@ -109,6 +109,13 @@ namespace Server.MirObjects
         public const int AmbushCooldownMs = 12000;
 
         /// <summary>
+        /// 「同档轮换」的分数容差：评分不低于最强那一本的 90% 才参与轮换。
+        /// 目的只是让威力相当的技能换着花样放（如弓手 无我闪 29.89 / 天日闪 28.22 = 94%），
+        /// 而不是为了多样化去放弃明显更强的高级技能（秘笈/落雷杀之类会被直接排除在轮换之外）。
+        /// </summary>
+        public const double RotationBand = 0.9;
+
+        /// <summary>
         /// 伏击型 buff 现在该不该补：
         /// ① 交战中（有活目标）绝不补 —— 补了也是下一秒被走路/攻击消耗掉，只会白占一拍施法；
         /// ② 冷却内不补 —— 防止「补上→被消耗→再补」的空转。
@@ -188,6 +195,50 @@ namespace Server.MirObjects
 
             list.Sort(Compare);
             return list;
+        }
+
+        /// <summary>
+        /// 同档轮换：在「评分不低于第一名 90%」的技能里，按排名顺序循环取「上一发（last）的下一本」，
+        /// 并把它提到列表最前面。
+        ///
+        /// 例：弓手 无我闪(29.89) / 天日闪(28.22) —— 放了无我闪，下一发就轮到天日闪，再下一发回无我闪。
+        ///     三本同档时是 A→B→C→A 循环，第一名不会被永久跳过。
+        /// 学了明显更强的技能（如血龙闪秘笈）时，它评分高出一大截，后面的技能不够 90% 就不参与轮换，
+        /// 所以「为了换花样牺牲输出」这件事不会发生。
+        ///
+        /// 只调整顺序，不改动「能不能放」的判定：被提到前面的那本若因蓝不够/冷却中放不出来，
+        /// 调用方的循环会自然落到后面那本，不会干站着。
+        /// </summary>
+        public static void ApplyRotation(List<UserMagic> candidates, Spell last)
+        {
+            if (candidates == null || candidates.Count < 2 || last == Spell.None) return;
+
+            int lastIndex = candidates.FindIndex(x => x.Spell == last);
+            if (lastIndex < 0) return;
+
+            double best = Score(candidates[0]);
+            int pick = -1;
+
+            // 从「上一发的下一本」开始按排名往后找，走到末尾再绕回开头
+            for (int step = 1; step < candidates.Count; step++)
+            {
+                int i = (lastIndex + step) % candidates.Count;
+                double s = Score(candidates[i]);
+
+                // 只和「同一档」的换：明显更弱的不要（换花样不能掉输出），
+                // 明显更强的也不要 —— 它排在后面只可能是快捷键顺序压着（玩家自己排的栏位），
+                // 轮换不该把玩家的栏位顺序搅乱。
+                if (s < best * RotationBand || s > best / RotationBand) continue;
+
+                pick = i;
+                break;
+            }
+
+            if (pick <= 0) return;   // -1 = 没有同档的；0 = 轮到的本来就是第一名，不用动
+
+            UserMagic magic = candidates[pick];
+            candidates.RemoveAt(pick);
+            candidates.Insert(0, magic);
         }
 
         private static int Compare(UserMagic a, UserMagic b)

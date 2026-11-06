@@ -236,9 +236,20 @@ namespace Server.MirNetwork
             }
             catch
             {
-                Envir.UpdateIPBlock(IPAddress, TimeSpan.FromHours(24));
+                //★11-06：这里原来封 24 小时。这条分支是「包解不开」（收发缓冲错位、协议版本不一致、
+                //  网络把包截断、客户端发来半截包），并不是明确的作弊行为 —— 一次抖动就锁 24 小时，
+                //  同一 NAT 后的所有人（含 GM）一起进不来，且封禁表只在内存，只能重启服务端才解得开。
+                //  与「大量数据包」「MaxIP 超限」两条统一成短暂封禁；异常方本来也会被立刻断开。
+                try
+                {
+                    Envir.UpdateIPBlock(IPAddress, TimeSpan.FromSeconds(Settings.IPBlockSeconds));
+                }
+                catch
+                {
+                    // 封禁本身出错也不能炸掉网络回调线程，连接照样要断
+                }
 
-                MessageQueue.Enqueue($"{IPAddress} 已断开连接-无效数据包");
+                MessageQueue.Enqueue($"{IPAddress} 已断开连接-无效数据包（封禁 {Settings.IPBlockSeconds} 秒）");
 
                 Disconnecting = true;
                 return;
@@ -248,7 +259,11 @@ namespace Server.MirNetwork
             {
                 try
                 {
-                    Envir.UpdateIPBlock(IPAddress, TimeSpan.FromHours(24));
+                    //★11-06：这里原来封 24 小时。英雄技能在客户端没有冷却判断，按住快捷键（系统自动重复）
+                    //  会连发 C.Magic，5 秒超过 MaxPacket(50) 就被判「大量数据包」→ 断线 + 该 IP 24 小时进不来，
+                    //  同一 NAT 后的所有人（包括 GM 自己）一起被关在门外，只能重启服务端才能解。
+                    //  客户端已同步加了 250ms 发包限流，这里再退化成「断开 + 短暂封禁」，与 MaxIP 那条保持一致。
+                    Envir.UpdateIPBlock(IPAddress, TimeSpan.FromSeconds(Settings.IPBlockSeconds));
 
                     List<string> packetList = new List<string>();
 

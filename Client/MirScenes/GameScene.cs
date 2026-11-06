@@ -11052,6 +11052,17 @@ namespace Client.MirScenes
 
         public long OutputDelay;
 
+        /// <summary>
+        /// ★英雄技能发包最小间隔（11-06）：
+        /// 英雄技能在客户端没有任何冷却/重复判定，按住快捷键（系统自动重复）或连点时，
+        /// 每按一次就发一个 C.Magic。服务端 MirConnection 按「5 秒内收到的数据包数 &gt; MaxPacket(默认50)」
+        /// 判定「发现大量数据包」，直接断线并封 IP 24 小时 —— 用户实测「多用了一会儿英雄技能就被踢」。
+        /// 这里做客户端限流，把英雄技能的发包压到 4 次/秒以内。
+        /// </summary>
+        private const int HeroMagicMinInterval = 250;
+
+        private long _heroMagicSendTime;
+
         private static bool _awakeningAction;
         public static bool AwakeningAction
         {
@@ -15991,6 +16002,14 @@ namespace Client.MirScenes
             }
             else
             {
+                //★英雄技能发包限流（11-06）：客户端没有冷却判断，按住键的自动重复会连发 C.Magic，
+                //  服务端 5 秒超过 MaxPacket(50) 就断线 + 封 IP 24 小时。这里按住键也只放 250ms 一个包。
+                //  被丢掉的都是服务端本来就会拒绝的「冷却中」施法，不影响正常手感。
+                if (CMain.Time < _heroMagicSendTime) return;
+
+                _heroMagicSendTime = CMain.Time + HeroMagicMinInterval;
+                magic.CastTime = CMain.Time;
+
                 Network.Enqueue(new C.Magic { ObjectID = actor.ObjectID, Spell = castSpell, Direction = dir, TargetID = targetID, Location = location, SpellTargetLock = CMain.SpellTargetLock });
             }
         }

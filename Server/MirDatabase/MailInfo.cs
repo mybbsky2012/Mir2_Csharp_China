@@ -79,9 +79,10 @@ namespace Server.MirEnvir
         public void Save(BinaryWriter writer)
         {
             writer.Write(MailID);
-            writer.Write(Sender);
+            // null 会让 BinaryWriter 写 -1，读回来 ReadString 直接抛 IOException → 整个账号库读不完
+            writer.Write(Sender ?? string.Empty);
             writer.Write(RecipientIndex);
-            writer.Write(Message);
+            writer.Write(Message ?? string.Empty);
             writer.Write(Gold);
 
             writer.Write(Items.Count);
@@ -96,9 +97,12 @@ namespace Server.MirEnvir
             writer.Write(CanReply);
         }
 
-        public void Send()
+        /// <summary>
+        /// 投递这封信。返回 false ＝ 收件人角色已不存在（被归档/删除），信没有投出去。
+        /// </summary>
+        public bool Send()
         {
-            if (Sent) return;
+            if (Sent) return true;
 
             Collected = true;
 
@@ -132,6 +136,19 @@ namespace Server.MirEnvir
                 RecipientInfo = Envir.GetCharacterInfo(RecipientIndex);
             }
 
+            //★11-06：收件人角色可能已经被归档/删除（不在 CharacterList 里），GetCharacterInfo 返回 null。
+            //  原来这里直接 RecipientInfo.Mail.Add → NullReferenceException。
+            //  拍卖结算、装备租赁到期退回、交易退款(MailCharacter) 都会走到这里，
+            //  而它们都在主循环/对象线程上跑 → 一崩就是整个 Envir 重启，全服掉线。
+            //  投不出去时把「谁发给谁、多少金币、几件东西」写进日志，别让物品静默消失。
+            if (RecipientInfo == null)
+            {
+                MessageQueue.Instance.Enqueue(
+                    $"邮件投递失败 #{MailID}（{Sender ?? "(无)"} → 角色ID {RecipientIndex}）：" +
+                    $"收件人已不在角色列表（可能已归档/删除），未投出 金币 {Gold}、物品 {Items.Count} 件");
+                return false;
+            }
+
             RecipientInfo.Mail.Add(this); //add to players inbox
 
             if (RecipientInfo.Player != null)
@@ -140,6 +157,7 @@ namespace Server.MirEnvir
             }
 
             DateSent = Envir.Now;
+            return true;
         }
 
         public ClientMail CreateClientMail()

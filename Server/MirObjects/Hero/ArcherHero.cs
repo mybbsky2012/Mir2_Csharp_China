@@ -114,8 +114,9 @@ namespace Server.MirObjects
                 }
             }
 
-            // 主力输出：按学习等级 + 威力自动挑最高级（血龙闪秘籍 > 血龙闪 > 落雷杀 > 邪爆闪 > …）
-            if (TryCast(HeroSpellKind.Single)) return;
+            // 主力输出：按学习等级 + 威力自动挑最高级（血龙闪秘籍 > 血龙闪 > 落雷杀 > 邪爆闪 > …），
+            // 其中「威力相当」的几本（无我闪/天日闪）交替使用 —— 否则天日闪评分永远排第二，一发都放不出来。
+            if (TryCast(HeroSpellKind.Single, rotate: true)) return;
 
             magic = GetMagic(Spell.ElementalShot);
             if (CanUseMagic(magic))

@@ -53,7 +53,10 @@ namespace Server.MirObjects
                 if (ToggleIfOff(Spell.Thrusting)) return;         // 刺杀剑术（隔位）
 
                 // 被围先群攻：空破闪 / 日闪 / 时空剑，按学习等级自动挑最高的那个
-                if (nearby >= 2 && TryCast(HeroSpellKind.Aoe)) return;
+                // rotate：同档（评分差 10% 内）的换着放，不降输出。
+                //   ★战士的单体输出走平砍（Attack() 里按开关型 spell 附带烈火/半月/刺杀），
+                //     没有 HeroSpellKind.Single 技能可轮换，所以「主力」这里指的是群攻这一档。
+                if (nearby >= 2 && TryCast(HeroSpellKind.Aoe, rotate: true)) return;
 
                 // 被围死再控场：狮子吼 / 捕绳剑
                 if (nearby >= 3 && TryCast(HeroSpellKind.Control)) return;

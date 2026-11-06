@@ -68,7 +68,8 @@ namespace Server.MirObjects
 
                 // ④ 单体主力：按「学习等级 + 威力」自动挑最高的
                 //    天上落焰 / 大火球-秘籍 / 强击-秘籍 / 灭天火 / 嗜血术 … 学了新的自动顶上
-                if (TryCast(HeroSpellKind.Single)) return;
+                //    rotate：同档（评分差 10% 内）的换着放（火球 ⇄ 雷电 之类），不降输出
+                if (TryCast(HeroSpellKind.Single, rotate: true)) return;
             }
         }
 

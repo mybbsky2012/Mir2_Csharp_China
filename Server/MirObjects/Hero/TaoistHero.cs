@@ -100,7 +100,8 @@ namespace Server.MirObjects
 
                 // 单体主力：诅咒术 / 烦脑 / 灵魂火符自动挑最高级的那本；
                 // 灵魂火符在「万效符」buff 期间由服务端自动升格成三连符，这里不用特殊处理
-                if (amuletItem != null && TryCast(HeroSpellKind.Single)) return;
+                // rotate：同档（评分差 10% 内）的换着放（灵魂火符 ⇄ 火符-秘籍 之类），不降输出
+                if (amuletItem != null && TryCast(HeroSpellKind.Single, rotate: true)) return;
             }
         }
 

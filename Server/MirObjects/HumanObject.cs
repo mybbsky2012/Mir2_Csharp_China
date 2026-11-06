@@ -8701,8 +8701,9 @@ namespace Server.MirObjects
                 if (HasBuff(BuffType.衣钵相传, out _))
                 {
                     CharacterInfo mentor = Envir.GetCharacterInfo(Info.Mentor);
-                    PlayerObject player = Envir.GetPlayer(mentor.Name);
-                    if (player.CurrentMap == CurrentMap && Functions.InRange(player.CurrentLocation, CurrentLocation, Globals.DataRange) && !player.Dead)
+                    //★师父可能已被归档（不在 CharacterList），且对方可能离线 → 两个都要判空
+                    PlayerObject player = mentor == null ? null : Envir.GetPlayer(mentor.Name);
+                    if (player != null && player.CurrentMap == CurrentMap && Functions.InRange(player.CurrentLocation, CurrentLocation, Globals.DataRange) && !player.Dead)
                     {
                         if (Stats[Stat.技能熟练度倍率] == 1)
                         {

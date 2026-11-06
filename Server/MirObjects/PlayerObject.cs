@@ -1169,7 +1169,8 @@ namespace Server.MirObjects
                 if (HasBuff(BuffType.心心相映, out Buff buff))
                 {
                     CharacterInfo lover = Envir.GetCharacterInfo(Info.Married);
-                    PlayerObject loverPlayer = Envir.GetPlayer(lover.Name);
+                    // 配偶可能已被归档（不在 CharacterList）→ 判空，别拿 null 去取 Name
+                    PlayerObject loverPlayer = lover == null ? null : Envir.GetPlayer(lover.Name);
                     if (loverPlayer != null && loverPlayer.CurrentMap == CurrentMap && Functions.InRange(loverPlayer.CurrentLocation, CurrentLocation, Globals.DataRange) && !loverPlayer.Dead)
                     {
                         amount += (uint)Math.Max(0, (amount * Stats[Stat.伴侣专享经验数率]) / 100);
@@ -1182,7 +1183,7 @@ namespace Server.MirObjects
                 if (HasBuff(BuffType.衣钵相传, out _))
                 {
                     CharacterInfo mentor = Envir.GetCharacterInfo(Info.Mentor);
-                    PlayerObject mentorPlayer = Envir.GetPlayer(mentor.Name);
+                    PlayerObject mentorPlayer = mentor == null ? null : Envir.GetPlayer(mentor.Name);
                     if (mentorPlayer != null && mentorPlayer.CurrentMap == CurrentMap && Functions.InRange(mentorPlayer.CurrentLocation, CurrentLocation, Globals.DataRange) && !mentorPlayer.Dead)
                     {
                         if (GroupMembers != null && GroupMembers.Contains(mentorPlayer))
@@ -1872,7 +1873,8 @@ namespace Server.MirObjects
                 if (Info.Married != 0)
                 {
                     CharacterInfo Lover = Envir.GetCharacterInfo(Info.Married);
-                    PlayerObject player = Envir.GetPlayer(Lover.Name);
+                    // 配偶可能已被归档 → 判空，只是不通知对方上线
+                    PlayerObject player = Lover == null ? null : Envir.GetPlayer(Lover.Name);
 
                     if (player != null) player.GetRelationship(false);
                 }
@@ -2389,7 +2391,7 @@ namespace Server.MirObjects
                 if (Info.Mentor == 0) return;
 
                 CharacterInfo Mentor = Envir.GetCharacterInfo(Info.Mentor);
-                PlayerObject player = Envir.GetPlayer(Mentor.Name);
+                PlayerObject player = Mentor == null ? null : Envir.GetPlayer(Mentor.Name);
 
                 if (player == null)
                 {
@@ -2479,6 +2481,14 @@ namespace Server.MirObjects
                 if (Info.Married == 0) return;
 
                 CharacterInfo Lover = Envir.GetCharacterInfo(Info.Married);
+
+                //★配偶角色已被归档/删除：直接提示，别再往下取 Lover.Name
+                if (Lover == null)
+                {
+                    ReceiveChat("你的配偶角色已不存在（可能已被归档）", ChatType.System);
+                    return;
+                }
+
                 PlayerObject player = Envir.GetPlayer(Lover.Name);
             
                 if (player == null)
@@ -3152,13 +3162,17 @@ namespace Server.MirObjects
                                 return;
                             }
 
-                            Envir.SaveArchivedCharacter(data);
+                            string archivedFile = Envir.SaveArchivedCharacter(data);
 
                             Envir.CharacterList.Remove(data);
                             account.Characters.Remove(data);
 
-                            ReceiveChat(string.Format("玩家 {0} 已被归档", data.Name), ChatType.System);
-                            MessageQueue.Enqueue(string.Format("玩家 {0} 已被 {1} 归档", data.Name, Name));
+                            //★11-06：归档只改了内存，不立刻落盘的话重启后角色又回到账号里，
+                            //  下次启动再归档一次 —— 这就是现网一个角色 3 份副本的来源之一。
+                            Envir.BeginSaveAccounts();
+
+                            ReceiveChat(string.Format("玩家 {0} 已被归档（{1}）", data.Name, archivedFile), ChatType.System);
+                            MessageQueue.Enqueue(string.Format("玩家 {0} 已被 {1} 归档（{2}）", data.Name, Name, archivedFile));
                         }
                         break;
 
@@ -3190,10 +3204,47 @@ namespace Server.MirObjects
                                 return;
                             }
 
+                            //★11-06：原来这里只有一句 info = bak; —— 只是把局部变量指向了新对象，
+                            //  账号里的角色位、Envir.CharacterList 里的条目一个都没换，
+                            //  「玩家 xxx 已被加载」只是嘴上说说，实际什么都没发生。
+                            //  下面做真正的替换；在线角色直接拒绝，否则内存对象和存档会脱节。
+                            var holder = Envir.GetAccountByCharacter(bak.Name);
+
+                            if (holder == null)
+                            {
+                                ReceiveChat(string.Format("找不到 {0} 所在账号，无法加载", bak.Name), ChatType.System);
+                                return;
+                            }
+
+                            if (Envir.Players.Exists(p => p != null && p.Info == info))
+                            {
+                                ReceiveChat(string.Format("玩家 {0} 正在线上，请先让他下线再加载", bak.Name), ChatType.System);
+                                return;
+                            }
+
+                            int slot = holder.Characters.IndexOf(info);
+
+                            if (slot < 0)
+                            {
+                                ReceiveChat(string.Format("账号里找不到 {0} 的角色位，无法加载", bak.Name), ChatType.System);
+                                return;
+                            }
+
+                            bak.AccountInfo = holder;
+                            holder.Characters[slot] = bak;
+
+                            int clIndex = Envir.CharacterList.IndexOf(info);
+
+                            if (clIndex >= 0) Envir.CharacterList[clIndex] = bak;
+                            else Envir.CharacterList.Add(bak);
+
+                            //★立刻落盘：和 RESTOREPLAYER 一样，不落盘就等于没加载
+                            Envir.BeginSaveAccounts();
+
                             info = bak;
 
-                            ReceiveChat(string.Format("玩家 {0} 已被加载", info.Name), ChatType.System);
-                            MessageQueue.Enqueue(string.Format("玩家 {0} 已被 {1} 加载", info.Name, Name));
+                            ReceiveChat(string.Format("玩家 {0} 已被加载（用归档覆盖账号存档）", info.Name), ChatType.System);
+                            MessageQueue.Enqueue(string.Format("玩家 {0} 已被 {1} 加载（用归档覆盖）", info.Name, Name));
                         }
                         break;
 
@@ -3202,6 +3253,9 @@ namespace Server.MirObjects
                             if (!IsGM || parts.Length < 2) return;
 
                             AccountInfo account = null;
+
+                            //★11-06：恢复成功后要把用到的归档文件挪进 Archive\Restored\
+                            FileInfo usedArchive = null;
 
                             if (parts.Length > 2)
                             {
@@ -3226,7 +3280,7 @@ namespace Server.MirObjects
                             {
                                 if (account != null)
                                 {
-                                    data = Envir.GetArchivedCharacter(parts[1]);
+                                    data = Envir.GetArchivedCharacter(parts[1], out usedArchive);
 
                                     if (data == null)
                                     {
@@ -3256,6 +3310,22 @@ namespace Server.MirObjects
                                 data.Deleted = false;
                                 data.DeleteDate = DateTime.MinValue;
                             }
+
+                            //★11-06：恢复成功后把归档文件挪进 Archive\Restored\
+                            //  1) 同一份归档不会被反复恢复（原来恢复完文件还留在原地，下次还能再恢复一遍）；
+                            //  2) 下次自动归档不会因为「已存在归档」被幂等判断挡住。
+                            //  挪走而不是删除 —— 恢复出问题还能从 Restored 里找回来。
+                            if (usedArchive != null)
+                            {
+                                if (Envir.MoveArchiveToRestored(usedArchive, out string moveError))
+                                    MessageQueue.Enqueue($"归档文件 {usedArchive.Name} 已移入 Archive\\Restored\\");
+                                else
+                                    ReceiveChat($"恢复成功，但归档文件挪动失败：{moveError}", ChatType.System);
+                            }
+
+                            //★恢复只改了内存，立刻落盘。否则下次保存前崩溃 = 恢复白做，
+                            //  而且下次启动会把这个角色再归档一遍（又堆一份 .MirCA）。
+                            Envir.BeginSaveAccounts();
 
                             ReceiveChat(string.Format("玩家 {0} 已被恢复", data.Name), ChatType.System);
                             MessageQueue.Enqueue(string.Format("玩家 {0} 已被 {1} 恢复", data.Name, Name));
@@ -5259,7 +5329,7 @@ namespace Server.MirObjects
             if (Info.Married != 0)
             {
                 CharacterInfo Lover = Envir.GetCharacterInfo(Info.Married);
-                PlayerObject player = Envir.GetPlayer(Lover.Name);
+                PlayerObject player = Lover == null ? null : Envir.GetPlayer(Lover.Name);
 
                 if (player != null) player.GetRelationship(false);
             }
@@ -13424,7 +13494,9 @@ namespace Server.MirObjects
             }
 
             CharacterInfo lover = Envir.GetCharacterInfo(Info.Married);
-            PlayerObject player = Envir.GetPlayer(lover.Name);
+
+            //★配偶角色已被归档/删除：只清自己这边，别往 null 上写 Married
+            PlayerObject player = lover == null ? null : Envir.GetPlayer(lover.Name);
 
             Info.Married = 0;
             Info.MarriedDate = Envir.Now;
@@ -13436,11 +13508,18 @@ namespace Server.MirObjects
             }
 
             GetRelationship(false);
-            
-            lover.Married = 0;
-            lover.MarriedDate = Envir.Now;
-            if (lover.Equipment[(int)EquipmentSlot.左戒指] != null)
-                lover.Equipment[(int)EquipmentSlot.左戒指].WeddingRing = -1;
+
+            if (lover != null)
+            {
+                lover.Married = 0;
+                lover.MarriedDate = Envir.Now;
+                if (lover.Equipment[(int)EquipmentSlot.左戒指] != null)
+                    lover.Equipment[(int)EquipmentSlot.左戒指].WeddingRing = -1;
+            }
+            else
+            {
+                MessageQueue.Enqueue($"{Name} 通过 NPC 离婚时，配偶（ID 已失效）不在角色列表中，只清除了本人数据");
+            }
 
             if (player != null)
             {
@@ -13849,6 +13928,28 @@ namespace Server.MirObjects
             {
                 CharacterInfo Lover = Envir.GetCharacterInfo(Info.Married);
 
+                //★11-06：配偶角色被归档/删除后不在 CharacterList 里，这里原来直接 Lover.Name → 空引用。
+                //  而 StartGame 每次登录都会调本方法（1547 行），异常冒到 Envir 主循环 →
+                //  innerRestart → 全服掉线重启 → 重启时的 SaveAccounts 还会把好友列表写坏。
+                //  另外离婚要求「面对面」，对方永远上不了线，不解除就是永久卡在「已结婚」，
+                //  既不能再婚也离不了 —— 所以这里直接解除（归档文件里仍保留原值，可人工恢复）。
+                if (Lover == null)
+                {
+                    int lost = Info.Married;
+
+                    Info.Married = 0;
+                    Info.MarriedDate = Envir.Now;
+
+                    if (Info.Equipment[(int)EquipmentSlot.左戒指] != null)
+                        Info.Equipment[(int)EquipmentSlot.左戒指].WeddingRing = -1;
+
+                    MessageQueue.Enqueue($"{Name} 的配偶（ID {lost}）已不在角色列表（可能已归档），婚姻关系已自动解除");
+                    ReceiveChat("你的配偶角色已不存在（可能已被归档），婚姻关系已自动解除", ChatType.System);
+
+                    Enqueue(new S.LoverUpdate { Name = "", Date = Info.MarriedDate, MapName = "", MarriedDays = 0 });
+                    return;
+                }
+
                 PlayerObject player = Envir.GetPlayer(Lover.Name);
 
                 if (player == null)
@@ -13896,6 +13997,26 @@ namespace Server.MirObjects
             }
 
             CharacterInfo partner = Envir.GetCharacterInfo(Info.Mentor);
+
+            //★11-06：对方被归档/删除时 partner 为 null，下面 partner.Name 直接空引用。
+            //  这条路径是 StartGame（1550 行）师徒期满时必走的，同样会把整个 Envir 主循环掀翻。
+            //  人都不在了，经验也无从结算，只能清掉关系。
+            if (partner == null)
+            {
+                int lost = Info.Mentor;
+                long lostExp = Info.MentorExp;
+
+                Info.Mentor = 0;
+                Info.MentorExp = 0;
+                Info.IsMentor = false;
+
+                MessageQueue.Enqueue($"{Name} 的师徒对象（ID {lost}）已不在角色列表（可能已归档），师徒关系已解除，未结算经验 {lostExp}");
+                ReceiveChat("你的师徒对象角色已不存在（可能已被归档），师徒关系已解除", ChatType.System);
+
+                GetMentor(false);
+                return;
+            }
+
             PlayerObject partnerP = Envir.GetPlayer(partner.Name);
 
             if (force)
@@ -14097,6 +14218,26 @@ namespace Server.MirObjects
             else
             {
                 CharacterInfo mentor = Envir.GetCharacterInfo(Info.Mentor);
+
+                //★11-06：师父/徒弟被归档后不在 CharacterList，这里原来直接 mentor.Name → 空引用。
+                //  StartGame 每次登录都会调本方法（1556 行），异常会掀翻整个 Envir 主循环。
+                //  师徒同样必须「双方在线面对面」才能解除，对方上不了线就是永久卡死，故直接解除。
+                if (mentor == null)
+                {
+                    int lost = Info.Mentor;
+                    long lostExp = Info.MentorExp;
+                    bool wasMentor = Info.IsMentor;
+
+                    Info.Mentor = 0;
+                    Info.MentorExp = 0;
+                    Info.IsMentor = false;
+
+                    MessageQueue.Enqueue($"{Name} 的{(wasMentor ? "徒弟" : "师父")}（ID {lost}）已不在角色列表（可能已归档），师徒关系已自动解除，未结算经验 {lostExp}");
+                    ReceiveChat($"你的{(wasMentor ? "徒弟" : "师父")}角色已不存在（可能已被归档），师徒关系已自动解除", ChatType.System);
+
+                    Enqueue(new S.MentorUpdate { Name = "", Level = 0, Online = false, MenteeEXP = 0 });
+                    return;
+                }
 
                 PlayerObject player = Envir.GetPlayer(mentor.Name);
 

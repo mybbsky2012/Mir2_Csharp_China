@@ -1460,44 +1460,242 @@ namespace Server.MirEnvir
         }
 
 
-        public CharacterInfo GetArchivedCharacter(string name)
+        //★11-06 归档安全化（6 个暗坑，备份见 Back Up\manual-20261106_2110-归档暗坑修复）：
+        //  1. 自动归档幂等 —— 已归档过的角色不再写第二份（原来账号没立刻落盘，每次启动都重归档一次，实测留下 2~3 份）；
+        //  2. 查询不再用 "{name}*.MirCA" 前缀通配 —— "张三" 会命中 "张三丰_…"；
+        //     改成「去掉时间戳后缀后与角色名完全相等」；
+        //  3. 同一角色有多份归档时取【最新一份】，不再 files.Length != 1 就返回 null
+        //     （原来多份 = 永久恢复不了，现网 4 个角色就是这么废掉的）；
+        //  4. Archive 目录不存在时返回空列表，不抛 DirectoryNotFoundException；
+        //  5. 文件名时间戳改用【本地时间】（Envir.Now 是 UTC，运维看到的时间比实际早 8 小时）；
+        //  6. 恢复成功后归档文件挪进 Archive\Restored\，避免同一份被反复恢复、也避免下次自动归档被"已存在"挡住。
+        public static readonly string ArchiveRestoredPath = Path.Combine(ArchivePath, "Restored");
+
+        private const string ArchiveExtension = ".MirCA";
+
+        /// <summary>归档文件名里的时间戳格式。前导下划线是格式串的一部分，会原样输出成 "{角色名}_{MMddyyyy_HHmmss}.MirCA"。</summary>
+        private const string ArchiveStampFormat = "_MMddyyyy_HHmmss";
+
+        /// <summary>
+        /// 时间戳后缀：8 位日期 + 下划线 + 6 位时间，可选再跟 "_序号"（同一秒内重复备份时才出现）。
+        /// 前导下划线可选，兼容早期无分隔符的文件名。
+        /// </summary>
+        private static readonly Regex ArchiveStampRegex = new Regex(@"^_?\d{8}_\d{6}(_\d{1,3})?$", RegexOptions.Compiled);
+
+        /// <summary>从文件名里提取时间戳值，用于排序（前导下划线可有可无，兼容早期无分隔符的命名）。</summary>
+        private static readonly Regex ArchiveStampValueRegex = new Regex(@"(\d{8})_(\d{6})(?:_\d{1,3})?$", RegexOptions.Compiled);
+
+        /// <summary>从文件名里抠出时间戳（只当排序次序用，解析失败给 MinValue）。</summary>
+        private static DateTime ArchiveStampOf(FileInfo file)
         {
-            DirectoryInfo dir = new DirectoryInfo(ArchivePath);
-            FileInfo[] files = dir.GetFiles($"{name}*.MirCA");
+            var m = ArchiveStampValueRegex.Match(Path.GetFileNameWithoutExtension(file.Name));
 
-            if (files.Length != 1)
-            {
-                return null;
-            }
+            if (!m.Success) return DateTime.MinValue;
 
-            var fileInfo = files[0];
-
-            CharacterInfo info = null;
-
-            using (var stream = fileInfo.OpenRead())
-            {
-                using var reader = new BinaryReader(stream);
-
-                var version = reader.ReadInt32();
-                var customVersion = reader.ReadInt32();
-
-                info = new CharacterInfo(reader, version, customVersion);
-            }
-
-            return info;
+            return DateTime.TryParseExact($"{m.Groups[1].Value}_{m.Groups[2].Value}", "MMddyyyy_HHmmss",
+                System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var t)
+                ? t
+                : DateTime.MinValue;
         }
 
-        public void SaveArchivedCharacter(CharacterInfo info)
+        /// <summary>判断某个归档文件名（不含扩展名）是不是 name 这个角色的。</summary>
+        private static bool IsArchiveOf(string fileBase, string name)        {
+            if (string.IsNullOrEmpty(fileBase) || string.IsNullOrEmpty(name)) return false;
+
+            if (fileBase.Length <= name.Length) return false;
+            if (!fileBase.StartsWith(name, StringComparison.OrdinalIgnoreCase)) return false;
+
+            // 剩余部分必须整段是时间戳，才算这个角色的归档
+            return ArchiveStampRegex.IsMatch(fileBase.Substring(name.Length));
+        }
+
+        /// <summary>
+        /// 列出某角色的全部归档文件，按文件写入时间【新 → 旧】排序。
+        /// name 也可以直接写完整文件名（带不带 .MirCA 都行），此时只返回这一个文件。
+        /// 目录不存在时返回空列表。
+        /// </summary>
+        public List<FileInfo> GetArchivedCharacterFiles(string name)
+        {
+            var result = new List<FileInfo>();
+
+            if (string.IsNullOrWhiteSpace(name)) return result;
+            if (!Directory.Exists(ArchivePath)) return result;   //★原来没有这一句，目录不在直接抛异常
+
+            name = name.Trim();
+
+            // GM 直接贴完整文件名也能用（旧提示语一直写着「请尝试指定完整的存档文件名」，但代码从来没实现过）
+            if (name.EndsWith(ArchiveExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                var exact = Path.Combine(ArchivePath, name);
+                if (File.Exists(exact)) result.Add(new FileInfo(exact));
+                return result;
+            }
+
+            try
+            {
+                foreach (var file in new DirectoryInfo(ArchivePath).GetFiles("*" + ArchiveExtension))
+                {
+                    if (IsArchiveOf(Path.GetFileNameWithoutExtension(file.Name), name))
+                        result.Add(file);
+                }
+            }
+            catch (Exception ex)
+            {
+                // 权限 / 磁盘 / 路径异常都不该让归档功能连带把开服或 GM 命令弄挂
+                MessageQueue.Enqueue($"扫描归档目录失败：{ex.Message}");
+                return result;
+            }
+
+            //★排序键是【文件名里的时间戳】，不是 mtime：
+            //  整目录复制 / 解压 / 同步工具刷时间之后，同一角色的几份档 mtime 可能全一样（甚至乱序），
+            //  按 mtime 排会随机挑中一个更老的档。文件名时间戳才是归档发生的真实顺序。
+            //  老档是 UTC、新档是本地时间，混排也不会错：新档真实时间更晚，且本地时间还比 UTC 多 8 小时。
+            //  mtime / 文件名只作为时间戳相同（同秒备份）时的次序。
+            result.Sort((a, b) =>
+            {
+                int c = ArchiveStampOf(b).CompareTo(ArchiveStampOf(a));
+                if (c != 0) return c;
+
+                c = b.LastWriteTime.CompareTo(a.LastWriteTime);
+                if (c != 0) return c;
+
+                return string.CompareOrdinal(b.Name, a.Name);
+            });
+
+            return result;
+        }
+
+        public CharacterInfo GetArchivedCharacter(string name)
+        {
+            return GetArchivedCharacter(name, out _);
+        }
+
+        /// <summary>读取某角色的归档；<paramref name="file"/> 回传实际用到的文件（恢复成功后要挪走它）。</summary>
+        public CharacterInfo GetArchivedCharacter(string name, out FileInfo file)
+        {
+            file = null;
+
+            var files = GetArchivedCharacterFiles(name);
+
+            if (files.Count == 0) return null;
+
+            //★同一角色有多份归档时取最新一份。原来 files.Length != 1 直接返回 null —— 一旦重复归档就再也恢复不了。
+            //  某一份损坏（写一半断电、被占用）就顺延试更早的一份，而不是整体失败。
+            foreach (var candidate in files)
+            {
+                try
+                {
+                    using var stream = candidate.OpenRead();
+                    using var reader = new BinaryReader(stream);
+
+                    var version = reader.ReadInt32();
+                    var customVersion = reader.ReadInt32();
+
+                    var info = new CharacterInfo(reader, version, customVersion);
+
+                    file = candidate;   //★读成功才回传，避免把坏档挪进 Restored
+                    return info;
+                }
+                catch (Exception ex)
+                {
+                    // 单个归档文件损坏不该把 GM 命令或启动流程带崩
+                    MessageQueue.Enqueue($"归档文件 {candidate.Name} 读取失败（{ex.Message}），尝试更早的一份");
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>写一份新的归档文件（GM 手动备份用，总是新建）。返回写出的文件名。</summary>
+        public string SaveArchivedCharacter(CharacterInfo info)
         {
             if (!Directory.Exists(ArchivePath)) Directory.CreateDirectory(ArchivePath);
 
-            using var stream = File.Create(Path.Combine(ArchivePath, @$"{info.Name}{Now:_MMddyyyy_HHmmss}.MirCA"));
-            using var writer = new BinaryWriter(stream);
+            //★本地时间：Envir.Now 是 UTC，直接落进文件名会让运维看到的时间比实际早 8 小时
+            string stamp = Now.ToLocalTime().ToString(ArchiveStampFormat);
+            string fileName = $"{info.Name}{stamp}{ArchiveExtension}";
+            string path = Path.Combine(ArchivePath, fileName);
 
-            writer.Write(Version);
-            writer.Write(CustomVersion);
+            // 同一秒内重复（GM 连点 BACKUPPLAYER）时补序号，别覆盖上一份。
+            //★序号必须还在时间戳格式里（…_HHmmss_2），否则 IsArchiveOf 认不出来 —— 写出去的档自己读不回来。
+            if (File.Exists(path))
+            {
+                int seq = 1;
+                do
+                {
+                    seq++;
+                    fileName = $"{info.Name}{stamp}_{seq}{ArchiveExtension}";
+                    path = Path.Combine(ArchivePath, fileName);
+                } while (File.Exists(path));
+            }
 
-            info.Save(writer);
+            using (var stream = File.Create(path))
+            using (var writer = new BinaryWriter(stream))
+            {
+                writer.Write(Version);
+                writer.Write(CustomVersion);
+
+                info.Save(writer);
+            }
+
+            return fileName;
+        }
+
+        /// <summary>
+        /// 自动归档（未登录 / 已删除等条件触发），★幂等：已经存在该角色的归档就不再写第二份。
+        /// 返回 true 表示本次真的新写了一份。
+        /// </summary>
+        public bool ArchiveCharacterOnce(CharacterInfo info)
+        {
+            //★写归档失败（磁盘满 / 文件被占用 / 名字含非法字符）绝不能让开服失败：
+            //  这里在 AccountInfo 的构造函数里被调用，一抛就是整个账号库读不完 → 服起不来。
+            try
+            {
+                var existing = GetArchivedCharacterFiles(info.Name);
+
+                if (existing.Count > 0)
+                {
+                    MessageQueue.Enqueue($"角色 {info.Name} 之前已归档过（{existing[0].Name}），跳过重复归档");
+                    return false;
+                }
+
+                SaveArchivedCharacter(info);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue($"角色 {info.Name} 归档失败（{ex.Message}），本次未落档，请检查 Archive 目录");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 把归档文件挪进 Archive\Restored\（恢复成功后调用）。挪动而不是删除，出错时还能找回。
+        /// </summary>
+        public bool MoveArchiveToRestored(FileInfo file, out string error)
+        {
+            error = null;
+
+            if (file == null || !file.Exists) return false;
+
+            try
+            {
+                if (!Directory.Exists(ArchiveRestoredPath)) Directory.CreateDirectory(ArchiveRestoredPath);
+
+                string dest = Path.Combine(ArchiveRestoredPath, file.Name);
+
+                if (File.Exists(dest))
+                    dest = Path.Combine(ArchiveRestoredPath,
+                        $"{Path.GetFileNameWithoutExtension(file.Name)}_{Guid.NewGuid():N}{ArchiveExtension}");
+
+                File.Move(file.FullName, dest);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
         }
 
         public void SaveAccounts()
@@ -1513,7 +1711,13 @@ namespace Server.MirEnvir
                     File.Move(AccountPath, AccountPath + "o");
                 File.Move(AccountPath + "n", AccountPath);
                 if (File.Exists(AccountPath + "o"))
+                {
+                    //★保留上一版成 .bak（原来直接删掉，读坏了没有退路）
+                    try { File.Copy(AccountPath + "o", AccountPath + ".bak", true); }
+                    catch { }
+
                     File.Delete(AccountPath + "o");
+                }
             }
             catch (Exception ex)
             {
@@ -1755,7 +1959,14 @@ namespace Server.MirEnvir
                         File.Move(oldfilename, oldfilename + "o");
                     File.Move(newfilename, oldfilename);
                     if (File.Exists(oldfilename + "o"))
+                    {
+                        //★保留上一版成 .bak：原来是直接删掉的，等于没有任何退路。
+                        //  账号库读不出来时 LoadAccounts 会用它回退（见 LoadAccounts 注释）。
+                        try { File.Copy(oldfilename + "o", oldfilename + ".bak", true); }
+                        catch { }
+
                         File.Delete(oldfilename + "o");
+                    }
                 }
             }
             catch (Exception)
@@ -1891,7 +2102,56 @@ namespace Server.MirEnvir
             return true;
         }
 
+        /// <summary>
+        /// 账号库加载入口，★带坏档回退。
+        ///
+        /// 账号库是「无长度前缀的顺序二进制流」：只要某个角色读错位，后面的角色和账号全部跟着错，
+        /// 没法靠 try/catch 跳过单条继续读。所以这里的兜底是：
+        ///   读失败 → 把坏档另存为 .corrupt-时间戳（留证据）→ 用上一版 .bak 覆盖 → 重读一次。
+        /// 仍然失败就把异常抛给上层，不要带着半截数据开服。
+        /// </summary>
         public void LoadAccounts()
+        {
+            _accountFallbackTried = false;
+
+            try
+            {
+                LoadAccountsCore();
+            }
+            catch (Exception ex)
+            {
+                if (_accountFallbackTried) throw;
+
+                _accountFallbackTried = true;
+
+                string bak = AccountPath + ".bak";
+
+                if (!File.Exists(bak))
+                {
+                    MessageQueue.Enqueue($"★账号库读取失败（{ex.Message}），且没有可回退的备份 {Path.GetFileName(bak)}，请从 Back Up 目录恢复");
+                    throw;
+                }
+
+                string corrupt = AccountPath + ".corrupt-" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+
+                try { File.Copy(AccountPath, corrupt, true); } catch { }
+
+                MessageQueue.Enqueue($"★账号库读取失败（{ex.Message}），坏档已另存为 {Path.GetFileName(corrupt)}，正在回退到上一版 {Path.GetFileName(bak)}");
+
+                // 清掉半截数据，免得和回退后的内容叠在一起
+                AccountList.Clear();
+                CharacterList.Clear();
+                HeroList.Clear();
+
+                File.Copy(bak, AccountPath, true);
+
+                LoadAccountsCore();   //★只重试一次，再失败直接抛（需要人工介入）
+            }
+        }
+
+        private bool _accountFallbackTried;
+
+        private void LoadAccountsCore()
         {
             //reset ranking
             for (var i = 0; i < RankClass.Count(); i++)
@@ -1907,6 +2167,9 @@ namespace Server.MirEnvir
             }
 
             RankTop.Clear();
+
+            //★11-06：本次加载中自动归档掉的角色数（在 using 里累加，读文件关闭后才落盘）
+            int archivedWhileLoading = 0;
 
             lock (LoadLock)
             {
@@ -1946,10 +2209,19 @@ namespace Server.MirEnvir
                     CharacterList.Clear();
 
                     int TrueAccount = 0;
+
                     for (var i = 0; i < count; i++)
                     {
                         AccountInfo NextAccount = new AccountInfo(reader);
-                        if (i > 0 &&  NextAccount.Characters.Count == 0)
+
+                        if (NextAccount.ArchivedCharacters > 0)
+                            archivedWhileLoading += NextAccount.ArchivedCharacters;
+
+                        //★11-06：原来无条件丢掉「0 角色账号」。但角色被自动归档后账号也会变成 0 角色，
+                        //  一丢就把账号级数据一起丢了 —— 仓库 Storage、金币 Gold、充值 Credit 都不在 .MirCA 里，
+                        //  而且玩家再也没法登录这个账号去 @RESTOREPLAYER 找回角色。
+                        //  原版 Crystal 本来就不跳这类账号，这里恢复原版行为；只有 AccountID 彻底为空的损坏记录才跳。
+                        if (string.IsNullOrEmpty(NextAccount.AccountID))
                             continue;
                         AccountList.Add(NextAccount);
                         CharacterList.AddRange(AccountList[TrueAccount].Characters);
@@ -1998,6 +2270,11 @@ namespace Server.MirEnvir
 
                     if (LoadVersion >= 63)
                     {
+                        //★11-06：这里原来没有 Clear。LoadAccounts 第二次被调用（服主在界面上「重启」、
+                        //  或备份/恢复流程重载账号）时 GameshopLog.Add 撞键直接抛 ArgumentException，
+                        //  整个账号库读不完 —— 表现为「重启后角色全没了」。同段里 Auctions 是清过的，这里漏了。
+                        GameshopLog.Clear();
+
                         var logCount = reader.ReadInt32();
                         for (var i = 0; i < logCount; i++)
                         {
@@ -2032,6 +2309,18 @@ namespace Server.MirEnvir
                             }
                         }
                     }
+                }
+
+                //★11-06：加载期自动归档只改了内存（角色已从账号中摘掉），账号文件还是旧的。
+                //  不立刻落盘，下次启动会把同一批角色再归档一遍 —— 现网实测留了 2~3 份副本。
+                //  用异步版 BeginSaveAccounts：序列化在主线程（账号库 180KB，毫秒级），文件写入不阻塞开服。
+                if (archivedWhileLoading > 0)
+                {
+                    MessageQueue.Enqueue($"加载时自动归档了 {archivedWhileLoading} 个角色，正在保存账号数据......");
+
+                    //★保存失败不能让开服卡住：最坏结果只是「下次启动再归档一次」，幂等判断会兜住
+                    try { BeginSaveAccounts(); }
+                    catch (Exception ex) { MessageQueue.Enqueue($"归档后保存账号失败：{ex.Message}"); }
                 }
             }
         }
@@ -2468,10 +2757,21 @@ namespace Server.MirEnvir
                         info.Married = 0;
                         info.MarriedDate = Now;
 
-                        Lover.Married = 0;
-                        Lover.MarriedDate = Now;
-                        if (Lover.Equipment[(int)EquipmentSlot.左戒指] != null)
-                            Lover.Equipment[(int)EquipmentSlot.左戒指].WeddingRing = -1;
+                        //★11-06：Lover 可能已被归档/删除（不在 CharacterList）→ 这里原来直接解引用。
+                        //  本方法在 StopEnvir 里调用（2611），一抛异常就会跳过紧随其后的
+                        //  SaveAccounts()（1047 行）—— 表现是「关服/重启时整服不存档」。
+                        //  同段的 Mentor 分支本来就判了空，只有婚姻这里漏了。
+                        if (Lover != null)
+                        {
+                            Lover.Married = 0;
+                            Lover.MarriedDate = Now;
+                            if (Lover.Equipment[(int)EquipmentSlot.左戒指] != null)
+                                Lover.Equipment[(int)EquipmentSlot.左戒指].WeddingRing = -1;
+                        }
+                        else
+                        {
+                            MessageQueue.Enqueue($"清理已删除角色 {info.Name} 的婚姻时，配偶（ID {info.Married}）已不存在，跳过");
+                        }
                     }
                     #endregion
                 }

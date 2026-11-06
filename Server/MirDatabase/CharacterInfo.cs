@@ -537,10 +537,19 @@ namespace Server.MirDatabase
 
             writer.Write(CollectTime);
 
+            //★11-06：这里原来写着
+            //      writer.Write(Friends.Count);
+            //      for (...) { if (Friends[i].Info == null) continue; Friends[i].Save(writer); }
+            //  数量写的是全部，循环却跳过 Info==null 的条目 —— 好友一旦被归档（不在 CharacterList
+            //  里，Info 懒加载查不到人返回 null），就会「声明 N 条、实际只写 N-1 条」，
+            //  后续所有字段整体错位。存档没有长度前缀，读回来直接 EndOfStreamException，
+            //  而且同账号后面的角色跟着一起坏 —— 表现就是「重启后角色全没了 / 服起不来」。
+            //
+            //  FriendInfo.Save 只写 Index/Blocked/Memo，根本不碰 Info，所以悬空条目照写即可：
+            //  数量与条目天然一致，角色以后被 @RESTOREPLAYER 恢复（Index 不变）时好友关系还能自动接回。
             writer.Write(Friends.Count);
             for (int i = 0; i < Friends.Count; i++)
             {
-                if (Friends[i].Info == null) continue;
                 Friends[i].Save(writer);
             }
 
@@ -754,7 +763,8 @@ namespace Server.MirDatabase
         {
             writer.Write(Index);
             writer.Write(Blocked);
-            writer.Write(Memo);
+            // Memo 若为 null，BinaryWriter 会写 -1，读回来 ReadString 会抛 IOException → 整个账号库读不完
+            writer.Write(Memo ?? string.Empty);
         }
 
         public ClientFriend CreateClientFriend()

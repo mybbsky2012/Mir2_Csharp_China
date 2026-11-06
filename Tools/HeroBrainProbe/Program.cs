@@ -68,7 +68,37 @@ internal static class Program
             Dump("单体-中距(5格)", wiz, HeroSpellKind.Single, 0, 5, null);
         }
 
+        Console.WriteLine();
+        Console.WriteLine("===== 弓手 同档轮换自检（放完一本换另一本）=====");
+        {
+            var arch = BuildMagics(envir, new[] { 121, 141 }, extras);
+            var before = HeroSpellBook.Rank(arch, HeroSpellKind.Single, 0, 5, b => false, s => false, autoSkill: true);
+            Console.WriteLine($"  轮换前第 1 发 : {Describe(before, 4)}");
+
+            if (before.Count > 0)
+            {
+                var after = new List<UserMagic>(before);
+                HeroSpellBook.ApplyRotation(after, before[0].Spell);
+                Console.WriteLine($"  放了 {before[0].Info?.Name} 之后 : {Describe(after, 4)}");
+
+                if (after.Count > 1)
+                {
+                    var back = new List<UserMagic>(before);
+                    HeroSpellBook.ApplyRotation(back, after[0].Spell);
+                    Console.WriteLine($"  再放 {after[0].Info?.Name} 之后 : {Describe(back, 4)}");
+                }
+            }
+        }
+
         return 0;
+    }
+
+    private static string Describe(List<UserMagic> ranked, int take)
+    {
+        if (ranked.Count == 0) return "（没有可用技能）";
+
+        return string.Join(" > ", ranked.Take(take).Select(x =>
+            $"{x.Info?.Name ?? x.Spell.ToString()}[S{HeroSpellBook.Score(x):0.00}]"));
     }
 
     private static List<UserMagic> BuildMagics(Envir envir, int[] range, int[] extras = null)
