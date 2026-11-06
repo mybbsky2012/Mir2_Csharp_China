@@ -216,7 +216,7 @@ public class Mon625S : MonsterObject
 					{
 						WideLineAttack(attackPower2, 1, 1200);
 					}
-					PoisonTarget(Target, 5, 5L, PoisonType.Frozen, 1000L, noResist: true, ignoreDefence: false);
+					PoisonTarget(Target, 5, 5L, PoisonType.Frozen, 1000L, noResist: false, ignoreDefence: false);
 					DelayedAction item2 = new DelayedAction(DelayedType.Damage, MapObject.Envir.Time + 1200, Target, attackPower2, DefenceType.AC, false);
 					ActionList.Add(item2);
 					break;

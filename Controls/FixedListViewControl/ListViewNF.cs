@@ -99,6 +99,10 @@ namespace CustomFormControl
 
         void ListViewNF_ColumnClick(object sender, ColumnClickEventArgs e)
         {
+            // 20261106 虚拟模式不支持控件排序（Sort() 会抛 InvalidOperationException），
+            // 数据顺序由数据源自己保证（在线列表快照已按角色 Index 排好）。
+            if (VirtualMode) return;
+
             if (e.Column == _sorter.SortColumn)
             {
                 _sorter.Order = _sorter.Order == SortOrder.Ascending ? SortOrder.Descending : SortOrder.Ascending;

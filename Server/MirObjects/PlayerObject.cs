@@ -292,6 +292,18 @@ namespace Server.MirObjects
             Info.LastLoginDate = Envir.Now;
         }
 
+        /// <summary>
+        /// 是否克隆宠（20261106）：法师分身（CloneName）或刺客分身（AssassinCloneName）。
+        /// 注意必须比 Info.Name（基础名），宠物的 Name 属性带“(主人名)”后缀，
+        /// 原代码里 pet.Name == Settings.CloneName 实际永远不成立。
+        /// </summary>
+        private static bool IsClonePet(MonsterObject pet)
+        {
+            if (pet == null || pet.Info == null) return false;
+
+            return pet.Info.Name == Settings.CloneName || pet.Info.Name == Settings.AssassinCloneName;
+        }
+
         public void StopGame(byte reason)
         {
             if (Node == null) return;
@@ -349,6 +361,21 @@ namespace Server.MirObjects
 
                 if (!pet.Dead)
                 {
+                    // 「主人死亡宠物也死亡」（20261106 「其他选项 → 诱惑之光」开关）：
+                    // 开启后普通诱惑宠不写入存档、就地死亡（有尸体动画，尸体按正常流程衰减），
+                    // 只保留克隆宠（法师分身/刺客分身）走下面的原存档流程。
+                    // 关闭 = 维持原版行为。
+                    if (Settings.PetDieWithMaster && !IsClonePet(pet))
+                    {
+                        // Die() 内部会广播死亡、清地图怪物计数，并（20261106 修复后）
+                        // 自己从主人 Pets 列表移除。这里再用 Remove 兜底一次：
+                        // 已移除时是空操作，绝不能用 RemoveAt(i)（元素左移会误删下一只）。
+                        pet.Die();
+
+                        Pets.Remove(pet);
+                        continue;
+                    }
+
                     switch (Settings.PetSave)
                     {
                         case true when Settings.PetSave is true:
@@ -405,6 +432,12 @@ namespace Server.MirObjects
 
                     pet.Despawn();
 
+                    Pets.RemoveAt(i);
+                }
+                else
+                {
+                    // 20261106 兜底：已死亡的宠物不再留在列表里。
+                    // Die() 修复后会自行移除，这里防御其它死亡路径（如脚本/复活失败）留下的死宠。
                     Pets.RemoveAt(i);
                 }
             }
@@ -465,7 +498,9 @@ namespace Server.MirObjects
 
             string logReason = LogOutReason(reason);
 
-            MessageQueue.Enqueue(logReason);
+            // 20261106 假人上下线太频繁（2 万假人轮换），不写服务器日志（GUI 日志栏 + 日志文件都不记）
+            if (!(this is FakePlayerObject))
+                MessageQueue.Enqueue(logReason);
 
             Fishing = false;
 
@@ -2214,7 +2249,9 @@ namespace Server.MirObjects
         {
             if (string.IsNullOrEmpty(message)) return;
 
-            MessageQueue.EnqueueChat(string.Format("{0}: {1}", Name, message));
+            // 20261106 假人说话/喊话不写「聊天日志」（2 万假人会把日志刷爆）
+            if (!(this is FakePlayerObject))
+                MessageQueue.EnqueueChat(string.Format("{0}: {1}", Name, message));
 
             if (GMLogin)
             {

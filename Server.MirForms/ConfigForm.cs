@@ -10,8 +10,10 @@ namespace Server
         {
             InitializeComponent();
 
-            // 20261105 其他选项里再挂一页「诱惑之光」（代码构建，不动 Designer 文件）
+            // 20261106 「特殊设置」总页（内嵌子选项页：诱惑之光 / 特殊限制），代码构建，不动 Designer 文件
+            BuildSpecialSettingsTab();
             BuildTameTab();
+            BuildPoisonLockTab();
 
             VPathTextBox.Text = Settings.VersionPath;
             VersionCheckBox.Checked = Settings.CheckVersion;
@@ -70,6 +72,8 @@ namespace Server
             TameIgnoreLevelCheckBox.Checked = Settings.TameIgnoreLevelLimit;
             TameIgnoreHpCheckBox.Checked = Settings.TameIgnoreHpPenalty;
             TameIgnoreUntameableCheckBox.Checked = Settings.TameIgnoreUntameable;
+            PetDieWithMasterCheckBox.Checked = Settings.PetDieWithMaster;
+            PoisonLockMagicOnlyCheckBox.Checked = Settings.PoisonLockMagicOnly;
             SyncTameUi();
 
             // 地面物品 / 尸体停留时间
@@ -99,15 +103,42 @@ namespace Server
             OfflineAfkNoEquipCheckBox.Enabled = on;
         }
 
+        // 20261106 「特殊设置」总页里内嵌的子 TabControl（诱惑之光 / 特殊限制两块子选项页挂这里）
+        private TabControl specialSubTabs;
+
+        /// <summary>
+        /// 20261106 「其他选项」里的总页「特殊设置」：页内再嵌一个子 TabControl，
+        /// 诱惑之光、特殊限制（原「中毒锁」）两块以子选项页形式展示，不再各占顶级页签。
+        /// </summary>
+        private void BuildSpecialSettingsTab()
+        {
+            var outerPage = new TabPage
+            {
+                Name = "tabPageSpecial",
+                Text = "特殊设置",
+                Padding = new Padding(5, 7, 5, 7),
+                UseVisualStyleBackColor = true,
+            };
+
+            specialSubTabs = new TabControl
+            {
+                Dock = DockStyle.Fill,
+            };
+
+            outerPage.Controls.Add(specialSubTabs);
+            configTabs.Controls.Add(outerPage);
+        }
+
         // 20261105 诱惑之光页的控件（代码构建，见 BuildTameTab）
         private NumericUpDown TameSuccessRateUpDown;
         private CheckBox TameIgnoreLevelCheckBox;
         private CheckBox TameIgnoreHpCheckBox;
         private CheckBox TameIgnoreUntameableCheckBox;
+        private CheckBox PetDieWithMasterCheckBox;
         private Label TameRateHintLabel;
 
         /// <summary>
-        /// 20261105 「其他选项」里新增的第 6 页：诱惑之光参数。
+        /// 20261105 诱惑之光参数页；20261106 起作为「特殊设置」总页里的子选项页展示。
         /// 用代码构建、不改 Designer 文件，好处是这个页面的控件全集中在这里，
         /// 后面要加/减项一眼能看完，也不会被设计器重新生成时覆盖。
         /// </summary>
@@ -119,14 +150,16 @@ namespace Server
                 Text = "诱惑之光",
                 Padding = new Padding(5, 7, 5, 7),
                 UseVisualStyleBackColor = true,
+                // 20261106 移入「特殊设置」子页后内容区变矮，兜底滚动防止小屏/DPI 缩放下显示不全
+                AutoScroll = true,
             };
 
             // ---------- 召唤成功率 ----------
             var rateGroup = new GroupBox
             {
                 Text = "召唤成功率",
-                Location = new Point(12, 8),
-                Size = new Size(448, 126),
+                Location = new Point(12, 4),
+                Size = new Size(448, 116),
             };
 
             var rateLabel = new Label
@@ -169,8 +202,8 @@ namespace Server
             TameRateHintLabel = new Label
             {
                 AutoSize = false,
-                Location = new Point(14, 60),
-                Size = new Size(420, 58),
+                Location = new Point(14, 54),
+                Size = new Size(420, 56),
                 ForeColor = Color.DimGray,
             };
 
@@ -184,29 +217,29 @@ namespace Server
             var limitGroup = new GroupBox
             {
                 Text = "召唤限制",
-                Location = new Point(12, 138),
-                Size = new Size(448, 178),
+                Location = new Point(12, 124),
+                Size = new Size(448, 160),
             };
 
             TameIgnoreLevelCheckBox = new CheckBox
             {
                 Text = "允许召唤高等级怪物（无视「自身等级 + 2」）",
                 AutoSize = true,
-                Location = new Point(14, 24),
+                Location = new Point(14, 22),
             };
 
             TameIgnoreHpCheckBox = new CheckBox
             {
                 Text = "允许召唤高血量怪物（无视血量抗性）",
                 AutoSize = true,
-                Location = new Point(14, 54),
+                Location = new Point(14, 48),
             };
 
             TameIgnoreUntameableCheckBox = new CheckBox
             {
                 Text = "允许召唤「不可诱惑」的怪（BOSS 等，城门/城墙除外）",
                 AutoSize = true,
-                Location = new Point(14, 84),
+                Location = new Point(14, 74),
             };
 
             var limitHint = new Label
@@ -214,8 +247,8 @@ namespace Server
                 Text = "※ 库里绝大多数怪（含全部 BOSS）都标了「不可诱惑」，要招它们必须勾上面第三项。\r\n"
                      + "※ 宠物数量上限仍按技能等级走，秒招也不会突破。",
                 AutoSize = false,
-                Location = new Point(14, 112),
-                Size = new Size(420, 56),
+                Location = new Point(14, 100),
+                Size = new Size(420, 52),
                 ForeColor = Color.DimGray,
             };
 
@@ -224,24 +257,94 @@ namespace Server
             limitGroup.Controls.Add(TameIgnoreUntameableCheckBox);
             limitGroup.Controls.Add(limitHint);
 
-            // ---------- 底部说明 ----------
-            var footNote = new Label
+            // ---------- 下线存档 ----------
+            var saveGroup = new GroupBox
             {
-                Text = "三项写入 Configs\\Setup.ini 的 [Optional]，保存后立即生效。\r\n"
-                     + "只影响法师「诱惑之光」，不改数据库、不动存档。",
+                Text = "下线存档",
+                Location = new Point(12, 288),
+                Size = new Size(448, 64),
+            };
+
+            PetDieWithMasterCheckBox = new CheckBox
+            {
+                Text = "主人死亡宠物也死亡（下线存档只保留克隆宠，普通诱惑宠就地死亡）",
+                AutoSize = true,
+                Location = new Point(14, 16),
+            };
+
+            var saveHint = new Label
+            {
+                Text = "写入 Configs\\Setup.ini [Game] PetDieWithMaster，保存后立即生效；克隆宠含法师/刺客分身。",
                 AutoSize = false,
-                Location = new Point(18, 322),
-                Size = new Size(440, 50),
+                Location = new Point(14, 40),
+                Size = new Size(424, 18),
                 ForeColor = Color.DimGray,
             };
 
+            saveGroup.Controls.Add(PetDieWithMasterCheckBox);
+            saveGroup.Controls.Add(saveHint);
+
             page.Controls.Add(rateGroup);
             page.Controls.Add(limitGroup);
-            page.Controls.Add(footNote);
+            page.Controls.Add(saveGroup);
 
-            configTabs.Controls.Add(page);
+            // 20261106 移入「特殊设置」总页，作为子选项页展示
+            specialSubTabs.Controls.Add(page);
 
             TameSuccessRateUpDown.ValueChanged += (o, e) => SyncTameUi();
+        }
+
+        // 20261106 中毒锁页的控件（代码构建，见 BuildPoisonLockTab）
+        private CheckBox PoisonLockMagicOnlyCheckBox;
+
+        /// <summary>
+        /// 20261106 「特殊设置」总页里的子选项页「特殊限制」（原「中毒锁」）。
+        /// 控制毒（麻痹/狮子吼麻痹/冰冻/眩晕）默认同时锁物理攻击和魔法；
+        /// 勾选后只锁魔法，物理普攻不再被毒拦。
+        /// </summary>
+        private void BuildPoisonLockTab()
+        {
+            var page = new TabPage
+            {
+                Name = "tabPagePoisonLock",
+                Text = "特殊限制",
+                Padding = new Padding(5, 7, 5, 7),
+                UseVisualStyleBackColor = true,
+                // 20261106 子页内容区较矮，兜底滚动防止小屏/DPI 缩放下显示不全
+                AutoScroll = true,
+            };
+
+            var group = new GroupBox
+            {
+                Text = "控制毒锁行动范围",
+                Location = new Point(12, 8),
+                Size = new Size(448, 96),
+            };
+
+            PoisonLockMagicOnlyCheckBox = new CheckBox
+            {
+                Text = "中特殊毒只锁魔法攻击（物理普攻不再被毒锁）",
+                AutoSize = true,
+                Location = new Point(14, 22),
+            };
+
+            var hint = new Label
+            {
+                Text = "※ 勾选：麻痹/冰冻/眩晕（含狮子吼麻痹）命中后只放不出魔法，普攻照常。\r\n"
+                     + "※ 不勾：维持原版，毒同时锁物理攻击和魔法。移动锁（麻痹/冰冻定身）不受此开关影响。\r\n"
+                     + "写入 Configs\\Setup.ini [Game] PoisonLockMagicOnly，保存后立即生效。",
+                AutoSize = false,
+                Location = new Point(14, 48),
+                Size = new Size(424, 44),
+                ForeColor = Color.DimGray,
+            };
+
+            group.Controls.Add(PoisonLockMagicOnlyCheckBox);
+            group.Controls.Add(hint);
+            page.Controls.Add(group);
+
+            // 20261106 移入「特殊设置」总页，作为子选项页展示（页名已改为「特殊限制」）
+            specialSubTabs.Controls.Add(page);
         }
 
         /// <summary>
@@ -399,6 +502,10 @@ namespace Server
             Settings.TameIgnoreLevelLimit = TameIgnoreLevelCheckBox.Checked;
             Settings.TameIgnoreHpPenalty = TameIgnoreHpCheckBox.Checked;
             Settings.TameIgnoreUntameable = TameIgnoreUntameableCheckBox.Checked;
+
+            // 主人死亡宠物也死亡（20261106）：运行时逐次读取的静态值，保存即生效
+            Settings.PetDieWithMaster = PetDieWithMasterCheckBox.Checked;
+            Settings.PoisonLockMagicOnly = PoisonLockMagicOnlyCheckBox.Checked;
 
             // 地面物品 / 尸体停留时间（越界一律夹到合法区间，避免手滑写成 0 或天文数字）
             Settings.ItemTimeOut = Clamp(ParseInt(itemTimeOutTextBox.Text, Settings.ItemTimeOut), 1, 10080);

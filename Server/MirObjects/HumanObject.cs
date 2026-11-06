@@ -146,6 +146,11 @@ namespace Server.MirObjects
         {
             get
             {
+                // 20261106 PoisonLockMagicOnly：控制毒（麻痹/狮子吼麻痹/冰冻/眩晕）只锁魔法（见 CanCast），
+                // 不再拦物理普攻。关闭时维持原版：毒同时锁物理和魔法。
+                if (Settings.PoisonLockMagicOnly)
+                    return !Dead && Envir.Time >= ActionTime && Envir.Time >= AttackTime && Mount.CanAttack;
+
                 return !Dead && Envir.Time >= ActionTime && Envir.Time >= AttackTime && !CurrentPoison.HasFlag(PoisonType.Paralysis) && !CurrentPoison.HasFlag(PoisonType.LRParalysis) && !CurrentPoison.HasFlag(PoisonType.Frozen) && !CurrentPoison.HasFlag(PoisonType.Dazed) && Mount.CanAttack;
             }
         }

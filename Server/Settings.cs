@@ -151,6 +151,7 @@ namespace Server
         public static int FakePlayerLevelMax = 45;                  // 等级上限
         public static string FakePlayerMaps = "";                   // 练级地图（文件名或序号，逗号分隔）；留空=自动挑有怪物刷新的图
         public static bool FakePlayerChat = true;                   // 允许假人说话 / 喊话
+        public static int FakePlayerChatIntervalMs = 10000;         // 20261106 假人说话/喊话间隔（毫秒，默认 10 秒；实际 ±30% 抖动）
         public static bool FakePlayerRandomLogin = true;            // 允许随机上下线
         public static string FakePlayerChatFile = "FakePlayerChat.txt"; // 台词文件（相对 Configs 目录），留空用内置台词
         public static string FakePlayerEquipFile = "FakePlayerEquip.txt"; // 装备方案文件（相对 Configs 目录）；文件不存在会自动生成模板
@@ -159,6 +160,16 @@ namespace Server
         public static bool FakePlayerFollow = true;                 // 允许假人接受组队邀请并跟随队长一起下图打怪
         public static string FakePlayerSpawns = "";                 // 登录点（内联）：地图:X,Y; 地图:X,Y  —— 留空则只读登录点文件
         public static string FakePlayerSpawnFile = "FakePlayerSpawns.txt"; // 登录点文件（相对 Configs 目录），每行一个「地图 X Y」
+        public static string FakePlayerNameFile = "FakePlayerNames.txt";   // 假人名称文件（相对 Configs 目录），每行一个名字；不存在时按 Count 自动生成初始名称
+        // 20261106 性能优化（2 万假人规模）：
+        public static int FakePlayerIdleMs = 5000;                  // 休眠地图（无真人在线）假人处理间隔下限 ms，实际取 IdleMs~IdleMs*2 随机
+        public static int FakePlayerVisibleCap = 50;                // 每个真人视野内最多显示的假人数（超出部分不发出现包，玩家看不见）；20261106 100→50 减轻客户端同屏渲染压力
+        public static int FakePlayerLoginBatch = 100;               // 20261106 启动/重置后每秒分批登录的假人数；0 = 一次性全部登录（旧行为，启动会卡）
+        public static int FakePlayerShowRampMax = 20;               // 20261106 渐显：每个真人每秒最多"出现"几个假人（1→2→4…翻倍到该值封顶）
+        public static bool FakePlayerCrowdCalm = true;              // 20261106 被看就文静：假人在真人视野内多站少走，客户端同屏人物多了也不卡
+
+        // 20261106 内存治理：
+        public static int MemCompactMinutes = 0;                    // 定时全堆压缩（分钟）。0=关闭；30~60 适合 2 万假人常驻。把 GC 缓存的空闲段还给系统，代价是压缩瞬间一次 Full GC 停顿（几十~几百毫秒）
 
         //Database
         public static int SaveDelay = 5;
@@ -189,6 +200,21 @@ namespace Server
                           PKDelay = 12;
 
         public static bool PetSave = false;
+
+        /// <summary>
+        /// 主人死亡宠物也死亡（20261106 「其他选项 → 诱惑之光」页开关，Setup.ini [Game] PetDieWithMaster）。
+        /// 开启：主人下线时普通诱惑宠就地死亡（有尸体动画）、不写入角色存档，存档只保留克隆宠
+        /// （法师分身 CloneName / 刺客分身 AssassinCloneName）。
+        /// 关闭：维持原版行为（诱惑宠随存档保留，重登原样回来）。
+        /// </summary>
+        public static bool PetDieWithMaster = false;
+
+        /// <summary>
+        /// 中特殊毒只锁魔法攻击（20261106 「其他选项 → 中毒锁」页开关，Setup.ini [Game] PoisonLockMagicOnly）。
+        /// 开启：麻痹/狮子吼麻痹/冰冻/眩晕这些控制毒对玩家只锁魔法（CanCast），物理普攻不再被毒锁。
+        /// 关闭：维持原版行为（控制毒同时锁物理攻击和魔法）。
+        /// </summary>
+        public static bool PoisonLockMagicOnly = false;
 
         /// <summary>分身是否智能选技能（false = 退回原版：只会雷电术）。</summary>
         public static bool CloneSmartSkill = true;
@@ -552,6 +578,7 @@ namespace Server
             FakePlayerLevelMax = Reader.ReadInt32("FakePlayer", "LevelMax", FakePlayerLevelMax);
             FakePlayerMaps = Reader.ReadString("FakePlayer", "Maps", FakePlayerMaps);
             FakePlayerChat = Reader.ReadBoolean("FakePlayer", "Chat", FakePlayerChat);
+            FakePlayerChatIntervalMs = Reader.ReadInt32("FakePlayer", "ChatIntervalMs", FakePlayerChatIntervalMs);
             FakePlayerRandomLogin = Reader.ReadBoolean("FakePlayer", "RandomLogin", FakePlayerRandomLogin);
             FakePlayerChatFile = Reader.ReadString("FakePlayer", "ChatFile", FakePlayerChatFile);
             FakePlayerEquipFile = Reader.ReadString("FakePlayer", "EquipFile", FakePlayerEquipFile);
@@ -560,14 +587,37 @@ namespace Server
             FakePlayerFollow = Reader.ReadBoolean("FakePlayer", "Follow", FakePlayerFollow);
             FakePlayerSpawns = Reader.ReadString("FakePlayer", "Spawns", FakePlayerSpawns);
             FakePlayerSpawnFile = Reader.ReadString("FakePlayer", "SpawnFile", FakePlayerSpawnFile);
+            FakePlayerNameFile = Reader.ReadString("FakePlayer", "NameFile", FakePlayerNameFile);
+            FakePlayerIdleMs = Reader.ReadInt32("FakePlayer", "IdleIntervalMs", FakePlayerIdleMs);
+            FakePlayerVisibleCap = Reader.ReadInt32("FakePlayer", "VisibleCap", FakePlayerVisibleCap);
+            FakePlayerLoginBatch = Reader.ReadInt32("FakePlayer", "LoginBatch", FakePlayerLoginBatch);
+            FakePlayerShowRampMax = Reader.ReadInt32("FakePlayer", "ShowRampMax", FakePlayerShowRampMax);
+
+            //内存治理（20261106）
+            MemCompactMinutes = Reader.ReadInt32("Memory", "CompactMinutes", MemCompactMinutes);
+            FakePlayerCrowdCalm = Reader.ReadBoolean("FakePlayer", "CrowdCalm", FakePlayerCrowdCalm);
 
             if (FakePlayerCount < 0) FakePlayerCount = 0;
-            if (FakePlayerCount > 300) FakePlayerCount = 300;
+            if (FakePlayerCount > 20000) FakePlayerCount = 20000;   // 20261106 上限 300 → 20000（名称池已扩容支撑）
             if (FakePlayerLevelMin < 1) FakePlayerLevelMin = 1;
             if (FakePlayerLevelMax < FakePlayerLevelMin) FakePlayerLevelMax = FakePlayerLevelMin;
             if (FakePlayerPKChance < 0) FakePlayerPKChance = 0;
             if (FakePlayerPKChance > 100) FakePlayerPKChance = 100;
+            if (FakePlayerChatIntervalMs < 500) FakePlayerChatIntervalMs = 500;        // 最快 0.5 秒一句
+            if (FakePlayerChatIntervalMs > 3600000) FakePlayerChatIntervalMs = 3600000; // 最慢 1 小时一句
+            if (FakePlayerIdleMs < 500) FakePlayerIdleMs = 500;         // 休眠节拍不能低于 500ms，否则失去降载意义
+            if (FakePlayerIdleMs > 60000) FakePlayerIdleMs = 60000;
+            if (FakePlayerVisibleCap < 10) FakePlayerVisibleCap = 10;
+            if (FakePlayerVisibleCap > 1000) FakePlayerVisibleCap = 1000;
+            if (FakePlayerVisibleCap > 100) FakePlayerVisibleCap = 100;
+            if (FakePlayerLoginBatch < 0) FakePlayerLoginBatch = 0;
+            if (FakePlayerLoginBatch > 20000) FakePlayerLoginBatch = 20000;
+            if (FakePlayerShowRampMax < 1) FakePlayerShowRampMax = 1;
+            if (FakePlayerShowRampMax > 500) FakePlayerShowRampMax = 500;
 
+            //内存治理（20261106）
+            if (MemCompactMinutes < 0) MemCompactMinutes = 0;
+            if (MemCompactMinutes > 1440) MemCompactMinutes = 1440;  // 上限 1 天，防止配置成 0 之外的离谱值
             //Database
             SaveDelay = Reader.ReadInt32("Database", "SaveDelay", SaveDelay);
             CredxGold = Reader.ReadInt16("Database", "CredxGold", CredxGold);
@@ -591,6 +641,8 @@ namespace Server
             if (CorpseTime < 1) CorpseTime = 1;
             if (CorpseTime > 3600) CorpseTime = 3600;
             PetSave = Reader.ReadBoolean("Game", "PetSave", PetSave);
+            PetDieWithMaster = Reader.ReadBoolean("Game", "PetDieWithMaster", PetDieWithMaster);
+            PoisonLockMagicOnly = Reader.ReadBoolean("Game", "PoisonLockMagicOnly", PoisonLockMagicOnly);
             PKDelay = Reader.ReadInt32("Game", "PKDelay", PKDelay);
             NewbieGuild = Reader.ReadString("Game", "NewbieGuild", NewbieGuild);
             NewbieGuildMaxSize = Reader.ReadInt32("Game", "NewbieGuildMaxSize", NewbieGuildMaxSize);
@@ -907,6 +959,7 @@ namespace Server
             Reader.Write("FakePlayer", "LevelMax", FakePlayerLevelMax);
             Reader.Write("FakePlayer", "Maps", FakePlayerMaps);
             Reader.Write("FakePlayer", "Chat", FakePlayerChat);
+            Reader.Write("FakePlayer", "ChatIntervalMs", FakePlayerChatIntervalMs);
             Reader.Write("FakePlayer", "RandomLogin", FakePlayerRandomLogin);
             Reader.Write("FakePlayer", "ChatFile", FakePlayerChatFile);
             Reader.Write("FakePlayer", "EquipFile", FakePlayerEquipFile);
@@ -915,6 +968,15 @@ namespace Server
             Reader.Write("FakePlayer", "Follow", FakePlayerFollow);
             Reader.Write("FakePlayer", "Spawns", FakePlayerSpawns);
             Reader.Write("FakePlayer", "SpawnFile", FakePlayerSpawnFile);
+            Reader.Write("FakePlayer", "NameFile", FakePlayerNameFile);
+            Reader.Write("FakePlayer", "IdleIntervalMs", FakePlayerIdleMs);
+            Reader.Write("FakePlayer", "VisibleCap", FakePlayerVisibleCap);
+            Reader.Write("FakePlayer", "LoginBatch", FakePlayerLoginBatch);
+            Reader.Write("FakePlayer", "ShowRampMax", FakePlayerShowRampMax);
+
+            //内存治理（20261106）
+            Reader.Write("Memory", "CompactMinutes", MemCompactMinutes);
+            Reader.Write("FakePlayer", "CrowdCalm", FakePlayerCrowdCalm);
 
             //Database
             Reader.Write("Database", "SaveDelay", SaveDelay);
@@ -930,6 +992,8 @@ namespace Server
             Reader.Write("Game", "PlayerDiedItemTimeOut", PlayerDiedItemTimeOut);
             Reader.Write("Game", "CorpseTime", CorpseTime);
             Reader.Write("Game", "PetSave", PetSave);
+            Reader.Write("Game", "PetDieWithMaster", PetDieWithMaster);
+            Reader.Write("Game", "PoisonLockMagicOnly", PoisonLockMagicOnly);
             Reader.Write("Game", "PKDelay", PKDelay);
             Reader.Write("Game", "NewbieGuild", NewbieGuild);
             Reader.Write("Game", "NewbieGuildMaxSize", NewbieGuildMaxSize);

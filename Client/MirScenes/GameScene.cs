@@ -11413,7 +11413,8 @@ namespace Client.MirScenes
                 }
             }
 
-            if (MapObject.MouseObject != null && !(MapObject.MouseObject is ItemObject))
+            if (MapObject.MouseObject != null && !(MapObject.MouseObject is ItemObject)
+                && !MapObject.MouseObject.NearPlayerFiltered)
                 MapObject.MouseObject.DrawName();
 
             int offSet = 0; 
@@ -11610,6 +11611,7 @@ namespace Client.MirScenes
                 for (int i = Effects.Count - 1; i >= 0; i--)
                 {
                     if (!Effects[i].DrawBehind) continue;
+                    if (Effects[i].Owner != null && Effects[i].Owner.NearPlayerFiltered) continue;
                     Effects[i].Draw();
                 }
             }
@@ -11835,6 +11837,10 @@ namespace Client.MirScenes
 
             for (int i = 0; i < Objects.Count; i++)
             {
+                // 内挂「只显示 1 格内玩家」：被过滤的玩家连名字/对话/血条/毒/伤害数字一起跳过，
+                // 不然人会消失但名字血条还在天上飘。
+                if (Objects[i].NearPlayerFiltered) continue;
+
                 Objects[i].DrawEffects(Settings.Effect);
 
                 if (Settings.NameView && !(Objects[i] is ItemObject) && !Objects[i].Dead)
@@ -11852,6 +11858,7 @@ namespace Client.MirScenes
                 for (int i = Effects.Count - 1; i >= 0; i--)
                 {
                     if (Effects[i].DrawBehind) continue;
+                    if (Effects[i].Owner != null && Effects[i].Owner.NearPlayerFiltered) continue;
                     Effects[i].Draw();
                 }
             }

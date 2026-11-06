@@ -8,7 +8,6 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
-using ManagedSquish;
 
 namespace LibraryEditor
 {
@@ -60,9 +59,7 @@ namespace LibraryEditor
             _reader = new BinaryReader(_buffered);
             CurrentVersion = _reader.ReadInt32();
 
-            // 版本 1（Artificial Mir Monster 等，帧负载为 DXT1）与 2/3 同构，直接支持；
-            // 仅低于 1 的才拒绝。探测 DecodePayload 会自动识别 DXT1/gzip/BGRA/565。
-            if (CurrentVersion < 1)
+            if (CurrentVersion < 2)
             {
                 MessageBox.Show("版本错误, 要求LIB版本为: " + LibVersion.ToString() + " 基于版本: " + CurrentVersion.ToString() + ".", "打开失败", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1);
                 return;
@@ -77,9 +74,7 @@ namespace LibraryEditor
             int frameSeek = 0;
             if (CurrentVersion >= 3)
             {
-                // 8 字节空库（ver=3、count=0）没有 frameSeek 字段，按无动作段处理
-                if (_stream.Length >= 12)
-                    frameSeek = _reader.ReadInt32();
+                frameSeek = _reader.ReadInt32();
             }
 
             for (int i = 0; i < Count; i++)
@@ -93,44 +88,12 @@ namespace LibraryEditor
 
             if (CurrentVersion >= 3)
             {
-                // 动作帧段：部分引擎（Artificial Mir 原版库）写的 frameSeek 是脏值或根本没有
-                // 动作段。先整段校验（计数合理、每条记录的动作枚举合法），校验不过就当没有，
-                // 不能因为动作段损坏而打不开整个库。
-                try
+                _buffered.Position = frameSeek;
+
+                var frameCount = _reader.ReadInt32();
+                for (int i = 0; i < frameCount; i++)
                 {
-                    _buffered.Position = frameSeek;
-
-                    var frameCount = _reader.ReadInt32();
-                    long sectEnd = frameSeek + 4L + (long)frameCount * 35L;
-
-                    if (frameCount > 0 && frameCount <= 256 && sectEnd <= _stream.Length)
-                    {
-                        var entries = new List<KeyValuePair<MirAction, Frame>>(frameCount);
-                        bool valid = true;
-
-                        for (int i = 0; i < frameCount; i++)
-                        {
-                            int act = _reader.ReadByte();
-                            Frame fr = new Frame(_reader);
-
-                            if (act > 43 ||
-                                fr.Start < 0 || fr.Count < 0 || fr.Skip < 0 || fr.Interval < 0 ||
-                                fr.EffectStart < 0 || fr.EffectCount < 0 || fr.EffectSkip < 0 || fr.EffectInterval < 0)
-                            {
-                                valid = false;
-                                break;
-                            }
-                            entries.Add(new KeyValuePair<MirAction, Frame>((MirAction)act, fr));
-                        }
-
-                        if (valid)
-                            foreach (var kv in entries)
-                                Frames[kv.Key] = kv.Value;   // 重复动作覆盖，不抛异常
-                    }
-                }
-                catch
-                {
-                    Frames.Clear();
+                    Frames.Add((MirAction)_reader.ReadByte(), new Frame(_reader));
                 }
             }
         }
@@ -227,32 +190,18 @@ namespace LibraryEditor
                 // 此时只能靠已缓存的数据，不能再从文件读。
                 if (_reader == null) return;
 
-                long off = IndexList[index];
-
-                // 部分引擎（Artificial Mir 原版库）索引表最后一格是垃圾值/越界：按空帧处理
-                if (off < 0 || off + 17 > _stream.Length)
-                {
-                    Images[index] = new MLibraryV2.MImage(new byte[0], 0, 0);
-                    return;
-                }
-
                 try
                 {
                     // 顺序推进：帧在文件中按索引顺序连续存放，只有位置对不上时才真的 seek
-                    if (_buffered.Position != off)
-                        _buffered.Position = off;
-
-                    Images[index] = new MImage(_reader);
+                    if (_buffered.Position != IndexList[index])
+                        _buffered.Position = IndexList[index];
                 }
                 catch (ObjectDisposedException)
                 {
                     return;
                 }
-                catch (EndOfStreamException)
-                {
-                    // 帧头/负载超出文件尾：按空帧处理，不影响其它帧
-                    Images[index] = new MLibraryV2.MImage(new byte[0], 0, 0);
-                }
+
+                Images[index] = new MImage(_reader);
             }
 
             if (!ensureTexture) return;
@@ -467,23 +416,7 @@ namespace LibraryEditor
                 ShadowX = reader.ReadInt16();
                 ShadowY = reader.ReadInt16();
                 Shadow = reader.ReadByte();
-
-                // 哨兵空帧（如 Prguse.Lib 末帧 w=h=-1，长度字段为垃圾值）：直接按空帧处理，
-                // 每帧都按 IndexList 独立寻址，流位置不必对齐
-                if (Width < 0 || Height < 0)
-                {
-                    Length = 0;
-                    FBytes = new byte[0];
-                    return;
-                }
-
                 Length = reader.ReadInt32();
-                if (Length < 0)
-                {
-                    Length = 0;
-                    FBytes = new byte[0];
-                    return;
-                }
                 FBytes = reader.ReadBytes(Length);
                 //check if there's a second layer and read it
                 HasMask = allowMask && ((Shadow >> 7) == 1) ? true : false;
@@ -619,7 +552,7 @@ namespace LibraryEditor
                 BitmapData data = Image.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadWrite,
                                                  PixelFormat.Format32bppArgb);
 
-                byte[] dest = DecodePayload(FBytes, w, h);
+                byte[] dest = Decompress(FBytes);
 
                 //跳过格式前缀（ALib=10，Elite/.Lib=0），并防止 dest 短于位图缓冲时越界
                 int copyLength = dest.Length - PayloadSkip;
@@ -648,7 +581,7 @@ namespace LibraryEditor
                         data = MaskImage.LockBits(new Rectangle(0, 0, w, h), ImageLockMode.ReadWrite,
                                                          PixelFormat.Format32bppArgb);
 
-                        dest = DecodePayload(MaskFBytes, w, h);
+                        dest = Decompress(MaskFBytes);
 
                         Marshal.Copy(dest, 0, data.Scan0, dest.Length);
 
@@ -723,67 +656,6 @@ namespace LibraryEditor
                         return memory.ToArray();
                     }
                 }
-            }
-
-            /// <summary>
-            /// 负载类型自动判定（Artificial Mir 的 32bit Lib 变体帧内不是 gzip 而是其它编码）：
-            ///   1F 8B 开头 → gzip BGRA（标准）；长度 = DXT1 块数×8 → DXT1(BC1)；
-            ///   长度 = w*h*4 → 裸 BGRA32；长度 = w*h*2 → RGB565（黑=透明）。
-            /// 其余按 gzip 尝试，保持旧行为。
-            /// </summary>
-            static byte[] DecodePayload(byte[] bytes, int w, int h)
-            {
-                if (bytes == null || bytes.Length == 0) return Array.Empty<byte>();
-                if (bytes.Length >= 2 && bytes[0] == 0x1F && bytes[1] == 0x8B) return Decompress(bytes);
-
-                int dxtLen = ((w + 3) / 4) * ((h + 3) / 4) * 8;
-                if (bytes.Length == dxtLen) return Dxt1ToBgra(bytes, w, h);
-                if (bytes.Length == w * h * 4) return bytes;
-                if (w > 0 && h > 0 && bytes.Length == w * h * 2) return Rgb565ToBgra(bytes, w, h);
-
-                return Decompress(bytes);
-            }
-
-            /// <summary>DXT1 → BGRA。必须走 IntPtr 重载（byte[] 重载在本环境会写坏托管堆）。</summary>
-            static unsafe byte[] Dxt1ToBgra(byte[] blocks, int w, int h)
-            {
-                int needLen = ((w + 3) / 4) * ((h + 3) / 4) * 8;
-                if (blocks.Length < needLen)
-                {
-                    byte[] pad = new byte[needLen];
-                    Buffer.BlockCopy(blocks, 0, pad, 0, blocks.Length);
-                    blocks = pad;
-                }
-
-                byte[] rgba = new byte[w * h * 4];
-                fixed (byte* ps = blocks)
-                fixed (byte* pd = rgba)
-                {
-                    Squish.DecompressImage((IntPtr)pd, w, h, (IntPtr)ps, SquishFlags.Dxt1);
-                }
-
-                for (int i = 0; i + 3 < rgba.Length; i += 4)
-                {
-                    byte r = rgba[i];
-                    rgba[i] = rgba[i + 2];
-                    rgba[i + 2] = r;
-                }
-                return rgba;
-            }
-
-            static byte[] Rgb565ToBgra(byte[] raw, int w, int h)
-            {
-                int pixels = w * h;
-                byte[] bgra = new byte[pixels * 4];
-                for (int i = 0, p = 0; i < pixels; i++, p += 2)
-                {
-                    ushort v = (ushort)(raw[p] | (raw[p + 1] << 8));
-                    bgra[i * 4 + 0] = (byte)(((v & 0x1F) * 255 + 15) / 31);
-                    bgra[i * 4 + 1] = (byte)((((v >> 5) & 0x3F) * 255 + 31) / 63);
-                    bgra[i * 4 + 2] = (byte)((((v >> 11) & 0x1F) * 255 + 15) / 31);
-                    bgra[i * 4 + 3] = v == 0 ? (byte)0 : (byte)255;
-                }
-                return bgra;
             }
 
             public void CreatePreview()

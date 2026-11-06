@@ -163,6 +163,64 @@ namespace Client.MirObjects
             get { return new Point(0, 0); }
         }
 
+        /// <summary>
+        /// 内挂「只显示 1 格内玩家」过滤（纯本地渲染，不发包、不影响服务端判定）。
+        ///
+        /// 勾选后，除自己以外的玩家只要超出身边 1 格（含斜向 8 格，切比雪夫距离 > 1）
+        /// 就整条不画：身体、武器、翅膀、坐骑、品质光效、名字、对话气泡、血条、毒、伤害数字。
+        /// 怪物 / NPC / 地面物品 / 宝宝 一律不受影响（它们不是"大量玩家"的来源，
+        /// 跟着一起藏会让打怪、看掉落全乱）。
+        ///
+        /// 英雄（自己和其他人的）不参与过滤：自己的英雄走远两步就消失会直接影响操作。
+        ///
+        /// 例外常显（NearPlayerKeepVisible，超出 1 格也照常画）：
+        /// 队友、同会成员、鼠标指向的人、当前目标 / 魔法锁定 / 施法对象。
+        /// 队友和同会看不见会直接打乱跑位和救人；目标看不见则锁定后凭空消失，反而不安全。
+        ///
+        /// 注意：只改绘制，不动对象本身 —— 鼠标点选、内挂索敌、服务端逻辑全都照旧，
+        /// 关掉勾选立刻恢复正常显示（不需要重登）。
+        /// </summary>
+        public bool NearPlayerFiltered
+        {
+            get
+            {
+                if (!Settings.NearPlayerOnly) return false;
+                if (User == null) return false;
+                if (!(this is PlayerObject) || this == User) return false;
+                if (this is HeroObject || this is UserHeroObject) return false;
+                if (NearPlayerKeepVisible) return false;
+
+                return Math.Abs(Movement.X - User.Movement.X) > 1
+                    || Math.Abs(Movement.Y - User.Movement.Y) > 1;
+            }
+        }
+
+        /// <summary>
+        /// 「只显示 1 格内玩家」的常显白名单：队友 / 同会 / 鼠标指向 / 当前目标（含魔法锁定与施法对象）。
+        /// 单独拆出来是为了让判定顺序一目了然：先看该不该留，再看距离。
+        /// 队友查的是 GroupDialog.GroupList（服务端下发的队员名，最多 MaxGroup 个，成本可忽略）；
+        /// 行会比对双方 GuildName 且要求非空 —— 两个没行会的人不能因为都是空串就互相常显。
+        /// </summary>
+        public bool NearPlayerKeepVisible
+        {
+            get
+            {
+                if (!(this is PlayerObject)) return false;
+                if (this is HeroObject || this is UserHeroObject) return false;
+
+                if (this == MouseObject || this == TargetObject || this == LockObject || this == MagicObject)
+                    return true;
+
+                if (!string.IsNullOrEmpty(Name) && GroupDialog.GroupList.Contains(Name))
+                    return true;
+
+                string guild = ((PlayerObject)this).GuildName;
+                if (string.IsNullOrEmpty(guild)) return false;
+
+                return User != null && !string.IsNullOrEmpty(User.GuildName) && guild == User.GuildName;
+            }
+        }
+
         protected MapObject() { }
 
         protected MapObject(uint objectID)

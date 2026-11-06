@@ -104,7 +104,7 @@ public class Mon432P : EvilCentipede
 				PoisonTarget(mapObject, 7, 5L, PoisonType.Green, 1000L);
 				break;
 			case 1:
-				PoisonTarget(mapObject, 7, 5L, PoisonType.Frozen, 1000L);
+				PoisonTarget(mapObject, 20, 2L, PoisonType.Frozen, 1000L);
 				break;
 			}
 		}

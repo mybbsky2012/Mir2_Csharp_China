@@ -1274,6 +1274,12 @@ namespace Server.MirObjects
             if (Master == null && EXPOwner != null)
                 Drop();
 
+            // 20261106 修复死宠泄漏：先把自己从主人的 Pets 列表移除，再置空 Master。
+            // 原来顺序相反，尸体清理处（Process 判 Master != null 才移除）永远拿不到主人，
+            // 死宠会永久残留在主人的 Pets 列表里。
+            if (Master != null)
+                Master.Pets.Remove(this);
+
             Master = null;
 
             PoisonList.Clear();

@@ -1,0 +1,2341 @@
+{
+ "fields": {
+  "VersionPath": {
+   "type": "string",
+   "default": "Path.Combine(\".\"",
+   "comment": "General"
+  },
+  "CheckVersion": {
+   "type": "bool",
+   "default": "true",
+   "comment": ""
+  },
+  "GMPassword": {
+   "type": "string",
+   "default": "\"@9396399\"",
+   "comment": ""
+  },
+  "Multithreaded": {
+   "type": "bool",
+   "default": "true",
+   "comment": ""
+  },
+  "ThreadLimit": {
+   "type": "int",
+   "default": "2",
+   "comment": ""
+  },
+  "TestServer": {
+   "type": "bool",
+   "default": "false",
+   "comment": ""
+  },
+  "EnforceDBChecks": {
+   "type": "bool",
+   "default": "true",
+   "comment": ""
+  },
+  "MonsterProcessWhenAlone": {
+   "type": "bool",
+   "default": "false",
+   "comment": ""
+  },
+  "DefaultNPCFilename": {
+   "type": "string",
+   "default": "\"00Default\"",
+   "comment": ""
+  },
+  "MonsterNPCFilename": {
+   "type": "string",
+   "default": "\"00Monster\"",
+   "comment": ""
+  },
+  "RobotNPCFilename": {
+   "type": "string",
+   "default": "\"00Robot\"",
+   "comment": ""
+  },
+  "FishingDropFilename": {
+   "type": "string",
+   "default": "\"00Fishing\"",
+   "comment": ""
+  },
+  "AwakeningDropFilename": {
+   "type": "string",
+   "default": "\"00Awakening\"",
+   "comment": ""
+  },
+  "StrongboxDropFilename": {
+   "type": "string",
+   "default": "\"00Strongbox\"",
+   "comment": ""
+  },
+  "BlackstoneDropFilename": {
+   "type": "string",
+   "default": "\"00Blackstone\"",
+   "comment": ""
+  },
+  "IPAddress": {
+   "type": "string",
+   "default": "\"127.0.0.1\"",
+   "comment": "Network"
+  },
+  "DuraLossRate": {
+   "type": "int",
+   "default": "30",
+   "comment": "装备持久消耗倍率（百分比）：100=原版速度，30=约1/3速度，0=完全不消耗"
+  },
+  "Port": {
+   "type": "ushort",
+   "default": "7000",
+   "comment": ""
+  },
+  "TimeOut": {
+   "type": "ushort",
+   "default": "60000",
+   "comment": "连接超时（毫秒）：放宽到 60 秒，网络短时抖动不再被误踢"
+  },
+  "MaxUser": {
+   "type": "ushort",
+   "default": "500",
+   "comment": ""
+  },
+  "RelogDelay": {
+   "type": "ushort",
+   "default": "50",
+   "comment": ""
+  },
+  "MaxIP": {
+   "type": "ushort",
+   "default": "5",
+   "comment": ""
+  },
+  "MaxPacket": {
+   "type": "ushort",
+   "default": "50",
+   "comment": ""
+  },
+  "IPBlockSeconds": {
+   "type": "int",
+   "default": "5",
+   "comment": ""
+  },
+  "StartHTTPService": {
+   "type": "bool",
+   "default": "false",
+   "comment": "HTTP"
+  },
+  "HTTPIPAddress": {
+   "type": "string",
+   "default": "\"http://127.0.0.1:5679/\"",
+   "comment": "127.0.0.1:5679/\";"
+  },
+  "HTTPTrustedIPAddress": {
+   "type": "string",
+   "default": "\"127.0.0.1\"",
+   "comment": ""
+  },
+  "HTTPQueryKey": {
+   "type": "string",
+   "default": "\"\"",
+   "comment": "账号查询接口密钥（10-30）：留空 = /accountinfo 接口一律拒绝；web 程序调用时带上 &key=此值"
+  },
+  "HttpTransport": {
+   "type": "string",
+   "default": "\"auto\"",
+   "comment": "HTTP 监听通道。 auto  : 先试 http.sys（内核态、性能最好），失败自动改用纯 Socket（不需要管理员权限） httpsys: 只用 http.sys socket : 只用纯 Socket（绑定 0.0.0.0 也不用管理员，和游戏主端口同一套权限）"
+  },
+  "EnableResourceService": {
+   "type": "bool",
+   "default": "false",
+   "comment": "微端资源服务（客户端按需下载缺失的 Data 资源）"
+  },
+  "ResourcePath": {
+   "type": "string",
+   "default": "@\".\\ClientResources\\\"",
+   "comment": ""
+  },
+  "ResourceAllowAnyIP": {
+   "type": "bool",
+   "default": "false",
+   "comment": ""
+  },
+  "ResourceMaxConcurrent": {
+   "type": "int",
+   "default": "64",
+   "comment": "同时传输的请求上限"
+  },
+  "ResourceWriteTimeout": {
+   "type": "int",
+   "default": "300",
+   "comment": "单个请求最长传输秒数，超时断开清理"
+  },
+  "ResourceBufferKB": {
+   "type": "int",
+   "default": "64",
+   "comment": "流式发送的分块大小"
+  },
+  "ResourceVerboseLog": {
+   "type": "bool",
+   "default": "false",
+   "comment": "是否逐条记录资源下发（高并发下建议关闭）"
+  },
+  "ResourceMaxKBps": {
+   "type": "int",
+   "default": "0",
+   "comment": ""
+  },
+  "SmartHeroAI": {
+   "type": "bool",
+   "default": "true",
+   "comment": "＝＝＝英雄智能战斗（[Hero]，10-24）＝＝＝ SmartAI：主人打谁我打谁 + 卡住绕路 + 残血躲避 + 被围击退 + 攻击间隙动态走位"
+  },
+  "HeroAutoSkill": {
+   "type": "bool",
+   "default": "true",
+   "comment": "AutoSkill：英雄自主施法，不再要求玩家给技能设快捷键（默认开；关=恢复原版只放设过键的技能）"
+  },
+  "HeroDodgePercent": {
+   "type": "int",
+   "default": "30",
+   "comment": "血量低于该百分比开始且退且打（风筝）"
+  },
+  "HeroPushMinSurround": {
+   "type": "int",
+   "default": "3",
+   "comment": "贴身敌人达到该数量才发动「击退脱围」"
+  },
+  "HeroPushCooldownMs": {
+   "type": "int",
+   "default": "8000",
+   "comment": "两次击退脱围的最小间隔           //资源下发总限速(KB/s)，0=不限速。窄带宽服务器务必设置，给游戏数据留带宽"
+  },
+  "AllowNewAccount": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Permission"
+  },
+  "AllowChangePassword": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Permission"
+  },
+  "AllowLogin": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Permission"
+  },
+  "AllowNewCharacter": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Permission"
+  },
+  "AllowDeleteCharacter": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Permission"
+  },
+  "AllowStartGame": {
+   "type": "bool",
+   "default": "false",
+   "comment": "Permission"
+  },
+  "AllowCreateAssassin": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Permission"
+  },
+  "AllowCreateArcher": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Permission"
+  },
+  "AllowedResolution": {
+   "type": "int",
+   "default": "1920",
+   "comment": ""
+  },
+  "SafeZoneBorder": {
+   "type": "bool",
+   "default": "false",
+   "comment": "Optional"
+  },
+  "SafeZoneHealing": {
+   "type": "bool",
+   "default": "false",
+   "comment": "Optional"
+  },
+  "GameMasterEffect": {
+   "type": "bool",
+   "default": "false",
+   "comment": "Optional"
+  },
+  "GatherOrbsPerLevel": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Optional"
+  },
+  "ExpMobLevelDifference": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Optional"
+  },
+  "LineMessageTimer": {
+   "type": "int",
+   "default": "10",
+   "comment": ""
+  },
+  "TameSuccessRate": {
+   "type": "int",
+   "default": "0",
+   "comment": "诱惑之光（20261105 「其他选项 → 诱惑之光」页可调，改完保存立即生效） TameSuccessRate = 0  → 完全走原版的多重随机（默认，不影响现有手感） TameSuccessRate 1~99 → 每次施法只掷一次骰，按该百分比决定成功 TameSuccessRate = 100 → 必定成功（秒招）"
+  },
+  "TameIgnoreLevelLimit": {
+   "type": "bool",
+   "default": "false",
+   "comment": "允许召唤等级高于「自身等级 + 2」的怪"
+  },
+  "TameIgnoreHpPenalty": {
+   "type": "bool",
+   "default": "false",
+   "comment": "无视高血量抗性（原版 HP 越高越难招）"
+  },
+  "TameIgnoreUntameable": {
+   "type": "bool",
+   "default": "false",
+   "comment": "允许召唤库里标了「不可诱惑」的怪（BOSS 等，城门/城墙仍硬排除）"
+  },
+  "EnableNoLamp": {
+   "type": "bool",
+   "default": "true",
+   "comment": "免蜡：夜晚不需要照明道具"
+  },
+  "EnableWalkThrough": {
+   "type": "bool",
+   "default": "true",
+   "comment": "穿人：可以穿过其他玩家/英雄"
+  },
+  "EnableWalkThroughMonster": {
+   "type": "bool",
+   "default": "true",
+   "comment": "穿怪：可以穿过普通怪物"
+  },
+  "EnableWalkThroughNPC": {
+   "type": "bool",
+   "default": "true",
+   "comment": "穿NPC：可以穿过商人/NPC"
+  },
+  "EnableWalkThroughWall": {
+   "type": "bool",
+   "default": "false",
+   "comment": "穿城墙：可以穿过攻城城门/城墙（默认关，保证攻城时门能堵住人）"
+  },
+  "EnableOverWeight": {
+   "type": "bool",
+   "default": "true",
+   "comment": "超负重：负重超限仍可奔跑、装备不受负重限制"
+  },
+  "EnableMountTai": {
+   "type": "bool",
+   "default": "true",
+   "comment": "泰山：被攻击时不后仰、不打断跑动与施法"
+  },
+  "FakePlayerEnabled": {
+   "type": "bool",
+   "default": "false",
+   "comment": "总开关"
+  },
+  "FakePlayerCount": {
+   "type": "int",
+   "default": "50",
+   "comment": "生成多少个"
+  },
+  "FakePlayerLevelMin": {
+   "type": "int",
+   "default": "32",
+   "comment": "等级下限"
+  },
+  "FakePlayerLevelMax": {
+   "type": "int",
+   "default": "45",
+   "comment": "等级上限"
+  },
+  "FakePlayerMaps": {
+   "type": "string",
+   "default": "\"\"",
+   "comment": "练级地图（文件名或序号，逗号分隔）；留空=自动挑有怪物刷新的图"
+  },
+  "FakePlayerChat": {
+   "type": "bool",
+   "default": "true",
+   "comment": "允许假人说话 / 喊话"
+  },
+  "FakePlayerChatIntervalMs": {
+   "type": "int",
+   "default": "10000",
+   "comment": "20261106 假人说话/喊话间隔（毫秒，默认 10 秒；实际 ±30% 抖动）"
+  },
+  "FakePlayerRandomLogin": {
+   "type": "bool",
+   "default": "true",
+   "comment": "允许随机上下线"
+  },
+  "FakePlayerChatFile": {
+   "type": "string",
+   "default": "\"FakePlayerChat.txt\"",
+   "comment": "台词文件（相对 Configs 目录），留空用内置台词"
+  },
+  "FakePlayerEquipFile": {
+   "type": "string",
+   "default": "\"FakePlayerEquip.txt\"",
+   "comment": "装备方案文件（相对 Configs 目录）；文件不存在会自动生成模板"
+  },
+  "FakePlayerPK": {
+   "type": "bool",
+   "default": "false",
+   "comment": "假人之间随机 PK（在允许打架的野外互相切磋）"
+  },
+  "FakePlayerPKChance": {
+   "type": "int",
+   "default": "6",
+   "comment": "每轮判定的「挑起 PK」概率（%）"
+  },
+  "FakePlayerFollow": {
+   "type": "bool",
+   "default": "true",
+   "comment": "允许假人接受组队邀请并跟随队长一起下图打怪"
+  },
+  "FakePlayerSpawns": {
+   "type": "string",
+   "default": "\"\"",
+   "comment": "登录点（内联）：地图:X,Y; 地图:X,Y  —— 留空则只读登录点文件"
+  },
+  "FakePlayerSpawnFile": {
+   "type": "string",
+   "default": "\"FakePlayerSpawns.txt\"",
+   "comment": "登录点文件（相对 Configs 目录），每行一个「地图 X Y」"
+  },
+  "FakePlayerNameFile": {
+   "type": "string",
+   "default": "\"FakePlayerNames.txt\"",
+   "comment": "假人名称文件（相对 Configs 目录），每行一个名字；不存在时按 Count 自动生成初始名称"
+  },
+  "FakePlayerIdleMs": {
+   "type": "int",
+   "default": "5000",
+   "comment": "休眠地图（无真人在线）假人处理间隔下限 ms，实际取 IdleMs~IdleMs*2 随机"
+  },
+  "FakePlayerVisibleCap": {
+   "type": "int",
+   "default": "50",
+   "comment": "每个真人视野内最多显示的假人数（超出部分不发出现包，玩家看不见）；20261106 100→50 减轻客户端同屏渲染压力"
+  },
+  "FakePlayerLoginBatch": {
+   "type": "int",
+   "default": "100",
+   "comment": "20261106 启动/重置后每秒分批登录的假人数；0 = 一次性全部登录（旧行为，启动会卡）"
+  },
+  "FakePlayerShowRampMax": {
+   "type": "int",
+   "default": "20",
+   "comment": "20261106 渐显：每个真人每秒最多\"出现\"几个假人（1→2→4…翻倍到该值封顶）"
+  },
+  "FakePlayerCrowdCalm": {
+   "type": "bool",
+   "default": "true",
+   "comment": "20261106 被看就文静：假人在真人视野内多站少走，客户端同屏人物多了也不卡"
+  },
+  "MemCompactMinutes": {
+   "type": "int",
+   "default": "0",
+   "comment": "定时全堆压缩（分钟）。0=关闭；30~60 适合 2 万假人常驻。把 GC 缓存的空闲段还给系统，代价是压缩瞬间一次 Full GC 停顿（几十~几百毫秒）"
+  },
+  "SaveDelay": {
+   "type": "int",
+   "default": "5",
+   "comment": "Database"
+  },
+  "CredxGold": {
+   "type": "short",
+   "default": "30",
+   "comment": ""
+  },
+  "ExperienceList": {
+   "type": "List<long>",
+   "default": "new List<long>()",
+   "comment": "Game"
+  },
+  "OrbsExpList": {
+   "type": "List<long>",
+   "default": "new List<long>()",
+   "comment": ""
+  },
+  "OrbsDefList": {
+   "type": "List<long>",
+   "default": "new List<long>()",
+   "comment": ""
+  },
+  "OrbsDmgList": {
+   "type": "List<long>",
+   "default": "new List<long>()",
+   "comment": ""
+  },
+  "DropRate": {
+   "type": "float",
+   "default": "1F",
+   "comment": ""
+  },
+  "ExpRate": {
+   "type": "float",
+   "default": "1F",
+   "comment": ""
+  },
+  "HighLevelExpRate": {
+   "type": "float",
+   "default": "1F",
+   "comment": "60 级以上玩家经验额外倍率（在全局 ExpRate 基础上再乘）；1 = 无加成"
+  },
+  "HighLevelExpRateMinLevel": {
+   "type": "int",
+   "default": "60",
+   "comment": "触发上述倍率的最低等级"
+  },
+  "DeathExpLossRate": {
+   "type": "int",
+   "default": "0",
+   "comment": "死亡掉经验%（0=关闭）：玩家死亡时扣除当前等级升级所需经验的 X%，GM 免除"
+  },
+  "TeleportToNPCCost": {
+   "type": "int",
+   "default": "3000",
+   "comment": ""
+  },
+  "ItemTimeOut": {
+   "type": "int",
+   "default": "30",
+   "comment": ""
+  },
+  "PlayerDiedItemTimeOut": {
+   "type": "int",
+   "default": "120",
+   "comment": ""
+  },
+  "CorpseTime": {
+   "type": "int",
+   "default": "180",
+   "comment": "怪物尸体停留时间（秒），界面上可在「其他选项」调整"
+  },
+  "DropRange": {
+   "type": "int",
+   "default": "4",
+   "comment": ""
+  },
+  "DropStackSize": {
+   "type": "int",
+   "default": "5",
+   "comment": ""
+  },
+  "PKDelay": {
+   "type": "int",
+   "default": "12",
+   "comment": ""
+  },
+  "PetSave": {
+   "type": "bool",
+   "default": "false",
+   "comment": ""
+  },
+  "PetDieWithMaster": {
+   "type": "bool",
+   "default": "false",
+   "comment": "<summary> 主人死亡宠物也死亡（20261106 「其他选项 → 诱惑之光」页开关，Setup.ini [Game] PetDieWithMaster）。 开启：主人下线时普通诱惑宠就地死亡（有尸体动画）、不写入角色存档，存档只保留克隆宠 （法师分身 CloneName / 刺客分身 AssassinCloneName）。 关闭：维持原版行为（诱惑宠随存档保留，重登原样回来）。 </summary>"
+  },
+  "PoisonLockMagicOnly": {
+   "type": "bool",
+   "default": "false",
+   "comment": "<summary> 中特殊毒只锁魔法攻击（20261106 「其他选项 → 中毒锁」页开关，Setup.ini [Game] PoisonLockMagicOnly）。 开启：麻痹/狮子吼麻痹/冰冻/眩晕这些控制毒对玩家只锁魔法（CanCast），物理普攻不再被毒锁。 关闭：维持原版行为（控制毒同时锁物理攻击和魔法）。 </summary>"
+  },
+  "CloneSmartSkill": {
+   "type": "bool",
+   "default": "true",
+   "comment": "<summary>分身是否智能选技能（false = 退回原版：只会雷电术）。</summary>"
+  },
+  "CloneSkillMpCost": {
+   "type": "int",
+   "default": "30",
+   "comment": "<summary>分身施法消耗主人法力的百分比（100 = 与玩家自己施法一致，0 = 不耗蓝）。</summary>"
+  },
+  "RestedPeriod": {
+   "type": "int",
+   "default": "60",
+   "comment": ""
+  },
+  "RestedBuffLength": {
+   "type": "int",
+   "default": "10",
+   "comment": ""
+  },
+  "RestedExpBonus": {
+   "type": "int",
+   "default": "5",
+   "comment": ""
+  },
+  "RestedMaxBonus": {
+   "type": "int",
+   "default": "24",
+   "comment": ""
+  },
+  "NewbieGuildMaxSize": {
+   "type": "int",
+   "default": "1000",
+   "comment": ""
+  },
+  "NewbieGuild": {
+   "type": "string",
+   "default": "\"新人公会\"",
+   "comment": ""
+  },
+  "SkeletonName": {
+   "type": "string",
+   "default": "\"变异骷髅\"",
+   "comment": ""
+  },
+  "Mon637BMob": {
+   "type": "string",
+   "default": "\"海之蜈蚣\"",
+   "comment": "20261103 韩服AI移植：Mon637B召唤的小怪名"
+  },
+  "ShinsuName": {
+   "type": "string",
+   "default": "\"神兽\"",
+   "comment": ""
+  },
+  "BugBatName": {
+   "type": "string",
+   "default": "\"小蝙蝠\"",
+   "comment": ""
+  },
+  "Zuma1": {
+   "type": "string",
+   "default": "\"祖玛雕像\"",
+   "comment": ""
+  },
+  "Zuma2": {
+   "type": "string",
+   "default": "\"祖玛卫士\"",
+   "comment": ""
+  },
+  "Zuma3": {
+   "type": "string",
+   "default": "\"祖玛弓箭手\"",
+   "comment": ""
+  },
+  "Zuma4": {
+   "type": "string",
+   "default": "\"楔蛾\"",
+   "comment": ""
+  },
+  "Zuma5": {
+   "type": "string",
+   "default": "\"祖玛弓箭手3\"",
+   "comment": ""
+  },
+  "Zuma6": {
+   "type": "string",
+   "default": "\"祖玛雕像3\"",
+   "comment": ""
+  },
+  "Zuma7": {
+   "type": "string",
+   "default": "\"祖玛卫士3\"",
+   "comment": ""
+  },
+  "Turtle1": {
+   "type": "string",
+   "default": "\"红龟\"",
+   "comment": ""
+  },
+  "Turtle2": {
+   "type": "string",
+   "default": "\"绿龟\"",
+   "comment": ""
+  },
+  "Turtle3": {
+   "type": "string",
+   "default": "\"蓝龟\"",
+   "comment": ""
+  },
+  "Turtle4": {
+   "type": "string",
+   "default": "\"塔龟\"",
+   "comment": ""
+  },
+  "Turtle5": {
+   "type": "string",
+   "default": "\"寿龟\"",
+   "comment": ""
+  },
+  "BoneMonster1": {
+   "type": "string",
+   "default": "\"骷髅士兵\"",
+   "comment": ""
+  },
+  "BoneMonster2": {
+   "type": "string",
+   "default": "\"骷髅武士\"",
+   "comment": ""
+  },
+  "BoneMonster3": {
+   "type": "string",
+   "default": "\"骷髅弓箭手\"",
+   "comment": ""
+  },
+  "BoneMonster4": {
+   "type": "string",
+   "default": "\"骷髅武将\"",
+   "comment": ""
+  },
+  "BehemothMonster1": {
+   "type": "string",
+   "default": "\"抱脸虫1\"",
+   "comment": ""
+  },
+  "BehemothMonster2": {
+   "type": "string",
+   "default": "\"抱脸虫2\"",
+   "comment": ""
+  },
+  "BehemothMonster3": {
+   "type": "string",
+   "default": "\"抱脸虫3\"",
+   "comment": ""
+  },
+  "HellKnight1": {
+   "type": "string",
+   "default": "\"玄冰守护将\"",
+   "comment": ""
+  },
+  "HellKnight2": {
+   "type": "string",
+   "default": "\"魔焰守护将\"",
+   "comment": ""
+  },
+  "HellKnight3": {
+   "type": "string",
+   "default": "\"暗黑守护将\"",
+   "comment": ""
+  },
+  "HellKnight4": {
+   "type": "string",
+   "default": "\"光明守护将\"",
+   "comment": ""
+  },
+  "HellBomb1": {
+   "type": "string",
+   "default": "\"冰弹\"",
+   "comment": ""
+  },
+  "HellBomb2": {
+   "type": "string",
+   "default": "\"雷弹\"",
+   "comment": ""
+  },
+  "HellBomb3": {
+   "type": "string",
+   "default": "\"焰弹\"",
+   "comment": ""
+  },
+  "WhiteSnake": {
+   "type": "string",
+   "default": "\"白蛇\"",
+   "comment": ""
+  },
+  "AngelName": {
+   "type": "string",
+   "default": "\"月灵\"",
+   "comment": ""
+  },
+  "BombSpiderName": {
+   "type": "string",
+   "default": "\"炸弹蜘蛛\"",
+   "comment": ""
+  },
+  "CloneName": {
+   "type": "string",
+   "default": "\"Clone\"",
+   "comment": ""
+  },
+  "AssassinCloneName": {
+   "type": "string",
+   "default": "\"AssassinClone\"",
+   "comment": ""
+  },
+  "StoneName": {
+   "type": "string",
+   "default": "\"蜘蛛柱\"",
+   "comment": "弓箭技能：地柱钉-怪物：蜘蛛柱"
+  },
+  "VampireName": {
+   "type": "string",
+   "default": "\"血蛛\"",
+   "comment": ""
+  },
+  "ToadName": {
+   "type": "string",
+   "default": "\"火蟾\"",
+   "comment": ""
+  },
+  "SnakeTotemName": {
+   "type": "string",
+   "default": "\"蛇柱\"",
+   "comment": ""
+  },
+  "SnakesName": {
+   "type": "string",
+   "default": "\"魅蛇\"",
+   "comment": ""
+  },
+  "AncientBatName": {
+   "type": "string",
+   "default": "\"恶魔蝙蝠\"",
+   "comment": ""
+  },
+  "TucsonGeneralEgg": {
+   "type": "string",
+   "default": "\"瘟疫统领\"",
+   "comment": ""
+  },
+  "GeneralMeowMeowMob1": {
+   "type": "string",
+   "default": "\"铁锤猫卫\"",
+   "comment": ""
+  },
+  "GeneralMeowMeowMob2": {
+   "type": "string",
+   "default": "\"黑锤猫卫\"",
+   "comment": ""
+  },
+  "GeneralMeowMeowMob3": {
+   "type": "string",
+   "default": "\"陵庙刀卫\"",
+   "comment": ""
+  },
+  "GeneralMeowMeowMob4": {
+   "type": "string",
+   "default": "\"陵庙巫师\"",
+   "comment": ""
+  },
+  "KingHydraxMob": {
+   "type": "string",
+   "default": "\"大蟒\"",
+   "comment": ""
+  },
+  "HornedCommanderMob1": {
+   "type": "string",
+   "default": "\"魔风旋\"",
+   "comment": ""
+  },
+  "HornedCommanderMob2": {
+   "type": "string",
+   "default": "\"魔角大巫\"",
+   "comment": ""
+  },
+  "HornedCommanderBombMob": {
+   "type": "string",
+   "default": "\"岩弹\"",
+   "comment": ""
+  },
+  "SnowWolfKingMob": {
+   "type": "string",
+   "default": "\"雪狼\"",
+   "comment": ""
+  },
+  "CallScrollMob": {
+   "type": "string",
+   "default": "\"冰蛇\"",
+   "comment": ""
+  },
+  "ShardMaidenMob1": {
+   "type": "string",
+   "default": "\"地宫勇士\"",
+   "comment": ""
+  },
+  "ShardMaidenMob2": {
+   "type": "string",
+   "default": "\"地宫修道者\"",
+   "comment": ""
+  },
+  "ShardMaidenMob3": {
+   "type": "string",
+   "default": "\"冰封学者\"",
+   "comment": ""
+  },
+  "ShardMaidenMob4": {
+   "type": "string",
+   "default": "\"冰封贤者\"",
+   "comment": ""
+  },
+  "Mon570NMirrorImageMob": {
+   "type": "string",
+   "default": "\"江白1\"",
+   "comment": ""
+  },
+  "Mon573NMob": {
+   "type": "string",
+   "default": "\"飞燕魔蛛\"",
+   "comment": ""
+  },
+  "HeroName": {
+   "type": "string",
+   "default": "\"Hero\"",
+   "comment": ""
+  },
+  "HealRing": {
+   "type": "string",
+   "default": "\"Healing\"",
+   "comment": ""
+  },
+  "FireRing": {
+   "type": "string",
+   "default": "\"FireBall\"",
+   "comment": ""
+  },
+  "ParalysisRing": {
+   "type": "string",
+   "default": "\"Paralysis\"",
+   "comment": ""
+  },
+  "BlinkSkill": {
+   "type": "string",
+   "default": "\"Blink\"",
+   "comment": ""
+  },
+  "PKTownMapName": {
+   "type": "string",
+   "default": "\"3\"",
+   "comment": ""
+  },
+  "PKTownPositionX": {
+   "type": "int",
+   "default": "848",
+   "comment": ""
+  },
+  "PKTownPositionY": {
+   "type": "int",
+   "default": "677",
+   "comment": ""
+  },
+  "MaxDropGold": {
+   "type": "uint",
+   "default": "2000",
+   "comment": ""
+  },
+  "DropGold": {
+   "type": "bool",
+   "default": "true",
+   "comment": ""
+  },
+  "CreatureBlackStoneName": {
+   "type": "string",
+   "default": "\"蓝色生物石\"",
+   "comment": ""
+  },
+  "FishingAttempts": {
+   "type": "int",
+   "default": "30",
+   "comment": "Fishing Settings"
+  },
+  "FishingSuccessStart": {
+   "type": "int",
+   "default": "10",
+   "comment": ""
+  },
+  "FishingSuccessMultiplier": {
+   "type": "int",
+   "default": "10",
+   "comment": ""
+  },
+  "FishingDelay": {
+   "type": "long",
+   "default": "0",
+   "comment": ""
+  },
+  "FishingMobSpawnChance": {
+   "type": "int",
+   "default": "5",
+   "comment": ""
+  },
+  "FishingMonster": {
+   "type": "string",
+   "default": "\"巨型多角虫\"",
+   "comment": ""
+  },
+  "MailAutoSendGold": {
+   "type": "bool",
+   "default": "false",
+   "comment": "Mail Settings"
+  },
+  "MailAutoSendItems": {
+   "type": "bool",
+   "default": "false",
+   "comment": ""
+  },
+  "MailFreeWithStamp": {
+   "type": "bool",
+   "default": "true",
+   "comment": ""
+  },
+  "MailCostPer1KGold": {
+   "type": "uint",
+   "default": "100",
+   "comment": ""
+  },
+  "MailItemInsurancePercentage": {
+   "type": "uint",
+   "default": "5",
+   "comment": ""
+  },
+  "MailCapacity": {
+   "type": "uint",
+   "default": "100",
+   "comment": ""
+  },
+  "OnlyRefineWeapon": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Refine Settings"
+  },
+  "RefineBaseChance": {
+   "type": "byte",
+   "default": "20",
+   "comment": ""
+  },
+  "RefineTime": {
+   "type": "int",
+   "default": "20",
+   "comment": ""
+  },
+  "RefineIncrease": {
+   "type": "byte",
+   "default": "1",
+   "comment": ""
+  },
+  "RefineCritChance": {
+   "type": "byte",
+   "default": "10",
+   "comment": ""
+  },
+  "RefineCritIncrease": {
+   "type": "byte",
+   "default": "2",
+   "comment": ""
+  },
+  "RefineWepStatReduce": {
+   "type": "byte",
+   "default": "6",
+   "comment": ""
+  },
+  "RefineItemStatReduce": {
+   "type": "byte",
+   "default": "15",
+   "comment": ""
+  },
+  "RefineCost": {
+   "type": "int",
+   "default": "125",
+   "comment": ""
+  },
+  "RefineOreName": {
+   "type": "string",
+   "default": "\"黑色铁矿石\"",
+   "comment": ""
+  },
+  "LoverEXPBonus": {
+   "type": "int",
+   "default": "5",
+   "comment": "Marriage Settings"
+  },
+  "MarriageCooldown": {
+   "type": "int",
+   "default": "7",
+   "comment": ""
+  },
+  "WeddingRingRecall": {
+   "type": "bool",
+   "default": "true",
+   "comment": ""
+  },
+  "MarriageLevelRequired": {
+   "type": "int",
+   "default": "10",
+   "comment": ""
+  },
+  "ReplaceWedRingCost": {
+   "type": "int",
+   "default": "125",
+   "comment": ""
+  },
+  "MentorLevelGap": {
+   "type": "byte",
+   "default": "10",
+   "comment": "Mentor Settings"
+  },
+  "MentorSkillBoost": {
+   "type": "bool",
+   "default": "true",
+   "comment": ""
+  },
+  "MentorLength": {
+   "type": "byte",
+   "default": "7",
+   "comment": ""
+  },
+  "MentorDamageBoost": {
+   "type": "byte",
+   "default": "10",
+   "comment": ""
+  },
+  "MentorExpBoost": {
+   "type": "byte",
+   "default": "10",
+   "comment": ""
+  },
+  "MenteeExpBank": {
+   "type": "byte",
+   "default": "1",
+   "comment": ""
+  },
+  "GemStatIndependent": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Gem Settings"
+  },
+  "StoneHPDelay": {
+   "type": "int",
+   "default": "4",
+   "comment": "气血石回复间隔（秒）"
+  },
+  "StoneHPTriggerPercent": {
+   "type": "int",
+   "default": "50",
+   "comment": "HP 低于总量的百分之多少时开启"
+  },
+  "StoneHPGainPercent": {
+   "type": "int",
+   "default": "1",
+   "comment": "每跳增加值 = 石头总持久的百分之多少"
+  },
+  "StoneHPDuraCost": {
+   "type": "int",
+   "default": "100",
+   "comment": "气血石每跳消耗的持久点数"
+  },
+  "StoneMPDelay": {
+   "type": "int",
+   "default": "4",
+   "comment": "魔血石回复间隔（秒）"
+  },
+  "StoneMPTriggerPercent": {
+   "type": "int",
+   "default": "50",
+   "comment": "MP 低于总量的百分之多少时开启"
+  },
+  "StoneMPGainPercent": {
+   "type": "int",
+   "default": "1",
+   "comment": "每跳增加值 = 石头总持久的百分之多少"
+  },
+  "StoneMPDuraCost": {
+   "type": "int",
+   "default": "100",
+   "comment": "魔血石每跳消耗的持久点数"
+  },
+  "StoneAllowBagUse": {
+   "type": "bool",
+   "default": "false",
+   "comment": "允许背包内使用：不佩戴守护石时，自动用背包里第一块有电量的气血石/魔血石"
+  },
+  "OfflineAfkEnabled": {
+   "type": "bool",
+   "default": "true",
+   "comment": "允许离线挂机"
+  },
+  "OfflineAfkNoConsumableDura": {
+   "type": "bool",
+   "default": "true",
+   "comment": "不扣消耗类物品持久：气血石/魔血石电量、照明物（回血照常给）"
+  },
+  "OfflineAfkNoEquipDura": {
+   "type": "bool",
+   "default": "true",
+   "comment": "不扣装备持久（含武器，被怪打不磨损）"
+  },
+  "CleanZeroDuraOnLogin": {
+   "type": "bool",
+   "default": "true",
+   "comment": "0 持久残留清理（10-27） 物品定义持久改过之后，老实例会停在 0 持久却永远占格子。这里只控制「登录/召唤英雄时自动清」， 且只清 守护石/气血石/魔血石、回城石/随机传送石 这类 0 持久必然用不了的；手动清理用 @清理废品。"
+  },
+  "GoodsOn": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Goods Settings"
+  },
+  "GoodsMaxStored": {
+   "type": "uint",
+   "default": "15",
+   "comment": ""
+  },
+  "GoodsBuyBackTime": {
+   "type": "uint",
+   "default": "60",
+   "comment": ""
+  },
+  "GoodsBuyBackMaxStored": {
+   "type": "uint",
+   "default": "20",
+   "comment": ""
+  },
+  "GoodsHideAddedStats": {
+   "type": "bool",
+   "default": "true",
+   "comment": ""
+  },
+  "ClassBaseStats": {
+   "type": "BaseStats[]",
+   "default": "new BaseStats[5] { new BaseStats(MirClass.战士)",
+   "comment": ""
+  },
+  "RandomItemStatsList": {
+   "type": "List<RandomItemStat>",
+   "default": "new List<RandomItemStat>()",
+   "comment": ""
+  },
+  "MineSetList": {
+   "type": "List<MineSet>",
+   "default": "new List<MineSet>()",
+   "comment": ""
+  },
+  "WorldMapSetup": {
+   "type": "WorldMapSetup",
+   "default": "new WorldMapSetup()",
+   "comment": ""
+  },
+  "MagicResistWeight": {
+   "type": "byte",
+   "default": "10",
+   "comment": "item related settings"
+  },
+  "PoisonResistWeight": {
+   "type": "byte",
+   "default": "10",
+   "comment": "item related settings"
+  },
+  "CriticalRateWeight": {
+   "type": "byte",
+   "default": "5",
+   "comment": "item related settings"
+  },
+  "CriticalDamageWeight": {
+   "type": "byte",
+   "default": "50",
+   "comment": "item related settings"
+  },
+  "FreezingAttackWeight": {
+   "type": "byte",
+   "default": "10",
+   "comment": "item related settings"
+  },
+  "PoisonAttackWeight": {
+   "type": "byte",
+   "default": "10",
+   "comment": "item related settings"
+  },
+  "HealthRegenWeight": {
+   "type": "byte",
+   "default": "10",
+   "comment": "item related settings"
+  },
+  "ManaRegenWeight": {
+   "type": "byte",
+   "default": "10",
+   "comment": "item related settings"
+  },
+  "MaxLuck": {
+   "type": "byte",
+   "default": "10",
+   "comment": "item related settings"
+  },
+  "ItemSealDelay": {
+   "type": "ushort",
+   "default": "60",
+   "comment": ""
+  },
+  "PvpCanResistMagic": {
+   "type": "bool",
+   "default": "false",
+   "comment": ""
+  },
+  "PvpCanResistPoison": {
+   "type": "bool",
+   "default": "false",
+   "comment": ""
+  },
+  "PvpCanFreeze": {
+   "type": "bool",
+   "default": "false",
+   "comment": ""
+  },
+  "RangeAccuracyBonus": {
+   "type": "byte",
+   "default": "0",
+   "comment": ""
+  },
+  "AllowNewHero": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Hero related settings"
+  },
+  "Hero_RequiredLevel": {
+   "type": "byte",
+   "default": "22",
+   "comment": ""
+  },
+  "Hero_CanCreateClass": {
+   "type": "bool[]",
+   "default": "new bool[0]",
+   "comment": ""
+  },
+  "HeroSealItemName": {
+   "type": "string",
+   "default": "\"SealedHero\"",
+   "comment": ""
+  },
+  "HeroMaximumSealCount": {
+   "type": "ushort",
+   "default": "5",
+   "comment": ""
+  },
+  "MaximumHeroCount": {
+   "type": "byte",
+   "default": "9",
+   "comment": ""
+  },
+  "NewbieGuildBuffEnabled": {
+   "type": "bool",
+   "default": "true",
+   "comment": "Guild related settings"
+  },
+  "NewbieGuildExpBuff": {
+   "type": "int",
+   "default": "5",
+   "comment": ""
+  },
+  "Guild_RequiredLevel": {
+   "type": "byte",
+   "default": "22",
+   "comment": ""
+  },
+  "Guild_PointPerLevel": {
+   "type": "byte",
+   "default": "0",
+   "comment": ""
+  },
+  "Guild_ExpRate": {
+   "type": "float",
+   "default": "0.01f",
+   "comment": ""
+  },
+  "Guild_WarCost": {
+   "type": "uint",
+   "default": "3000",
+   "comment": ""
+  },
+  "Guild_WarTime": {
+   "type": "long",
+   "default": "180",
+   "comment": ""
+  },
+  "Guild_CreationCostList": {
+   "type": "List<GuildItemVolume>",
+   "default": "new List<GuildItemVolume>()",
+   "comment": ""
+  },
+  "Guild_ExperienceList": {
+   "type": "List<long>",
+   "default": "new List<long>()",
+   "comment": ""
+  },
+  "Guild_MembercapList": {
+   "type": "List<int>",
+   "default": "new List<int>()",
+   "comment": ""
+  },
+  "Guild_BuffList": {
+   "type": "List<GuildBuffInfo>",
+   "default": "new List<GuildBuffInfo>()",
+   "comment": ""
+  },
+  "ArchiveInactiveCharacterAfterMonths": {
+   "type": "int",
+   "default": "12",
+   "comment": "Archive Settings"
+  },
+  "ArchiveDeletedCharacterAfterMonths": {
+   "type": "int",
+   "default": "1",
+   "comment": ""
+  }
+ },
+ "reads": [
+  {
+   "field": "VersionPath",
+   "section": "General",
+   "key": "VersionPath"
+  },
+  {
+   "field": "CheckVersion",
+   "section": "General",
+   "key": "CheckVersion"
+  },
+  {
+   "field": "RelogDelay",
+   "section": "General",
+   "key": "RelogDelay"
+  },
+  {
+   "field": "GMPassword",
+   "section": "General",
+   "key": "GMPassword"
+  },
+  {
+   "field": "Multithreaded",
+   "section": "General",
+   "key": "Multithreaded"
+  },
+  {
+   "field": "ThreadLimit",
+   "section": "General",
+   "key": "ThreadLimit"
+  },
+  {
+   "field": "TestServer",
+   "section": "General",
+   "key": "TestServer"
+  },
+  {
+   "field": "EnforceDBChecks",
+   "section": "General",
+   "key": "EnforceDBChecks"
+  },
+  {
+   "field": "MonsterProcessWhenAlone",
+   "section": "General",
+   "key": "MonsterProcessWhenAlone"
+  },
+  {
+   "field": "DuraLossRate",
+   "section": "General",
+   "key": "DuraLossRate"
+  },
+  {
+   "field": "IPAddress",
+   "section": "Network",
+   "key": "IPAddress"
+  },
+  {
+   "field": "Port",
+   "section": "Network",
+   "key": "Port"
+  },
+  {
+   "field": "TimeOut",
+   "section": "Network",
+   "key": "TimeOut"
+  },
+  {
+   "field": "MaxUser",
+   "section": "Network",
+   "key": "MaxUser"
+  },
+  {
+   "field": "MaxIP",
+   "section": "Network",
+   "key": "MaxIP"
+  },
+  {
+   "field": "MaxPacket",
+   "section": "Network",
+   "key": "MaxPacket"
+  },
+  {
+   "field": "StartHTTPService",
+   "section": "Network",
+   "key": "StartHTTPService"
+  },
+  {
+   "field": "HTTPIPAddress",
+   "section": "Network",
+   "key": "HTTPIPAddress"
+  },
+  {
+   "field": "HTTPQueryKey",
+   "section": "Network",
+   "key": "HTTPQueryKey"
+  },
+  {
+   "field": "HTTPTrustedIPAddress",
+   "section": "Network",
+   "key": "HTTPTrustedIPAddress"
+  },
+  {
+   "field": "HttpTransport",
+   "section": "Network",
+   "key": "HttpTransport"
+  },
+  {
+   "field": "EnableResourceService",
+   "section": "Network",
+   "key": "EnableResourceService"
+  },
+  {
+   "field": "ResourcePath",
+   "section": "Network",
+   "key": "ResourcePath"
+  },
+  {
+   "field": "ResourceAllowAnyIP",
+   "section": "Network",
+   "key": "ResourceAllowAnyIP"
+  },
+  {
+   "field": "ResourceMaxConcurrent",
+   "section": "Network",
+   "key": "ResourceMaxConcurrent"
+  },
+  {
+   "field": "ResourceWriteTimeout",
+   "section": "Network",
+   "key": "ResourceWriteTimeout"
+  },
+  {
+   "field": "ResourceBufferKB",
+   "section": "Network",
+   "key": "ResourceBufferKB"
+  },
+  {
+   "field": "ResourceVerboseLog",
+   "section": "Network",
+   "key": "ResourceVerboseLog"
+  },
+  {
+   "field": "ResourceMaxKBps",
+   "section": "Network",
+   "key": "ResourceMaxKBps"
+  },
+  {
+   "field": "SmartHeroAI",
+   "section": "Hero",
+   "key": "SmartAI"
+  },
+  {
+   "field": "HeroAutoSkill",
+   "section": "Hero",
+   "key": "AutoSkill"
+  },
+  {
+   "field": "HeroDodgePercent",
+   "section": "Hero",
+   "key": "DodgePercent"
+  },
+  {
+   "field": "HeroPushMinSurround",
+   "section": "Hero",
+   "key": "PushMinSurround"
+  },
+  {
+   "field": "HeroPushCooldownMs",
+   "section": "Hero",
+   "key": "PushCooldownMs"
+  },
+  {
+   "field": "AllowNewAccount",
+   "section": "Permission",
+   "key": "AllowNewAccount"
+  },
+  {
+   "field": "AllowChangePassword",
+   "section": "Permission",
+   "key": "AllowChangePassword"
+  },
+  {
+   "field": "AllowLogin",
+   "section": "Permission",
+   "key": "AllowLogin"
+  },
+  {
+   "field": "AllowNewCharacter",
+   "section": "Permission",
+   "key": "AllowNewCharacter"
+  },
+  {
+   "field": "AllowDeleteCharacter",
+   "section": "Permission",
+   "key": "AllowDeleteCharacter"
+  },
+  {
+   "field": "AllowStartGame",
+   "section": "Permission",
+   "key": "AllowStartGame"
+  },
+  {
+   "field": "AllowCreateAssassin",
+   "section": "Permission",
+   "key": "AllowCreateAssassin"
+  },
+  {
+   "field": "AllowCreateArcher",
+   "section": "Permission",
+   "key": "AllowCreateArcher"
+  },
+  {
+   "field": "AllowedResolution",
+   "section": "Permission",
+   "key": "MaxResolution"
+  },
+  {
+   "field": "SafeZoneBorder",
+   "section": "Optional",
+   "key": "SafeZoneBorder"
+  },
+  {
+   "field": "SafeZoneHealing",
+   "section": "Optional",
+   "key": "SafeZoneHealing"
+  },
+  {
+   "field": "GatherOrbsPerLevel",
+   "section": "Optional",
+   "key": "GatherOrbsPerLevel"
+  },
+  {
+   "field": "ExpMobLevelDifference",
+   "section": "Optional",
+   "key": "ExpMobLevelDifference"
+  },
+  {
+   "field": "GameMasterEffect",
+   "section": "Optional",
+   "key": "GameMasterEffect"
+  },
+  {
+   "field": "LineMessageTimer",
+   "section": "Optional",
+   "key": "LineMessageTimer"
+  },
+  {
+   "field": "TameSuccessRate",
+   "section": "Optional",
+   "key": "TameSuccessRate"
+  },
+  {
+   "field": "TameIgnoreLevelLimit",
+   "section": "Optional",
+   "key": "TameIgnoreLevelLimit"
+  },
+  {
+   "field": "TameIgnoreHpPenalty",
+   "section": "Optional",
+   "key": "TameIgnoreHpPenalty"
+  },
+  {
+   "field": "TameIgnoreUntameable",
+   "section": "Optional",
+   "key": "TameIgnoreUntameable"
+  },
+  {
+   "field": "EnableNoLamp",
+   "section": "Optional",
+   "key": "EnableNoLamp"
+  },
+  {
+   "field": "EnableWalkThrough",
+   "section": "Optional",
+   "key": "EnableWalkThrough"
+  },
+  {
+   "field": "EnableWalkThroughMonster",
+   "section": "Optional",
+   "key": "EnableWalkThroughMonster"
+  },
+  {
+   "field": "EnableWalkThroughNPC",
+   "section": "Optional",
+   "key": "EnableWalkThroughNPC"
+  },
+  {
+   "field": "EnableWalkThroughWall",
+   "section": "Optional",
+   "key": "EnableWalkThroughWall"
+  },
+  {
+   "field": "EnableOverWeight",
+   "section": "Optional",
+   "key": "EnableOverWeight"
+  },
+  {
+   "field": "EnableMountTai",
+   "section": "Optional",
+   "key": "EnableMountTai"
+  },
+  {
+   "field": "OfflineAfkEnabled",
+   "section": "OfflineAFK",
+   "key": "Enabled"
+  },
+  {
+   "field": "OfflineAfkNoConsumableDura",
+   "section": "OfflineAFK",
+   "key": "NoConsumableDura"
+  },
+  {
+   "field": "OfflineAfkNoEquipDura",
+   "section": "OfflineAFK",
+   "key": "NoEquipDura"
+  },
+  {
+   "field": "CleanZeroDuraOnLogin",
+   "section": "Optional",
+   "key": "CleanZeroDuraOnLogin"
+  },
+  {
+   "field": "FakePlayerEnabled",
+   "section": "FakePlayer",
+   "key": "Enabled"
+  },
+  {
+   "field": "FakePlayerCount",
+   "section": "FakePlayer",
+   "key": "Count"
+  },
+  {
+   "field": "FakePlayerLevelMin",
+   "section": "FakePlayer",
+   "key": "LevelMin"
+  },
+  {
+   "field": "FakePlayerLevelMax",
+   "section": "FakePlayer",
+   "key": "LevelMax"
+  },
+  {
+   "field": "FakePlayerMaps",
+   "section": "FakePlayer",
+   "key": "Maps"
+  },
+  {
+   "field": "FakePlayerChat",
+   "section": "FakePlayer",
+   "key": "Chat"
+  },
+  {
+   "field": "FakePlayerChatIntervalMs",
+   "section": "FakePlayer",
+   "key": "ChatIntervalMs"
+  },
+  {
+   "field": "FakePlayerRandomLogin",
+   "section": "FakePlayer",
+   "key": "RandomLogin"
+  },
+  {
+   "field": "FakePlayerChatFile",
+   "section": "FakePlayer",
+   "key": "ChatFile"
+  },
+  {
+   "field": "FakePlayerEquipFile",
+   "section": "FakePlayer",
+   "key": "EquipFile"
+  },
+  {
+   "field": "FakePlayerPK",
+   "section": "FakePlayer",
+   "key": "PK"
+  },
+  {
+   "field": "FakePlayerPKChance",
+   "section": "FakePlayer",
+   "key": "PKChance"
+  },
+  {
+   "field": "FakePlayerFollow",
+   "section": "FakePlayer",
+   "key": "Follow"
+  },
+  {
+   "field": "FakePlayerSpawns",
+   "section": "FakePlayer",
+   "key": "Spawns"
+  },
+  {
+   "field": "FakePlayerSpawnFile",
+   "section": "FakePlayer",
+   "key": "SpawnFile"
+  },
+  {
+   "field": "FakePlayerNameFile",
+   "section": "FakePlayer",
+   "key": "NameFile"
+  },
+  {
+   "field": "FakePlayerIdleMs",
+   "section": "FakePlayer",
+   "key": "IdleIntervalMs"
+  },
+  {
+   "field": "FakePlayerVisibleCap",
+   "section": "FakePlayer",
+   "key": "VisibleCap"
+  },
+  {
+   "field": "FakePlayerLoginBatch",
+   "section": "FakePlayer",
+   "key": "LoginBatch"
+  },
+  {
+   "field": "FakePlayerShowRampMax",
+   "section": "FakePlayer",
+   "key": "ShowRampMax"
+  },
+  {
+   "field": "MemCompactMinutes",
+   "section": "Memory",
+   "key": "CompactMinutes"
+  },
+  {
+   "field": "FakePlayerCrowdCalm",
+   "section": "FakePlayer",
+   "key": "CrowdCalm"
+  },
+  {
+   "field": "SaveDelay",
+   "section": "Database",
+   "key": "SaveDelay"
+  },
+  {
+   "field": "DropRate",
+   "section": "Game",
+   "key": "DropRate"
+  },
+  {
+   "field": "ExpRate",
+   "section": "Game",
+   "key": "ExpRate"
+  },
+  {
+   "field": "HighLevelExpRate",
+   "section": "Game",
+   "key": "HighLevelExpRate"
+  },
+  {
+   "field": "HighLevelExpRateMinLevel",
+   "section": "Game",
+   "key": "HighLevelExpRateMinLevel"
+  },
+  {
+   "field": "DeathExpLossRate",
+   "section": "Game",
+   "key": "DeathExpLossRate"
+  },
+  {
+   "field": "ItemTimeOut",
+   "section": "Game",
+   "key": "ItemTimeOut"
+  },
+  {
+   "field": "PlayerDiedItemTimeOut",
+   "section": "Game",
+   "key": "PlayerDiedItemTimeOut"
+  },
+  {
+   "field": "CorpseTime",
+   "section": "Game",
+   "key": "CorpseTime"
+  },
+  {
+   "field": "PetSave",
+   "section": "Game",
+   "key": "PetSave"
+  },
+  {
+   "field": "PetDieWithMaster",
+   "section": "Game",
+   "key": "PetDieWithMaster"
+  },
+  {
+   "field": "PoisonLockMagicOnly",
+   "section": "Game",
+   "key": "PoisonLockMagicOnly"
+  },
+  {
+   "field": "PKDelay",
+   "section": "Game",
+   "key": "PKDelay"
+  },
+  {
+   "field": "NewbieGuild",
+   "section": "Game",
+   "key": "NewbieGuild"
+  },
+  {
+   "field": "NewbieGuildMaxSize",
+   "section": "Game",
+   "key": "NewbieGuildMaxSize"
+  },
+  {
+   "field": "SkeletonName",
+   "section": "Game",
+   "key": "SkeletonName"
+  },
+  {
+   "field": "Mon637BMob",
+   "section": "Game",
+   "key": "Mon637BMob"
+  },
+  {
+   "field": "BugBatName",
+   "section": "Game",
+   "key": "BugBatName"
+  },
+  {
+   "field": "ShinsuName",
+   "section": "Game",
+   "key": "ShinsuName"
+  },
+  {
+   "field": "Zuma1",
+   "section": "Game",
+   "key": "Zuma1"
+  },
+  {
+   "field": "Zuma2",
+   "section": "Game",
+   "key": "Zuma2"
+  },
+  {
+   "field": "Zuma3",
+   "section": "Game",
+   "key": "Zuma3"
+  },
+  {
+   "field": "Zuma4",
+   "section": "Game",
+   "key": "Zuma4"
+  },
+  {
+   "field": "Zuma5",
+   "section": "Game",
+   "key": "Zuma5"
+  },
+  {
+   "field": "Zuma6",
+   "section": "Game",
+   "key": "Zuma6"
+  },
+  {
+   "field": "Zuma7",
+   "section": "Game",
+   "key": "Zuma7"
+  },
+  {
+   "field": "Turtle1",
+   "section": "Game",
+   "key": "Turtle1"
+  },
+  {
+   "field": "Turtle2",
+   "section": "Game",
+   "key": "Turtle2"
+  },
+  {
+   "field": "Turtle3",
+   "section": "Game",
+   "key": "Turtle3"
+  },
+  {
+   "field": "Turtle4",
+   "section": "Game",
+   "key": "Turtle4"
+  },
+  {
+   "field": "Turtle5",
+   "section": "Game",
+   "key": "Turtle5"
+  },
+  {
+   "field": "BoneMonster1",
+   "section": "Game",
+   "key": "BoneMonster1"
+  },
+  {
+   "field": "BoneMonster2",
+   "section": "Game",
+   "key": "BoneMonster2"
+  },
+  {
+   "field": "BoneMonster3",
+   "section": "Game",
+   "key": "BoneMonster3"
+  },
+  {
+   "field": "BoneMonster4",
+   "section": "Game",
+   "key": "BoneMonster4"
+  },
+  {
+   "field": "BehemothMonster1",
+   "section": "Game",
+   "key": "BehemothMonster1"
+  },
+  {
+   "field": "BehemothMonster2",
+   "section": "Game",
+   "key": "BehemothMonster2"
+  },
+  {
+   "field": "BehemothMonster3",
+   "section": "Game",
+   "key": "BehemothMonster3"
+  },
+  {
+   "field": "HellKnight1",
+   "section": "Game",
+   "key": "HellKnight1"
+  },
+  {
+   "field": "HellKnight2",
+   "section": "Game",
+   "key": "HellKnight2"
+  },
+  {
+   "field": "HellKnight3",
+   "section": "Game",
+   "key": "HellKnight3"
+  },
+  {
+   "field": "HellKnight4",
+   "section": "Game",
+   "key": "HellKnight4"
+  },
+  {
+   "field": "HellBomb1",
+   "section": "Game",
+   "key": "HellBomb1"
+  },
+  {
+   "field": "HellBomb2",
+   "section": "Game",
+   "key": "HellBomb2"
+  },
+  {
+   "field": "HellBomb3",
+   "section": "Game",
+   "key": "HellBomb3"
+  },
+  {
+   "field": "GeneralMeowMeowMob1",
+   "section": "Game",
+   "key": "GeneralMeowMeowMob1"
+  },
+  {
+   "field": "GeneralMeowMeowMob2",
+   "section": "Game",
+   "key": "GeneralMeowMeowMob2"
+  },
+  {
+   "field": "GeneralMeowMeowMob3",
+   "section": "Game",
+   "key": "GeneralMeowMeowMob3"
+  },
+  {
+   "field": "GeneralMeowMeowMob4",
+   "section": "Game",
+   "key": "GeneralMeowMeowMob4"
+  },
+  {
+   "field": "KingHydraxMob",
+   "section": "Game",
+   "key": "KingHydraxMob"
+  },
+  {
+   "field": "HornedCommanderMob1",
+   "section": "Game",
+   "key": "HornedCommanderMob1"
+  },
+  {
+   "field": "HornedCommanderMob2",
+   "section": "Game",
+   "key": "HornedCommanderMob2"
+  },
+  {
+   "field": "HornedCommanderBombMob",
+   "section": "Game",
+   "key": "HornedCommanderBombMob"
+  },
+  {
+   "field": "SnowWolfKingMob",
+   "section": "Game",
+   "key": "SnowWolfKingMob"
+  },
+  {
+   "field": "CallScrollMob",
+   "section": "Game",
+   "key": "CallScrollMob"
+  },
+  {
+   "field": "ShardMaidenMob1",
+   "section": "Game",
+   "key": "ShardMaidenMob1"
+  },
+  {
+   "field": "ShardMaidenMob2",
+   "section": "Game",
+   "key": "ShardMaidenMob2"
+  },
+  {
+   "field": "ShardMaidenMob3",
+   "section": "Game",
+   "key": "ShardMaidenMob3"
+  },
+  {
+   "field": "ShardMaidenMob4",
+   "section": "Game",
+   "key": "ShardMaidenMob4"
+  },
+  {
+   "field": "Mon570NMirrorImageMob",
+   "section": "Game",
+   "key": "Mon570NMirrorImageMob"
+  },
+  {
+   "field": "Mon573NMob",
+   "section": "Game",
+   "key": "Mon573NMob"
+  },
+  {
+   "field": "WhiteSnake",
+   "section": "Game",
+   "key": "WhiteSnake"
+  },
+  {
+   "field": "AngelName",
+   "section": "Game",
+   "key": "AngelName"
+  },
+  {
+   "field": "BombSpiderName",
+   "section": "Game",
+   "key": "BombSpiderName"
+  },
+  {
+   "field": "CloneName",
+   "section": "Game",
+   "key": "CloneName"
+  },
+  {
+   "field": "CloneSmartSkill",
+   "section": "Game",
+   "key": "CloneSmartSkill"
+  },
+  {
+   "field": "CloneSkillMpCost",
+   "section": "Game",
+   "key": "CloneSkillMpCost"
+  },
+  {
+   "field": "FishingMonster",
+   "section": "Game",
+   "key": "FishMonster"
+  },
+  {
+   "field": "AssassinCloneName",
+   "section": "Game",
+   "key": "AssassinCloneName"
+  },
+  {
+   "field": "VampireName",
+   "section": "Game",
+   "key": "VampireName"
+  },
+  {
+   "field": "ToadName",
+   "section": "Game",
+   "key": "ToadName"
+  },
+  {
+   "field": "SnakeTotemName",
+   "section": "Game",
+   "key": "SnakeTotemName"
+  },
+  {
+   "field": "SnakesName",
+   "section": "Game",
+   "key": "SnakesName"
+  },
+  {
+   "field": "StoneName",
+   "section": "Game",
+   "key": "StoneName"
+  },
+  {
+   "field": "AncientBatName",
+   "section": "Game",
+   "key": "AncientBatName"
+  },
+  {
+   "field": "TucsonGeneralEgg",
+   "section": "Game",
+   "key": "TucsonGeneralEgg"
+  },
+  {
+   "field": "GroupInviteDelay",
+   "section": "Game",
+   "key": "GroupInviteDelay"
+  },
+  {
+   "field": "TradeDelay",
+   "section": "Game",
+   "key": "TradeDelay"
+  },
+  {
+   "field": "TeleportToNPCCost",
+   "section": "Game",
+   "key": "TeleportToNPCCost"
+  },
+  {
+   "field": "HeroName",
+   "section": "Game",
+   "key": "HeroName"
+  },
+  {
+   "field": "RestedPeriod",
+   "section": "Rested",
+   "key": "Period"
+  },
+  {
+   "field": "RestedBuffLength",
+   "section": "Rested",
+   "key": "BuffLength"
+  },
+  {
+   "field": "RestedExpBonus",
+   "section": "Rested",
+   "key": "ExpBonus"
+  },
+  {
+   "field": "RestedMaxBonus",
+   "section": "Rested",
+   "key": "MaxBonus"
+  },
+  {
+   "field": "HealRing",
+   "section": "Items",
+   "key": "HealRing"
+  },
+  {
+   "field": "FireRing",
+   "section": "Items",
+   "key": "FireRing"
+  },
+  {
+   "field": "BlinkSkill",
+   "section": "Items",
+   "key": "BlinkSkill"
+  },
+  {
+   "field": "PKTownMapName",
+   "section": "PKTown",
+   "key": "PKTownMapName"
+  },
+  {
+   "field": "PKTownPositionX",
+   "section": "PKTown",
+   "key": "PKTownPositionX"
+  },
+  {
+   "field": "PKTownPositionY",
+   "section": "PKTown",
+   "key": "PKTownPositionY"
+  },
+  {
+   "field": "DropGold",
+   "section": "DropGold",
+   "key": "DropGold"
+  },
+  {
+   "field": "MagicResistWeight",
+   "section": "Items",
+   "key": "MagicResistWeight"
+  },
+  {
+   "field": "PoisonResistWeight",
+   "section": "Items",
+   "key": "PoisonResistWeight"
+  },
+  {
+   "field": "CriticalRateWeight",
+   "section": "Items",
+   "key": "CriticalRateWeight"
+  },
+  {
+   "field": "FreezingAttackWeight",
+   "section": "Items",
+   "key": "FreezingAttackWeight"
+  },
+  {
+   "field": "PoisonAttackWeight",
+   "section": "Items",
+   "key": "PoisonAttackWeight"
+  },
+  {
+   "field": "MaxLuck",
+   "section": "Items",
+   "key": "MaxLuck"
+  },
+  {
+   "field": "ItemSealDelay",
+   "section": "Items",
+   "key": "SealDelay"
+  },
+  {
+   "field": "PvpCanResistMagic",
+   "section": "Items",
+   "key": "PvpCanResistMagic"
+  },
+  {
+   "field": "PvpCanResistPoison",
+   "section": "Items",
+   "key": "PvpCanResistPoison"
+  },
+  {
+   "field": "PvpCanFreeze",
+   "section": "Items",
+   "key": "PvpCanFreeze"
+  },
+  {
+   "field": "RangeAccuracyBonus",
+   "section": "Bonus",
+   "key": "RangeAccuracyBonus"
+  },
+  {
+   "field": "CreatureBlackStoneName",
+   "section": "IntelligentCreatures",
+   "key": "CreatureBlackStoneName"
+  },
+  {
+   "field": "AllowObserve",
+   "section": "Observe",
+   "key": "AllowObserve"
+  }
+ ]
+}

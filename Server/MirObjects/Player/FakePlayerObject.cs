@@ -36,11 +36,23 @@ namespace Server.MirObjects
 
         public override void Process()
         {
+            // 20261106 休眠地图（无真人在线）：跳过 AI 大脑 —— 没人看的假人不寻路、不打怪、不拾取，
+            //   只保留低频的 base.Process（状态/复活/巡检节拍）兜底。
+            bool idleMap = CurrentMap == null || CurrentMap.RealPlayers.Count == 0;
+
             long t0 = Stopwatch.GetTimestamp();
             base.Process();
             FakePlayerPerf.NoteBotProcess(Stopwatch.GetTimestamp() - t0);
 
-            if (Brain == null) return;
+            if (Brain == null || idleMap)
+            {
+                // 休眠地图也要自动复活：Brain 不跑的话没人执行 TownRevive，
+                //   否则真人下次进图会看到一地假人尸体（复活点在 Brain 的正常逻辑里）
+                if (idleMap && Dead && NextReviveTime > 0 && Envir.Time >= NextReviveTime)
+                    TownRevive();
+
+                return;
+            }
 
             long t1 = Stopwatch.GetTimestamp();
             Brain.Tick();
@@ -62,6 +74,14 @@ namespace Server.MirObjects
         /// </summary>
         public override void SetOperateTime()
         {
+            // 20261106 分级节拍：无真人的地图（休眠）拉长到 IdleMs~IdleMs*2 随机间隔，
+            //   有真人的地图维持原来的 130~280ms 正常表现。
+            if (CurrentMap == null || CurrentMap.RealPlayers.Count == 0)
+            {
+                OperateTime = Envir.Time + Envir.Random.Next(Settings.FakePlayerIdleMs, Settings.FakePlayerIdleMs * 2);
+                return;
+            }
+
             OperateTime = Envir.Time + Envir.Random.Next(130, 280);
         }
 
@@ -70,6 +90,26 @@ namespace Server.MirObjects
             base.Die();
 
             NextReviveTime = Envir.Time + Envir.Random.Next(4000, 12000);
+        }
+
+        // ==================================================================================
+        //  20261106 同屏可见上限 + 渐显：进真人视野时先问注册表要名额。
+        //  拿不到名额（该真人视野内假人已满 VisibleCap）→ 不发出现包，客户端看不到这个假人；
+        //  拿到名额也不立刻发 —— 排进渐显队列，由 FakePlayerManager 每秒放一波
+        //  （1→2→4→…→ShowRampMax 封顶），避免进图瞬间收到上百个出现包把客户端卡死几十秒。
+        // ==================================================================================
+        public override void Add(HumanObject player)
+        {
+            if (player == this) return;
+
+            // 名额判定 + 入队/立即显示（组队成员立即出现）都在 Manager 里做
+            FakePlayerManager.TryShowToPlayer(this, player);
+        }
+
+        public override void Remove(HumanObject player)
+        {
+            FakePlayerManager.RemoveFromSight(this, player);   // 先让出可见名额
+            base.Remove(player);                               // 照常给真人发 ObjectRemove
         }
 
         // 被打 → 通知大脑（还手 / 躲避）。两个重载对应「被人打」和「被怪打」。

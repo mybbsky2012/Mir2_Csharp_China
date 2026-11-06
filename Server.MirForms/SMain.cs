@@ -27,6 +27,14 @@ namespace Server
             PlayersOnlineListView.OwnerDraw = true;
             PlayersOnlineListView.DrawColumnHeader += PlayersOnlineListView_DrawColumnHeader;
             PlayersOnlineListView.DrawSubItem += PlayersOnlineListView_DrawSubItem;
+
+            // ★在线列表改虚拟模式（20261106）：数据源在 _onlineSnapshot，控件只记行数，
+            //   滚到哪才向 RetrieveVirtualItem 要哪几行 —— 2 万在线也不会全量建行卡 UI。
+            //   注意：虚拟模式不支持控件排序（Sorting 必须 None、点表头 Sort() 会抛异常），
+            //   行顺序由快照自己保证（按角色 Index 升序）。
+            PlayersOnlineListView.Sorting = SortOrder.None;
+            PlayersOnlineListView.VirtualMode = true;
+            PlayersOnlineListView.RetrieveVirtualItem += PlayersOnlineListView_RetrieveVirtualItem;
         }
 
         private void AutoResize()
@@ -214,11 +222,16 @@ namespace Server
         private const int OnlineRefreshMs = 700;
         private long _lastOnlineRefresh;
 
+        // ★虚拟模式数据源（20261106）：与列表行一一对应的在线玩家快照（已按角色 Index 升序）。
+        //   RetrieveVirtualItem / 双击取行都从这里拿，控件里不再常驻任何 ListViewItem。
+        private List<PlayerObject> _onlineSnapshot = new List<PlayerObject>();
+        private string[] _onlineStatusCache = Array.Empty<string>();   // 状态列缓存：哪行变了才重取哪行
+
         private void ProcessPlayersOnlineTab(bool forced = false)
         {
             if (!forced)
             {
-                // 不是「在线玩家」页时不刷（看不见的列表没必要每秒重建 300 行）
+                // 不是「在线玩家」页时不刷（看不见的列表没必要刷新）
                 if (MainTabs.SelectedTab != tabPage4) return;
                 if (Environment.TickCount64 - _lastOnlineRefresh < OnlineRefreshMs) return;
                 _lastOnlineRefresh = Environment.TickCount64;
@@ -235,12 +248,7 @@ namespace Server
                 return;
             }
 
-            // ★① 先过滤掉 Info 还空着的（正在登录/下线的交界），再按角色 Index 排序：
-            //   · 过滤：只有「能显示的行数」才能拿来和 ListView 比。原来比的是 players.Count，
-            //           只要有一个角色 Info 为空（CreateListView 返回 null 被跳过），
-            //           Items.Count 永远少 1 → 每一拍都判定「要重建」→ 无限重建。
-            //   · 排序：顺序固定。原来按 Envir.Players 顺序，删掉一个后面所有行整体上顶，
-            //           位置全变 → 每下线一个人整张表重建一次，选中/滚动位置也跟着跳。
+            // 过滤掉 Info 还空着的（正在登录/下线的交界）、去重、按角色 Index 排序（顺序固定不跳动）
             List<PlayerObject> visible = new List<PlayerObject>(players.Count);
             HashSet<int> seen = new HashSet<int>();
             foreach (PlayerObject p in players)
@@ -252,106 +260,70 @@ namespace Server
             }
             visible.Sort((a, b) => a.Info.Index.CompareTo(b.Info.Index));
 
-            // ★② 只比数量是不够的：有人下线的同时有人上线，数量不变但列表顺序整体错开，
-            //   按位置刷状态就会把 A 的「挂机/假人」标到 B 那一行上。按行的身份（角色 Index）核对。
-            bool rebuild = forced || PlayersOnlineListView.Items.Count != visible.Count;
-
-            if (!rebuild)
+            // 记住当前选中角色的 Index（上下线会让行号整体位移，按身份恢复选中）
+            int selChar = 0;
+            if (PlayersOnlineListView.SelectedIndices.Count > 0)
             {
-                for (int i = 0; i < visible.Count; i++)
+                int ri = PlayersOnlineListView.SelectedIndices[0];
+                if (ri >= 0 && ri < _onlineSnapshot.Count && _onlineSnapshot[ri]?.Info != null)
+                    selChar = _onlineSnapshot[ri].Info.Index;
+            }
+
+            // ★虚拟模式刷新：先换数据源、再把行数改成新值 —— 不删行不建行。
+            //   之前是全量删光重建，2 万在线时每 0.7 秒卡一次 UI；现在只是一次赋值。
+            _onlineSnapshot = visible;
+
+            if (PlayersOnlineListView.VirtualListSize != visible.Count)
+                PlayersOnlineListView.VirtualListSize = visible.Count;
+
+            // 状态列差异刷新：行内容是 RetrieveVirtualItem 现取的（永远反映快照最新状态），
+            // 哪行的状态变了就只重取重画那一行。
+            if (_onlineStatusCache.Length != visible.Count)
+                _onlineStatusCache = new string[visible.Count];
+
+            for (int i = 0; i < visible.Count; i++)
+            {
+                string status = GetStatusText(visible[i]);
+
+                if (!string.Equals(_onlineStatusCache[i], status, StringComparison.Ordinal))
                 {
-                    CharacterInfo info = visible[i]?.Info;
-                    if (!(PlayersOnlineListView.Items[i].Tag is CharacterInfo rowInfo) ||
-                        info == null || rowInfo.Index != info.Index)
-                    {
-                        rebuild = true;
-                        break;
-                    }
+                    _onlineStatusCache[i] = status;
+
+                    try { PlayersOnlineListView.RedrawItems(i, i, true); } catch { }
                 }
             }
 
-            if (rebuild)
+            // 行整体位移后按角色 Index 恢复选中（位置没变就不动，避免每拍折腾选中状态）
+            if (selChar != 0)
             {
-                // 重建时按角色 Index 还原选中行与滚动位置（不能按行号：上线/下线会让行号整体移动）
-                int selectedIndex = 0;
-                if (PlayersOnlineListView.SelectedItems.Count > 0 &&
-                    PlayersOnlineListView.SelectedItems[0].Tag is CharacterInfo sel)
-                    selectedIndex = sel.Index;
+                bool keep = PlayersOnlineListView.SelectedIndices.Count > 0 &&
+                            PlayersOnlineListView.SelectedIndices[0] < visible.Count &&
+                            visible[PlayersOnlineListView.SelectedIndices[0]]?.Info?.Index == selChar;
 
-                int topIndex = 0;
-                try
+                if (!keep)
                 {
-                    if (PlayersOnlineListView.TopItem?.Tag is CharacterInfo top)
-                        topIndex = top.Index;
+                    int idx = visible.FindIndex(p => p?.Info != null && p.Info.Index == selChar);
+
+                    PlayersOnlineListView.SelectedIndices.Clear();
+                    if (idx >= 0) PlayersOnlineListView.SelectedIndices.Add(idx);
                 }
-                catch { }
-
-                PlayersOnlineListView.BeginUpdate();
-                try
-                {
-                    PlayersOnlineListView.Items.Clear();
-
-                    foreach (PlayerObject player in visible)
-                    {
-                        ListViewItem item = CreateListView(player);
-                        if (item != null) PlayersOnlineListView.Items.Add(item);
-                    }
-                }
-                finally
-                {
-                    PlayersOnlineListView.EndUpdate();
-                }
-
-                try
-                {
-                    if (selectedIndex != 0)
-                    {
-                        foreach (ListViewItem item in PlayersOnlineListView.Items)
-                        {
-                            if (item.Tag is CharacterInfo c && c.Index == selectedIndex)
-                            {
-                                item.Selected = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (topIndex != 0)
-                    {
-                        foreach (ListViewItem item in PlayersOnlineListView.Items)
-                        {
-                            if (item.Tag is CharacterInfo c && c.Index == topIndex)
-                            {
-                                PlayersOnlineListView.TopItem = item;
-                                break;
-                            }
-                        }
-                    }
-                }
-                catch { }
-
-                // ★③ 这里绝对不能再设 item.Focused = true：
-                //   设焦点会把焦点拉到 ListView 上，而它在别的标签页里时，WinForms 会顺手把
-                //   TabControl 切到这一页 → 触发 MainTabs_SelectedIndexChanged → 强制重建 → 又设焦点
-                //   → 又切页 …… 真正意义上的死循环（表现为"在线列表自己反复刷、标签页自己跳回来"）。
             }
-            else
+        }
+
+        /// <summary>虚拟模式取行：控件只对屏幕内可见的行回调这里，从快照现造 ListViewItem</summary>
+        private void PlayersOnlineListView_RetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
+        {
+            List<PlayerObject> snapshot = _onlineSnapshot;
+
+            if (e.ItemIndex < 0 || e.ItemIndex >= snapshot.Count)
             {
-                // 身份序列完全对得上，只刷状态列（真人→挂机、挂机→假人 等切换不会触发重建）
-                bool changed = false;
-                for (int i = 0; i < visible.Count; i++)
-                {
-                    string status = GetStatusText(visible[i]);
-                    var sub = PlayersOnlineListView.Items[i].SubItems[5];
-                    if (sub == null || sub.Text != status)
-                    {
-                        if (sub != null) sub.Text = status;
-                        changed = true;
-                    }
-                }
-
-                if (changed) PlayersOnlineListView.Invalidate();
+                e.Item = new ListViewItem(string.Empty);
+                return;
             }
+
+            ListViewItem item = CreateListView(snapshot[e.ItemIndex]);
+
+            e.Item = item ?? new ListViewItem(string.Empty);   // 快照已过滤 Info，理论上不会空，兜底防炸
         }
 
         private void startServerToolStripMenuItem_Click(object sender, EventArgs e)
@@ -379,74 +351,85 @@ namespace Server
             Close();
         }
 
+        /// <summary>
+        /// 20261106 非模态打开子窗口：不锁主界面，多个工具窗口可以同时开着互不干扰。
+        /// 挂 Owner 让子窗口始终跟在主窗口之上、主窗口最小化时一起收起来。
+        /// 注意：同一种窗口现在允许重复开（比如两个怪物编辑器），改同一份数据前注意别互相覆盖。
+        /// </summary>
+        private void ShowToolForm(Form form)
+        {
+            form.Owner = this;
+            form.Show();
+        }
+
         private void itemInfoToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ItemInfoForm form = new ItemInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void monsterInfoToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MonsterInfoForm form = new MonsterInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void nPCInfoToolStripMenuItem_Click(object sender, EventArgs e)
         {
             NPCInfoForm form = new NPCInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void balanceConfigToolStripMenuItem_Click(object sender, EventArgs e)
         {
             BalanceConfigForm form = new BalanceConfigForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void questInfoToolStripMenuItem_Click(object sender, EventArgs e)
         {
             QuestInfoForm form = new QuestInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void serverToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ConfigForm form = new ConfigForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void sendAwardToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SendAwardForm form = new SendAwardForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void balanceToolStripMenuItem_Click(object sender, EventArgs e)
         {
             BalanceConfigForm form = new BalanceConfigForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void accountToolStripMenuItem_Click(object sender, EventArgs e)
         {
             AccountInfoForm form = new AccountInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void mapInfoToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MapInfoForm form = new MapInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         //★ 自定义 BUFF 属性编辑器（Configs\BuffSystem.ini）
@@ -454,63 +437,63 @@ namespace Server
         {
             BuffConfigForm form = new BuffConfigForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void itemInfoToolStripMenuItem_Click_1(object sender, EventArgs e)
         {
             ItemInfoForm form = new ItemInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void monsterInfoToolStripMenuItem_Click_1(object sender, EventArgs e)
         {
             MonsterInfoForm form = new MonsterInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void nPCInfoToolStripMenuItem_Click_1(object sender, EventArgs e)
         {
             NPCInfoForm form = new NPCInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void questInfoToolStripMenuItem_Click_1(object sender, EventArgs e)
         {
             QuestInfoForm form = new QuestInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void dragonSystemToolStripMenuItem_Click(object sender, EventArgs e)
         {
             DragonInfoForm form = new DragonInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void miningToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MiningInfoForm form = new MiningInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void guildsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             GuildInfoForm form = new GuildInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void fishingToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SystemInfoForm form = new SystemInfoForm(0);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void GlobalMessageButton_Click(object sender, EventArgs e)
@@ -530,18 +513,20 @@ namespace Server
         {
             CustomFormControl.ListViewNF list = (CustomFormControl.ListViewNF)sender;
 
-            if (list.SelectedItems.Count <= 0) return;
+            if (list.SelectedIndices.Count <= 0) return;
 
-            ListViewItem item = list.SelectedItems[0];
+            int row = list.SelectedIndices[0];
 
-            // ★用行上绑定的角色 Index（Tag），不要用单元格里的文本：
-            //   行一旦和玩家错开，按文本查就会打开另一个玩家的信息
-            if (!(item.Tag is CharacterInfo info))
+            // ★虚拟模式（20261106）：按行号去快照里取身份，不要碰 Items/SelectedItems 的 Tag
+            //   （控件里没有常驻行，行内容都是 RetrieveVirtualItem 现造的）
+            if (row < 0 || row >= _onlineSnapshot.Count || _onlineSnapshot[row]?.Info == null)
             {
                 MessageBox.Show("这一行的数据已过期，列表已重新刷新。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ProcessPlayersOnlineTab(true);
                 return;
             }
+
+            CharacterInfo info = _onlineSnapshot[row].Info;
 
             PlayerObject player = null;
             try { player = Envir.GetPlayer((uint)info.Index); }
@@ -557,7 +542,7 @@ namespace Server
 
             PlayerInfoForm form = new PlayerInfoForm((uint)info.Index);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void PlayersOnlineListView_ColumnWidthChanging(object sender, ColumnWidthChangingEventArgs e)
@@ -570,41 +555,41 @@ namespace Server
         {
             SystemInfoForm form = new SystemInfoForm(1);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void goodsToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SystemInfoForm form = new SystemInfoForm(2);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void relationshipToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SystemInfoForm form = new SystemInfoForm(4);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void refiningToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SystemInfoForm form = new SystemInfoForm(3);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void mentorToolStripMenuItem_Click(object sender, EventArgs e)
         {
             SystemInfoForm form = new SystemInfoForm(5);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void magicInfoToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MagicInfoForm form = new MagicInfoForm();
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void SMain_Load(object sender, EventArgs e)
@@ -623,14 +608,14 @@ namespace Server
         {
             SystemInfoForm form = new SystemInfoForm(6);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void conquestToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ConquestInfoForm form = new ConquestInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void rebootServerToolStripMenuItem_Click(object sender, EventArgs e)
@@ -642,7 +627,7 @@ namespace Server
         {
             SystemInfoForm form = new SystemInfoForm(7);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void monsterTunerToolStripMenuItem_Click(object sender, EventArgs e)
@@ -656,34 +641,34 @@ namespace Server
 
             MonsterTunerForm form = new MonsterTunerForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void gameshopToolStripMenuItem_Click(object sender, EventArgs e)
         {
             GameShop form = new GameShop();
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void itemNEWToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ItemInfoFormNew form = new ItemInfoFormNew();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void monsterExperimentalToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MonsterInfoFormNew form = new MonsterInfoFormNew();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void dropBuilderToolStripMenuItem_Click(object sender, EventArgs e)
         {
             MirForms.DropBuilder.DropGenForm GenForm = new MirForms.DropBuilder.DropGenForm();
 
-            GenForm.ShowDialog();
+            ShowToolForm(GenForm);
         }
 
         private void clearBlockedIPsToolStripMenuItem_Click(object sender, EventArgs e)
@@ -821,7 +806,7 @@ namespace Server
                     form.MemberListView.Items.Add(tempItem);
                 }
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
         #endregion
 
@@ -842,21 +827,21 @@ namespace Server
         {
             SystemInfoForm form = new SystemInfoForm(8);
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void CharacterToolStripMenuItem_Click(object sender, EventArgs e)
         {
             CharacterInfoForm form = new CharacterInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         private void recipeToolStripMenuItem_Click(object sender, EventArgs e)
         {
             RecipeInfoForm form = new RecipeInfoForm();
 
-            form.ShowDialog();
+            ShowToolForm(form);
         }
 
         #region Monsters Tab

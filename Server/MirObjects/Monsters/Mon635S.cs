@@ -204,7 +204,7 @@ public class Mon635S : MonsterObject
 					int attackPower = GetAttackPower(Stats[Stat.MinDC], Stats[Stat.MaxDC]);
 					if (attackPower != 0)
 					{
-						PoisonTarget(Target, 5, 5L, PoisonType.Frozen, 1000L, noResist: true, ignoreDefence: false);
+						PoisonTarget(Target, 20, 2L, PoisonType.Frozen, 1000L, noResist: false, ignoreDefence: false);
 						if (MapObject.Envir.Random.Next(100) >= 80 || !HalfmoonAttack(attackPower, 1200))
 						{
 							DelayedAction item = new DelayedAction(DelayedType.Damage, MapObject.Envir.Time + 1200, Target, attackPower, DefenceType.AC, false);
