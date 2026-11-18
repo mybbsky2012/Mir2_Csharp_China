@@ -3169,7 +3169,12 @@ namespace Server.MirObjects
             if (Info.Equipment[(int)EquipmentSlot.武器] == null) return;
             ItemInfo RealItem = Functions.GetRealItem(Info.Equipment[(int)EquipmentSlot.武器].Info, Info.Level, Info.Class, Envir.ItemInfoList);
 
-            if ((RealItem.Shape / Globals.ClassWeaponCount) != 2) return;
+            //★羽化专属弓（11-12）：Shape 2051~2059 走羽化编码（2000 + 十位职业索引 + 个位档位，
+            //  弓箭 = 5），不再落在 /100 == 2 的老区间里，否则羽化弓拿在手上射不出箭（静默 return）。
+            int weaponShape = RealItem.Shape;
+            bool archerWeapon = (weaponShape / Globals.ClassWeaponCount) == 2
+                                || (weaponShape > 2000 && weaponShape <= 2059 && (weaponShape - 2000) / 10 == 5);
+            if (!archerWeapon) return;
             if (Functions.InRange(CurrentLocation, location, Globals.MaxAttackRange) == false) return;
 
             MapObject target = null;
@@ -9289,11 +9294,11 @@ namespace Server.MirObjects
 
             Buff b = base.AddBuff(buff.Type, null, (int)buff.ExpireTime, buff.Stats, true, true, buff.Values);
 
-            FinishAddBuff(b, true);
+            FinishAddBuff(b, true, replay: true);            // ★重放：下发时带 Replay 标记，客户端不播一次性动画
         }
 
         /// <summary>BUFF 落地后的统一收尾：特效广播 + 下发客户端 + 刷属性。AddBuff / ReplayBuff 共用。</summary>
-        private void FinishAddBuff(Buff b, bool refreshStats)
+        private void FinishAddBuff(Buff b, bool refreshStats, bool replay = false)
         {
             if (b == null) return;
 
@@ -9315,7 +9320,7 @@ namespace Server.MirObjects
                     break;
             }
 
-            var packet = new S.AddBuff { Buff = b.ToClientBuff() };
+            var packet = new S.AddBuff { Buff = b.ToClientBuff(), Replay = replay };
 
             Enqueue(packet);
 
@@ -9535,13 +9540,151 @@ namespace Server.MirObjects
 
             return true;
         }
+        /// <summary>
+        /// 羽化专属装备 Shape 判定（11-12）：盔甲 1001~1059 / 武器 2001~2059。
+        /// 编码 = 1000/2000 + 十位职业索引（0 通用 / 1 战 / 2 法 / 3 道 / 4 刺 / 5 弓）+ 个位档位（1~8），
+        /// 与客户端 PlayerObject.IsHumUpEquipShape 口径**必须完全一致**——客户端就是靠这个 Shape 接管仙体外观
+        /// （人物/发型/武器全换 UpC*/UpFishing 库），两边判定不一致会出现「服务端能穿、客户端不认」的错位。
+        /// 数据库实测（ItemProbe）：1001~1059 / 2001~2059 区间被登仙装备独占（盔甲 82 件、武器 29 件），不会误伤其它物品。
+        /// </summary>
+        public static bool IsHumUpEquipShape(int shape)
+        {
+            int idx;
+            if (shape > 1000 && shape <= 1059) idx = shape - 1000;
+            else if (shape > 2000 && shape <= 2059) idx = shape - 2000;
+            else return false;
+
+            int tier = idx % 10;
+            return idx / 10 <= 5 && tier >= 1 && tier <= 8;
+        }
+
+        /// <summary>
+        /// 身上是否穿着羽化专属装备（11-12）：退回羽化前必须先脱干净，否则 BUFF 没了但装备还在，
+        /// 客户端仍按 Shape 画仙体，等于免 BUFF 白保外观。
+        /// </summary>
+        public bool HasHumUpEquipmentEquipped()
+        {
+            if (Info == null || Info.Equipment == null) return false;
+
+            for (int i = 0; i < Info.Equipment.Length; i++)
+            {
+                UserItem item = Info.Equipment[i];
+                if (item == null || item.Info == null) continue;
+                if (IsHumUpEquipShape(item.Info.Shape)) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 羽化（登仙）状态：运行时 Buffs 含羽化类型（羽化一重~十重=160~169；羽化登仙=159 为纯标记）且仍有效。
+        /// 旧编码 Custom3~Custom12(232~241) / Custom1(230) 继续识别，只是新逻辑不再写入 —— 当作兼容层。
+        /// ★ExpireTime 是「剩余毫秒」不是绝对时刻；Stack=Infinite 的永久 buff 不吃计时（见 CharacterInfo.GetSelectHumUpStage）。
+        /// </summary>
+        public bool IsHumUp()
+        {
+            return GetHumUpStage() > 0;
+        }
+
+        /// <summary>
+        /// 当前羽化重数（11-10）：0=未羽化，1~10=一重~十重。
+        /// 取已挂的最高重（羽化一重~十重=160~169 / 旧 232~241）；
+        /// 只有纯标记（羽化登仙=159 或旧 Custom1=230）没有重数位时按一重算，
+        /// 与客户端「看到标记但没有重数位按一重显示」的口径一致。
+        /// </summary>
+        public int GetHumUpStage()
+        {
+            if (Buffs == null) return 0;
+
+
+            int stage = 0;
+            bool markOnly = false;
+
+            for (int i = 0; i < Buffs.Count; i++)
+            {
+                Buff buff = Buffs[i];
+                if (buff == null || buff.Info == null) continue;
+                if (buff.ExpireTime <= 0 && buff.StackType != BuffStackType.Infinite) continue;
+
+                int type = (int)buff.Type;
+
+                if (type >= (int)BuffType.羽化一重 && type <= (int)BuffType.羽化十重)
+                    stage = Math.Max(stage, type - (int)BuffType.羽化一重 + 1);
+                else if (type == (int)BuffType.羽化登仙) markOnly = true;
+                // 旧编码兼容（未迁移的档 / 老脚本手动挂的槽位）
+                else if (type >= 232 && type <= 241) stage = Math.Max(stage, type - 231);
+                else if (type == (int)BuffType.Custom1) markOnly = true;
+            }
+
+            if (stage == 0 && markOnly) stage = 1;
+
+            return stage;
+        }
+
+        /// <summary>
+        /// 设置羽化重数（11-10，NPC 脚本 / GM 命令共用）：0=完全退回，1~10=一重~十重。
+        /// 先把羽化标记 + 全部重数位摘干净，再按需挂标记与对应重数位，避免换重时属性叠加。
+        /// 新编码：羽化登仙(159) 标记 + 羽化一重~十重(160~169)；旧的 Custom1/Custom3~12 一并清掉（兼容层）。
+        /// 时长传 0：这几个类型在 BuffInfo 里硬注册为 Stack=Infinite，tick 不会清理，属永久 BUFF。
+        /// </summary>
+        public bool SetHumUpStage(int stage, MapObject caster)
+        {
+            if (stage < 0) stage = 0;
+            if (stage > 10) stage = 10;
+
+            //★登仙（11-12）：退回羽化前必须先把羽化装备脱干净。
+            //  否则 BUFF 撤了、属性没了，身上的登仙甲/仙兵还留着，客户端照旧按 Shape 画仙体——等于免 BUFF 保外观。
+            //  返回 false 表示「未执行」，调用方（NPC 脚本 / GM 命令）据此跳过成功提示。
+            if (stage <= 0 && IsHumUp() && HasHumUpEquipmentEquipped())
+            {
+                ReceiveChat("请先脱下身上的羽化专属装备，再退回羽化登仙", ChatType.System);
+                return false;
+            }
+
+            // 新编码：标记 + 一重~十重
+            if (HasBuff(BuffType.羽化登仙)) RemoveBuff(BuffType.羽化登仙);
+
+            for (int i = 0; i < 10; i++)
+            {
+                BuffType type = (BuffType)((int)BuffType.羽化一重 + i);
+                if (HasBuff(type)) RemoveBuff(type);
+            }
+
+            // 旧编码（兼容层）：还没被迁移的老档、或老脚本按槽位号挂上的，一并摘掉，否则属性会叠加
+            for (int slot = 1; slot <= 12; slot++)
+            {
+                if (slot == 2) continue;
+
+                BuffType type = BuffConfig.SlotToType(slot);
+                if (HasBuff(type)) RemoveBuff(type);
+            }
+
+            if (stage <= 0) return true;
+
+            AddBuff(BuffType.羽化登仙, caster, 0, new Stats());                                        // 纯标记（零属性）
+            AddBuff((BuffType)((int)BuffType.羽化一重 + stage - 1), caster, 0, new Stats());           // 该重数的属性位
+
+            return true;
+        }
+
         public bool CanEquipItem(UserItem item, int slot)
         {
+            if (item == null || item.Info == null) return false;
+
+            //★登仙（11-12，用户定）：羽化专属装备（盔甲 1001~1059 / 武器 2001~2059）只有羽化角色能穿。
+            //  原因：客户端是按**装备 Shape** 接管外观的（穿上登仙甲/仙兵 → 整身换羽化库），
+            //  如果不拦，未羽化的普通角色穿上去就等于白嫖仙体外观（且还没有羽化的属性代价）。
+            //  羽化角色穿普通装备不受影响（11-10 已定的 B 方案·外观接管，那条限制仍然撤销状态）。
+            if (!IsHumUp() && IsHumUpEquipShape(item.Info.Shape))
+                return false;
+
             switch ((EquipmentSlot)slot)
             {
                 case EquipmentSlot.武器:
                     if (item.Info.Type != ItemType.武器)
                         return false;
+                    //★登仙（11-10）：已撤销禁穿限制。羽化角色可正常穿戴普通武器/盔甲，
+                    //  数值照常生效，仅外观由客户端替换为仙体+仙兵（B 方案·外观接管）。
                     break;
                 case EquipmentSlot.盔甲:
                     if (item.Info.Type != ItemType.盔甲)

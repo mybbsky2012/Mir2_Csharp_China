@@ -1,0 +1,12 @@
+public enum BlendMode : sbyte
+{
+	NONE = -1,
+	NORMAL,
+	LIGHT,
+	LIGHTINV,
+	INVNORMAL,
+	INVLIGHT,
+	INVLIGHTINV,
+	INVCOLOR,
+	INVBACKGROUND
+}

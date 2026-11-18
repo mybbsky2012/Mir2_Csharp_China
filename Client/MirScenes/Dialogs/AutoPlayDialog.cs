@@ -306,7 +306,7 @@ namespace Client.MirScenes.Dialogs
                     : "自动喝蓝药已开启，但下面的明细行一个都没启用——请至少勾上第 2 行，并填好百分比和药品名");
             };
 
-            Reg(P, CreateSection("药水明细（打怪看总闸）", 108));
+            Reg(P, CreateSection("药水明细（填名字只喝该药/留空自动挑）", 108));
             Reg(P, CreateHeader(14, 124, "启用"));
             Reg(P, CreateHeader(84, 124, "百分比"));
             Reg(P, CreateHeader(120, 124, "使用物品(可输入)"));
@@ -339,19 +339,40 @@ namespace Client.MirScenes.Dialogs
                 PotRowPct[i] = Reg(P, CreateNum(84, y - 3, 30, Settings.PotRowPercent[i].ToString()));
                 PotRowPct[i].TextChanged += (o, e) =>
                 {
-                    Settings.PotRowPercent[row] = Clamp(ParseInt(PotRowPct[row].Text, 50), 1, 99);
+                    //★只认「能解析成数字」的输入：清空/只有空格的中间态一律不写回。
+                    //  原来的写法用 Clamp(ParseInt(text, 50))，玩家把 "50" 全选删掉的一瞬间就会被
+                    //  兜底成 50 直接覆盖进 Settings —— 表现为「不管我怎么改，阈值始终是 50，一直在喝」。
+                    int v;
+                    if (!int.TryParse((PotRowPct[row].Text ?? string.Empty).Trim(), out v)) return;
+
+                    v = Clamp(v, 1, 99);
+                    if (Settings.PotRowPercent[row] == v) return;
+
+                    Settings.PotRowPercent[row] = v;
+                    Settings.Save();     // 立刻落盘：原来只在关面板/退客户端时保存，客户端被强杀就丢
                 };
 
                 PotRowName[i] = Reg(P, CreateItemDrop(120, y - 3, 96, Settings.PotRowItem[i]));
                 PotRowName[i].TextChanged += (o, e) =>
                 {
-                    Settings.PotRowItem[row] = PotRowName[row].Text;
+                    string v = PotRowName[row].Text ?? string.Empty;
+                    if (string.Equals(Settings.PotRowItem[row], v, StringComparison.Ordinal)) return;
+
+                    Settings.PotRowItem[row] = v;
+                    Settings.Save();
                 };
 
                 PotRowItv[i] = Reg(P, CreateNum(228, y - 3, 52, Settings.PotRowInterval[i].ToString()));
                 PotRowItv[i].TextChanged += (o, e) =>
                 {
-                    Settings.PotRowInterval[row] = Math.Max(100, ParseInt(PotRowItv[row].Text, 1000));
+                    int v;
+                    if (!int.TryParse((PotRowItv[row].Text ?? string.Empty).Trim(), out v)) return;
+
+                    v = Math.Max(100, v);
+                    if (Settings.PotRowInterval[row] == v) return;
+
+                    Settings.PotRowInterval[row] = v;
+                    Settings.Save();
                 };
             }
 

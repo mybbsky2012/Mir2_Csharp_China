@@ -3942,13 +3942,21 @@ namespace ServerPackets
 
         public ClientBuff Buff;
 
+        //★重放标记（11-10）：true = 登录/召唤英雄时从存档重放的持久 BUFF（HumanObject.ReplayBuff）。
+        //  客户端用它区分「真·挂上瞬间」和「登录补发」——羽化登仙的一次性动画+音效只在
+        //  Replay=false 且 BUFF 首次到达时播，否则每次登录都会把登仙动画重播一遍。
+        //  字段追加在包尾，服务端/客户端必须同批更新（Shared.dll 两端同步换）。
+        public bool Replay;
+
         protected override void ReadPacket(BinaryReader reader)
         {
             Buff = new ClientBuff(reader);
+            Replay = reader.ReadBoolean();
         }
         protected override void WritePacket(BinaryWriter writer)
         {
             Buff.Save(writer);
+            writer.Write(Replay);
         }
     }
     public sealed class RemoveBuff : Packet

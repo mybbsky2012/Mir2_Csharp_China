@@ -5422,40 +5422,96 @@ namespace Server.MirEnvir
 
         /// <summary>
         /// 重载物品库：与编辑器实例（Envir.Edit）的物品列表按 Index 同步。
-        /// ItemInfo 为纯数据类（无跨环境引用），条目直接采用编辑器实例；
-        /// 已有物品（UserItem.Info）继续指向旧实例、属性不变，新生成的物品用新数据。
+        /// ★11-13 修：旧实现是 `ItemInfoList[idx] = src;` —— 只换列表里的对象引用。
+        ///   但运行期物品全都直接持有 ItemInfo 实例（UserItem.Info 是字段，不是按编号查表），
+        ///   背包/装备/仓库/地上物品/商店 Goods/掉落表都还指着旧对象，属性一点没变，
+        ///   所以"重载物品数据"看起来完全没生效，只能重启服务器。
+        ///   现在改为按 Index 把字段值**就地覆盖**（见 ItemInfoReload.Sync），引用不变 → 立刻生效；
+        ///   同一拍里再补发变化的条目给在线客户端、重算在线玩家属性。
         /// </summary>
         public void ReloadItems()
         {
-            int added = 0, removed = 0;
-
-            HashSet<int> editIds = new HashSet<int>();
-            for (int i = 0; i < Edit.ItemInfoList.Count; i++) editIds.Add(Edit.ItemInfoList[i].Index);
-
-            for (int i = 0; i < Edit.ItemInfoList.Count; i++)
+            // 入口既可能在 UI 线程（菜单「重新加载 → 物品库」），也可能在游戏线程（GM @RELOADITEMS）。
+            // ItemInfoList / 在线玩家 / 连接都由工作线程在用，统一投递到工作线程执行。
+            // ★先在调用线程上取一份列表快照：编辑器窗体可能同时在里面增删（集合被并发修改会抛
+            //   InvalidOperationException，直接打断主循环），快照后遍历的是稳定的引用集合。
+            List<ItemInfo> snapshot;
+            try
             {
-                ItemInfo src = Edit.ItemInfoList[i];
-                int idx = ItemInfoList.FindIndex(x => x.Index == src.Index);
-                if (idx >= 0) ItemInfoList[idx] = src;
-                else { ItemInfoList.Add(src); added++; }
+                snapshot = new List<ItemInfo>(Edit.ItemInfoList);
+            }
+            catch (Exception ex)
+            {
+                MessageQueue.Enqueue("物品库重载失败（读取编辑器物品列表异常）：" + ex.Message);
+                return;
             }
 
-            for (int i = ItemInfoList.Count - 1; i >= 0; i--)
-            {
-                if (editIds.Contains(ItemInfoList[i].Index)) continue;
-                ItemInfoList.RemoveAt(i);
-                removed++;
-            }
+            RunOnMainThread(() => ReloadItemsCore(snapshot));
+        }
 
-            // 商城条目的 Info 重新绑定到新物品实例
+        private void ReloadItemsCore(List<ItemInfo> source)
+        {
+            List<ItemInfo> changed = new List<ItemInfo>();
+            int added, removed, updated;
+
+            ItemInfoReload.Sync(ItemInfoList, source, changed, out added, out removed, out updated);
+
+            // 商城条目：就地覆盖后老条目的 Info 引用本来就有效；这里仍统一重绑到「运行期的当前实例」，
+            // 顺带覆盖「物品被删掉又用同编号重建」这种极端情况（老引用会指向已移除的实例）。
             for (int i = 0; i < GameShopList.Count; i++)
             {
                 GameShopItem gs = GameShopList[i];
-                ItemInfo bound = ItemInfoList.FirstOrDefault(x => x.Index == gs.ItemIndex);
-                if (bound != null) gs.Info = bound;
+                if (gs == null) continue;
+
+                ItemInfo bound = GetItemInfo(gs.ItemIndex);
+                if (bound != null && !ReferenceEquals(gs.Info, bound)) gs.Info = bound;
             }
 
-            MessageQueue.Enqueue(string.Format("物品库已重载：新增 {0}，删除 {1}，其余已同步（已有物品属性不变，新物品即生效）", added, removed));
+            // 在线客户端：把变化的条目补发下去（只发给已经拿到过该条目的连接）
+            PushItemInfoChanges(changed);
+
+            // 在线玩家属性重算：改的是身上/背包里的装备时，攻防道术要立刻生效，而不是等重新穿脱
+            if (updated > 0 || removed > 0)
+            {
+                for (int i = 0; i < Players.Count; i++)
+                {
+                    PlayerObject online = Players[i];
+                    if (online == null) continue;
+                    online.RefreshStats();
+                }
+            }
+
+            MessageQueue.Enqueue(string.Format(
+                "物品库已重载：新增 {0}，删除 {1}，修改 {2}（存量物品已就地更新，在线客户端已同步）",
+                added, removed, updated));
+        }
+
+        /// <summary>
+        /// 把「内容已变化」的物品定义补发给在线客户端。
+        /// 只发给**已经拿到过该条目**的连接（MirConnection.SentItemInfo 登记表）——
+        /// 否则一次重载要把整库几千条推给每个玩家。
+        /// 客户端对同 Index 的条目是「就地覆盖」（Client/MirControls/MirScene.cs NewItemInfo），
+        /// 所以背包/装备里的物品名与属性会立刻变成新数据。
+        /// </summary>
+        private void PushItemInfoChanges(List<ItemInfo> changed)
+        {
+            if (changed == null || changed.Count == 0 || Players == null) return;
+
+            for (int p = 0; p < Players.Count; p++)
+            {
+                PlayerObject online = Players[p];
+                if (online == null) continue;
+
+                MirConnection conn = online.Connection;
+                if (conn == null || conn.SentItemInfo == null) continue;
+
+                for (int i = 0; i < changed.Count; i++)
+                {
+                    ItemInfo info = changed[i];
+                    if (!conn.SentItemInfo.Contains(info)) continue;   // 客户端还不知道这条，推了也没人用
+                    online.Enqueue(new S.NewItemInfo { Info = info });
+                }
+            }
         }
 
         /// <summary>

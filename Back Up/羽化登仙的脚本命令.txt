@@ -1,0 +1,63 @@
+已完成 4m41s四个命令都已实现完毕（其中三个是新增别名，CHECKHUMUP 原本就存在，这次放宽了写法），服务端已编译并部署。
+命令一览
+添加到对话命令位置语法作用CHECKHUMUP#IF 条件CHECKHUMUP / CHECKHUMUP n / CHECKHUMUP op n检测登仙状态与重数HUMP#ACT 动作HUMP [重数]羽化登仙 / 升 N 重（默认 1，封顶十重）HUMDOWN#ACT 动作HUMDOWN [重数]减 N 重（默认 1），减到 0 即完全退回RESETHUMUP#ACT 动作RESETHUMUP [1]还原为未登仙（1 = 强制）
+具体说明
+1. CHECKHUMUP —— 三种写法等价可用
+plaintext#IF
+CHECKHUMUP              ; 已登仙（重数 ≥ 1）
+CHECKHUMUP 3            ; 重数 ≥ 3（简写）
+CHECKHUMUP >= 3         ; 显式比较：= > < >= <= !=
+CHECKHUMUP < 10         ; 未满十重
+
+未登仙时重数为 0，所以 CHECKHUMUP（无参）等价于 CHECKHUMUP >= 1。
+2. HUMP n —— 升重（叠加，不是设定）​
+HUMP = 升 1 重，HUMP 3 = 在当前基础上再升 3 重，超过十重自动封顶；已满十重会提示“无法再升”。
+3. HUMDOWN n —— 降重
+HUMDOWN = 降 1 重，HUMDOWN 2 = 降 2 重；减到 0 就是完全退回，无需再调 RESETHUMUP。未登仙时提示“尚未羽化登仙”。
+4. RESETHUMUP —— 还原为未登仙
+
+RESETHUMUP：直接退回。若身上还穿着羽化专属装备（Shape 1001~1059 / 2001~2059），会拒绝并提示先脱装——这是上一轮加的防漏保护（否则 BUFF 没了却还显示仙体外观）。
+RESETHUMUP 1（或 RESETHUMUP FORCE）：强制模式，先把身上所有羽化装备退回背包再还原。会先算空格：不够就一格都不动并提示“背包空格不足（需 X 格，当前 Y 格）”，避免只脱一半。
+
+脚本示例
+plaintext[@main]
+#IF
+CHECKHUMUP >= 10
+#SAY
+你已修至 羽化登仙·十重，仙途圆满。\
+#ACT
+BREAK
+
+#IF
+CHECKHUMUP
+#SAY
+当前：羽化登仙·<$HUMUPSTAGE>重（如果脚本里没这个变量，用分支代替）\
+<升一重/@up> <升三重/@up3> <降一重/@down> <褪去仙体/@reset>\
+#ACT
+BREAK
+
+[@up3]
+#ACT
+HUMP 3
+GOTO @main
+
+[@down]
+#ACT
+HUMDOWN 1
+GOTO @main
+
+[@reset]
+#ACT
+RESETHUMUP 1
+GOTO @main
+
+兼容与差异（容易踩）
+
+旧命令名全部保留：HUMUPUP / HUMUPDOWN / HUMUPRESET 等同新名，老脚本不用改。
+注意和 GM 命令的区别：@HUMUP 5 是“直接设为五重”，而 NPC 的 HUMP 5 是“升五重”。@HUMUPINFO 可查当前重数。
+四个命令都走 SetHumUpStage，换重时会先清旧重数位再挂新位，属性不会叠加。
+
+部署与验证
+
+用新建的 Tools/NpcCmdTest 跑了命令解析冒烟（不需要起服）：CHECKHUMUP 三种写法、HUMP/HUMDOWN 带参数、RESETHUMUP 1、以及三个旧名，映射与参数全部正确。
+Server.Library.dll（Release，md5 d412193a…）已覆盖到 E:\BaiduNetdiskDownload\韩Mir2\20260915更新\Mir2Server\，旧版备份为 .bak_humupcmd_20261112（7c44abed…）。客户端无改动，启动服务端即生效。

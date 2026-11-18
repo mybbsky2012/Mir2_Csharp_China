@@ -89,9 +89,17 @@ namespace Client.MirObjects
 
             OldNameColor = NameColour;
 
+            //★入格必须和 MapLocation 严格同步（11-09 重影修复）
+            //  原写法在 update=true 时只改 MapLocation、不重新入格：对象实际还登记在旧格子里。
+            //  之后 MapObject.Remove() 会按**新** MapLocation 去找格子删 → 删不掉 →
+            //  旧格子里永久留一份「已不属于世界、却还在被绘制」的孤儿；它不再被 Process，
+            //  屏幕坐标冻在最后一帧，玩家一动它就像在跟着人走。这就是那个影子的来源。
+            bool cellMoved = update && MapLocation != info.Location;
+            if (cellMoved) GameScene.Scene.MapControl.RemoveObject(this);
+
             CurrentLocation = info.Location;
             MapLocation = info.Location;
-            if (!update) GameScene.Scene.MapControl.AddObject(this);
+            if (!update || cellMoved) GameScene.Scene.MapControl.AddObject(this);
 
             Effect = info.Effect;
             AI = info.AI;

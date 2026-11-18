@@ -31,6 +31,11 @@ internal static class UpgradeRunner
         public int DiffCount;
         public int SnapshotRows;
         public double Seconds;
+
+        // 羽化 BUFF 编码迁移（230/232~241 → 159~169）
+        public int HumUpRemapped;
+        public int HumUpOwners;
+        public int HumUpDedup;
     }
 
     // ===================== 预检（只读） =====================
@@ -45,12 +50,15 @@ internal static class UpgradeRunner
 
         try
         {
+            HumUpBuffMigration.Reset();
             var envir = LoadEnv(serverDir, log);
             var snap = DbSnapshot.Snapshot(envir);
             r.SnapshotRows = snap.Count;
             log($"快照 {snap.Count:N0} 行（升级后要拿它逐条比对）", LogLevel.Muted);
             log("", LogLevel.Info);
             Worker.Summary(envir, s => log(s, LogLevel.Info));
+            log(HumUpBuffMigration.Describe(), LogLevel.Info);
+            Worker.HumUpAudit(envir, s => log(s, LogLevel.Info));
             Worker.ProbeRawAccounts(s => log(s, LogLevel.Info));
             r.Success = true;
         }
@@ -93,13 +101,44 @@ internal static class UpgradeRunner
             return r;
         }
 
+        // 版本号相同 ≠ 数据已是最新：
+        // 2026-11-12 的羽化 BUFF 编码迁移（230/232~241 → 159~169）没有改动二进制布局，
+        // 所以 Envir.Version 没动。这种情况必须靠「读一遍看有没有旧编码」来判断，
+        // 否则工具会直接报「无需升级」，把真正要迁的服留在半新半旧状态。
+        //
+        // 这里探到的那次加载会直接复用给后面的升级流程（同一进程不再重复读一遍库）。
+        Envir envir = null;
+
         if (r.DbBefore == TargetVersion && r.AdbBefore == TargetVersion)
         {
-            r.Success = true;
-            r.Message = $"两个库已经是 v{TargetVersion}，无需升级";
-            r.DbAfter = r.DbBefore;
-            r.AdbAfter = r.AdbBefore;
-            return r;
+            try
+            {
+                log($"[1/4] 版本号已是 v{TargetVersion}，检查羽化 BUFF 编码…", LogLevel.Info);
+
+                HumUpBuffMigration.Reset();
+                envir = LoadEnv(serverDir, log);
+                r.SnapshotRows = DbSnapshot.Snapshot(envir).Count;
+
+                if (!HumUpBuffMigration.Pending)
+                {
+                    r.Success = true;
+                    r.Message = $"两个库已经是 v{TargetVersion}，羽化 BUFF 编码也已是最新，无需升级";
+                    r.DbAfter = r.DbBefore;
+                    r.AdbAfter = r.AdbBefore;
+                    log("      " + HumUpBuffMigration.Describe(), LogLevel.Muted);
+                    log("      羽化状态：", LogLevel.Muted);
+                    Worker.HumUpAudit(envir, s => log("        " + s, LogLevel.Muted));
+                    return r;
+                }
+
+                log($"      发现旧编码：{HumUpBuffMigration.Describe()}", LogLevel.Warn);
+                log("      版本号不变，但需要把存档里的旧编码改写成 159~169（会先备份）", LogLevel.Warn);
+            }
+            catch (Exception ex)
+            {
+                r.Message = "只读检查失败：" + ex.Message;
+                return r;
+            }
         }
 
         try
@@ -111,7 +150,25 @@ internal static class UpgradeRunner
 
             // ---- 2. 加载 + 快照 ----
             log("[2/4] 读取数据库，记录升级前数据…", LogLevel.Info);
-            var envir = LoadEnv(serverDir, log);
+
+            if (envir == null)
+            {
+                HumUpBuffMigration.Reset();
+                envir = LoadEnv(serverDir, log);
+            }
+
+            // 迁移统计在「重载」时会被清零，先存下来
+            r.HumUpRemapped = HumUpBuffMigration.BuffsRemapped;
+            r.HumUpOwners = HumUpBuffMigration.OwnersTouched;
+            r.HumUpDedup = HumUpBuffMigration.DuplicatesRemoved;
+            var humUpDetails = new List<string>(HumUpBuffMigration.Details);
+
+            log("      " + HumUpBuffMigration.Describe(), r.HumUpRemapped > 0 ? LogLevel.Good : LogLevel.Muted);
+            foreach (var d in humUpDetails.Take(20)) log("        " + d, LogLevel.Muted);
+            if (humUpDetails.Count > 20) log($"        …（还有 {humUpDetails.Count - 20} 条）", LogLevel.Muted);
+
+            Worker.HumUpAudit(envir, s => log("        " + s, LogLevel.Muted));
+
             var before = DbSnapshot.Snapshot(envir);
             r.SnapshotRows = before.Count;
             log($"      快照 {before.Count:N0} 行", LogLevel.Muted);
@@ -126,14 +183,23 @@ internal static class UpgradeRunner
             log($"      Server.MirDB  → v{r.DbAfter}  {Worker.SizeOf(Path.Combine(serverDir, "Server.MirDB")):N0} 字节", LogLevel.Muted);
             log($"      Server.MirADB → v{r.AdbAfter}  {Worker.SizeOf(Path.Combine(serverDir, "Server.MirADB")):N0} 字节", LogLevel.Muted);
 
-            if (r.DbAfter != TargetVersion || r.AdbAfter != TargetVersion)
-                throw new Exception($"存盘后版本异常：MirDB v{r.DbAfter} / MirADB v{r.AdbAfter}，期望 v{TargetVersion}");
+            // 版本号没涨的情况（只做了数据迁移）也要放过
+            int expectDb = Math.Max(r.DbBefore, TargetVersion);
+            int expectAdb = Math.Max(r.AdbBefore, TargetVersion);
+
+            if (r.DbAfter != expectDb || r.AdbAfter != expectAdb)
+                throw new Exception($"存盘后版本异常：MirDB v{r.DbAfter} / MirADB v{r.AdbAfter}，期望 v{expectDb}/v{expectAdb}");
 
             // ---- 4. 重新加载 + 比对 ----
             log("[4/4] 重新加载，逐条比对…", LogLevel.Info);
             envir.GameshopLog.Clear();
+            HumUpBuffMigration.Reset();
+
             if (!envir.LoadDB()) throw new Exception("升级后的库加载失败，数据可能已损坏");
             envir.LoadAccounts();
+
+            if (HumUpBuffMigration.Pending)
+                throw new Exception($"重载后仍发现 {HumUpBuffMigration.BuffsRemapped} 条旧编码 BUFF，迁移没落盘");
 
             var after = DbSnapshot.Snapshot(envir);
             log($"      快照 {after.Count:N0} 行", LogLevel.Muted);
@@ -151,7 +217,12 @@ internal static class UpgradeRunner
             sw.Stop();
             r.Seconds = sw.Elapsed.TotalSeconds;
             r.Success = true;
-            r.Message = $"v{r.DbBefore}/{r.AdbBefore} → v{TargetVersion}，{before.Count:N0} 行数据逐条一致";
+
+            if (r.HumUpRemapped > 0 || r.HumUpDedup > 0)
+                r.Message = $"v{r.DbBefore}/{r.AdbBefore} 保持，羽化 BUFF 迁移 {r.HumUpRemapped} 条（{r.HumUpOwners} 个角色）"
+                          + $"{(r.HumUpDedup > 0 ? $"，去重 {r.HumUpDedup} 条" : "")}，{before.Count:N0} 行数据逐条一致";
+            else
+                r.Message = $"v{r.DbBefore}/{r.AdbBefore} → v{Math.Max(r.DbBefore, TargetVersion)}，{before.Count:N0} 行数据逐条一致";
             return r;
         }
         catch (Exception ex)
@@ -336,6 +407,10 @@ internal static class UpgradeRunner
 
     public static string DetectServerProcess()
     {
+        // 仅用于「在服务端开着的时候升级一份副本」的自动化测试（tools 里跑沙盒用）。
+        // 正常使用别设这个变量：线上库必须在服务端关闭时才能改。
+        if (Environment.GetEnvironmentVariable("MIR2DBUPGRADE_ALLOW_RUNNING") == "1") return null;
+
         foreach (var n in new[] { "Server", "Server.MirForms" })
         {
             try

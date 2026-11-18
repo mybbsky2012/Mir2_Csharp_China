@@ -543,10 +543,36 @@ namespace Server.MirObjects
 
                     CheckList.Add(new NPCChecks(CheckType.CheckBuff, parts[1]));
                     break;
+                //★登仙（11-10）：检测羽化重数。未羽化 = 0，一重~十重 = 1~10。三种写法：
+                //  CHECKHUMUP          → 已登仙（重数 >= 1）
+                //  CHECKHUMUP 3        → 重数 >= 3（简写）
+                //  CHECKHUMUP >= 3     → 显式比较，运算符 = > < >= <= !=
+                case "CHECKHUMUP":
+                    {
+                        if (parts.Length <= 1)
+                        {
+                            CheckList.Add(new NPCChecks(CheckType.CheckHumUp, ">=", "1"));
+                            break;
+                        }
+
+                        if (parts.Length == 2)
+                        {
+                            CheckList.Add(new NPCChecks(CheckType.CheckHumUp, ">=", parts[1]));
+                            break;
+                        }
+
+                        CheckList.Add(new NPCChecks(CheckType.CheckHumUp, parts[1], parts[2]));
+                    }
+                    break;
                 case "CHECKTRANSFORM":
                     if (parts.Length < 2) return;
 
                     CheckList.Add(new NPCChecks(CheckType.CheckTransform, parts[1]));
+                    break;
+                //★羽化登仙（11-13）：装备栏是否全空。韩服原文「进行羽化登仙时必须卸下所有装备」，
+                //  用 CHECKEMPTYEQUIP 做硬门槛，缺装备槽也算空。
+                case "CHECKEMPTYEQUIP":
+                    CheckList.Add(new NPCChecks(CheckType.CheckEmptyEquip));
                     break;
             }
 
@@ -1072,6 +1098,32 @@ namespace Server.MirObjects
                     if (parts.Length < 2) return;
 
                     acts.Add(new NPCActions(ActionType.RemoveBuff, parts[1]));
+                    break;
+
+                //★登仙（11-10）：羽化升重。HUMUPUP / HUMP [重数] —— 升 N 重，默认 1，超过 10 封顶
+                case "HUMUPUP":
+                case "HUMP":
+                    acts.Add(new NPCActions(ActionType.HumUpUp, parts.Length > 1 ? parts[1] : "1"));
+                    break;
+
+                //★登仙（11-10）：羽化降重。HUMUPDOWN / HUMDOWN [重数] —— 降 N 重，默认 1；降到 0 = 完全退回
+                case "HUMUPDOWN":
+                case "HUMDOWN":
+                    acts.Add(new NPCActions(ActionType.HumUpDown, parts.Length > 1 ? parts[1] : "1"));
+                    break;
+
+                //★登仙（11-10）：完全退回羽化登仙（清掉标记+全部重数位）
+                //  RESETHUMUP        → 还原为未登仙；身上还穿着羽化装备时拒绝并提示先脱装
+                //  RESETHUMUP 1      → 强制还原：先把羽化装备退回背包（需空格足够），再还原
+                case "HUMUPRESET":
+                    acts.Add(new NPCActions(ActionType.HumUpReset));
+                    break;
+
+                case "RESETHUMUP":
+                    if (parts.Length > 1)
+                        acts.Add(new NPCActions(ActionType.HumUpReset, parts[1]));
+                    else
+                        acts.Add(new NPCActions(ActionType.HumUpReset));
                     break;
 
                 case "ADDTOGUILD":
@@ -3227,6 +3279,41 @@ namespace Server.MirObjects
                             failed = !player.HasBuff(buffType);
                         }
                         break;
+                    case CheckType.CheckHumUp:
+                        {
+                            //★登仙（11-10）：检测羽化重数。player.GetHumUpStage()：0=未羽化，1~10=一重~十重
+                            if (!int.TryParse(param[1], out int wantStage))
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            try
+                            {
+                                failed = !Compare(param[0], player.GetHumUpStage(), wantStage);
+                            }
+                            catch (ArgumentException)
+                            {
+                                MessageQueue.Enqueue(string.Format("NPC命令CHECKHUMUP中错误使用 {0} 操作符, 页码: {1}", param[0], Key));
+                                failed = true;
+                            }
+                        }
+                        break;
+                    case CheckType.CheckEmptyEquip:
+                        {
+                            //★羽化登仙（11-13）：装备 14 个槽位必须全空，才允许完成羽化仪式。
+                            //  韩服原文：进行羽化登仙时必须卸下所有装备——否则会出现"仙体外观 + 旧装备属性"的叠加。
+                            failed = false;
+                            for (int eq = 0; eq < player.Info.Equipment.Length; eq++)
+                            {
+                                if (player.Info.Equipment[eq] != null)
+                                {
+                                    failed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        break;
                     case CheckType.CheckTransform:
                         {
                             if (!short.TryParse(param[0], out short transformType))
@@ -4227,6 +4314,72 @@ namespace Server.MirObjects
                             BuffType bType = (BuffType)(byte)Enum.Parse(typeof(BuffType), param[0]);
 
                             player.RemoveBuff(bType);
+                        }
+                        break;
+
+                    //★登仙（11-10）：羽化升重。HUMP / HUMUPUP [重数]，默认 1，封顶 10 重
+                    case ActionType.HumUpUp:
+                        {
+                            int before = player.GetHumUpStage();
+
+                            if (before >= 10)
+                            {
+                                player.ReceiveChat("你已达到 羽化登仙·十重，无法再升", ChatType.System);
+                                break;
+                            }
+
+                            int.TryParse(param.Count > 0 ? param[0] : "1", out int up);
+                            if (up < 1) up = 1;
+
+                            if (!player.SetHumUpStage(before + up, player)) break;
+
+                            player.ReceiveChat(string.Format("你已升到 羽化登仙·{0}重", player.GetHumUpStage()), ChatType.System);
+                        }
+                        break;
+
+                    //★登仙（11-10）：羽化降重。HUMDOWN / HUMUPDOWN [重数]，默认 1；降到 0 = 完全退回
+                    case ActionType.HumUpDown:
+                        {
+                            if (player.GetHumUpStage() <= 0)
+                            {
+                                player.ReceiveChat("你尚未羽化登仙，无法降重", ChatType.System);
+                                break;
+                            }
+
+                            int.TryParse(param.Count > 0 ? param[0] : "1", out int down);
+                            if (down < 1) down = 1;
+
+                            //★登仙（11-12）：降到 0 且身上还穿着羽化装备时 SetHumUpStage 会拒绝执行（返回 false），
+                            //  本身已发提示，这里不再补成功文案。
+                            if (!player.SetHumUpStage(player.GetHumUpStage() - down, player)) break;
+
+                            if (player.GetHumUpStage() <= 0)
+                                player.ReceiveChat("你的羽化登仙已完全退回", ChatType.System);
+                            else
+                                player.ReceiveChat(string.Format("你已退回到 羽化登仙·{0}重", player.GetHumUpStage()), ChatType.System);
+                        }
+                        break;
+
+                    //★登仙（11-10）：完全退回羽化登仙。RESETHUMUP [1=强制脱装] / HUMUPRESET
+                    case ActionType.HumUpReset:
+                        {
+                            if (player.GetHumUpStage() <= 0)
+                            {
+                                player.ReceiveChat("你尚未羽化登仙，无需还原", ChatType.System);
+                                break;
+                            }
+
+                            //  强制模式：先把身上的羽化专属装备退回背包（空格不足则整单失败，不做半个），
+                            //  否则 SetHumUpStage 会因为「还穿着羽化装备」拒绝还原。
+                            string force = param.Count > 0 ? param[0] : "";
+                            if (force == "1" || force.Equals("FORCE", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!player.TryUnequipHumUpEquipment()) break;
+                            }
+
+                            if (!player.SetHumUpStage(0, player)) break;
+
+                            player.ReceiveChat("你的羽化登仙已完全退回，已还原为未登仙角色", ChatType.System);
                         }
                         break;
 

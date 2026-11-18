@@ -1,0 +1,28 @@
+public enum MirGridType : byte
+{
+	None,
+	Inventory,
+	Equipment,
+	Trade,
+	Storage,
+	BuyBack,
+	DropPanel,
+	Inspect,
+	TrustMerchant,
+	GuildStorage,
+	GuestTrade,
+	Mount,
+	Fishing,
+	QuestInventory,
+	AwakenItem,
+	Mail,
+	Refine,
+	Renting,
+	GuestRenting,
+	Craft,
+	Socket,
+	HeroEquipment,
+	HeroInventory,
+	HeroHPItem,
+	HeroMPItem
+}

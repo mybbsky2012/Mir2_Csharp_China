@@ -47,6 +47,10 @@ namespace Client.MirScenes
         //服务器是否开放对应的辅助开关（由 S.PlayerOption 下发）
         public static bool NoLampAllowed, WalkThroughAllowed, NoRunUpAllowed, OverWeightAllowed, MountTaiAllowed;
 
+        //中毒锁（20261108，由 S.PlayerOption 下发）：true = 麻痹/冰冻/眩晕只锁「移动 + 魔法」，物理普攻照常出手。
+        //默认 false 保持原版行为（中毒什么都做不了），服务器开了 Setup.ini [Game] PoisonLockMagicOnly 才会被置 true。
+        public static bool PoisonLockMagicOnly;
+
         //穿人拆成的 4 档（服务器下发，见 S.PlayerOption）：决定本地移动预测能穿过哪些东西。
         //默认值与服务端 Settings 的默认值保持一致，免得进图那一瞬间预测不一致。
         public static bool WalkThroughMonsterAllowed = true,  // 穿怪
@@ -1240,18 +1244,23 @@ namespace Client.MirScenes
 
             if (waitingMap)
             {
-                if (!LoadingScreen.Visible) LoadingScreen.Show();
+                //★11-14 不再主动点亮载入画面。地图最多等 2 秒（Settings.MicroMapTimeout），
+                //  等不到就撤画面让玩家先进游戏，后台继续补。以前这里每帧 Show()，
+                //  等于把玩家永久按在载入画面上 —— 明明已经站在世界里，却动不了、看不见。
+                //  仅在「载入画面本来就在」（首次进游戏那几秒）时更新进度文字。
+                if (LoadingScreen.Visible)
+                {
+                    string mapName = Path.GetFileNameWithoutExtension(MapControl.WaitingMapFile);
+                    string relative = ResourceDownloader.ToRelativePath(MapControl.WaitingMapFile);
+                    long got = relative != null &&
+                               string.Equals(ResourceDownloader.ActiveFile, relative, StringComparison.OrdinalIgnoreCase)
+                        ? ResourceDownloader.ActiveBytes
+                        : 0;
 
-                string mapName = Path.GetFileNameWithoutExtension(MapControl.WaitingMapFile);
-                string relative = ResourceDownloader.ToRelativePath(MapControl.WaitingMapFile);
-                long got = relative != null &&
-                           string.Equals(ResourceDownloader.ActiveFile, relative, StringComparison.OrdinalIgnoreCase)
-                    ? ResourceDownloader.ActiveBytes
-                    : 0;
-
-                LoadingScreen.SetStatus(got > 0
-                    ? string.Format("正在下载地图 {0}（已收到 {1:0.0} MB），请稍候...", mapName, got / 1048576.0)
-                    : string.Format("正在下载地图 {0}，请稍候...", mapName));
+                    LoadingScreen.SetStatus(got > 0
+                        ? string.Format("正在下载地图 {0}（已收到 {1:0.0} MB），请稍候...", mapName, got / 1048576.0)
+                        : string.Format("正在下载地图 {0}，请稍候...", mapName));
+                }
             }
             else if (!worldReady)
             {
@@ -1304,7 +1313,14 @@ namespace Client.MirScenes
 
             if (CMain.Time >= MoveTime)
             {
-                MoveTime += 100; //Move Speed
+                //★移动节拍（2026-11-12 修）：原来是 MoveTime += 100。
+                //  CMain.Time 来自 Stopwatch（真实流逝时间），一旦有一帧卡住（GC / 图库加载 / 切图），
+                //  MoveTime 就永久落后，之后每一帧都满足 CMain.Time >= MoveTime，
+                //  于是连续多帧 CanMove=true —— 动作被硬拽着跳帧，观感就是"走两格突然抽一下"。
+                //  改成"从现在起再等 100ms"，卡顿后只补一拍，误差不再累积。
+                //
+                //  注意：这一改会去掉"卡顿后连续补拍"这个隐式追赶，积压的动作用 SkipFrames 追，不在这里补。
+                MoveTime = CMain.Time + 100; //Move Speed
                 CanMove = true;
                 MapControl.AnimationCount++;
                 MapControl.TextureValid = false;
@@ -2382,17 +2398,56 @@ namespace Client.MirScenes
         }
         private void ObjectPlayer(S.ObjectPlayer p)
         {
+            //★分身防御（11-09）：自己不应再以 ObjectPlayer 形式出现。
+            //  自己已经是 UserObject；若服务端任何路径把 ObjectPlayer 发给本人
+            //  （如外观刷新广播），这里再建一个 PlayerObject 就会画出「第二个自己」。
+            //  ObjectTurn/Walk/Run 等处理器本就有同样的排除，这里补齐。
+            if (p.ObjectID == User.ObjectID && !Observing) return;
+
+            //★同 ObjectID 不重复建实例（11-09 重影根治）
+            //  原写法每次收到 ObjectPlayer 都 `new PlayerObject`：服务端重复下发同一个角色时
+            //  （重新进入视野、外观/行会/等级刷新都会走这条），旧实例既不会从 Objects 移除，
+            //  也再收不到任何包 → 它永远停在最后一帧的位置，成为一个「不会动、走远消失、
+            //  回来又出现、一直跟着人物走」的影子。这里改成：已存在就只做 Load 更新。
+            MapObject exist = MapControl.Objects.Find(ob => ob.ObjectID == p.ObjectID);
+            if (exist is PlayerObject existPlayer)
+            {
+                if (existPlayer is UserObject) return;      // 自己的 UserObject 绝不覆盖
+                existPlayer.Load(p, true);
+                return;
+            }
+            if (exist != null) exist.Remove();               // 同 ID 但类型不符：先清掉旧的
+
             PlayerObject player = new PlayerObject(p.ObjectID);
             player.Load(p);
         }
 
         private void ObjectHero(S.ObjectHero p)
         {
+            //★同 ID 只留一个（11-09 重影修复）：重复建实例会多出一个「跟着人走的英雄影子」
+            MapObject old = FindObjectByID(p.ObjectID);
+            if (old != null) old.Remove();
+
             HeroObject hero = new HeroObject(p.ObjectID);
             hero.Load(p);
 
             if (p.ObjectID == Hero?.ObjectID)
                 HeroObject = hero;
+        }
+
+        /// <summary>
+        /// 按 ObjectID 在世界列表里找一个对象（11-09 引入，用于各 Object* 包的去重）。
+        /// 找不到返回 null。
+        /// </summary>
+        private static MapObject FindObjectByID(uint objectID)
+        {
+            List<MapObject> list = MapControl.Objects;
+            for (int i = list.Count - 1; i >= 0; i--)
+            {
+                MapObject ob = list[i];
+                if (ob != null && ob.ObjectID == objectID) return ob;
+            }
+            return null;
         }
 
         private void ObjectRemove(S.ObjectRemove p)
@@ -3421,6 +3476,10 @@ namespace Client.MirScenes
 
         private void ObjectItem(S.ObjectItem p)
         {
+            //★同 ID 只留一个（11-09 重影修复）：重复实例 = 地上多一个不会消失的假物品
+            MapObject old = FindObjectByID(p.ObjectID);
+            if (old != null) old.Remove();
+
             ItemObject ob = new ItemObject(p.ObjectID);
             ob.Load(p);
             /*
@@ -4074,6 +4133,10 @@ namespace Client.MirScenes
         }
         private void ObjectNPC(S.ObjectNPC p)
         {
+            //★同 ID 只留一个（11-09 重影修复）
+            MapObject old = FindObjectByID(p.ObjectID);
+            if (old != null) old.Remove();
+
             NPCObject ob = new NPCObject(p.ObjectID);
             ob.Load(p);
         }
@@ -5613,12 +5676,28 @@ namespace Client.MirScenes
                 if (ob.ObjectID != buff.ObjectID) continue;
                 if ((ob is PlayerObject) || (ob is MonsterObject))
                 {
-                    if (!ob.Buffs.Contains(buff.Type))
+                    //★登仙动画（11-10）：记下这条 BUFF 是否为「本次连接里第一次到达」——
+                    //  只有真·登仙瞬间（服务端刚加上的重数 BUFF）才播 760-853 全套动画+音效。
+                    //  11-10 修正：登录重放其实也会走到这里（服务端 ReplayBuff → FinishAddBuff 照样
+                    //  Enqueue S.AddBuff），所以服务端在重放时会给包打 Replay 标记——重放一律不播，
+                    //  保证动画只在角色初次登仙那一刻出现一次。
+                    bool isNewBuff = !ob.Buffs.Contains(buff.Type);
+
+                    if (isNewBuff)
                     {
                         ob.Buffs.Add(buff.Type);
                     }
 
                     ob.AddBuffEffect(buff.Type);
+
+                    //★羽化 BUFF 增删：立即重算该玩家外观（否则要等重进视野才能看到羽化切换）
+                    if (ob is PlayerObject && PlayerObject.IsHumUpBuff(buff.Type))
+                    {
+                        ((PlayerObject)ob).RefreshHumUpLook();
+
+                        if (isNewBuff && !p.Replay && PlayerObject.IsHumUpStageBuff(buff.Type))
+                            ((PlayerObject)ob).PlayHumUpAscendEffect();
+                    }
                     return;
                 }
             }
@@ -5680,6 +5759,12 @@ namespace Client.MirScenes
 
                 ob.Buffs.Remove(p.Type);
                 ob.RemoveBuffEffect(p.Type);
+
+                //★羽化 BUFF 被移除：立即恢复常规外观
+                if (ob is PlayerObject && PlayerObject.IsHumUpBuff(p.Type))
+                {
+                    ((PlayerObject)ob).RefreshHumUpLook();
+                }
                 return;
             }
         }
@@ -10777,6 +10862,10 @@ namespace Client.MirScenes
                 case PlayerOptionType.WalkThroughWall:
                     GameScene.WalkThroughWallAllowed = p.Allowed;
                     break;
+                //中毒锁：只改服务器下发的规则，不覆盖玩家自己的勾选（客户端没有任何开关会写它）
+                case PlayerOptionType.PoisonLockMagicOnly:
+                    GameScene.PoisonLockMagicOnly = p.Value;
+                    break;
             }
 
             Settings.Save();
@@ -11163,15 +11252,15 @@ namespace Client.MirScenes
             Width = Map.Width;
             Height = Map.Height;
 
-            // 11-02：地图文件还没到（微端）→ 先摆占位地图并**继续挂着载入画面**，
-            // 后台下载完成后 ReloadFloor 收尾。玩家不会再看到「先卡死 10 秒 / 再进一片黑」。
+            // 11-14：地图最多等 2 秒（见 MapReader.WaitForMapFile）。没等到就已经撤掉载入画面、
+            // 让玩家先进游戏了，这里**绝对不能再 Show()** —— 否则刚撤掉的画面会被重新点亮，
+            // 又变回「卡在载入画面等一张下不来的图」。只在载入画面本来就亮着时更新一下文字。
             WaitingMapFile = string.Equals(MapReader.PendingMapFile, FileName, StringComparison.OrdinalIgnoreCase)
                 ? FileName
                 : null;
 
-            if (WaitingMapFile != null)
+            if (WaitingMapFile != null && LoadingScreen.Visible)
             {
-                LoadingScreen.Show();
                 LoadingScreen.SetStatus("正在下载地图 " + Path.GetFileNameWithoutExtension(FileName) + "，请稍候...");
             }
 
@@ -11201,12 +11290,23 @@ namespace Client.MirScenes
         // 主循环里检查到就重载地面 —— 玩家无感从「空地图」切回真实地图。
         private static volatile string _pendingLateReloadFile;
 
+        //★11-14 地图加载被放弃（重试用完 / 服务端没有 / 等超 10 分钟）：
+        //  看护线程只置标记，收尾动作（撤载入画面、聊天提示）在主线程 Process() 里做。
+        private static volatile string _pendingAbandonMapFile;
+        private static volatile string _pendingAbandonReason;
+
         static MapControl()
         {
             MapReader.MapFileArrivedLate += delegate (string file)
             {
                 // 只置标记，真正的重载在主线程 Process() 里做（格子/对象都不允许跨线程动）
                 _pendingLateReloadFile = file;
+            };
+
+            MapReader.MapLoadAbandoned += delegate (string file, string reason)
+            {
+                _pendingAbandonMapFile = file;
+                _pendingAbandonReason = reason;
             };
         }
 
@@ -11228,6 +11328,16 @@ namespace Client.MirScenes
                 }
 
                 MapReader map = new MapReader(FileName);
+
+                //★11-14 文件虽然在，但长度不对/解析失败时 MapReader 会退回空地图。
+                //  这时**绝不能**把当前地面换成空图：保持在原来的地图上等它重下，
+                //  否则「一张能玩的地图」会被「一张全黑占位图」覆盖掉。
+                if (map.IsPlaceholder)
+                {
+                    ResourceDownloader.Log("地图文件存在但不可用，本次不重载：" + FileName);
+                    return;
+                }
+
                 M2CellInfo = map.MapCells;
                 Width = map.Width;
                 Height = map.Height;
@@ -11261,6 +11371,8 @@ namespace Client.MirScenes
 
         private void CheckLateMapReload()
         {
+            CheckAbandonedMapLoad();
+
             // 保险丝：看护线程没来得及通知（或通知丢了），只要文件真落地了就自己重载一次
             if (WaitingMapFile != null && File.Exists(WaitingMapFile))
             {
@@ -11279,6 +11391,151 @@ namespace Client.MirScenes
             ReloadFloor();
         }
 
+        /// <summary>
+        /// 处理「本次地图加载已放弃」（重试用完 / 服务端没有这张图 / 等超 10 分钟）：
+        /// 撤掉载入画面、清掉等待标记、聊天框提示玩家。
+        ///
+        /// 地图仍然是空地图兜底 —— 玩家留在游戏里，只是这张图暂时没有地面，
+        /// **绝不会因为缺地图文件被踢出或闪退**。
+        /// </summary>
+        private void CheckAbandonedMapLoad()
+        {
+            string file = _pendingAbandonMapFile;
+            if (file == null) return;
+
+            _pendingAbandonMapFile = null;
+            string reason = _pendingAbandonReason ?? string.Empty;
+            _pendingAbandonReason = null;
+
+            // 已经换到别的地图了：这条放弃通知作废（别去动当前地图的载入状态）
+            if (!string.Equals(file, FileName, StringComparison.OrdinalIgnoreCase)) return;
+
+            if (WaitingMapFile != null)
+            {
+                WaitingMapFile = null;
+                LoadingScreen.Hide();
+            }
+
+            string msg = "地图 " + Path.GetFileNameWithoutExtension(file) + " 下载失败（" + reason +
+                         "），已结束本次加载。可稍后重新进入该地图，或联系 GM 确认微端资源是否完整。";
+
+            try { GameScene.Scene.ChatDialog.ReceiveChat(msg, ChatType.System); } catch { }
+            CMain.SaveError("[MapLoadAbandoned] " + msg);
+        }
+
+        // 对象异常诊断（11-09）：同一个对象 5 秒内只记一次，避免每帧写盘把 IO 打满。
+        // 记的是「谁坏了」——ObjectID / 名字 / AI / 动作 / 坐标，拿到 Error.txt 就能定位到具体那只怪。
+        private static readonly Dictionary<uint, long> _objectFaultLogTime = new Dictionary<uint, long>();
+        private static int _objectFaultTotal;
+
+        internal static void ReportObjectFault(MapObject ob, Exception ex)
+        {
+            _objectFaultTotal++;
+
+            long now = CMain.Time;
+            uint id = ob == null ? 0u : ob.ObjectID;
+
+            if (_objectFaultLogTime.TryGetValue(id, out long last) && now - last < 5000) return;
+
+            if (_objectFaultLogTime.Count > 512) _objectFaultLogTime.Clear();
+            _objectFaultLogTime[id] = now;
+
+            string who = "null";
+            if (ob != null)
+            {
+                MonsterObject mon = ob as MonsterObject;
+                who = string.Format("{0}#{1}", ob.GetType().Name, ob.ObjectID);
+                if (mon != null)
+                    who += string.Format(" 名称={0} AI={1} 动作={2} 坐标={3}", mon.Name, mon.AI, mon.CurrentAction, mon.CurrentLocation);
+                else
+                    who += string.Format(" 动作={0} 坐标={1}", ob.CurrentAction, ob.CurrentLocation);
+            }
+
+            CMain.SaveError(string.Format("[ObjectFault] {0} 累计{1}次 : {2}", who, _objectFaultTotal, ex));
+        }
+
+        //★卡图像看门狗（11-09）
+        //  症状：某只怪/某个角色的图像「冻在两格中间」——它自己不再动，但相机一走，
+        //        它在屏幕上就整体平移（像黏着人物走），走出视野被裁掉就消失、回来又出现。
+        //  判定：`OffSetMove` 是「格子内位移插值」，只在 行走/跑步/冲撞 这类动作里非零，
+        //        正常情况下一个动作几百毫秒就走完、随即被置空。所以
+        //        「移动动作中 + OffSetMove 连续 2.5 秒不变」= 这个动作再也不会推进了，
+        //        不论原因是抛异常、帧表越界被静默跳过、还是 ActionFeed 卡住，都能抓到。
+        //  只写日志、不改任何行为；每个对象 10 秒最多报一次，避免刷爆 Error.txt。
+        private struct StuckWatch
+        {
+            public MirAction Action;
+            public Point Offset;
+            public long Since;
+            public long LastReport;
+        }
+        private readonly Dictionary<uint, StuckWatch> _stuckWatch = new Dictionary<uint, StuckWatch>();
+        private long _nextStuckCheck;
+        private const int StuckLimitMs = 2500;
+
+        private void CheckStuckObjects()
+        {
+            if (CMain.Time < _nextStuckCheck) return;
+            _nextStuckCheck = CMain.Time + 250;      // 4 次/秒，开销可忽略
+
+            if (_stuckWatch.Count > 1024) _stuckWatch.Clear();
+
+            for (int i = Objects.Count - 1; i >= 0; i--)
+            {
+                MapObject ob = Objects[i];
+                if (ob == null) continue;
+
+                bool interpolating;
+                switch (ob.CurrentAction)
+                {
+                    case MirAction.行走动作:
+                    case MirAction.跑步动作:
+                    case MirAction.推开动作:
+                    case MirAction.弓箭跳跃:
+                    case MirAction.左冲动作:
+                    case MirAction.右冲动作:
+                    case MirAction.刺客冲击:
+                        interpolating = ob.OffSetMove != Point.Empty;
+                        break;
+                    default:
+                        interpolating = false;
+                        break;
+                }
+
+                if (!interpolating)
+                {
+                    _stuckWatch.Remove(ob.ObjectID);
+                    continue;
+                }
+
+                StuckWatch w;
+                if (!_stuckWatch.TryGetValue(ob.ObjectID, out w) || w.Action != ob.CurrentAction || w.Offset != ob.OffSetMove)
+                {
+                    // 位移量变了 = 这一帧还在正常推进，重新计时
+                    w.Action = ob.CurrentAction;
+                    w.Offset = ob.OffSetMove;
+                    w.Since = CMain.Time;
+                    w.LastReport = 0;
+                    _stuckWatch[ob.ObjectID] = w;
+                    continue;
+                }
+
+                if (CMain.Time - w.Since < StuckLimitMs) continue;
+                if (w.LastReport > 0 && CMain.Time - w.LastReport < 10000) continue;
+
+                w.LastReport = CMain.Time;
+                _stuckWatch[ob.ObjectID] = w;
+
+                CMain.SaveError(string.Format(
+                    "[StuckObject] #{0} {1} 动作={2} 插值=({3},{4}) 当前格=({5},{6}) 目标格=({7},{8}) 卡住={9}ms",
+                    ob.ObjectID, ob.Name, ob.CurrentAction,
+                    ob.OffSetMove.X, ob.OffSetMove.Y,
+                    ob.CurrentLocation.X, ob.CurrentLocation.Y,
+                    ob.Movement.X, ob.Movement.Y,
+                    CMain.Time - w.Since));
+            }
+        }
+
         public void Process()
         {
             CheckLateMapReload();
@@ -11289,14 +11546,41 @@ namespace Client.MirScenes
                 MapObject ob = Objects[i];
                 if (ob == User) continue;
                 //  if (ob.ActionFeed.Count > 0 || ob.Effects.Count > 0 || GameScene.CanMove || CMain.Time >= ob.NextMotion)
-                ob.Process();
+                //★逐对象异常隔离（11-09）：原来这里没有任何保护，只要任意一个对象 Process 抛异常，
+                //  循环当场中断 —— 它**后面**的所有对象当帧就不再推进（DrawLocation / FrameIndex /
+                //  OffSetMove 全部冻在上一次的值），但绘制仍然照常进行，于是屏幕上就出现
+                //  「怪物卡成一张静止的图 / 重影停在原地，走远看不见、回来又出现」；
+                //  而且每帧都在同一个对象上重抛 → 那些人永远不恢复。异常还会冲出 Process()
+                //  打断 CMain 的 idle 循环，这也是「跑动一顿顿」的来源之一。
+                try
+                {
+                    ob.Process();
+                }
+                catch (Exception ex)
+                {
+                    ReportObjectFault(ob, ex);
+                }
             }
 
             for (int i = Effects.Count - 1; i >= 0; i--)
-                Effects[i].Process();
+            {
+                // 特效是纯表现层，坏一个就丢掉，绝不能让一个特效把后面的全冻住
+                try
+                {
+                    Effects[i].Process();
+                }
+                catch (Exception ex)
+                {
+                    CMain.SaveError("[EffectFault] " + ex);
+                    Effects.RemoveAt(i);
+                }
+            }
 
             //★特效全局限流（10-31）：按实际在场数量校正，超限的最新特效会被标记丢弃
             Effect.EnforceGlobalLimit();
+
+            //★卡图像看门狗（11-09）：只记日志，不改行为
+            CheckStuckObjects();
 
             if (MapObject.TargetObject != null && MapObject.TargetObject is MonsterObject && MapObject.TargetObject.AI == 970)
                 MapObject.TargetObjectID = 0;
@@ -11865,30 +12149,41 @@ namespace Client.MirScenes
             }
 
             DXManager.Sprite.Flush();
-            float oldOpacity = DXManager.Opacity;
-            DXManager.SetOpacity(0.4F);
 
-            //MapObject.User.DrawMount();
-            MapObject.User.DrawTransform();
-
-            MapObject.User.DrawBody();
-
-            if ((MapObject.User.Direction == MirDirection.Up) ||
-                (MapObject.User.Direction == MirDirection.UpLeft) ||
-                (MapObject.User.Direction == MirDirection.UpRight) ||
-                (MapObject.User.Direction == MirDirection.Right) ||
-                (MapObject.User.Direction == MirDirection.Left))
+            //★羽化(11-10)：这一整段是原版「给自己角色额外叠一层 0.4 半透明自身图」，
+            //  只画身体/头发/翅膀，**从来不画武器**。
+            //  · 未羽化时它是「同一张图、同一位置」的自叠加，混出来颜色不变，等于没用；
+            //  · 羽化时仙兵是画在身体**上层**的，这层半透明身体随后又盖上来，
+            //    重叠区的仙兵像素被混进 40% 的肉色 → 自己看就像「武器被身体遮住了」。
+            //  而别人客户端里你不是 User、根本不会执行这段，所以别人看你一切正常。
+            //  结论：羽化时整段跳过，自己看到的就和别人看到的一致。
+            if (!MapObject.User.HumUpLook)
             {
-                MapObject.User.DrawHead();
-                MapObject.User.DrawWings();
-            }
-            else
-            {
-                MapObject.User.DrawWings();
-                MapObject.User.DrawHead();
-            }
+                float oldOpacity = DXManager.Opacity;
+                DXManager.SetOpacity(0.4F);
 
-            DXManager.SetOpacity(oldOpacity);
+                //MapObject.User.DrawMount();
+                MapObject.User.DrawTransform();
+
+                MapObject.User.DrawBody();
+
+                if ((MapObject.User.Direction == MirDirection.Up) ||
+                    (MapObject.User.Direction == MirDirection.UpLeft) ||
+                    (MapObject.User.Direction == MirDirection.UpRight) ||
+                    (MapObject.User.Direction == MirDirection.Right) ||
+                    (MapObject.User.Direction == MirDirection.Left))
+                {
+                    MapObject.User.DrawHead();
+                    MapObject.User.DrawWings();
+                }
+                else
+                {
+                    MapObject.User.DrawWings();
+                    MapObject.User.DrawHead();
+                }
+
+                DXManager.SetOpacity(oldOpacity);
+            }
 
             //★目标高亮已下移到 CellInfo.DrawObjects()（MapObject.DrawHighlight，紧跟本体绘制）。
             //  原来在这里统一补画 MouseObject / TargetObject / LockObject，问题有三：
@@ -12394,6 +12689,8 @@ namespace Client.MirScenes
         private static long _autoPlayNextHeal;
         // ★药水明细四行各自的使用冷却（10-26）
         private static readonly long[] _autoPlayPotRowNext = new long[4];
+        // ★药水明细：某行「填了名字但背包里没有」的提示冷却（11-08，每行 15 秒最多提示一次）
+        private static readonly long[] _autoPlayPotWarnNext = new long[4];
         // ★装备保护：最小修理间隔（避免连续发包）。[0]=玩家 [1]=英雄（10-26 英雄也受内挂保护）
         private static readonly long[] _autoPlayNextRepair = new long[2];
         // ★传送保护：本局是否已触发过（一次性）
@@ -12461,8 +12758,11 @@ namespace Client.MirScenes
             if (User == null || User.Dead || GameScene.Observing) return;
             if (AwakeningAction) return;
 
-            if (User.Poison.HasFlag(PoisonType.Paralysis) || User.Poison.HasFlag(PoisonType.LRParalysis) ||
-                User.Poison.HasFlag(PoisonType.Frozen) || User.Poison.HasFlag(PoisonType.Stun)) return;
+            //★中毒锁（20261108）：原来中毒（麻痹/冰冻/眩晕）在这里整段 return —— 连喝药都停，只能站着等死。
+            //  服务器开「只锁魔法」时改成：继续喝药 + 继续物理普攻，只是不移动（在 AutoPlayStepTo 里拦）、
+            //  不放魔法（服务端 CanCast 锁着，放了也是白耗一帧）。
+            if (User.Poison.HasFlag(PoisonType.Stun)) return;                          // 眩晕：始终全停
+            if (PoisonMoveLocked && !GameScene.PoisonLockMagicOnly) return;            // 原版行为：中毒全停
 
             long now = CMain.Time;
 
@@ -12783,6 +13083,7 @@ namespace Client.MirScenes
         /// </summary>
         private bool AutoPlayDodgeStep(MapObject threat, bool keepNear)
         {
+            if (PoisonMoveLocked) return false;   // 中毒锁：麻痹/冰冻期间不许移动（服务端 CanWalk 也锁着）
             Point cur = User.CurrentLocation;
             int curCount = AutoPlayCountMonsters(cur, 1);
             int curDist = threat != null ? Functions.MaxDistance(threat.CurrentLocation, cur) : 0;
@@ -13083,6 +13384,9 @@ namespace Client.MirScenes
         /// </summary>
         private bool AutoPlayTryCast(Spell spell, MapObject target)
         {
+            //★中毒锁：麻痹/冰冻期间服务端 CanCast 是锁死的，挂了也是白挂（还会让内挂以为「本帧已出手」），直接不放
+            if (PoisonMoveLocked) return false;
+
             ClientMagic magic = User.GetMagic(spell);
 
             if (magic == null) return false;                               // 未学会
@@ -13311,10 +13615,31 @@ namespace Client.MirScenes
 
             int maxHP = User.Stats[Stat.HP];
             if (maxHP <= 0) return;
-            if (User.HP * 100 / maxHP > Settings.AutoPotHPPercent) return;   // 血量充足
+
+            int pct = (int)Math.Min(100L, User.HP * 100L / maxHP);
+            if (pct >= 100) return;                      // 满血不放（兜底）
+
+            //★阈值跟「保护→药水明细」里启用的血量行对齐（取最低那行）。
+            //  原来这里写死 Settings.AutoPotHPPercent（老的 50%），玩家把明细改成 20% 后
+            //  治愈术仍按 50% 触发，看起来就像「百分比根本没生效」。
+            if (pct > AutoPlayHealThreshold()) return;   // 血量充足
 
             // 以自己为施法目标挂到 NextMagic，同一帧由 CheckInput 走 UseMagic 施放
             AutoPlayTryCast(AutoPlayHealSpells, User);
+        }
+
+        /// <summary>
+        /// 自动治愈术的触发阈值：取「药水明细」里已启用的血量行（第 1 / 3 行）中最低的百分比；
+        /// 一行都没启用时回退老的 AutoPotHPPercent。这样玩家改一处阈值，喝药和治疗同时生效。
+        /// </summary>
+        private static int AutoPlayHealThreshold()
+        {
+            int t = int.MaxValue;
+
+            if (Settings.PotRowOn[0]) t = Math.Min(t, Settings.PotRowPercent[0]);
+            if (Settings.PotRowOn[2]) t = Math.Min(t, Settings.PotRowPercent[2]);
+
+            return t == int.MaxValue ? Settings.AutoPotHPPercent : t;
         }
 
         /// <summary>
@@ -14834,8 +15159,25 @@ namespace Client.MirScenes
         /// 朝目标点移动：优先跑动（开启走位跑步、跑得动、且路程 ≥ 2 格时跑 2/3 格），
         /// 跑不动或被墙挡时降级为走一步（正方向走不通时尝试左右偏移）。
         /// </summary>
+        /// <summary>
+        /// 中毒锁（20261108，服务器 Setup.ini [Game] PoisonLockMagicOnly）：麻痹 / 狮子吼麻痹 / 冰冻期间
+        /// 只锁「移动 + 魔法」，物理普攻仍可出手。这里只判「不能动」的那三种毒，眩晕（Stun）不在此列。
+        /// </summary>
+        private bool PoisonMoveLocked
+        {
+            get
+            {
+                if (User == null) return false;
+
+                return User.Poison.HasFlag(PoisonType.Paralysis) ||
+                       User.Poison.HasFlag(PoisonType.LRParalysis) ||
+                       User.Poison.HasFlag(PoisonType.Frozen);
+            }
+        }
+
         private void AutoPlayStepTo(Point destination)
         {
+            if (PoisonMoveLocked) return;   // 中毒锁：麻痹/冰冻期间原地出手，不移动（服务端 CanWalk 也锁着）
             MirDirection dir = Functions.DirectionFromPoint(User.CurrentLocation, destination);
 
             // 跑动：与 CheckInput 的手动跑步条件保持一致
@@ -14927,8 +15269,12 @@ namespace Client.MirScenes
             if (maxHP <= 0) maxHP = 1;
             if (maxMP <= 0) maxMP = 1;
 
-            int hpPct = User.HP * 100 / maxHP;
-            int mpPct = User.MP * 100 / maxMP;
+            //★百分比一律夹到 0~100 再看阈值：
+            //  maxHP 是客户端本地推算的（等级基础 + 装备 + 数率加成），与服务端实际最大血量
+            //  偶尔会有偏差；一旦算小了，就会出现「血看着还挺多，内挂却当成很低」→ 一直喝药。
+            //  夹紧之后至少保证「满血绝不喝」这条底线永远成立。
+            int hpPct = maxHP > 1 ? (int)Math.Min(100L, User.HP * 100L / maxHP) : 100;
+            int mpPct = maxMP > 1 ? (int)Math.Min(100L, User.MP * 100L / maxMP) : 100;
 
             for (int row = 0; row < 4; row++)
             {
@@ -14943,11 +15289,13 @@ namespace Client.MirScenes
                 if (isHP)
                 {
                     if (gatedBySwitch && !Settings.AutoPotHP) continue;     // 打怪中但血药总闸关着
+                    if (hpPct >= 100) continue;                             // 满血绝不喝（兜底）
                     if (hpPct > Settings.PotRowPercent[row]) continue;
                 }
                 else
                 {
                     if (gatedBySwitch && !Settings.AutoPotMP) continue;
+                    if (mpPct >= 100) continue;                             // 满蓝绝不喝（兜底）
                     if (mpPct > Settings.PotRowPercent[row]) continue;
                 }
 
@@ -14955,7 +15303,11 @@ namespace Client.MirScenes
                 if (CMain.Time < GameScene.UseItemTime) return;        // 全局发包节流
 
                 UserItem use = AutoPlayFindPotion(Settings.PotRowItem[row], isHP);
-                if (use == null) continue;
+                if (use == null)
+                {
+                    AutoPlayWarnPotMissing(row, isHP);
+                    continue;
+                }
 
                 GameScene.UseItemTime = CMain.Time + 300;
                 _autoPlayPotRowNext[row] = CMain.Time + Math.Max(100, Settings.PotRowInterval[row]);
@@ -14965,21 +15317,66 @@ namespace Client.MirScenes
             }
         }
 
-        /// <summary>按名字找背包里的药水；名字空/找不到 → 回退到任意对应属性的药水</summary>
+        /// <summary>
+        /// 药水行「填了名字但背包里没有」的提示：每行 15 秒最多说一次，免得刷屏。
+        /// 这是严格模式（11-08）下唯一会被玩家注意到的副作用——填错名字那一行就不喝药了，
+        /// 所以必须明确告诉他「是这个名字不存在」，而不是让他以为内挂坏了。
+        /// </summary>
+        private void AutoPlayWarnPotMissing(int row, bool isHP)
+        {
+            string want = AutoPlayNormName(Settings.PotRowItem[row]);
+            if (want.Length == 0) return;                    // 留空 = 任意替代，包里没药可喝属于正常
+            if (row < 0 || row >= _autoPlayPotWarnNext.Length) return;
+            if (CMain.Time < _autoPlayPotWarnNext[row]) return;
+
+            _autoPlayPotWarnNext[row] = CMain.Time + 15000;
+
+            if (GameScene.Scene != null)
+                GameScene.Scene.OutputMessage(string.Format(
+                    "内挂第 {0} 行（{1}）：背包里没有「{2}」，这一行不会喝药。请从下拉里重新选，或清空该项（清空=自动用背包里{1}回得最多的药水）",
+                    row + 1, isHP ? "血量" : "魔法", Settings.PotRowItem[row]));
+        }
+
+        /// <summary>规范化物品名：去掉半角/全角空格（复制粘贴常带），统一比较口径</summary>
+        private static string AutoPlayNormName(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            return s.Replace(" ", string.Empty).Replace("\u3000", string.Empty).Trim();
+        }
+
+        /// <summary>
+        /// 按名字找背包里的药水。
+        /// ★11-08 改（严格模式）：**填了名字就只喝这个名字**，背包里没有 → 这一行不喝，并在聊天框提示一次。
+        ///
+        /// 原来的行为是「名字找不到就静默回退到背包里第一个对应属性的药水」，
+        /// 而本服物品库里 172 个物品都是 Type=药水（体力滋补药/千年雪霜/人参/甜甜圈/冰淇淋/各职业仙丹…都在里面），
+        /// 于是玩家填的「魔法药(中量)」一旦在库里不存在（真实名字是「魔力恢复药(中)」），
+        /// 红药行/蓝药行就会各自抓一个不相干的东西喝，看起来就像内挂自作主张乱喝药。
+        ///
+        /// 「使用物品」**留空** = 允许任意替代（等价于原来的兜底），此时按「对应属性最高」挑，
+        /// 不再按背包格子顺序抓第一个（原来可能抓到一个只回 30 的小药，喝半天血不上去）。
+        /// </summary>
         private UserItem AutoPlayFindPotion(string name, bool forHP)
         {
             if (User == null || User.Inventory == null) return null;
 
-            if (!string.IsNullOrWhiteSpace(name))
+            string want = AutoPlayNormName(name);
+
+            if (want.Length > 0)
             {
-                string want = name.Trim();
                 for (int i = 0; i < User.Inventory.Length; i++)
                 {
                     UserItem it = User.Inventory[i];
                     if (it == null || it.Info == null) continue;
-                    if (string.Equals(it.Info.Name, want, StringComparison.OrdinalIgnoreCase)) return it;
+                    if (string.Equals(AutoPlayNormName(it.Info.Name), want, StringComparison.OrdinalIgnoreCase)) return it;
                 }
+
+                return null;        // 严格：填了名字但包里没有 → 不喝（由调用方提示）
             }
+
+            // 留空 = 任意对应药水：取对应属性回得最多的那一个
+            UserItem best = null;
+            int bestVal = 0;
 
             for (int i = 0; i < User.Inventory.Length; i++)
             {
@@ -14988,11 +15385,17 @@ namespace Client.MirScenes
                 if (it.Info.Type != ItemType.药水) continue;
                 if (it.Info.Shape != 0 && it.Info.Shape != 1) continue;
 
-                if (forHP && it.Info.Stats[Stat.HP] > 0) return it;
-                if (!forHP && it.Info.Stats[Stat.MP] > 0) return it;
+                int v = forHP ? it.Info.Stats[Stat.HP] : it.Info.Stats[Stat.MP];
+                if (v <= 0) continue;
+
+                if (v > bestVal)
+                {
+                    bestVal = v;
+                    best = it;
+                }
             }
 
-            return null;
+            return best;
         }
 
         /// <summary>按物品名精确找某个背包里的物品（修复物品用；玩家背包、英雄背包都走这里）</summary>
@@ -15284,9 +15687,19 @@ namespace Client.MirScenes
             if ((MouseControl == this) && (MapButtons != MouseButtons.None)) AutoHit = false;//mouse actions stop mining even when frozen!
             if (!CanRideAttack()) AutoHit = false;
             
-            if (CMain.Time < InputDelay || User.Poison.HasFlag(PoisonType.Paralysis) || User.Poison.HasFlag(PoisonType.LRParalysis) || User.Poison.HasFlag(PoisonType.Frozen) || User.Fishing) return;
-            
-            if (User.NextMagic != null && !User.RidingMount)
+            //★中毒锁（20261108）：服务器 Setup.ini [Game] PoisonLockMagicOnly=True 时，麻痹/狮子吼麻痹/冰冻
+            //  只锁「移动 + 魔法」，物理普攻照常出手（服务端 CanAttack 同步放行）。
+            //  移动必须继续拦住：服务端 CanWalk 照样锁着，客户端放行只会「预测走过去又被拉回」。
+            bool poisonMoveLock = User.Poison.HasFlag(PoisonType.Paralysis) ||
+                                  User.Poison.HasFlag(PoisonType.LRParalysis) ||
+                                  User.Poison.HasFlag(PoisonType.Frozen);
+            bool poisonAttackOnly = poisonMoveLock && GameScene.PoisonLockMagicOnly;
+            //眩晕（Dazed）：服务器开了「只锁魔法」也不再拦普攻
+            bool dazedLock = User.Poison.HasFlag(PoisonType.Dazed) && !GameScene.PoisonLockMagicOnly;
+
+            if (CMain.Time < InputDelay || User.Fishing || (poisonMoveLock && !poisonAttackOnly)) return;
+
+            if (User.NextMagic != null && !User.RidingMount && !poisonAttackOnly)
             {
                 UseMagic(User.NextMagic, User);
                 return;
@@ -15332,14 +15745,15 @@ namespace Client.MirScenes
                     else if ((!(Settings.AutoPlay && User.Class == MirClass.法师) || AutoPlayIsPhysicalTarget(MapObject.TargetObject)) &&
                              (AutoPlayGapThrustingHit(MapObject.TargetObject) ||
                               (Functions.InRange(MapObject.TargetObject.CurrentLocation, User.CurrentLocation, 1) &&
-                               AutoPlayCanMeleeNow(MapObject.TargetObject))))
+                               //中毒只锁魔法期间无法走位，隔位刺杀「退一步再打」的等待条件直接放行，否则贴脸也永远不出手
+                               (poisonAttackOnly || AutoPlayCanMeleeNow(MapObject.TargetObject)))))
                     {
                         // 法师挂机时一般不近攻（改用与弓手相同的远程方式：放法术），贴脸由内挂的走位拉开；
                         // 但若该怪物魔法无效（内挂已切物理阶段），则允许贴身用「近距攻击1」出手。
                         // 战士「隔位刺杀」：目标隔一格时也走这里——客户端会把这次近距攻击转成 Spell.Thrusting，
                         // 服务端把落点再前移一格，用剑气打到隔位那只怪；贴身时若还能退到隔位则先不还手
                         //（AutoPlayCanMeleeNow=false），交给下面的走位把人物挪到隔位。
-                        if (CMain.Time > GameScene.AttackTime && CanRideAttack() && !User.Poison.HasFlag(PoisonType.Dazed))
+                        if (CMain.Time > GameScene.AttackTime && CanRideAttack() && !dazedLock)
                         {
                             User.QueuedAction = new QueuedAction { Action = MirAction.近距攻击1, Direction = Functions.DirectionFromPoint(User.CurrentLocation, MapObject.TargetObject.CurrentLocation), Location = User.CurrentLocation };
                             return;
@@ -15347,6 +15761,10 @@ namespace Client.MirScenes
                     }
                 }
             }
+            //★中毒只锁魔法：上面的「物理普攻」这一路已经走完，从这里往下全是移动 / 挖矿 / 鼠标走位，一律不处理。
+            //  （服务端 CanWalk 还锁着，这里放行只会让人物在客户端原地抽动。）
+            if (poisonAttackOnly) return;
+
             if (AutoHit && !User.RidingMount)
             {
                 if (CMain.Time > GameScene.AttackTime)
@@ -16565,11 +16983,20 @@ namespace Client.MirScenes
 
         public void RemoveObject(MapObject ob)
         {
-            M2CellInfo[ob.MapLocation.X, ob.MapLocation.Y].RemoveObject(ob);
+            //★边界保护 + 只按「实际登记的那一格」删（11-09）：MapLocation 越界时原来会直接抛
+            //  IndexOutOfRange，异常会让调用方（MapObject.Remove）半途而废 —— 对象从 Objects 摘掉了，
+            //  却留在格子列表里变成永久残影。
+            if (M2CellInfo == null) return;
+            int x = ob.MapLocation.X, y = ob.MapLocation.Y;
+            if (x < 0 || y < 0 || x >= Width || y >= Height) return;
+            M2CellInfo[x, y].RemoveObject(ob);
         }
         public void AddObject(MapObject ob)
         {
-            M2CellInfo[ob.MapLocation.X, ob.MapLocation.Y].AddObject(ob);
+            if (M2CellInfo == null) return;
+            int x = ob.MapLocation.X, y = ob.MapLocation.Y;
+            if (x < 0 || y < 0 || x >= Width || y >= Height) return;
+            M2CellInfo[x, y].AddObject(ob);
         }
         public MapObject FindObject(uint ObjectID, int x, int y)
         {

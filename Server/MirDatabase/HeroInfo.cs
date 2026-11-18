@@ -103,6 +103,9 @@ namespace Server.MirDatabase
                 {
                     Buffs.Add(new Buff(reader, version, customVersion));
                 }
+
+                // 英雄也可能带着羽化 BUFF（GM 给的/脚本塞的），跟角色走同一份迁移逻辑
+                HumUpBuffMigration.Apply(Buffs, Name + "(英雄)");
             }
         }
 

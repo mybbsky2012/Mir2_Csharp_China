@@ -214,6 +214,60 @@ internal static class Worker
     }
 
     /// <summary>
+    /// 羽化状态体检：谁登仙了、几重、有没有旧编码残留。
+    /// 迁移前后各跑一次，能直观看出「有没有动到人」。
+    /// </summary>
+    public static void HumUpAudit(Envir e, Action<string> w)
+    {
+        var dist = new int[11];
+        var names = new List<string>();
+        int legacyBuffs = 0;
+        var legacyNames = new List<string>();
+
+        foreach (var c in e.CharacterList)
+        {
+            if (c == null) continue;
+
+            int legacy = 0;
+            if (c.Buffs != null)
+            {
+                foreach (var b in c.Buffs)
+                {
+                    if (b == null) continue;
+                    int t = (int)b.Type;
+                    if (t == (int)BuffType.Custom1 || (t >= 232 && t <= 241)) legacy++;
+                }
+            }
+
+            if (legacy > 0)
+            {
+                legacyBuffs += legacy;
+                if (legacyNames.Count < 10) legacyNames.Add($"{c.Name}({legacy})");
+            }
+
+            int stage = c.GetSelectHumUpStage();
+            if (stage <= 0) continue;
+
+            dist[Math.Clamp(stage, 1, 10)]++;
+            if (names.Count < 20)
+                names.Add($"{c.Name}  Lv{c.Level}  {c.Class}  {stage} 重");
+        }
+
+        int total = dist.Sum();
+        var distText = string.Join("  ", Enumerable.Range(1, 10).Where(i => dist[i] > 0).Select(i => $"{i}重={dist[i]}"));
+
+        w("---- 羽化状态 ----");
+        w($"  羽化角色 {total} 个" + (total > 0 ? $"（{distText}）" : ""));
+        w(legacyBuffs > 0
+            ? $"  旧编码残留 {legacyBuffs} 条：{string.Join(", ", legacyNames)}"
+            : "  旧编码残留 0 条（已是 159~169）");
+
+        foreach (var n in names) w("    " + n);
+        if (total > names.Count) w($"    …（还有 {total - names.Count} 个）");
+        w("");
+    }
+
+    /// <summary>
     /// 按二进制格式再数一遍账号记录（不经过 LoadAccounts 的过滤）。
     /// Envir.LoadAccounts 里有一条 `if (i > 0 && NextAccount.Characters.Count == 0) continue;`
     /// —— 历史遗留的清理逻辑，会在加载时把空账号丢掉且不可逆，升级前必须让用户知道。

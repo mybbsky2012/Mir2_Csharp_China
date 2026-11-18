@@ -228,9 +228,21 @@ namespace Client.MirControls
             if (!Enabled && ActiveControl == this)
                 ActiveControl.Deactivate();
 
-            if (Controls != null)
-                foreach (MirControl control in Controls)
-                    control.OnEnabledChanged();
+            // 同 OnVisibleChanged：子控件可能在回调里改 Controls（Sort/BringToFront），
+            // 直接 foreach 会抛 "Collection was modified"。取快照。
+            if (Controls == null || Controls.Count == 0)
+                return;
+
+            MirControl[] snapshot = Controls.ToArray();
+
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                MirControl control = snapshot[i];
+
+                if (control == null || control.IsDisposed) continue;
+
+                control.OnEnabledChanged();
+            }
         }
         public bool AllowDisabledMouseOver;
         #endregion
@@ -571,10 +583,28 @@ namespace Client.MirControls
             else if (IsMouseOver(CMain.MPoint))
                 Highlight();
 
+            //★禁止在这里直接 foreach (Controls) —— 报错栈：
+            //    System.InvalidOperationException: Collection was modified
+            //      at Client.MirControls.MirControl.OnVisibleChanged()
+            //      at Client.MirScenes.GameScene.GameScene_KeyDown(...)
+            //  原因：子控件自己的 OnVisibleChanged 会走上面的 Sort 分支 / BringToFront /
+            //  动态增删子控件（比如物品栏打开时给格子排层），那是在**同一个 List** 上
+            //  Remove+Add；foreach 的枚举器一检查版本号就抛异常，整次按键处理直接中断
+            //  （表现为按 I 想开背包没反应 / 开一半）。
+            //  这里取快照遍历，顺便跳过已释放的控件。
+            if (Controls == null || Controls.Count == 0)
+                return;
 
-            if (Controls != null)
-                foreach (MirControl control in Controls)
-                    control.OnVisibleChanged();
+            MirControl[] snapshot = Controls.ToArray();
+
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                MirControl control = snapshot[i];
+
+                if (control == null || control.IsDisposed) continue;
+
+                control.OnVisibleChanged();
+            }
         }
         protected void OnBeforeShown()
         {
@@ -730,10 +760,24 @@ namespace Client.MirControls
         }
         protected void DrawChildControls()
         {
-            if (Controls != null)
-                for (int i = 0; i < Controls.Count; i++)
-                    if (Controls[i] != null)
-                        Controls[i].Draw();
+            //★11-16 不能直接 for + Controls[i] —— 报错栈：
+            //    NullReferenceException at MirControl.DrawChildControls()
+            //  Controls 是裸 List：子控件自己的 Draw() 里可能 Sort/BringToFront/Dispose
+            //  （TextureValid 失效重建、微端补图后重载、控件关闭），枚举期间同一个 List
+            //  被改，Controls[i] 就可能取到 null 或越界。取快照 + 判空，别赌时机。
+            if (Controls == null || Controls.Count == 0)
+                return;
+
+            MirControl[] snapshot = Controls.ToArray();
+
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                MirControl control = snapshot[i];
+
+                if (control == null || control.IsDisposed) continue;
+
+                control.Draw();
+            }
         }
         protected virtual void DrawBorder()
         {
@@ -954,10 +998,17 @@ namespace Client.MirControls
 
             if (Controls != null)
                 for (int i = Controls.Count - 1; i >= 0; i--)
+                {
                     if (e.Handled)
                         return;
-                    else
-                        Controls[i].OnKeyPress(e);
+
+                    // 子控件处理按键时可能增删同级控件（打开/关闭窗口），
+                    // 下标必须当轮重新校验，否则 Controls[i] 越界。
+                    if (i >= Controls.Count)
+                        continue;
+
+                    Controls[i].OnKeyPress(e);
+                }
 
             if (KeyPress == null)
                 return;
@@ -970,10 +1021,15 @@ namespace Client.MirControls
 
             if (Controls != null)
                 for (int i = Controls.Count - 1; i >= 0; i--)
+                {
                     if (e.Handled)
                         return;
-                    else
-                        Controls[i].OnKeyDown(e);
+
+                    if (i >= Controls.Count)
+                        continue;
+
+                    Controls[i].OnKeyDown(e);
+                }
 
             if (KeyDown == null)
                 return;
@@ -986,10 +1042,15 @@ namespace Client.MirControls
 
             if (Controls != null)
                 for (int i = Controls.Count - 1; i >= 0; i--)
+                {
                     if (e.Handled)
                         return;
-                    else
-                        Controls[i].OnKeyUp(e);
+
+                    if (i >= Controls.Count)
+                        continue;
+
+                    Controls[i].OnKeyUp(e);
+                }
 
             if (KeyUp == null)
                 return;

@@ -894,7 +894,7 @@
             // 
             ShapeTextBox.Location = new Point(426, 123);
             ShapeTextBox.Margin = new Padding(4);
-            ShapeTextBox.MaxLength = 3;
+            ShapeTextBox.MaxLength = 5;
             ShapeTextBox.Name = "ShapeTextBox";
             ShapeTextBox.Size = new Size(46, 23);
             ShapeTextBox.TabIndex = 6;

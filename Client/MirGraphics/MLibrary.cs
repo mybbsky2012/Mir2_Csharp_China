@@ -109,7 +109,56 @@ namespace Client.MirGraphics
                                           Transform,
                                           TransformMounts,
                                           TransformEffect,
-                                          TransformWeaponEffect;
+                                          TransformWeaponEffect,
+                                          //★羽化登仙（HumUp）：分部位四层资源，Data\HumUp\，见 Frames.HumUpPlayer
+                                          UpWarArmours,
+                                          UpWarHairs,
+                                          UpWarWeapons,
+                                          UpWarHumEffects,
+                                          //刺客羽化（UpAss*，注意刺客是双持：WeaponL/WeaponR 两把）
+                                          UpAssArmours,
+                                          UpAssHairs,
+                                          //道士羽化（UpTao*）
+                                          UpTaoArmours,
+                                          UpTaoHairs,
+                                          //弓箭手羽化（UpArc*）
+                                          UpArcArmours,
+                                          UpArcHairs,
+                                          //法师羽化（UpWiz*）
+                                          UpWizArmours,
+                                          UpWizHairs,
+                                          //★羽化仙兵（11-10 B方案）：各职业羽化武器库，帧表与铠甲库 1:1 对齐
+                                          UpWizWeapons,
+                                          UpTaoWeapons,
+                                          UpArcWeapons,
+                                          UpAssWeaponsL,
+                                          UpAssWeaponsR,
+                                          //★羽化·战法道通用（11-10）：UpC* 素材，UpCArmour/UpCHair 男女合库（女半 1112），
+                                          //  UpCWeapon 按物品 Shape 编号命名（32~57），男女共用单份全动作表
+                                          UpCArmours,
+                                          UpCHairs,
+                                          UpCWeapons,
+                                          //★羽化坐骑/鱼竿（11-11）：羽化角色骑乘画 UpMount、持竿画 UpFishing。
+                                          //  UpMount 00~11 共 12 套，320 帧 = 5 动作×8 方向×8 槽（站0/走64/跑128/被击192/攻256），
+                                          //  与羽化身体库同构；UpFishing 00/01 男女分文件（384 帧 = 6 段：站0/走64/跑128/抛竿192/等待256/收线320）
+                                          UpMounts,
+                                          UpFishingMan,
+                                          UpFishingWoman;
+
+        //★羽化内观（11-10）：分职业/性别的 StateItem 固定立绘库（单文件库，非数组），
+        //  羽化角色内观不再画实际装备，统一画本职业这一套（衣服帧+武器帧）
+        public static MLibrary StateItemWarriorMan,
+                                          StateItemWarriorWoman,
+                                          StateItemWizardMan,
+                                          StateItemWizardWoman,
+                                          StateItemTaoMan,
+                                          StateItemTaoWoman,
+                                          StateItemAssassinMan,
+                                          StateItemAssassinWoman,
+                                          StateItemArcherMan,
+                                          StateItemArcherWoman,
+                                          StateItemCommonMan,
+                                          StateItemCommonWoman;
 
         // 微端降级标记：启动时服务端资源清单还没拿到（比如客户端比服务端先开、
         // 或服务端恰好在重启），图库数组只能按本地残留文件推长度 —— 编号大的
@@ -327,6 +376,63 @@ namespace Client.MirGraphics
             InitLibrary(ref TransformMounts, Settings.TransformMountsPath, "00");
             InitLibrary(ref TransformEffect, Settings.TransformEffectPath, "00");
             InitLibrary(ref TransformWeaponEffect, Settings.TransformWeaponEffectPath, "00");
+
+            //★羽化登仙：资源在服务端 ClientResources\Data\HumUp\（微端清单自动包含，按需下载）。
+            //  原型接战士系（UpWar*）+ 刺客系（UpAss*）；法师/道士/弓手（UpWiz/UpTao/UpArc）后续照抄。
+            InitLibrary(ref UpWarArmours, Settings.HumUpPath + "UpWarArmour\\", "00");
+            InitLibrary(ref UpWarHairs, Settings.HumUpPath + "UpWarHair\\", "00");
+            InitLibrary(ref UpWarWeapons, Settings.HumUpPath + "UpWarWeapon\\", "00");
+            InitLibrary(ref UpWarHumEffects, Settings.HumUpPath + "UpWarHumEffect\\", "00");
+            InitLibrary(ref UpAssArmours, Settings.HumUpPath + "UpAssArmour\\", "00");
+            InitLibrary(ref UpAssHairs, Settings.HumUpPath + "UpAssHair\\", "00");
+            //刺客双持武器（UpAssWeaponL/WeaponR 各 17 库）与特效（UpAssHumEffect）暂不注册：
+            //羽化素体本身不持武器，等帧表校准后再接。
+            InitLibrary(ref UpTaoArmours, Settings.HumUpPath + "UpTaoArmour\\", "00");
+            InitLibrary(ref UpTaoHairs, Settings.HumUpPath + "UpTaoHair\\", "00");
+            InitLibrary(ref UpArcArmours, Settings.HumUpPath + "UpArcArmour\\", "00");
+            InitLibrary(ref UpArcHairs, Settings.HumUpPath + "UpArcHair\\", "00");
+            InitLibrary(ref UpWizArmours, Settings.HumUpPath + "UpWizArmour\\", "00");
+            InitLibrary(ref UpWizHairs, Settings.HumUpPath + "UpWizHair\\", "00");
+            //★羽化仙兵（11-10 B方案）：帧表与各职业铠甲库 1:1 对齐（同帧号同锚点直接叠加）
+            InitLibrary(ref UpWizWeapons, Settings.HumUpPath + "UpWizWeapon\\", "00");
+            InitLibrary(ref UpTaoWeapons, Settings.HumUpPath + "UpTaoWeapon\\", "00");
+            InitLibrary(ref UpArcWeapons, Settings.HumUpPath + "UpArcWeapon\\", "00");
+            InitLibrary(ref UpAssWeaponsL, Settings.HumUpPath + "UpAssWeaponL\\", "00");
+            InitLibrary(ref UpAssWeaponsR, Settings.HumUpPath + "UpAssWeaponR\\", "00");
+            //★羽化·战法道通用（11-10）：通用装备统一走 UpC*。UpCWeapon 目录按物品 Shape 编号命名
+            //  （32.Lib~57.Lib），InitLibrary 数组索引=文件编号 → 直接 UpCWeapons[shape] 取库。
+            InitLibrary(ref UpCArmours, Settings.HumUpPath + "UpCArmour\\", "00");
+            InitLibrary(ref UpCHairs, Settings.HumUpPath + "UpCHair\\", "00");
+            InitLibrary(ref UpCWeapons, Settings.HumUpPath + "UpCWeapon\\", "00");
+
+            //★羽化坐骑/鱼竿（11-11）。UpMount 按 00~11 顺序扫描；
+            //  UpFishing 文件名男女混排（00F/00M/01F/01M），InitLibrary 的连续编号扫描不适用，
+            //  按性别手动建库，索引 = 鱼竿 Shape - 49（Globals.FishingRodShapes）
+            InitLibrary(ref UpMounts, Settings.HumUpPath + "UpMount\\", "00");
+            UpFishingMan = new[]
+            {
+                new MLibrary(Settings.HumUpPath + "UpFishing\\00M"),
+                new MLibrary(Settings.HumUpPath + "UpFishing\\01M"),
+            };
+            UpFishingWoman = new[]
+            {
+                new MLibrary(Settings.HumUpPath + "UpFishing\\00F"),
+                new MLibrary(Settings.HumUpPath + "UpFishing\\01F"),
+            };
+            //★羽化内观（11-10）：单文件库（懒加载，构造时不读盘）。
+            //  羽化角色内观固定画本职业这一套衣服帧+武器帧，不再显示实际装备的内外观。
+            StateItemWarriorMan = new MLibrary(Settings.HumUpPath + "StateItem_Warrior_Man");
+            StateItemWarriorWoman = new MLibrary(Settings.HumUpPath + "StateItem_Warrior_Woman");
+            StateItemWizardMan = new MLibrary(Settings.HumUpPath + "StateItem_Wizard_Man");
+            StateItemWizardWoman = new MLibrary(Settings.HumUpPath + "StateItem_Wizard_Woman");
+            StateItemTaoMan = new MLibrary(Settings.HumUpPath + "StateItem_Tao_Man");
+            StateItemTaoWoman = new MLibrary(Settings.HumUpPath + "StateItem_Tao_Woman");
+            StateItemAssassinMan = new MLibrary(Settings.HumUpPath + "StateItem_Assassin_Man");
+            StateItemAssassinWoman = new MLibrary(Settings.HumUpPath + "StateItem_Assassin_Woman");
+            StateItemArcherMan = new MLibrary(Settings.HumUpPath + "StateItem_Archer_Man");
+            StateItemArcherWoman = new MLibrary(Settings.HumUpPath + "StateItem_Archer_Woman");
+            StateItemCommonMan = new MLibrary(Settings.HumUpPath + "StateItem_Common_Man");
+            StateItemCommonWoman = new MLibrary(Settings.HumUpPath + "StateItem_Common_Woman");
         }
 
         /// <summary>资源清单拿到后：如果之前是降级初始化的，就在后台按正确长度重建图库数组。</summary>
@@ -825,6 +931,40 @@ namespace Client.MirGraphics
                 _loadFailed = true;
                 throw;
             }
+        }
+
+        /// <summary>
+        /// 该帧在库里是否是空帧（只有索引、没有图）。
+        /// ★羽化装备按 Item.Image 取内观帧，必须靠它做兜底：
+        ///   StateItem_Archer_* 的 3390-3394 / 3396-3400 就是空帧，
+        ///   直接 Draw 会静默什么都不画（内观里人物光着）。
+        /// 只读帧头（sizeof MImage），不建纹理，不会拖慢打开角色面板的速度。
+        /// </summary>
+        public bool IsEmptyFrame(int index)
+        {
+            if (!_initialized && !_loadFailed)
+            {
+                try { Initialize(); } catch { return true; }
+            }
+
+            if (_images == null || _indexList == null || index < 0 || index >= _images.Length)
+                return true;
+
+            if (_images[index] == null)
+            {
+                try
+                {
+                    _fStream.Position = _indexList[index];
+                    _images[index] = new MImage(_reader);
+                }
+                catch
+                {
+                    return true;
+                }
+            }
+
+            MImage mi = _images[index];
+            return mi == null || mi.Width == 0 || mi.Height == 0;
         }
 
         private bool CheckImage(int index)

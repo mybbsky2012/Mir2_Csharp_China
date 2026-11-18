@@ -181,6 +181,9 @@ namespace Client.MirSounds
             MaleDie = 10144,
             FemaleDie = 10145,
 
+            //★登仙（11-10）：羽化登仙动画音效，对应 Sound\humup.wav（SoundList.lst 里 10199: humup.wav）
+            HumUpIndex = 10199,
+
             Revive = 20791,
             ZombieRevive = 0705,
 

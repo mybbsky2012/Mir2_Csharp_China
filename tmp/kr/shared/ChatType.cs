@@ -1,0 +1,20 @@
+public enum ChatType : byte
+{
+	Normal,
+	Shout,
+	System,
+	Hint,
+	Announcement,
+	Group,
+	WhisperIn,
+	WhisperOut,
+	Guild,
+	Trainer,
+	LevelUp,
+	System2,
+	Relationship,
+	Mentor,
+	Shout2,
+	Shout3,
+	LineMessage
+}

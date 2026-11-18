@@ -1,0 +1,37 @@
+远端 http://219.138.108.82:65534 缺少以下文件（解压 zip 到远端网站根即可）
+======================================================================
+Data/ItemFilter.txt                              1213 B
+Data/Map/WemadeMir2/Smtiles.Lib                660631 B
+Data/StateItem.Lib                            3273624 B
+Data/自定义素材.Lib                                  61583 B
+Map/D421.map                                  2400054 B
+Map/D601.map                                   937554 B
+Map/D603.map                                   937554 B
+Map/D604.map                                   600054 B
+Map/D605.map                                   600054 B
+Map/D606.map                                   600054 B
+Map/D608.map                                    37554 B
+Map/D609.map                                    37554 B
+Map/D610.map                                    37554 B
+Map/D710.map                                    37554 B
+Map/D711.map                                  2400054 B
+Map/Utopia2.map                                337554 B
+UI-/skin.ini                                      566 B
+UI-/Skin/uk/Prguse/_index.csv                   59667 B
+UI-/Skin/uk/Prguse/0.png                        81970 B
+UI-/Skin/uk/Prguse/1.png                        77401 B
+UI-/Skin/uk/Prguse/2.png                       237004 B
+UI-/Skin/uk/Prguse/3.png                       149699 B
+UI-/Skin/uk/Prguse/4.png                       104385 B
+UI-/Skin/uk/Prguse/5.png                       164034 B
+UI-/Skin/uk/Prguse/6.png                       124496 B
+UI-/Skin/uk/Prguse/7.png                         2484 B
+UI-/Skin/uk/Prguse/8.png                         2807 B
+UI-/Skin/uk/Prguse/9.png                          120 B
+UI-/Skin/uk/Prguse/10.png                         813 B
+UI-/Skin/uk/Prguse/11.png                        1419 B
+UI-/Skin/uk/Prguse/14.png                        8086 B
+UI-/Skin/uk/Prguse/15.png                      251627 B
+UI-/Skin/uk/Prguse/16.png                      225615 B
+======================================================================
+合计 33 个 / 13.78 MB

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="docx-page-size" content="A4">
+<title>羽化登仙系统改造报告</title>
+<style>
+@page { @bottom-center { content: counter(page); } }
+@page cover { @bottom-center { content: none; } }
+section[role="cover"] { page: cover; }
+
+:root {
+  --ff-heading: "黑体", SimHei, sans-serif;
+  --ff-body: "宋体", SimSun, serif;
+  --ff-mono: "Consolas", "Courier New", monospace;
+  --fs-h1: 17pt;
+  --fs-h2: 13.5pt;
+  --fs-h3: 11.5pt;
+  --fs-body: 12pt;
+  --fs-small: 10.5pt;
+  --fs-tiny: 9.5pt;
+  --fs-cover-title: 30pt;
+  --fs-cover-sub: 13pt;
+  --fs-cover-cat: 12pt;
+  --fs-toc-title: 16pt;
+  --fs-toc-1: 11pt;
+  --fs-toc-2: 10.5pt;
+  --fs-card: 17pt;
+  --fs-summary: 14pt;
+  --color-primary: #14507d;
+  --color-primary-dark: #0f3c60;
+  --color-text: #1a1a1a;
+  --color-muted: #4a5a68;
+  --color-meta: #40484f;
+  --color-border: #c9d6e2;
+  --color-border-strong: #b9cddd;
+  --color-bg: #ffffff;
+  --color-highlight: #f2f7fb;
+  --color-table-head: #e8f0f7;
+  --color-table-head-text: #0f3452;
+  --color-code-bg: #f3f6f9;
+  --color-code: #16324a;
+  --color-code-inline: #a03a1f;
+  --color-callout-bg: #fdf6e3;
+  --color-callout-border: #e6d08a;
+  --color-callout-text: #4a3a10;
+  --color-card-label: #5a6a78;
+  --spacing-0: 0;
+  --spacing-1: 3pt;
+  --spacing-2: 6pt;
+  --spacing-3: 8pt;
+  --spacing-4: 10pt;
+  --spacing-5: 14pt;
+  --spacing-6: 22pt;
+  --spacing-7: 34pt;
+  --spacing-indent-1: 2.2em;
+  --spacing-indent-2: 1.4em;
+}
+
+* { box-sizing: border-box; }
+body { margin: var(--spacing-0); padding: var(--spacing-0); font-family: var(--ff-body, "宋体", SimSun, serif); font-size: var(--fs-body, 12pt); line-height: 1.75; color: var(--color-text, #1a1a1a); }
+
+.cover { padding: var(--page-cover-pad, 3.2cm 2.4cm); min-height: 70vh; border-top: 10pt solid var(--color-primary, #14507d); }
+.cover-cat { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-cover-cat, 12pt); font-weight: bold; color: var(--color-primary, #14507d); letter-spacing: 0.22em; margin: 0 0 var(--spacing-5) 0; text-align: left; }
+.cover-title { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-cover-title, 30pt); font-weight: bold; color: var(--color-primary-dark, #0f3c60); margin: 0 0 var(--spacing-4) 0; text-align: left; line-height: 1.3; }
+.cover-sub { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-cover-sub, 13pt); color: var(--color-muted, #4a5a68); margin: 0 0 var(--spacing-7) 0; text-align: left; }
+.cover-rule { height: 2pt; background: var(--color-primary, #14507d); width: 42%; margin: 0 0 var(--spacing-6) 0; text-align: left; }
+.cover-meta { margin: var(--spacing-0); padding: var(--spacing-0); text-align: left; }
+.cover-meta p { font-family: var(--ff-body, "宋体", SimSun, serif); font-size: var(--fs-small, 10.5pt); color: var(--color-meta, #40484f); margin: var(--spacing-1) 0; text-align: left; }
+
+.toc-sec { padding: var(--page-toc-pad, 1.6cm 2.4cm); }
+.toc-title { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-toc-title, 16pt); font-weight: bold; color: var(--color-primary, #14507d); margin: 0 0 var(--spacing-5) 0; text-align: left; letter-spacing: 0.1em; }
+.toc-list, .toc-list ol, .toc-list ul { list-style: none; list-style-type: none; padding-left: 0; margin: var(--spacing-0); }
+.toc-list > li { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-toc-1, 11pt); font-weight: bold; color: var(--color-primary, #14507d); margin: var(--spacing-3) 0 var(--spacing-1) 0; text-indent: 0; }
+.toc-list > li > ol { padding-left: var(--spacing-indent-2, 1.4em); margin: var(--spacing-1) 0 0 0; }
+.toc-list > li > ol > li { font-family: var(--ff-body, "宋体", SimSun, serif); font-size: var(--fs-toc-2, 10.5pt); font-weight: normal; color: var(--color-text, #1a1a1a); margin: var(--spacing-1) 0; text-indent: 0; }
+.toc-list a { color: inherit; text-decoration: none; }
+
+.report-body { padding: var(--spacing-2) 0 var(--spacing-5) 0; }
+.h1 { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-h1, 17pt); font-weight: bold; color: var(--color-bg, #ffffff); background: var(--color-primary, #14507d); padding: var(--spacing-2) var(--spacing-4); margin: var(--spacing-6) 0 var(--spacing-4) 0; text-align: left; }
+.h2 { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-h2, 13.5pt); font-weight: bold; color: var(--color-primary, #14507d); border-bottom: 1pt solid var(--color-border, #c9d6e2); padding-bottom: var(--spacing-1); margin: var(--spacing-5) 0 var(--spacing-2) 0; text-align: left; }
+.h3 { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-h3, 11.5pt); font-weight: bold; color: var(--color-primary-dark, #0f3c60); margin: var(--spacing-4) 0 var(--spacing-2) 0; text-align: left; }
+.body-p { font-family: var(--ff-body, "宋体", SimSun, serif); font-size: var(--fs-body, 12pt); color: var(--color-text, #1a1a1a); text-indent: 2em; line-height: 1.75; margin: 0 0 var(--spacing-2) 0; text-align: justify; }
+.ul, .ol { margin: var(--spacing-1) 0 var(--spacing-3) 0; padding-left: var(--spacing-indent-1, 2.2em); }
+.li { font-family: var(--ff-body, "宋体", SimSun, serif); font-size: var(--fs-body, 12pt); color: var(--color-text, #1a1a1a); line-height: 1.7; margin: var(--spacing-1) 0; text-indent: 0; text-align: left; }
+
+.tbl { width: 100%; border-collapse: collapse; margin: var(--spacing-2) 0 var(--spacing-4) 0; }
+.th { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-small, 10.5pt); font-weight: bold; color: var(--color-table-head-text, #0f3452); background: var(--color-table-head, #e8f0f7); border: 0.75pt solid var(--color-border-strong, #b9cddd); padding: var(--spacing-1) var(--spacing-2); text-align: left; }
+.td { font-family: var(--ff-body, "宋体", SimSun, serif); font-size: var(--fs-tiny, 9.5pt); color: var(--color-text, #1a1a1a); border: 0.75pt solid var(--color-border, #c9d6e2); padding: var(--spacing-1) var(--spacing-2); text-align: left; line-height: 1.55; }
+
+.code { font-family: var(--ff-mono, "Consolas", "Courier New", monospace); font-size: var(--fs-tiny, 9.5pt); line-height: 1.5; color: var(--color-code, #16324a); background: var(--color-code-bg, #f3f6f9); border: 0.75pt solid var(--color-border, #c9d6e2); padding: var(--spacing-2) var(--spacing-3); margin: var(--spacing-2) 0 var(--spacing-4) 0; text-align: left; }
+code { font-family: var(--ff-mono, "Consolas", "Courier New", monospace); font-size: var(--fs-tiny, 9.5pt); color: var(--color-code-inline, #a03a1f); }
+
+.callout { font-family: var(--ff-body, "宋体", SimSun, serif); font-size: var(--fs-small, 10.5pt); color: var(--color-callout-text, #4a3a10); background: var(--color-callout-bg, #fdf6e3); border: 0.75pt solid var(--color-callout-border, #e6d08a); padding: var(--spacing-2) var(--spacing-3); margin: var(--spacing-3) 0; text-align: left; text-indent: 0; }
+
+.divider { height: 0.75pt; background: var(--color-border, #c9d6e2); margin: var(--spacing-4) 0; }
+
+.summary { background: var(--color-highlight, #f2f7fb); border-top: 2pt solid var(--color-primary, #14507d); padding: var(--spacing-4) var(--spacing-5); margin: var(--spacing-1) 0 var(--spacing-5) 0; }
+.summary-h { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-summary, 14pt); font-weight: bold; color: var(--color-primary, #14507d); margin: 0 0 var(--spacing-3) 0; text-align: left; }
+.cards { width: 100%; border-collapse: separate; border-spacing: 6pt 0; margin: 0 0 var(--spacing-3) 0; }
+.card-h { font-family: var(--ff-body, "宋体", SimSun, serif); font-size: var(--fs-small, 10.5pt); font-weight: normal; color: var(--color-card-label, #5a6a78); background: var(--color-bg, #ffffff); border: 0.75pt solid var(--color-border, #c9d6e2); padding: var(--spacing-1) var(--spacing-2); text-align: center; }
+.card { width: 25%; background: var(--color-bg, #ffffff); border: 0.75pt solid var(--color-border, #c9d6e2); padding: var(--spacing-2) var(--spacing-3); text-align: center; }
+.card-v { font-family: var(--ff-heading, "黑体", SimHei, sans-serif); font-size: var(--fs-card, 17pt); font-weight: bold; color: var(--color-primary, #14507d); text-align: center; margin: var(--spacing-0); }
+.card-l { font-family: var(--ff-body, "宋体", SimSun, serif); font-size: var(--fs-small, 10.5pt); color: var(--color-card-label, #5a6a78); text-align: center; margin: var(--spacing-1) 0 0 0; }
+</style>
+</head>
+<body>
+
+<section role="cover" class="cover">
+  <p class="cover-cat" style="text-align: left;">技术报告 · 版本 v1.0</p>
+  <p class="cover-title" style="text-align: left;">羽化登仙系统改造报告</p>
+  <p class="cover-sub" style="text-align: left;">功能开发 · 缺陷修复 · 数据迁移 · 部署回滚</p>
+  <div class="cover-rule" style="text-align: left;"></div>
+  <div class="cover-meta" style="text-align: left;">
+    <p>项目：Mir2 羽化登仙（仙体）系统　|　工程：D:\mir2-20241027</p>
+    <p>报告日期：2026 年 11 月 12 日　|　报告范围：2026-11-11 至 2026-11-12</p>
+    <p>密级：内部　|　编制：客户端 / 服务端改造组</p>
+  </div>
+</section>
+
+<section role="body" class="report-body" data-page-restart="1">
+
+<div class="toc-sec">
+  <p class="toc-title" style="text-align: left;">目　录</p>
+  <ol class="toc-list">
+<li><a href="#section-1">一、改造概述</a></li>
+<li><a href="#section-2">二、技术架构</a></li>
+<li><a href="#section-3">三、编码规范（核心约定）</a></li>
+<li><a href="#section-4">四、功能改动明细</a></li>
+<li><a href="#section-5">五、缺陷修复清单</a></li>
+<li><a href="#section-6">六、验证与测试</a></li>
+<li><a href="#section-7">七、部署与回滚</a></li>
+<li><a href="#section-8">八、遗留问题与风险</a></li>
+<li><a href="#section-9">附录 A　代码位置索引</a></li>
+<li><a href="#section-10">附录 B　命令速查</a></li>
+<li><a href="#section-11">附录 C　运维检查清单</a></li>
+  </ol>
+</div>
+
+<div class="executive-summary summary">
+  <p class="summary-h">执行摘要</p>
+  <table class="cards">
+    <thead>
+      <tr>
+        <th class="card-h">修复缺陷</th>
+        <th class="card-h">羽化专属装备（件）</th>
+        <th class="card-h">改动文件（客户端 + 服务端）</th>
+        <th class="card-h">验证角色 / 羽化号</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="card"><p class="card-v">20</p></td>
+        <td class="card"><p class="card-v">111</p></td>
+        <td class="card"><p class="card-v">13</p></td>
+        <td class="card"><p class="card-v">25 / 6</p></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="body-p">本轮改造把羽化登仙从"素材已导入、系统只接通一半"补成闭环：外观侧统一接管人物、发型、武器、坐骑、鱼竿与内观；规则侧禁止未羽化角色穿戴专属装备、退回前强制脱装；判定侧修正羽化武器 2000 段 Shape 与旧职业判定规则的冲突；数据侧把羽化状态从自定义 BUFF 槽位迁到专用类型，并补齐存档迁移与未知类型容错。改造后，全套流程在账号库副本上验证 25 个角色、6 个羽化号迁移前后属性逐行一致，构建与部署均已校验哈希。</p>
+  <p class="body-p">核心结论：羽化外观的判定完全由装备 Shape 与 BUFF 类型驱动，两端口径必须严格一致；凡"竿偏了、衣服穿成别人的"这类问题，根因都是段位或档位选错，而不是缺少像素补偿。</p>
+</div>
+
+<p class="body-p"><strong>项目</strong>：Mir2 服务端/客户端羽化登仙（仙体）系统 <strong>版本</strong>：v1.0 <strong>日期</strong>：2026 年 11 月 12 日 <strong>工程路径</strong>：<code>D:\mir2-20241027</code>；客户端运行目录 <code>E:\micromir2</code>；服务端运行目录 <code>E:\BaiduNetdiskDownload\韩Mir2\20260915更新\Mir2Server</code> <strong>报告范围</strong>：2026-11-11 至 2026-11-12 期间羽化登仙相关的全部功能开发、缺陷修复、数据写库与部署</p>
+<div class="divider"></div>
+<h1 class="h1" id="section-1">一、改造概述</h1>
+<h2 class="h2" id="sub-1">1.1 背景与目标</h2>
+<p class="body-p">羽化登仙是本服的高阶成长线：玩家完成羽化后，人物外观整体切换为独立的"仙体"素材（另一套人物、发型、武器、坐骑、鱼竿与内观立绘），并获得按重数递增的属性加成。改造前的状态是"素材已导入、但系统只接通了一半"，存在四类问题：</p>
+<ol class="ol">
+<li class="li"><strong>外观不完整</strong>：只有部分职业/档位能正确显示；骑乘、持竿、内观会掉回原版素材或画成固定仙兵。</li>
+<li class="li"><strong>规则缺失</strong>：未羽化角色可以直接穿上羽化专属装备，客户端仅凭装备 Shape 就接管仙体外观，等于免 BUFF 白嫖。</li>
+<li class="li"><strong>判定错误</strong>：羽化武器使用了 2000 段新 Shape，而多处职业判定仍按旧的 <code>Shape / 100</code> 规则，导致刺客/弓箭手"必须佩带适合的武器"、羽化弓射不出箭。</li>
+<li class="li"><strong>数据隐患</strong>：羽化状态寄存在自定义 BUFF 槽位，未知 BUFF 类型会让整个账号库回退 <code>.bak</code> 并导致服务器无法启动。</li>
+</ol>
+<p class="body-p">本轮改造的目标，是把羽化登仙做成一条<strong>闭环</strong>：装备能穿、外观正确、属性可配、退回可控、异常不炸服。</p>
+<h2 class="h2" id="sub-2">1.2 系统组成</h2>
+<table class="tbl"><thead><tr><th class="th">子系统</th><th class="th">职责</th><th class="th">主要实现位置</th></tr></thead><tbody><tr><td class="td">装备体系</td><td class="td">羽化专属盔甲/武器，Shape 编码区分职业与档位</td><td class="td">物品库 + <code>PlayerObject.IsHumUpEquipShape</code></td></tr><tr><td class="td">外观体系</td><td class="td">按 Shape 切换人物/发型/武器/坐骑/鱼竿图库</td><td class="td"><code>Client/MirObjects/PlayerObject.cs</code>、<code>MLibrary.cs</code>、<code>Frames.cs</code></td></tr><tr><td class="td">属性体系</td><td class="td">一重~十重的属性加成</td><td class="td"><code>BuffSystem.ini</code> + <code>BuffType.羽化一重~十重</code></td></tr><tr><td class="td">规则体系</td><td class="td">未羽化禁穿、退回前必须脱装</td><td class="td"><code>HumanObject.CanEquipItem</code>、<code>SetHumUpStage</code></td></tr><tr><td class="td">命令体系</td><td class="td">NPC 脚本与 GM 命令</td><td class="td"><code>NPCSegment.cs</code>、<code>PlayerObject.cs</code></td></tr><tr><td class="td">存档体系</td><td class="td">旧 BUFF 编码迁移与容错</td><td class="td"><code>CharacterInfo.MigrateHumUpBuffs</code>、<code>BuffInfo.Unknown</code></td></tr></tbody></table>
+<h2 class="h2" id="sub-3">1.3 玩家侧完整链路</h2>
+<ol class="ol">
+<li class="li">玩家通过 NPC 完成羽化（<code>HUMP</code> / <code>@HUMUP</code>），身上获得"羽化登仙"标记 + "羽化登仙·N 重"属性 BUFF。</li>
+<li class="li">客户端检测到羽化 BUFF，<code>SetHumUpLibraries()</code> 接管图库：人物走 <code>UpCArmour</code>/职业羽化库，发型走 <code>UpCHairs</code>，武器走 <code>UpCWeapon</code>，坐骑走 <code>UpMount</code>，鱼竿走 <code>UpFishing</code>。</li>
+<li class="li">玩家穿上羽化专属装备（Shape 1001~1059 / 2001~2059），客户端据此选择具体档位素材；服务端在穿戴入口校验"必须已羽化"。</li>
+<li class="li">战斗中属性由 BUFF 提供；退回羽化前必须先脱下全部羽化装备，避免"BUFF 没了但外观还在"。</li>
+</ol>
+<h2 class="h2" id="sub-4">1.4 改造规模</h2>
+<table class="tbl"><thead><tr><th class="th">层</th><th class="th">文件数</th><th class="th">说明</th></tr></thead><tbody><tr><td class="td">客户端</td><td class="td">3</td><td class="td"><code>PlayerObject.cs</code>、<code>Frames.cs</code>、<code>MLibrary.cs</code></td></tr><tr><td class="td">服务端</td><td class="td">8</td><td class="td"><code>HumanObject.cs</code>、<code>PlayerObject.cs</code>、<code>NPCSegment.cs</code>、<code>NPCActions.cs</code>、<code>CharacterInfo.cs</code>、<code>BuffInfo.cs</code>、<code>BuffConfig.cs</code>、<code>Envir.cs</code>（含新增 <code>ItemInfoReload.cs</code>）</td></tr><tr><td class="td">共享层</td><td class="td">2</td><td class="td"><code>Enums.cs</code>、<code>ItemData.cs</code></td></tr><tr><td class="td">配置/数据</td><td class="td">2</td><td class="td"><code>Configs\BuffSystem.ini</code>、<code>Server.MirDB</code>（写库 85 件 + 修 2 件）</td></tr><tr><td class="td">工具</td><td class="td">7</td><td class="td">素材导出、逐帧合成、库帧探针、物品诊断、Shape 扫描、写库、命令解析冒烟</td></tr></tbody></table>
+<div class="divider"></div>
+<h1 class="h1" id="section-2">二、技术架构</h1>
+<h2 class="h2" id="sub-5">2.1 客户端渲染链路</h2>
+<p class="body-p">羽化外观不改变任何物品 Shape 定义，全部由 <code>PlayerObject.SetLibraries()</code> 在每帧前重新解析：</p>
+<pre class="code">SetLibraries()
+  └─ SetHumUpLibraries()                    // 判定是否处于羽化外观
+       ├─ 读 HumUpStage（自己走 BuffsDialog，别人走 ObjectPlayer.Buffs）
+       ├─ 盔甲：IsHumUpEquipShape(armourShape) ?
+       │        ├─ 是 → Up{职业}Armour\0N.Lib（N = 档位）
+       │        └─ 否 → 按 HumUpRideTier 映射选 UpCArmour（通用库）
+       ├─ 发型：UpCHairs（骑乘/通用时按档位映射，女半 +1112）
+       ├─ 武器：2000 段 → Up{职业}Weapon\0N.Lib；鱼竿 → UpFishing\00M|00F
+       ├─ 坐骑：UpMount\NN.Lib
+       └─ Frames：HumUpCommon（通用帧表）/ HumUpPlayer（职业帧表）</pre>
+<p class="body-p">绘制阶段由 <code>_humUpMount</code>、<code>_humUpFishing</code>、<code>HumUpLook</code> 三个标记决定走哪条分支，避免每帧重复读 BUFF 状态造成"身体已换库、武器还按旧方位垫层"的自相矛盾。</p>
+<h2 class="h2" id="sub-6">2.2 服务端数据与校验链路</h2>
+<p class="body-p">服务端<strong>不参与外观判定</strong>（只把 <code>Looks_Armour = Shape</code> 原样下发），但承担三件事：</p>
+<ol class="ol">
+<li class="li"><strong>准入校验</strong>：<code>CanEquipItem</code> 拦截未羽化角色穿戴羽化装备（英雄、假人走同一入口）。</li>
+<li class="li"><strong>状态管理</strong>：<code>SetHumUpStage</code> 统一负责加/减/清零重数，并在退回前检查是否还穿着羽化装备。</li>
+<li class="li"><strong>存档迁移</strong>：<code>CharacterInfo</code> 读档时把旧 BUFF 编码就地映射为新编码，保证在线前选人界面立绘也正确。</li>
+</ol>
+<h2 class="h2" id="sub-7">2.3 共享层</h2>
+<p class="body-p"><code>BuffType</code> 枚举是客户端与服务端共用的协议常量：羽化状态要随 <code>ObjectPlayer.Buffs</code> 广播给周围玩家，因此<strong>重数必须编码在枚举值本身</strong>，不能放在 <code>Buff.Values</code>（<code>Values</code> 不随视野同步）。</p>
+<div class="divider"></div>
+<h1 class="h1" id="section-3">三、编码规范（核心约定）</h1>
+<h2 class="h2" id="sub-8">3.1 装备 Shape 编码</h2>
+<pre class="code">盔甲：1000 + 职业索引 × 10 + 档位     → 1001 ~ 1059
+武器：2000 + 职业索引 × 10 + 档位     → 2001 ~ 2059
+职业索引：0 通用 / 1 战士 / 2 法师 / 3 道士 / 4 刺客 / 5 弓箭
+档位：1 ~ 8（对应素材 \01~08.Lib；00 是素体，不作为档位）</pre>
+<p class="body-p">判定口径在客户端与服务端<strong>完全一致</strong>（<code>clsIdx ≤ 5 &amp;&amp; tier ≥ 1 &amp;&amp; tier ≤ 8</code>），任何一边改动必须同步，否则会出现"服务端能穿、客户端不认"的错位。</p>
+<h2 class="h2" id="sub-9">3.2 装备清单（数据库实测）</h2>
+<table class="tbl"><thead><tr><th class="th">类型</th><th class="th">件数</th><th class="th">Shape 范围</th><th class="th">分布</th></tr></thead><tbody><tr><td class="td">盔甲</td><td class="td">82</td><td class="td">1001 ~ 1058</td><td class="td">通用 2 件（1001）；战/法/道/刺/弓 各 8 档 × 男女</td></tr><tr><td class="td">武器</td><td class="td">29</td><td class="td">2011 ~ 2058</td><td class="td">战 2011~2015（5）、法 2021~2024（4）、道 2031~2034（4）、刺 2041~2048（8）、弓 2051~2058（8）</td></tr><tr><td class="td">合计</td><td class="td">111</td><td class="td">—</td><td class="td">经全库扫描，两个 Shape 区间被登仙装备独占，零误伤</td></tr></tbody></table>
+<div class="callout">早期版本只放行档位 1~3，导致 Shape 1034 这类装备不生效（显示成 1031 外观）。本轮上限已放宽至 8 档，与素材实际拥有的 <code>00~08.Lib</code> 对齐。</div>
+<h2 class="h2" id="sub-10">3.3 BUFF 编码（新旧对照）</h2>
+<table class="tbl"><thead><tr><th class="th">用途</th><th class="th">旧编码（已停用，仅读档兼容）</th><th class="th">新编码</th></tr></thead><tbody><tr><td class="td">羽化标记（零属性）</td><td class="td"><code>Custom1</code> = 230</td><td class="td"><code>羽化登仙</code> = <strong>159</strong></td></tr><tr><td class="td">一重 ~ 十重</td><td class="td"><code>Custom3~Custom12</code> = 232~241</td><td class="td"><code>羽化一重~羽化十重</code> = <strong>160~169</strong></td></tr><tr><td class="td">属性配置位置</td><td class="td">ini <code>[1]</code> / <code>[3]~[12]</code>（数字节名 = 自定义槽位）</td><td class="td">ini <code>[羽化登仙]</code> / <code>[羽化一重]</code>…<code>[羽化十重]</code>（节名 = 枚举名，不占槽位）</td></tr></tbody></table>
+<p class="body-p">新编码落在 <code>BuffType</code> 的 123~199 空闲段，<code>Buff.StackType = Infinite</code>（永久，不受计时清理），<code>Visible = true</code>（BUFF 栏可见）。</p>
+<p class="body-p">属性按重数线性递增，配置在 <code>Configs\BuffSystem.ini</code>，可热改：</p>
+<table class="tbl"><thead><tr><th class="th">重数</th><th class="th">MaxDC</th><th class="th">MaxMC</th><th class="th">MaxSC</th><th class="th">MaxAC</th><th class="th">MaxMAC</th><th class="th">HP</th><th class="th">MP</th></tr></thead><tbody><tr><td class="td">一重</td><td class="td">+5</td><td class="td">+5</td><td class="td">+5</td><td class="td">+3</td><td class="td">+3</td><td class="td">+100</td><td class="td">+100</td></tr><tr><td class="td">十重</td><td class="td">+50</td><td class="td">+50</td><td class="td">+50</td><td class="td">+30</td><td class="td">+30</td><td class="td">+1000</td><td class="td">+1000</td></tr></tbody></table>
+<h2 class="h2" id="sub-11">3.4 素材库与帧布局</h2>
+<p class="body-p">素材根目录：<code>E:\micromir2\Data\HumUp\</code></p>
+<table class="tbl"><thead><tr><th class="th">素材</th><th class="th">文件</th><th class="th">帧数/规格</th><th class="th">布局要点</th></tr></thead><tbody><tr><td class="td">通用人物</td><td class="td"><code>UpCArmour\00~25.Lib</code></td><td class="td">2224 帧</td><td class="td">0~783 普通动作区，792~1111 骑乘区</td></tr><tr><td class="td">职业人物</td><td class="td"><code>Up{War/Tao/Wizard}/Armour\00~09.Lib</code></td><td class="td">768~2224 帧</td><td class="td">无骑乘帧，骑乘必须切通用库</td></tr><tr><td class="td">武器</td><td class="td"><code>UpCWeapon\</code> 21 个 + 职业武器 5~19 个</td><td class="td">768~1824 帧</td><td class="td">刺客为 L/R 双持；文件编号不连续，序号=目录排序位</td></tr><tr><td class="td">坐骑</td><td class="td"><code>UpMount\00~11.Lib</code></td><td class="td">320 帧，92×164</td><td class="td">5 段：站 0(4) / 走 64(8) / 跑 128(6) / 被击 192(3) / 攻 256(6)</td></tr><tr><td class="td">鱼竿</td><td class="td"><code>UpFishing\00M/00F/01M/01F</code></td><td class="td">384 帧</td><td class="td">6 段：抛竿 0(8) / 等待 64(6) / 收线 128(8) / 抡挥 192 / 静持 256(6) / 挥砍 320(8)</td></tr><tr><td class="td">内观</td><td class="td"><code>StateItem_{职业}_{性别}.Lib</code> × 12</td><td class="td">—</td><td class="td">含鱼竿帧 2310/2311/2313（76×141）、2312/3782（488×476）</td></tr></tbody></table>
+<p class="body-p">通用约定：<strong>每方向 8 个槽位，不足 8 帧的段后 2 帧为 4×4 空槽</strong>；帧锚点 <code>(fx, fy)</code> 即握点/落脚点，竿与身体共用同一套锚点体系——这是"竿必须用素材原锚点绘制、不能加像素补偿"的根本原因。</p>
+<h2 class="h2" id="sub-12">3.5 通用库动作段（钓鱼/攻击相关）</h2>
+<table class="tbl"><thead><tr><th class="th">段基</th><th class="th">动作</th><th class="th">说明</th></tr></thead><tbody><tr><td class="td">0 / 64 / 128</td><td class="td">站 / 走 / 跑</td><td class="td">4 帧/方向起，跑动 6 帧</td></tr><tr><td class="td">256</td><td class="td">攻击 1</td><td class="td">—</td></tr><tr><td class="td">448</td><td class="td">单手挥砍</td><td class="td">持竿攻击/施法时身体改画此段</td></tr><tr><td class="td">592</td><td class="td">前倾突刺</td><td class="td">刺客步刺</td></tr><tr><td class="td">600 / 664 / 728</td><td class="td">钓鱼抛竿 / 等待 / 收线</td><td class="td">与竿段 0 / 64 / 128 组成 <strong>Δ=600 恒定偏移</strong>（原版 CArmour 为 632/696/744，羽化库整体前移 32 帧）</td></tr><tr><td class="td">896</td><td class="td">双手举高施法</td><td class="td">羽化角色持竿时<strong>禁用</strong>（会变成"抬手法术"）</td></tr><tr><td class="td">792+</td><td class="td">骑乘区</td><td class="td">站/走/跑/被击/攻，女半 +1112</td></tr></tbody></table>
+<div class="divider"></div>
+<h1 class="h1" id="section-4">四、功能改动明细</h1>
+<h2 class="h2" id="sub-13">4.1 外观：盔甲档位从 3 档放宽到 8 档</h2>
+<ul class="ul">
+<li class="li"><strong>文件</strong>：<code>Client/MirObjects/PlayerObject.cs</code> → <code>IsHumUpEquipShape</code></li>
+<li class="li"><strong>改动</strong>：<code>tier ≤ 3</code> → <code>tier ≤ 8</code>，注释同步为各职业实际 Shape 段。</li>
+<li class="li"><strong>原因</strong>：素材 <code>Up*Armour\00~08.Lib</code> 本就齐全，代码只放行前 3 档，导致 4 档以上被判定为"非羽化装备"，羽化状态下身体强制回落到 01 档，表现为"设 1034 显示的还是 1031"。</li>
+</ul>
+<h2 class="h2" id="sub-14">4.2 外观：武器按档位选库</h2>
+<ul class="ul">
+<li class="li"><strong>文件</strong>：<code>PlayerObject.SetHumUpLibraries</code></li>
+<li class="li"><strong>改动</strong>：羽化武器不再恒用 <code>01.Lib</code>，改为按 <code>GetHumUpEquipClass</code> 取出的档位拼 <code>Up{职业}Weapon\0N.Lib</code>。</li>
+<li class="li"><strong>配套</strong>：11-11 写库时为 29 件武器分配了连续档位（战 5 / 法 4 / 道 4 / 刺 8 / 弓 8）。</li>
+</ul>
+<h2 class="h2" id="sub-15">4.3 外观：骑乘接入 UpMount 与骑乘姿势</h2>
+<ul class="ul">
+<li class="li"><strong>文件</strong>：<code>MLibrary.cs</code>、<code>PlayerObject.cs</code>、<code>Frames.cs</code></li>
+<li class="li"><strong>加载</strong>：<code>MLibrary</code> 新增 <code>UpMounts</code>（<code>InitLibrary</code> 扫描，微端清单自动生效）与 <code>UpFishingMan/Woman</code>（男女分文件，手动 new，索引 = Shape - 49）。</li>
+<li class="li"><strong>姿势</strong>：骑乘时身体切 <code>UpCArmour</code> 骑乘区（792 起：站 4 / 走 8 / 跑 6 / 被击 3 / 攻 6 帧），马腿帧与身体 <code>FrameIndex</code> 逐帧同步，取代早期按时间独立步进（会出现"人不动马在跑"）。</li>
+<li class="li"><strong>配色</strong>：职业羽化甲没有骑乘帧，必须用通用库；为不让各职业/档位穿出"别人的衣服"，用 72 维色彩直方图（24 色相 × 3 明度带）把 5 职业 × 10 档映射到最接近的通用档，落成 <code>HumUpRideTierMap</code> 5×10 静态表。</li>
+<li class="li"><strong>特效</strong>：<code>SetEffects()</code> 原实现 <code>if (RidingMount) return;</code> 会把羽化特效整段跳过。改为拆开处理——头上飞龙（Effect 1020）骑乘保留、脚下光环（Effect 990）骑乘不画。</li>
+</ul>
+<h2 class="h2" id="sub-16">4.4 外观：鱼竿（本轮改动最密集）</h2>
+<table class="tbl"><thead><tr><th class="th">改动</th><th class="th">旧</th><th class="th">新</th></tr></thead><tbody><tr><td class="td">钓鱼身体段</td><td class="td">632 / 696 / 744（照搬原版 CArmour）</td><td class="td"><strong>600 / 664 / 728</strong>（羽化库整体前移 32 帧）</td></tr><tr><td class="td">竿段：收线</td><td class="td">112（实际是等待段 dir6/7）</td><td class="td"><strong>128</strong></td></tr><tr><td class="td">攻击/施法竿段</td><td class="td">256 静持（死竿）</td><td class="td"><strong>320 挥砍</strong>（8 方向全有效，自带速度线）</td></tr><tr><td class="td">攻击/施法身体段</td><td class="td">896 双手举高施法</td><td class="td"><strong>448 单手挥砍</strong></td></tr><tr><td class="td">竿绘制位置</td><td class="td">素材锚点 + 像素补偿（+8/-8、+4/-4）</td><td class="td"><strong>素材原锚点，零补偿</strong></td></tr><tr><td class="td">跑动/行走竿</td><td class="td">跟随静持段（几乎逐像素相同 → 死竿）</td><td class="td"><strong>弧形摆臂位移表</strong>（8 方向 × 6 帧）</td></tr><tr><td class="td">持竿身体库</td><td class="td">仅"穿羽化甲/裸体"才切通用库</td><td class="td"><strong>持竿一律切通用库</strong>（含穿普通甲）</td></tr></tbody></table>
+<p class="body-p"><strong>钓鱼段位是怎么确定的</strong>：先用"竿像素到身体像素的 BFS 最小距离"全库扫描——正确配对的每一帧距离都应为 0。扫描结果显示 <code>UpCArmour</code> 的真实钓鱼段是 600/664/728（与竿 0/64/128 恒定相差 600），而 632 段与任何竿段都配不上（最小 5.9px，最大 25px），这正是"鱼竿乱飞"的根源。</p>
+<p class="body-p"><strong>为什么删掉像素补偿</strong>：竿帧的 <code>fx/fy</code> 与身体帧共用锚点体系，锚点即握点。早期"抬高 5~10px"的反馈是在身体错误使用 896（双手举高）段时观察到的；身体改成 448 后，原补偿反而把竿推离手，表现为"竿跟在身边"。实测竿 320 × 身体 448 每帧距离仅 0.65px，天然贴合。</p>
+<p class="body-p"><strong>弧形摆臂</strong>：竿库 6 段中没有跑步/行走段，静持段 6 帧几乎一模一样。解决方案是用圆弧参数化生成握点轨迹：</p>
+<pre class="code">θ(f) = θ0 · cos(2π(f-3)/6)     θ0 = 65°，R = 7
+dx = R · sinθ        // 前后分量：正右/正左满幅 ±6，斜向 ±3~4，正上/下为 0
+dy = -R · (1 - cosθ) // 抬落分量：弧两端抬高 4px，经过身侧最低 1px</pre>
+<p class="body-p">帧号直接取身体 <code>FrameIndex % 6</code>，与步频严格同步；行走沿用同一条弧、幅度 ×0.4。峰值落在 f3（身体抬臂最高帧），因此竿的摆动与手臂抬落同相，不会脱手。</p>
+<h2 class="h2" id="sub-17">4.5 内观：羽化立绘走羽化库，持竿走竿帧</h2>
+<ul class="ul">
+<li class="li"><strong>文件</strong>：<code>PlayerObject.ResolveHumUpWeaponFrame</code></li>
+<li class="li"><strong>改动</strong>：手持鱼竿（Shape 49/50）时，用该竿自己的 <code>Image</code> 去羽化 <code>StateItem</code> 库取帧；空帧兜底回落固定仙兵帧。</li>
+<li class="li"><strong>覆盖范围</strong>：自己的内观（<code>CharacterDialog</code>）与查看他人（<code>MainDialogs</code>）都经此函数，一处改动两边生效。</li>
+<li class="li"><strong>素材核对</strong>：12 个羽化内观库（战/法/道/刺/弓/通用 × 男女）全部自带竿帧，无需新增素材。</li>
+</ul>
+<h2 class="h2" id="sub-18">4.6 属性：羽化重数与属性</h2>
+<ul class="ul">
+<li class="li"><strong>配置</strong>：<code>Configs\BuffSystem.ini</code> 新增 11 个非数字节名（<code>[羽化登仙]</code>、<code>[羽化一重]</code>…<code>[羽化十重]</code>），节名即枚举名，属"挂在已有枚举上"，<strong>不占用 24 个自定义槽位</strong>。</li>
+<li class="li"><strong>属性</strong>：每重 攻击/魔法/道术 +5、防御/魔御 +3、生命/魔法 +100，十重封顶 +50/+30/+1000。</li>
+<li class="li"><strong>换重</strong>：<code>SetHumUpStage</code> 先清旧标记与全部重数位再挂新位，避免属性叠加。</li>
+</ul>
+<h2 class="h2" id="sub-19">4.7 规则：未羽化禁穿 + 退回前必须脱装</h2>
+<ol class="ol">
+<li class="li"><strong>穿戴拦截</strong>（<code>HumanObject.CanEquipItem</code>）：<code>!IsHumUp() &amp;&amp; IsHumUpEquipShape(shape)</code> → 拒绝。英雄、假人自动穿戴走同一入口，一并覆盖。</li>
+<li class="li"><strong>拒绝提示</strong>（<code>PlayerObject.EquipItem</code>）：客户端收到 <code>Success = false</code> 只会静默解锁格子，因此服务端补一条提示「XX 蕴含仙灵之力，需羽化登仙后方可穿戴」。</li>
+<li class="li"><strong>退回保护</strong>（<code>SetHumUpStage</code> 改为返回 <code>bool</code>）：降到 0 重且身上仍有羽化装备时拒绝执行并提示「请先脱下身上的羽化专属装备，再退回羽化登仙」。NPC 脚本与 GM 命令均按返回值跳过成功文案，不会出现"提示退回成功但其实没退"。</li>
+</ol>
+<h2 class="h2" id="sub-20">4.8 武器职业判定：兼容 2000 段新编码</h2>
+<table class="tbl"><thead><tr><th class="th">位置</th><th class="th">旧逻辑</th><th class="th">问题</th><th class="th">新逻辑</th></tr></thead><tbody><tr><td class="td"><code>Client.PlayerObject.HasClassWeapon</code></td><td class="td"><code>Weapon / 100</code> 判职业</td><td class="td">2041/100 = 20 → 落 default（只认战法道）→ 刺客/弓箭被判"无本职业武器"，放技能弹「必须佩带适合的武器」</td><td class="td">Weapon ∈ 2001~2059 时走 <code>IsHumUpEquipShape</code> + <code>GetHumUpEquipClass</code>（十位 0 通用=全职业，其余须与自身职业一致）</td></tr><tr><td class="td"><code>Server.HumanObject.RangeAttack</code></td><td class="td"><code>Shape / 100 != 2</code> 直接 return</td><td class="td">羽化弓 2051+ 静默射不出箭</td><td class="td">兼容 <code>(shape - 2000) / 10 == 5</code></td></tr></tbody></table>
+<p class="body-p">跨职业保护仍然有效：刺客佩戴战士羽化刃依旧被拦截。</p>
+<h2 class="h2" id="sub-21">4.9 BUFF 体系迁移（脱离自定义槽位）</h2>
+<p class="body-p"><strong>问题</strong>：旧实现占用 11 个自定义槽位（Custom1 标记 + Custom3~12 重数），带来三个硬伤：</p>
+<ul class="ul">
+<li class="li">未知 <code>BuffType</code> 会让 <code>Buff(BinaryReader)</code> 抛异常 → 账号库回退 <code>.bak</code> → 服务器起不来；</li>
+<li class="li"><code>ReloadBuffConfig</code> 会把 <code>IsCustom</code> 的 BUFF 直接从在线玩家身上移除（GM 重载一次即抹掉全服羽化）；</li>
+<li class="li">24 个自定义槽位被长期占掉 11 个。</li>
+</ul>
+<p class="body-p"><strong>方案</strong>：改用专用枚举 159~169，并做四层保障：</p>
+<ol class="ol">
+<li class="li"><strong>硬注册</strong>：<code>BuffInfo.Load</code> 内置 11 个类型（<code>Stack=Infinite</code>、<code>Visible=true</code>），不依赖 ini 是否写对。</li>
+<li class="li"><strong>读档迁移</strong>：<code>CharacterInfo.MigrateHumUpBuffs()</code> 在 Buff 循环后执行（覆盖英雄），<strong>只改 <code>buff.Info</code> 指针，不 new 对象</strong>——否则 <code>Stats / ExpireTime / Values / Data</code> 会丢失且登录重放补不回来。迁移幂等，并按类型去重。</li>
+<li class="li"><strong>容错兜底</strong>：<code>Buff(BinaryReader)</code> 对未注册类型 catch → 用 <code>BuffInfo.Unknown</code> 占位并置 <code>UnknownType</code>（<code>Type</code> 仍返回原始字节，存档可原样写回），只报一次日志。<strong>这一条堵死了"一个字节让账号库回退"的路径。</strong></li>
+<li class="li"><strong>兼容映射</strong>：<code>BuffConfig.MapLegacyHumUp()</code> 把 <code>@GIVEBUFF 1</code>、<code>@GIVEBUFF 3~12</code> 及脚本里的槽位号翻译成新类型，避免挂出僵尸 BUFF；<code>GetSelectHumUpStage()</code> 同步识别新旧编码，保证选人界面立绘正确。</li>
+</ol>
+<p class="body-p">旧 ini 节 <code>[1]</code> / <code>[3]~[12]</code> <strong>原样保留</strong>，作为老存档的读档兼容层，代码不再写入。</p>
+<h2 class="h2" id="sub-22">4.10 命令体系</h2>
+<p class="body-p"><strong>NPC 脚本命令（本轮新增/补全）</strong></p>
+<table class="tbl"><thead><tr><th class="th">命令</th><th class="th">位置</th><th class="th">语法</th><th class="th">说明</th></tr></thead><tbody><tr><td class="td"><code>CHECKHUMUP</code></td><td class="td">#IF 条件</td><td class="td"><code>CHECKHUMUP</code> / <code>CHECKHUMUP n</code> / <code>CHECKHUMUP op n</code></td><td class="td">无参=已登仙；<code>n</code>=重数 ≥ n；<code>op n</code>=显式比较</td></tr><tr><td class="td"><code>HUMP</code></td><td class="td">#ACT</td><td class="td"><code>HUMP [n]</code></td><td class="td">升 N 重（默认 1，封顶 10），已满提示"无法再升"</td></tr><tr><td class="td"><code>HUMDOWN</code></td><td class="td">#ACT</td><td class="td"><code>HUMDOWN [n]</code></td><td class="td">降 N 重（默认 1），减到 0 即完全退回</td></tr><tr><td class="td"><code>RESETHUMUP</code></td><td class="td">#ACT</td><td class="td"><code>RESETHUMUP [1]</code></td><td class="td">还原为未登仙；带 <code>1</code>/<code>FORCE</code> 为强制模式</td></tr></tbody></table>
+<ul class="ul">
+<li class="li">强制模式由新增的 <code>PlayerObject.TryUnequipHumUpEquipment()</code> 支撑：先统计所需背包空格，不足则整单失败（不做"只脱一半"）；足够则逐件走 <code>RemoveItem</code> 正规通道退回背包，客户端同步刷新，最后再清零重数。</li>
+<li class="li">旧名 <code>HUMUPUP</code> / <code>HUMUPDOWN</code> / <code>HUMUPRESET</code> 全部保留，老脚本无需改动。</li>
+</ul>
+<p class="body-p"><strong>GM 命令（已有，口径与 NPC 不同，勿混用）</strong></p>
+<table class="tbl"><thead><tr><th class="th">命令</th><th class="th">行为</th></tr></thead><tbody><tr><td class="td"><code>@HUMUP</code> / <code>@HUMUP 5</code></td><td class="td">升一重 / <strong>直接设为五重</strong></td></tr><tr><td class="td"><code>@HUMUPDOWN [n]</code></td><td class="td">降 N 重，<code>0</code> = 完全退回</td></tr><tr><td class="td"><code>@HUMUPRESET</code></td><td class="td">完全退回</td></tr><tr><td class="td"><code>@HUMUPINFO</code></td><td class="td">查看当前重数</td></tr></tbody></table>
+<div class="divider"></div>
+<h1 class="h1" id="section-5">五、缺陷修复清单</h1>
+<table class="tbl"><thead><tr><th class="th">#</th><th class="th">现象</th><th class="th">根因</th><th class="th">修法</th></tr></thead><tbody><tr><td class="td">1</td><td class="td">设 Shape 1034 仍显示 1031 外观</td><td class="td"><code>IsHumUpEquipShape</code> 只放行档位 1~3，4 档被判非羽化 → 回落 01 库</td><td class="td">档位上限放宽到 8</td></tr><tr><td class="td">2</td><td class="td">骑乘时人物坐着却在"迈腿"</td><td class="td">骑乘仍在用普通站立帧</td><td class="td">骑乘动作绑 <code>UpCArmour</code> 792 段系，马腿帧与身体 <code>FrameIndex</code> 同步</td></tr><tr><td class="td">3</td><td class="td">羽化甲骑乘时穿成"别人的衣服"</td><td class="td">职业羽化甲无骑乘帧，只能用通用库，档位对不上</td><td class="td">72 维色彩直方图映射 → <code>HumUpRideTierMap</code></td></tr><tr><td class="td">4</td><td class="td">上马后头上飞龙消失</td><td class="td"><code>SetEffects()</code> 骑乘时整段 return</td><td class="td">拆分：飞龙保留、脚下光环不画</td></tr><tr><td class="td">5</td><td class="td">GM 重载物品后游戏内不刷新，必须重启</td><td class="td">重载只替换列表引用，而 <code>UserItem.Info</code> 是字段，存量物品仍指向旧实例</td><td class="td"><code>ItemInfo.CopyFrom</code> 就地覆盖 + 客户端同 Index 就地更新</td></tr><tr><td class="td">6</td><td class="td">鱼竿"乱飞"、竿悬空在身体旁</td><td class="td">抛竿身体误用 632 段（与任何竿段都不贴合）</td><td class="td">BFS 实测定位真配对 600/664/728</td></tr><tr><td class="td">7</td><td class="td">收线动作竿画在奇怪位置</td><td class="td">竿段用了 112（实为等待段 dir6/7）</td><td class="td">改成 128</td></tr><tr><td class="td">8</td><td class="td">拿竿攻击是"抬手施法"</td><td class="td">施法/攻 4 身体段用 896（双手举高）</td><td class="td">持竿时身体改画 448 单手挥砍，竿用 320</td></tr><tr><td class="td">9</td><td class="td">斜方向持竿贴图偏移</td><td class="td">身体还在职业库，竿按通用素体设计</td><td class="td">持竿一律切通用库（含穿普通甲）</td></tr><tr><td class="td">10</td><td class="td">右手持竿贴图盖住角色</td><td class="td">持竿仍按羽化"武器在顶层"规则绘制</td><td class="td"><code>humUpWeaponOnTop = HumUpLook &amp;&amp; !_humUpFishing</code>，恢复原版方向层次</td></tr><tr><td class="td">11</td><td class="td">攻击竿"跟在身边"、脱手</td><td class="td">为 896 段加的 +8/-8、+4/-4 补偿未随身体改 448 撤销</td><td class="td">删除全部像素补偿，竿恒用 <code>DrawLocation</code></td></tr><tr><td class="td">12</td><td class="td">跑动时竿像钉死不动</td><td class="td">竿库无跑步段，静持段 6 帧几乎相同</td><td class="td">弧形摆臂位移表（8 方向 × 6 帧，与 <code>FrameIndex</code> 同步）</td></tr><tr><td class="td">13</td><td class="td">羽化内观拿的是剑不是鱼竿</td><td class="td">鱼竿非羽化 Shape，走不到"按装备 Image 取帧"通道</td><td class="td"><code>ResolveHumUpWeaponFrame</code> 增加鱼竿分支</td></tr><tr><td class="td">14</td><td class="td">刺客放技能弹「必须佩带适合的武器」</td><td class="td"><code>Weapon / 100</code> 判职业，2041/100=20 落 default</td><td class="td">2000 段改走羽化编码解析</td></tr><tr><td class="td">15</td><td class="td">羽化弓平射无箭</td><td class="td"><code>Shape / 100 != 2</code> 直接 return</td><td class="td">兼容 <code>(shape-2000)/10 == 5</code></td></tr><tr><td class="td">16</td><td class="td">未羽化角色可穿羽化装，白嫖仙体外观</td><td class="td">没有任何穿戴校验（客户端只看 Shape）</td><td class="td"><code>CanEquipItem</code> 拦截 + 拒绝提示</td></tr><tr><td class="td">17</td><td class="td">退回羽化后外观仍是仙体</td><td class="td">BUFF 撤了但装备还在，客户端照 Shape 画</td><td class="td">退回前检查装备，未脱装则拒绝</td></tr><tr><td class="td">18</td><td class="td">未知 BUFF 类型导致账号库回退、服务器起不来</td><td class="td"><code>Buff(reader)</code> 抛异常 + <code>LoadAccounts</code> 兜底用 <code>.bak</code> 覆盖</td><td class="td">未知类型降级为 <code>BuffInfo.Unknown</code> 占位，不抛</td></tr><tr><td class="td">19</td><td class="td">GM 重载 BUFF 配置会抹掉全服羽化</td><td class="td"><code>ReloadBuffConfig</code> 移除所有 <code>IsCustom</code> BUFF</td><td class="td">迁移到非自定义类型后自动消失</td></tr><tr><td class="td">20</td><td class="td">旧存档羽化号在新编码下会失效</td><td class="td">存档里仍是 230/232~241</td><td class="td">读档时就地迁移 + 选人界面同步识别</td></tr></tbody></table>
+<div class="divider"></div>
+<h1 class="h1" id="section-6">六、验证与测试</h1>
+<h2 class="h2" id="sub-23">6.1 素材级验证</h2>
+<ul class="ul">
+<li class="li">用 <code>LibExport</code> 导出 <code>CArmour</code>、<code>UpCArmour</code>、<code>Up{War/Tao/Wizard}Armour</code>、<code>UpFishing</code>、<code>UpMount</code>、<code>Fishing</code> 逐帧 PNG + 锚点表，做像素级比对。</li>
+<li class="li">关键判据：<strong>竿像素到身体像素的 BFS 最小距离</strong>。正确配对的每一帧距离都应为 0；实测竿 320 × 身体 448 为 0.65px，竿 0/64/128 × 身体 600/664/728 全部贴合；632 段最小 5.9px、最大 25px，据此排除。</li>
+<li class="li">合成预览覆盖 8 方向 × 6 动作，逐张人工复核握把位置；跑动/行走另做"改前死竿 vs 改后摆臂"逐帧对比与 GIF。</li>
+</ul>
+<h2 class="h2" id="sub-24">6.2 数据级验证（账号库沙盒）</h2>
+<p class="body-p">为规避线上风险，所有存档测试均在 <code>Tools\输出\_dbprobe</code> 副本上进行：</p>
+<table class="tbl"><thead><tr><th class="th">检查项</th><th class="th">结果</th></tr></thead><tbody><tr><td class="td">存量角色</td><td class="td">25 个，其中 6 个已羽化（全部为一重，纯标记 230 的 0 个）</td></tr><tr><td class="td">迁移前后逐行 diff（名字 / 等级 / 重数 / 属性）</td><td class="td"><strong>完全一致</strong>（一重仍为 +5/+5/+5/+3/+3/+100/+100）</td></tr><tr><td class="td">迁移存盘后再读档</td><td class="td">仍为 159/160，重数与属性不变</td></tr><tr><td class="td">删掉全部旧 ini 节后读档</td><td class="td">不崩、不报错，仍能正确迁移（容错 + 迁移双验证）</td></tr><tr><td class="td">新节配置解析</td><td class="td"><code>羽化一重</code>：非自定义、7 条属性、<code>Stack=Infinite</code>、<code>Icon=30034</code>、<code>Visible=True</code></td></tr></tbody></table>
+<h2 class="h2" id="sub-25">6.3 逻辑级验证</h2>
+<ul class="ul">
+<li class="li"><code>Tools/ItemProbe</code>（只读诊断）：扫描全库 Shape 区间占用（111 件零误伤）、模拟 <code>HasClassWeapon</code> 判定——2041+刺客 = true、2041+战士 = false、2051+弓箭 = true、鱼竿 49+刺客 = false。</li>
+<li class="li"><code>Tools/NpcCmdTest</code>（新增）：不启动服务端直接调用 <code>ParseCheck</code> / <code>ParseAct</code>，验证四个命令及三个旧名的映射与参数，全部正确。</li>
+<li class="li"><code>Tools/ItemReloadTest</code>：21 项单测 + 真实库 4357 件集成，58~113ms 全绿。</li>
+</ul>
+<h2 class="h2" id="sub-26">6.4 效果验证</h2>
+<p class="body-p">产出集中在 <code>Tools\输出\</code>：<code>upfishing_cmp\preview_new</code>（8 动作 × 8 方向总览、攻击改前改后、跑动摆臂对比、各动作 GIF）、<code>shape1000预览</code>（6 职业 × 8 档外观与内观）、<code>羽化内观_持竿_预览.png</code>、<code>羽化新编码预览</code>。</p>
+<div class="divider"></div>
+<h1 class="h1" id="section-7">七、部署与回滚</h1>
+<h2 class="h2" id="sub-27">7.1 交付物</h2>
+<table class="tbl"><thead><tr><th class="th">文件</th><th class="th">目标路径</th><th class="th">MD5</th><th class="th">生效方式</th></tr></thead><tbody><tr><td class="td"><code>Client.dll</code></td><td class="td"><code>E:\micromir2\</code></td><td class="td"><code>69510944…</code></td><td class="td">重启客户端</td></tr><tr><td class="td"><code>Server.Library.dll</code>（Release）</td><td class="td"><code>...\Mir2Server\</code></td><td class="td"><code>d412193a…</code></td><td class="td">重启服务端</td></tr><tr><td class="td"><code>BuffSystem.ini</code></td><td class="td"><code>...\Mir2Server\Configs\</code></td><td class="td"><code>5890b6a8…</code></td><td class="td">重启服务端</td></tr><tr><td class="td"><code>Server.MirDB</code></td><td class="td"><code>...\Mir2Server\</code></td><td class="td">写库前备份</td><td class="td">重启服务端</td></tr></tbody></table>
+<h2 class="h2" id="sub-28">7.2 备份链（均为就地同名备份，回滚只需改回文件名）</h2>
+<table class="tbl"><thead><tr><th class="th">备份</th><th class="th">对应版本</th></tr></thead><tbody><tr><td class="td"><code>Client.dll.bak_tier8_*</code></td><td class="td">盔甲档位放宽前</td></tr><tr><td class="td"><code>Client.dll.bak_mountrod_*</code> / <code>.bak_ridepose_*</code> / <code>.bak_ridemap_*</code></td><td class="td">坐骑接入前 / 骑乘姿势前 / 配色映射前</td></tr><tr><td class="td"><code>Client.dll.bak_rodv2_*</code> / <code>.bak_rodoff_*</code> / <code>.bak_rodfix2_*</code></td><td class="td">钓鱼段位前 / 加补偿前 / 二轮修复前</td></tr><tr><td class="td"><code>Client.dll.bak_humupenc_20261112</code></td><td class="td">BUFF 编码迁移前（最近一次）</td></tr><tr><td class="td"><code>Server.Library.dll.bak_arcweapon_20261112</code></td><td class="td">武器职业判定修复前</td></tr><tr><td class="td"><code>Server.Library.dll.bak_humupwear_20261112</code></td><td class="td">穿戴限制前</td></tr><tr><td class="td"><code>Server.Library.dll.bak_humupenc_20261112</code></td><td class="td">BUFF 编码迁移前</td></tr><tr><td class="td"><code>Server.Library.dll.bak_humupcmd_20261112</code></td><td class="td">命令补全前（即当前线上上一版）</td></tr><tr><td class="td"><code>BuffSystem.ini.bak_humupenc_20261112</code></td><td class="td">新编码节追加前</td></tr><tr><td class="td"><code>Server.MirDB.bak_20261111_101648</code></td><td class="td">羽化装备写库前</td></tr></tbody></table>
+<h2 class="h2" id="sub-29">7.3 部署顺序</h2>
+<ol class="ol">
+<li class="li">停服（服务端会锁 <code>Server.Library.dll</code>）。</li>
+<li class="li">备份 <code>Server.MirADB</code>（账号库）到 <code>Back Up\</code>——<strong>迁移会改写存档，回滚前必须保留旧库</strong>。</li>
+<li class="li">覆盖 <code>Server.Library.dll</code>、<code>BuffSystem.ini</code>。</li>
+<li class="li">启动服务端（读档时自动完成迁移），确认日志无 <code>未注册 BUFF</code> 报错。</li>
+<li class="li">覆盖 <code>Client.dll</code>，启动客户端。</li>
+</ol>
+<h2 class="h2" id="sub-30">7.4 回滚步骤</h2>
+<ol class="ol">
+<li class="li">停服；</li>
+<li class="li">还原 <code>Server.MirADB</code>（迁移前的备份），否则旧版 DLL 读到新编码会是最坏情况（现已有 <code>Unknown</code> 兜底，但属性会丢）；</li>
+<li class="li">还原 <code>Server.Library.dll</code> 与 <code>BuffSystem.ini</code> 备份；</li>
+<li class="li">还原 <code>Client.dll</code> 备份；</li>
+<li class="li">启动验证。</li>
+</ol>
+<h2 class="h2" id="sub-31">7.5 上线验证清单</h2>
+<ul class="ul">
+<li class="li">[ ] 未羽化小号拖登仙甲 → 拒绝并提示"需羽化登仙后方可穿戴"</li>
+<li class="li">[ ] <code>@HUMUP 3</code> → 外观变仙体，属性 +15/+15/+15/+9/+9/+300</li>
+<li class="li">[ ] 穿登仙甲后 <code>@HUMUPRESET</code> → 被拦下，提示先脱装</li>
+<li class="li">[ ] 脱装后 <code>RESETHUMUP</code> → 退回成功，外观恢复原版</li>
+<li class="li">[ ] <code>HUMP 2</code> 在五重时使用 → 变为七重（叠加而非设定）</li>
+<li class="li">[ ] 刺客戴 2041 放技能 → 不再提示"必须佩带适合的武器"</li>
+<li class="li">[ ] 弓箭手用 2051 平射 → 正常出箭</li>
+<li class="li">[ ] 羽化角色骑马 → 坐姿正确、马腿同步、羽化甲配色不串档</li>
+<li class="li">[ ] 羽化角色持竿跑动 → 竿随手臂画弧摆动，不脱手</li>
+<li class="li">[ ] 羽化角色内观 → 手持鱼竿而非仙兵</li>
+</ul>
+<div class="divider"></div>
+<h1 class="h1" id="section-8">八、遗留问题与风险</h1>
+<table class="tbl"><thead><tr><th class="th">级别</th><th class="th">事项</th><th class="th">说明与建议</th></tr></thead><tbody><tr><td class="td">高</td><td class="td">存量已穿羽化装备的未羽化角色</td><td class="td">新规则只拦"再穿"，不会强制脱下。当前库内 6 个羽化号均已羽化，暂无此情况；若后续出现，可由 GM 手动脱装，或增加"登录时检测并退回背包"的兜底</td></tr><tr><td class="td">中</td><td class="td">旧 ini 节 <code>[1]</code>/<code>[3]~[12]</code> 尚未清理</td><td class="td">保留是为了兼容尚未被读档迁移的老档。建议跑满一个完整存盘周期（确认所有角色都被读过并回存）后再删，可回收 11 个自定义槽位；删了也不会崩，只是遗漏的老档羽化会退化成僵尸 BUFF</td></tr><tr><td class="td">中</td><td class="td">编码扩展上限</td><td class="td">现编码个位只有一位 → 最多 8~9 档，Shape 上界 1059/2059。若要扩到 100 套，需改为 100 进制（1001~1099 通用、1101~1199 战士…），并迁移存量 Shape；<code>ItemInfo.Shape</code> 为 <code>short</code>，上限 32767</td></tr><tr><td class="td">中</td><td class="td">素材缺口</td><td class="td">羽化只做了盔甲与武器；头盔、项链、戒指等部位无羽化素材，穿上仍显示原版。职业羽化甲没有骑乘帧，骑乘必须走通用库 + 配色映射，新档位上线需同步更新 <code>HumUpRideTierMap</code></td></tr><tr><td class="td">低</td><td class="td">女角色鱼竿偏移</td><td class="td">竿库男女分文件、<code>WeaponOffSet = 0</code>，理论无女半偏移；建议女号持竿实机复核一次</td></tr><tr><td class="td">低</td><td class="td">竿的像素补偿</td><td class="td">已确立规则：<strong>羽化竿任何动作都不做像素补偿，竿偏了就是身体段选错</strong>。后续调整段位前请先用 BFS 距离验证，不要靠平移"凑"</td></tr><tr><td class="td">低</td><td class="td">命令口径差异</td><td class="td">NPC <code>HUMP 5</code> = 升五重；GM <code>@HUMUP 5</code> = 直接设为五重。写脚本/发指令时注意区分</td></tr></tbody></table>
+<div class="divider"></div>
+<h1 class="h1" id="section-9">附录 A　代码位置索引</h1>
+<table class="tbl"><thead><tr><th class="th">关注点</th><th class="th">文件</th><th class="th">位置</th></tr></thead><tbody><tr><td class="td">羽化装备 Shape 判定（客户端）</td><td class="td"><code>Client/MirObjects/PlayerObject.cs</code></td><td class="td"><code>IsHumUpEquipShape</code> / <code>GetHumUpEquipClass</code>（约 846~900 行）</td></tr><tr><td class="td">图库切换</td><td class="td">同上</td><td class="td"><code>SetHumUpLibraries</code>（约 470~640 行）</td></tr><tr><td class="td">骑乘配色映射</td><td class="td">同上</td><td class="td"><code>HumUpRideTierMap</code>（约 638 行）</td></tr><tr><td class="td">本职业武器判定</td><td class="td">同上</td><td class="td"><code>HasClassWeapon</code>（约 107 行）</td></tr><tr><td class="td">羽化 BUFF 解析</td><td class="td">同上</td><td class="td"><code>HumUpStage</code> / <code>IsHumUpBuff</code> / <code>IsHumUpStageBuff</code>（约 415~450 行）</td></tr><tr><td class="td">持竿绘制与摆臂</td><td class="td">同上</td><td class="td"><code>DrawWeapon</code> 羽化分支（约 6787~6836 行）、<code>RodRunDx/Dy</code>（约 60~93 行）</td></tr><tr><td class="td">内观武器帧</td><td class="td">同上</td><td class="td"><code>ResolveHumUpWeaponFrame</code></td></tr><tr><td class="td">羽化帧表</td><td class="td"><code>Client/MirObjects/Frames.cs</code></td><td class="td"><code>HumUpCommon</code>（约 292~340 行）</td></tr><tr><td class="td">素材库加载</td><td class="td"><code>Client/MirGraphics/MLibrary.cs</code></td><td class="td"><code>UpMounts</code> / <code>UpFishingMan</code> / <code>UpFishingWoman</code>（约 141~420 行）</td></tr><tr><td class="td">BUFF 枚举</td><td class="td"><code>Shared/Enums.cs</code></td><td class="td"><code>羽化登仙 = 159</code> ~ <code>羽化十重 = 169</code>（约 1641~1655 行）</td></tr><tr><td class="td">BUFF 注册与容错</td><td class="td"><code>Server/MirDatabase/BuffInfo.cs</code></td><td class="td">约 141~303 行</td></tr><tr><td class="td">存档迁移</td><td class="td"><code>Server/MirDatabase/CharacterInfo.cs</code></td><td class="td"><code>MigrateHumUpBuffs</code>（619 行）、<code>GetSelectHumUpStage</code>（671 行）</td></tr><tr><td class="td">旧编码映射</td><td class="td"><code>Server/MirDatabase/BuffConfig.cs</code></td><td class="td"><code>MapLegacyHumUp</code>（180 行）</td></tr><tr><td class="td">羽化判定/装备校验</td><td class="td"><code>Server/MirObjects/HumanObject.cs</code></td><td class="td"><code>IsHumUpEquipShape</code>（9550）、<code>SetHumUpStage</code>（9630）、<code>CanEquipItem</code>（9670）</td></tr><tr><td class="td">强制脱装</td><td class="td"><code>Server/MirObjects/PlayerObject.cs</code></td><td class="td"><code>TryUnequipHumUpEquipment</code>（5803 行）</td></tr><tr><td class="td">NPC 命令解析/执行</td><td class="td"><code>Server/MirObjects/NPC/NPCSegment.cs</code></td><td class="td">条件 550 行、动作 1100~1125 行、执行 4301~4360 行</td></tr><tr><td class="td">属性配置</td><td class="td"><code>Configs/BuffSystem.ini</code></td><td class="td">末尾 11 个新节</td></tr></tbody></table>
+<h1 class="h1" id="section-10">附录 B　命令速查</h1>
+<p class="body-p"><strong>NPC 脚本</strong></p>
+<pre class="code">#IF
+CHECKHUMUP            ; 已登仙
+CHECKHUMUP 3          ; 重数 &gt;= 3
+CHECKHUMUP &gt;= 3       ; 显式比较（= &gt; &lt; &gt;= &lt;= !=）
+
+#ACT
+HUMP 2                ; 升 2 重（叠加，封顶十重）
+HUMDOWN 1             ; 降 1 重（减到 0 即完全退回）
+RESETHUMUP            ; 还原为未登仙（穿着羽化装备时拒绝）
+RESETHUMUP 1          ; 强制还原（先把羽化装备退回背包，空格不足则整单失败）</pre>
+<p class="body-p"><strong>GM 命令</strong></p>
+<pre class="code">@HUMUP            @HUMUP 5          @HUMUPDOWN 2
+@HUMUPDOWN 0      @HUMUPRESET       @HUMUPINFO</pre>
+<h1 class="h1" id="section-11">附录 C　运维检查清单</h1>
+<ol class="ol">
+<li class="li">每次覆盖服务端 DLL 前：停服 → 备份 <code>Server.MirADB</code> → 再覆盖。</li>
+<li class="li">任何时候不要删除 <code>Configs\BuffSystem.ini</code> 里的旧节，直到确认全部角色已完成迁移存盘。</li>
+<li class="li">新增羽化装备时：Shape 必须落在 1001~1059 / 2001~2059，档位 1~8，职业索引与素材目录一致。</li>
+<li class="li">新增通用库档位（高于 08 档）时：同步更新 <code>HumUpShapeMaxOffset</code>、<code>IsHumUpEquipShape</code> 的档位上限与 <code>HumUpRideTierMap</code>。</li>
+<li class="li">调整持竿动作时：先用 BFS 距离验证配对，禁止用像素平移"凑"位置。</li>
+<li class="li">修改任何 BUFF 类型编号前：确认 <code>BuffInfo.Load</code> 已硬注册，否则老档会降级为未知 BUFF。</li>
+</ol>
+
+</section>
+</body>
+</html>

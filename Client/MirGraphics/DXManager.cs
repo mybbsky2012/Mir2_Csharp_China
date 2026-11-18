@@ -233,6 +233,9 @@ namespace Client.MirGraphics
 
         public static void SetSurface(Surface surface)
         {
+            if (surface == null || surface.Disposed)
+                return;
+
             if (CurrentSurface == surface)
                 return;
 
@@ -266,14 +269,114 @@ namespace Client.MirGraphics
 
         public static void Draw(Texture texture, Rectangle? sourceRect, Vector3? position, Color4 color)
         {
+            //★别把「一张图的纹理还没准备好」升级成「整个渲染循环崩掉」（11-09）：
+            //  纹理可能刚被 DXManager.Clean 回收（TextureValid=false，下一帧 CheckImage 才重建），
+            //  也可能是旧设备上创建的。这时 Sprite.Draw 抛的正是 D3DERR_INVALIDCALL，
+            //  会把整帧打断、Sprite/Device 停在 Begin 状态 → 之后每帧都抛同一个错。
+            //  直接跳过这一张，画面最多缺一帧，不会连锁。
+            if (texture == null || texture.Disposed) return;
+            if (Sprite == null || Sprite.Disposed) return;
+            if (DeviceLost) return;
+
             Sprite.Draw(texture, sourceRect, Vector3.Zero, position, color);
             CMain.DPSCounter++;
+        }
+
+        /// <summary>
+        /// 一帧的开始（Clear → BeginScene → Sprite.Begin → 复位绘制状态）。
+        /// 抽出来是为了让「出错时的收尾」有唯一对应的位置，见 AbortFrame。
+        /// </summary>
+        /// <summary>
+        /// 渲染前置条件是否齐备（11-16）。
+        /// Device/Sprite/MainSurface 任一为空或已释放时画帧必然空引用 —— 以前这个 NRE
+        /// 因为 BeginFrame 被 JIT 内联，日志里只记到 RenderEnvironment 一层，查不到真因。
+        /// 典型时机：退出客户端途中、Reset 失败后的 CleanUp、窗口关闭竞态。
+        /// </summary>
+        public static bool IsReady
+        {
+            get
+            {
+                return Device != null && !Device.Disposed &&
+                       Sprite != null && !Sprite.Disposed &&
+                       MainSurface != null && !MainSurface.Disposed;
+            }
+        }
+
+        public static void BeginFrame()
+        {
+            Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
+            Device.BeginScene();
+            Sprite.Begin(SpriteFlags.AlphaBlend);
+            ResetDrawState();
+            SetSurface(MainSurface);
+        }
+
+        /// <summary>一帧的结束（Sprite.End → EndScene → Present）。</summary>
+        public static void EndFrame()
+        {
+            Sprite.End();
+            Device.EndScene();
+            Device.Present();
+        }
+
+        /// <summary>
+        /// 一帧画到一半抛异常时的现场清理（11-09）。
+        ///
+        /// D3D 是状态机：Sprite.Begin / Device.BeginScene 之后如果中途抛异常跳过了 End，
+        /// 状态就一直挂在「已在 Scene 里」，之后每一帧都会在 BeginScene/Begin/Draw 上继续抛
+        /// D3DERR_INVALIDCALL。而 TestCooperativeLevel 此时返回 Success（设备确实没丢），
+        /// 于是 AttemptReset 把 DeviceLost 清掉、下一帧再抛、再置位 —— 无限循环刷日志、
+        /// 画面彻底不动（11/8 11:14:20 那一整片 INVALIDCALL 就是这个循环）。
+        /// 出错后必须把状态机推回干净状态：成对补 End、重建后台缓冲引用、复位混合与着色器。
+        /// </summary>
+        public static void AbortFrame()
+        {
+            try { if (Sprite != null && !Sprite.Disposed) Sprite.End(); } catch { }
+            try { if (Device != null) Device.EndScene(); } catch { }
+
+            try
+            {
+                if (Device != null)
+                {
+                    MainSurface = Device.GetBackBuffer(0, 0);
+                    CurrentSurface = MainSurface;
+                    Device.SetRenderTarget(0, MainSurface);
+                    Device.PixelShader = null;
+                }
+            }
+            catch
+            {
+            }
+
+            GrayScale = false;
+            Blending = false;
+            BlendingRate = 1F;
+            Opacity = 1F;
+        }
+
+        /// <summary>
+        /// 连续多帧渲染失败后的重手段：整设备重建（Sprite / Line / 后台缓冲 / 纹理全部重建）。
+        /// 用于状态机已经脏到 AbortFrame 也救不回来的情况（比如 Reset 之后纹理全废、
+        /// Sprite 内部状态与设备不同步）。
+        /// </summary>
+        public static void ForceRebuild()
+        {
+            try
+            {
+                ResetDevice();
+            }
+            catch
+            {
+                DeviceLost = true;
+            }
         }
 
         public static void AttemptReset()
         {
             try
             {
+                if (Device == null) return;
+
                 Result result = DXManager.Device.TestCooperativeLevel();
 
                 if (result.Code == ResultCode.DeviceLost.Code) return;
@@ -286,6 +389,16 @@ namespace Client.MirGraphics
 
                 if (result.Code != ResultCode.Success.Code) return;
 
+                //★设备本身没问题，但绘制对象可能是空的：上一次 ResetDevice 在 CleanUp 之后
+                //  中途失败（比如窗口正好被最小化、Reset 返回 INVALIDCALL），Sprite/后台缓冲
+                //  已经被 Dispose 掉了。这时候只清 DeviceLost 标志，下一帧就会在 Sprite.Begin
+                //  上空引用/抛 INVALIDCALL —— 必须先重建再说。
+                if (Sprite == null || Sprite.Disposed || MainSurface == null || MainSurface.Disposed)
+                {
+                    DXManager.ResetDevice();
+                    return;
+                }
+
                 DXManager.DeviceLost = false;
             }
             catch
@@ -295,14 +408,26 @@ namespace Client.MirGraphics
 
         public static void ResetDevice()
         {
-            DXManager.CleanUp();
-            DXManager.DeviceLost = true;
-
-            if (DXManager.Parameters == null) return;
+            if (DXManager.Parameters == null || Program.Form == null)
+            {
+                DXManager.DeviceLost = true;
+                return;
+            }
 
             Size clientSize = Program.Form.ClientSize;
 
-            if (clientSize.Width == 0 || clientSize.Height == 0) return;
+            //★先在 CleanUp 之前判尺寸（11-09）：
+            //  窗口最小化时客户区是 0×0。原来的顺序是「先 CleanUp（Sprite/Surface 全 Dispose）
+            //  → 再判尺寸为 0 → return」，于是设备处于「Sprite 为 null 但没人重建」的半死状态，
+            //  之后每帧 INVALIDCALL。现在尺寸不对就原地不动，等窗口回来再重建。
+            if (clientSize.Width <= 0 || clientSize.Height <= 0)
+            {
+                DXManager.DeviceLost = true;
+                return;
+            }
+
+            DXManager.CleanUp();
+            DXManager.DeviceLost = true;
 
             DXManager.Parameters.Windowed = !Settings.FullScreen;
             DXManager.Parameters.BackBufferWidth = clientSize.Width;
@@ -353,10 +478,18 @@ namespace Client.MirGraphics
             BlendingRate = 1F;
             Opacity = 1F;
 
-            Device.SetRenderState(RenderState.AlphaBlendEnable, true);
-            Device.SetRenderState(RenderState.SourceBlend, SlimDX.Direct3D9.Blend.SourceAlpha);
-            Device.SetRenderState(RenderState.DestinationBlend, SlimDX.Direct3D9.Blend.InverseSourceAlpha);
-            Device.SetRenderState(RenderState.BlendFactor, Color.FromArgb(255, 255, 255, 255).ToArgb());
+            if (Device == null || DeviceLost) return;
+
+            try
+            {
+                Device.SetRenderState(RenderState.AlphaBlendEnable, true);
+                Device.SetRenderState(RenderState.SourceBlend, SlimDX.Direct3D9.Blend.SourceAlpha);
+                Device.SetRenderState(RenderState.DestinationBlend, SlimDX.Direct3D9.Blend.InverseSourceAlpha);
+                Device.SetRenderState(RenderState.BlendFactor, Color.FromArgb(255, 255, 255, 255).ToArgb());
+            }
+            catch
+            {
+            }
         }
 
         public static void SetOpacity(float opacity)
@@ -552,7 +685,11 @@ namespace Client.MirGraphics
                 }
 
                 DXManager.FloorTexture = null;
-                GameScene.Scene.MapControl.FloorValid = false;
+
+                // 进游戏前（还在登录界面）Scene/MapControl 都是 null；这里不能无条件解引用，
+                // 否则 CleanUp 抛 NRE → ResetDevice 整体失败 → 客户端卡在半初始化状态。
+                if (GameScene.Scene != null && GameScene.Scene.MapControl != null)
+                    GameScene.Scene.MapControl.FloorValid = false;
 
                 if (DXManager.FloorSurface != null && !DXManager.FloorSurface.Disposed)
                 {

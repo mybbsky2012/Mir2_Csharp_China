@@ -528,6 +528,9 @@ namespace Client.MirControls
                 case ItemType.怪物蛋:
                 case ItemType.特殊消耗品:
                 case ItemType.封印:
+                //★羽化登仙（11-13）：旧书（任务物品）双击要发 C.UseItem，
+                //  服务端接到后走"接任务"分支。其它任务物品服务端会直接拒绝，不影响。
+                case ItemType.任务物品:
                     if (CanUseItem() && (GridType == MirGridType.Inventory || GridType == MirGridType.HeroInventory))
                     {
                         if (CMain.Time < GameScene.UseItemTime) return;

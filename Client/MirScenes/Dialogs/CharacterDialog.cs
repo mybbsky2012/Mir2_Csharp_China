@@ -46,9 +46,56 @@ namespace Client.MirScenes.Dialogs
             };
             CharacterPage.AfterDraw += (o, e) =>
             {
+                //★注意：底板的 Index 必须在 RefreshInterface()（BeforeDraw）里决定。
+                //  在这里改是**无效**的——控件是先画完自己的 Index 图再触发 AfterDraw，
+                //  而且 RefreshInterface 每帧都会重置 Index（11-09 教训：改在这里等于没改）。
+
                 if (Libraries.StateItems == null) return;
                 ItemInfo RealItem = null;
-                if (Grid[(int)EquipmentSlot.盔甲].Item != null)
+
+                //★登仙内观：羽化时头盔/发型层要用补偿量对齐头部。
+                //  羽化未穿甲（画素体）→ GetHumUpHeadOffset（素体表，11-09 标定）；
+                //  羽化穿甲（画职业立绘）→ GetHumUpPortraitHeadOffset（立绘表，11-10 逐职业标定）。
+                //  具体取值在下方 hairPortraitShift 算出来之后（headDx 声明移到那里）。
+
+                //★登仙内观：羽化角色的盔甲层改画 Prguse 裸体素体（320/321 弓手，330~337 战/法/道/刺男女）。
+                //  与普通盔甲立绘互斥（else if），普通盔甲/翅膀/品质描边在羽化时整段跳过；
+                //  武器、头盔/发型层仍走原逻辑，不受影响。
+                //★登仙内观（11-10 三改，用户定稿）：羽化角色内观**不显示实际装备的内外观**，
+                //  盔甲层统一画分职业/性别的 StateItem 固定立绘（衣服帧，完整人物含头脸）；
+                //  战法道通用装备 → 走 StateItem_Common_* 库。因此下方头盔/发型层羽化时整段跳过。
+                bool humUpState = actor.HumUpStage > 0;
+                bool humUpStateCommon = false;
+                //★羽化内观"褪下"逻辑（11-10）：没穿盔甲 → 回 Prguse 裸体素体（不顶着仙兵盔甲立绘），
+                //  穿了才画分职业 StateItem 固定衣服帧；武器同理，没拿就不画武器帧。
+                bool humUpHasArmour = Grid[(int)EquipmentSlot.盔甲].Item != null;
+                if (humUpState)
+                {
+                    ItemInfo armourInfo = humUpHasArmour ? Grid[(int)EquipmentSlot.盔甲].Item.Info : null;
+                    ItemInfo weaponInfo = Grid[(int)EquipmentSlot.武器].Item != null ? Grid[(int)EquipmentSlot.武器].Item.Info : null;
+                    //★按「这件装备自己的 RequiredClass」判，且只对 战/法/道 生效（11-10 修正）。
+                    //  原来按 Shape 反查会把弓箭/刺客的盔甲（shape 10/11/19/29/30/57/58 与通用同号）
+                    //  误判成通用装备 → 弓手武器帧画成通用 2430（弯刀），内观里弓手在拿刀。
+                    humUpStateCommon = PlayerObject.IsCommonAppearance(actor.Class, armourInfo, weaponInfo);
+
+                    if (humUpHasArmour)
+                    {
+                        //★羽化专属装备（Shape 1000~1005）：直接拿装备自己的 Image 当帧号，
+                        //  去**该装备所属职业**的 StateItem 库取整身立绘（通用装备走 StateItem_Common_*）。
+                        //  非羽化装备 / 空帧 → 自动回落到固定帧表，行为与之前完全一致。
+                        PlayerObject.ResolveHumUpArmourFrame(armourInfo, actor.Class, actor.Gender, humUpStateCommon,
+                                                             out MLibrary stateLib, out int humUpArmourFrame);
+                        if (stateLib != null)
+                            stateLib.Draw(humUpArmourFrame, DisplayLocation, Color.White, true, 1F);
+                    }
+                    else
+                    {
+                        int bodyIndex, bodyOffX, bodyOffY;
+                        GetHumUpBody(actor.Class, actor.Gender, out bodyIndex, out bodyOffX, out bodyOffY);
+                        Libraries.Prguse.Draw(bodyIndex, new Point(DisplayLocation.X + bodyOffX, DisplayLocation.Y + bodyOffY), Color.White, true, 1F);
+                    }
+                }
+                else if (Grid[(int)EquipmentSlot.盔甲].Item != null)
                 {
                     RealItem = Functions.GetRealItem(Grid[(int)EquipmentSlot.盔甲].Item.Info, actor.Level, actor.Class, GameScene.ItemInfoList);
 
@@ -87,7 +134,16 @@ namespace Client.MirScenes.Dialogs
                     }
                 }
 
-                if (Grid[(int)EquipmentSlot.武器].Item != null)
+                //★登仙内观（11-10）：羽化角色穿了武器才画分职业固定武器帧（"褪下"后空手不画）。
+                if (humUpState && Grid[(int)EquipmentSlot.武器].Item != null)
+                {
+                    ItemInfo humUpWeaponInfo = Grid[(int)EquipmentSlot.武器].Item.Info;
+                    PlayerObject.ResolveHumUpWeaponFrame(humUpWeaponInfo, actor.Class, actor.Gender, humUpStateCommon,
+                                                         out MLibrary stateLib, out int humUpWeaponFrame);
+                    if (stateLib != null)
+                        stateLib.Draw(humUpWeaponFrame, DisplayLocation, Color.White, true, 1F);
+                }
+                else if (Grid[(int)EquipmentSlot.武器].Item != null)
                 {
                     RealItem = Functions.GetRealItem(Grid[(int)EquipmentSlot.武器].Item.Info, actor.Level, actor.Class, GameScene.ItemInfoList);
 
@@ -319,13 +375,32 @@ namespace Client.MirScenes.Dialogs
                     }
                 }
 
+                //★登仙内观（11-10 修正，用户纠正）：今天只要求盔甲/武器不显示普通内观，
+                //  头盔/发型**照常显示**，不能整段跳过。
+                //★登仙内观（11-10 四改，逐职业标定）：各职业 StateItem 立绘里人物的头位置都不同，
+                //  不能再共用一个常数。用 Tools/HumUpHeadFit2 逐职业像素标定 + 像素级验证
+                //  （发型/头盔掩码顶行-头顶行距离、物件重心-头心相对差，10 职业×2 层全部与素体基准一致）：
+                //  立绘偏移 = 素体表 GetHumUpHeadOffset + (立绘头落点 - 素体头落点)，合成见立绘表。
+                //  头盔与发型锚点差已烘焙在帧 XY 里，两层共用同一张表（素体基准已如此，立绘同验证）。
+                bool hairPortraitShift = humUpState && humUpHasArmour;
+                int headDx = 0, headDy = 0;
+                if (humUpState)
+                {
+                    if (hairPortraitShift)
+                        GetHumUpPortraitHeadOffset(actor.Class, actor.Gender, humUpStateCommon, out headDx, out headDy);
+                    else
+                        GetHumUpHeadOffset(actor.Class, actor.Gender, out headDx, out headDy);
+                }
+                int helmDx = headDx, helmDy = headDy;
                 if (Grid[(int)EquipmentSlot.头盔].Item != null)
                 {
                     // 头饰品质描边发光（硬头盔才有；没戴头盔时画的是发型，本来就没品质）
-                    QualityOutlineGlow.DrawPortrait(Libraries.StateItems, Grid[(int)EquipmentSlot.头盔].Item.Info.Image, DisplayLocation,
+                    QualityOutlineGlow.DrawPortrait(Libraries.StateItems, Grid[(int)EquipmentSlot.头盔].Item.Info.Image,
+                                                    new Point(DisplayLocation.X + helmDx, DisplayLocation.Y + helmDy),
                                                     (byte)Grid[(int)EquipmentSlot.头盔].Item.Info.Grade, false);
 
-                    Libraries.StateItems.Draw(Grid[(int)EquipmentSlot.头盔].Item.Info.Image, DisplayLocation, Color.White, true, 1F);
+                    Libraries.StateItems.Draw(Grid[(int)EquipmentSlot.头盔].Item.Info.Image,
+                                              new Point(DisplayLocation.X + helmDx, DisplayLocation.Y + helmDy), Color.White, true, 1F);
                 }
                 else
                 {
@@ -334,7 +409,10 @@ namespace Client.MirScenes.Dialogs
                     int offSetX = actor.Class == MirClass.刺客 ? (actor.Gender == MirGender.男性 ? 6 : 4) : 0;
                     int offSetY = actor.Class == MirClass.刺客 ? (actor.Gender == MirGender.男性 ? 25 : 18) : 0;
 
-                    Libraries.Prguse.Draw(hair, new Point(DisplayLocation.X + offSetX, DisplayLocation.Y + offSetY), Color.White, true, 1F);
+                    int hairDx = headDx;
+                    int hairDy = headDy;
+
+                    Libraries.Prguse.Draw(hair, new Point(DisplayLocation.X + offSetX + hairDx, DisplayLocation.Y + offSetY + hairDy), Color.White, true, 1F);
                 }
             };
 
@@ -933,7 +1011,16 @@ namespace Client.MirScenes.Dialogs
             int offSet = Actor.Gender == MirGender.男性 ? 0 : 1;
 
             Index = GridType == MirGridType.HeroEquipment ? 505 : 504;
-            CharacterPage.Index = 340 + offSet;
+
+            //★登仙内观底板（11-09）：Prguse 340/341 的底图里**烘焙着一个原版裸体**，
+            //  羽化角色再往上画羽化素体，就成了「原版裸体 + 羽化素体」两个人叠在一起。
+            //  378/379 是同一张面板的「无裸体」版本（装备格位置与原图逐像素一致），
+            //  所以羽化时换 378(男)/379(女)；未羽化仍用 340(男)/341(女)——
+            //  顺便修掉了原来写死 340、女角色内观也画男裸体的老毛病。
+            //  ★必须在 BeforeDraw 里设置：控件先画自己的图再触发 AfterDraw，而且本方法每帧重置 Index。
+            CharacterPage.Index = Actor.HumUpStage > 0
+                ? (Actor.Gender == MirGender.男性 ? 378 : 379)
+                : 340 + offSet;
 
             switch (Actor.Class)
             {
@@ -979,6 +1066,137 @@ namespace Client.MirScenes.Dialogs
                 return Grid[i];
             }
             return null;
+        }
+
+        /// <summary>
+        /// 登仙内观素体：按职业/性别返回 Prguse.Lib 素体帧号，以及相对内观统一脚底锚点的站位补偿。
+        /// 帧号：320/321 = 弓手男/女，330/331 = 战士，332/333 = 法师，334/335 = 道士，336/337 = 刺客。
+        /// 补偿值是按「与普通盔甲立绘脚底(138,324)/女(139,321)对齐」实测得出，各帧在库里的烘焙偏移不同，故逐个微调。
+        /// </summary>
+        public static void GetHumUpBody(MirClass cls, MirGender gender, out int index, out int offX, out int offY)
+        {
+            bool male = gender == MirGender.男性;
+
+            switch (cls)
+            {
+                case MirClass.战士: index = male ? 330 : 331; break;
+                case MirClass.法师: index = male ? 332 : 333; break;
+                case MirClass.道士: index = male ? 334 : 335; break;
+                case MirClass.刺客: index = male ? 336 : 337; break;
+                default: index = male ? 320 : 321; break;   // 弓箭
+            }
+
+            switch (index)
+            {
+                case 320: offX = 2; offY = 7; break;
+                case 321: offX = 1; offY = 8; break;
+                case 330: offX = 0; offY = 7; break;
+                case 331: offX = 6; offY = 9; break;
+                case 332: offX = 9; offY = 7; break;
+                case 333: offX = 4; offY = 10; break;
+                case 334: offX = 10; offY = 7; break;
+                case 335: offX = 4; offY = 6; break;
+                case 336: offX = 1; offY = 10; break;
+                default: offX = 4; offY = 6; break;         // 337
+            }
+        }
+
+        /// <summary>
+        /// 登仙内观：头盔/发型层跟着羽化素体头部走的补偿量（11-09 追加，11-09 二次标定）。
+        /// ★原因：素体是按「脚底对齐」放进内观的，它比原版立绘高 20 来像素，头部就比原版立绘的头顶高 14~17 像素；
+        ///   而头盔/发型是按**原版立绘**的头部锚点画的（Prguse 441+/StateItem 的 frameXY），
+        ///   所以羽化时这两层会掉到下巴/脖子上，必须整体跟着素体的头挪上去。
+        /// ★X 标定法（Tools/HumUpHeadFit）：340/341 是「整块内观底板 + 烘焙裸体」，直接量会被顶部装备槽污染，
+        ///   所以拿 378/379（同款无裸体底板）与它逐像素做差取出裸体掩码，只在中央身体列(80~165)里量
+        ///   「头顶行 + 头顶以下 16 行的重心 x」；素体同口径量一遍，两者相减就是这里要的值。
+        ///   11-09 首版 X 全部偏右 2~4px（用的是含右侧装备槽的掩码），本次按实测重算。
+        /// 未羽化时**不要**调用（调用方用 HumUpStage > 0 判断），返回值不会影响原逻辑。
+        /// </summary>
+        public static void GetHumUpHeadOffset(MirClass cls, MirGender gender, out int offX, out int offY)
+        {
+            bool male = gender == MirGender.男性;
+
+            if (male)
+            {
+                switch (cls)
+                {
+                    case MirClass.战士: offX = -6; offY = -17; break;
+                    case MirClass.法师: offX = 3; offY = -17; break;
+                    case MirClass.道士: offX = 4; offY = -17; break;
+                    case MirClass.刺客: offX = -5; offY = -14; break;
+                    default: offX = -4; offY = -17; break;    // 弓箭
+                }
+            }
+            else
+            {
+                switch (cls)
+                {
+                    case MirClass.战士: offX = 4; offY = -8; break;
+                    case MirClass.法师: offX = 1; offY = -7; break;
+                    case MirClass.道士: offX = 2; offY = -11; break;
+                    case MirClass.刺客: offX = 2; offY = -11; break;
+                    default: offX = -1; offY = -9; break;     // 弓箭
+                }
+            }
+        }
+
+        /// <summary>
+        /// 登仙内观·立绘表（11-10 四改）：羽化**穿盔甲**（盔甲层画分职业 StateItem 立绘）时
+        /// 头盔/发型的补偿量。来源：Tools/HumUpHeadFit2 逐职业像素标定——
+        /// 立绘头落点(肤色头顶行/脸心X) - 素体头落点(含 GetHumUpBody 补偿) = extra，
+        /// 本表 = 素体表 GetHumUpHeadOffset + extra 合成，并经像素级验证
+        /// （立绘上「物件掩码顶-头顶行」「物件重心-头心」与素体基准完全一致，误差 ≤1px）。
+        /// 头盔与发型共用本表（锚点差烘焙在帧 XY 里）。
+        /// common=true：战法道通用装备画 StateItem_Common_* 库（2450/2460），其头位置与
+        /// 职业库有 1~2px 差，按 Common 库实测头落点另行合成。
+        /// </summary>
+        public static void GetHumUpPortraitHeadOffset(MirClass cls, MirGender gender, bool common, out int offX, out int offY)
+        {
+            bool male = gender == MirGender.男性;
+
+            if (common)
+            {
+                if (male)
+                {
+                    switch (cls)
+                    {
+                        case MirClass.战士: offX = -5; offY = -25; break;
+                        default: offX = -6; offY = -25; break;    // 法/道/刺/弓
+                    }
+                }
+                else
+                {
+                    switch (cls)
+                    {
+                        case MirClass.刺客: offX = -1; offY = -17; break;
+                        default: offX = -3; offY = -17; break;    // 战/法/道/弓
+                    }
+                }
+                return;
+            }
+
+            if (male)
+            {
+                switch (cls)
+                {
+                    case MirClass.战士: offX = -8; offY = -24; break;
+                    case MirClass.法师: offX = -6; offY = -26; break;   // 11-10 用户游戏实测：右2、上2
+                    case MirClass.道士: offX = -6; offY = -24; break;
+                    case MirClass.刺客: offX = -6; offY = -24; break;
+                    default: offX = -6; offY = -24; break;    // 弓箭
+                }
+            }
+            else
+            {
+                switch (cls)
+                {
+                    case MirClass.战士: offX = -2; offY = -17; break;
+                    case MirClass.法师: offX = -3; offY = -17; break;
+                    case MirClass.道士: offX = -2; offY = -17; break;
+                    case MirClass.刺客: offX = 0; offY = -17; break;
+                    default: offX = -2; offY = -17; break;    // 弓箭
+                }
+            }
         }
 
     }

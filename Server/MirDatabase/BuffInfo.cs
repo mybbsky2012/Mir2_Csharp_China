@@ -136,7 +136,27 @@ namespace Server.MirDatabase
                 new BuffInfo { Type = BuffType.摩鲁的青色药剂, Properties = BuffProperty.RemoveOnDeath, StackType = BuffStackType.None },
                 new BuffInfo { Type = BuffType.摩鲁的黄色药剂, Properties = BuffProperty.RemoveOnDeath, StackType = BuffStackType.None },
                 new BuffInfo { Type = BuffType.古代宗师祝福, Properties = BuffProperty.RemoveOnDeath, StackType = BuffStackType.None },
-                new BuffInfo { Type = BuffType.黄金宗师祝福, Properties = BuffProperty.None, StackType = BuffStackType.None }
+                new BuffInfo { Type = BuffType.黄金宗师祝福, Properties = BuffProperty.None, StackType = BuffStackType.None },
+
+                //★★ 羽化登仙（2026-11-12）：专用类型必须在这里硬注册。
+                //   原因有两个：
+                //   ① Envir.GetBuffInfo 找不到会抛 NotImplementedException —— 而读存档时（Buff(reader)）
+                //      没人接这个异常，整个账号库会走「读坏 → 回退 .bak」的兜底，等于回档 + 开不了服。
+                //   ② 只靠 ini 的 [羽化一重] 这类「非数字节名」不够：BuffInfo.Load 里非自定义节
+                //      匹配不到已有条目会直接跳过，配置漏写/写错就白注册。
+                //   Stack=Infinite 永久、Properties=None（绝不能带 RemoveOnDeath / RemoveOnExit）。
+                //   属性加成仍由 Configs\BuffSystem.ini 的同名节提供，这里只管「存在」与「永久」。
+                new BuffInfo { Type = BuffType.羽化登仙, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化一重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化二重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化三重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化四重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化五重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化六重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化七重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化八重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化九重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true },
+                new BuffInfo { Type = BuffType.羽化十重, Properties = BuffProperty.None, StackType = BuffStackType.Infinite, Visible = true }
 
             };
 
@@ -184,6 +204,39 @@ namespace Server.MirDatabase
 
     public class Buff
     {
+        /// <summary>
+        /// 未知 BUFF 类型的占位定义（2026-11-12）。
+        ///
+        /// 背景：读存档时 Buff(BinaryReader) 会调 Envir.GetBuffInfo，查不到就抛 NotImplementedException；
+        /// 而 LoadAccountsCore 里逐角色读档没有任何 try/catch，异常一路冒到 LoadAccounts 的兜底分支，
+        /// 会把 Server.MirADB 直接覆盖成 .bak 再重试 ——  一个字节就能「回档 + 开不了服」。
+        ///
+        /// 所以这里给未注册的类型一个惰性占位：Type 仍返回存档里的原始字节（Buff.Type 走 _loadType），
+        /// 不参与属性、不可见、被 tick 当普通短时 BUFF 自然清掉，同时往日志里报一次，方便排查配置漏项。
+        /// </summary>
+        public static readonly BuffInfo Unknown = new BuffInfo
+        {
+            Type = BuffType.None,
+            StackType = BuffStackType.None,
+            Properties = BuffProperty.None,
+            Visible = false
+        };
+
+        private static readonly HashSet<int> _reportedUnknown = new HashSet<int>();
+
+        public static void ReportUnknownType(BuffType type)
+        {
+            int key = (int)type;
+            if (!_reportedUnknown.Add(key)) return;
+
+            try
+            {
+                MessageQueue.Instance.Enqueue(
+                    string.Format("★存档里出现未注册的 BUFF 类型 {0}({1})：已按惰性 BUFF 处理（不崩服、不回档），请检查 BuffSystem.ini 是否漏了该类型的节", key, type));
+            }
+            catch { }
+        }
+
         protected static Envir Envir
         {
             get { return Envir.Main; }
@@ -205,9 +258,13 @@ namespace Server.MirDatabase
         public bool FlagForRemoval;
         public bool Paused;
 
+        /// <summary>读档时遇到未注册类型的原始字节 —— 保证 Type 不会退化成 None，存档能原样写回。</summary>
+        private BuffType _loadType;
+        public bool UnknownType;
+
         public BuffType Type
         {
-            get { return Info.Type; }
+            get { return UnknownType ? _loadType : Info.Type; }
         }
 
         public BuffStackType StackType
@@ -231,7 +288,20 @@ namespace Server.MirDatabase
         {
             var type = (BuffType)reader.ReadByte();
 
-            Info = Envir.GetBuffInfo(type);
+            _loadType = type;
+
+            try
+            {
+                Info = Envir.GetBuffInfo(type);
+            }
+            catch (NotImplementedException)
+            {
+                //★未注册类型不能抛：抛出去 = 账号库回退 .bak + 开不了服（见 Buff.Unknown 注释）。
+                //  这里降级成惰性 BUFF，后续字段照常读完，存档时仍原样写回原类型字节。
+                Info = Unknown;
+                UnknownType = true;
+                ReportUnknownType(type);
+            }
 
             Caster = null;
 

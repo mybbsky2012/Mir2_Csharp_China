@@ -1,0 +1,43 @@
+{
+  "passed": true,
+  "score": 96,
+  "dimensions": {
+    "design_token_compliance": {
+      "passed": true,
+      "score": 100,
+      "issues": []
+    },
+    "structural_integrity": {
+      "passed": true,
+      "score": 100,
+      "issues": []
+    },
+    "typographic_quality": {
+      "passed": true,
+      "score": 80,
+      "issues": [
+        "[TQ-04] 文档出现 11 个 <h1>，每个文档只应有 1 个主标题",
+        "[TQ-05] 文档出现 31 个 <h2>（WARNING），建议检查是否过于碎片化"
+      ]
+    },
+    "genre_fit": {
+      "passed": true,
+      "score": 100,
+      "issues": []
+    },
+    "decoration_usage": {
+      "passed": true,
+      "score": 100,
+      "issues": []
+    },
+    "security": {
+      "passed": true,
+      "score": 100,
+      "issues": []
+    }
+  },
+  "actionable_feedback": [
+    "[TQ-04] 文档出现 11 个 <h1>，每个文档只应有 1 个主标题",
+    "[TQ-05] 文档出现 31 个 <h2>（WARNING），建议检查是否过于碎片化"
+  ]
+}

@@ -130,8 +130,19 @@ namespace Client.MirSounds
 
                 if (cachedSound.AudioData?.Length > 0)
                 {
-                    AddMixerInput(new OneShotProvider(cachedSound));
-                    cachedSound.ExpireTime = CMain.Time + Settings.SoundCleanMinutes * 60 * 1000;
+                    //★兜底（11-10）：音效格式异常（重采样失败、损坏文件……）绝不允许把异常抛进
+                    //  包处理/渲染链路——之前 humup.wav 的采样率不匹配就是这样一路炸穿 ProcessPacket 的。
+                    //  这里吞掉异常只丢弃这一条音效，游戏其余逻辑照常跑。
+                    try
+                    {
+                        AddMixerInput(new OneShotProvider(cachedSound));
+                        cachedSound.ExpireTime = CMain.Time + Settings.SoundCleanMinutes * 60 * 1000;
+                    }
+                    catch (Exception ex)
+                    {
+                        File.AppendAllText(@".\Error.txt",
+                            $"[{DateTime.Now:yyyy/MM/dd HH:mm:ss}] 音效 {index} 播放失败（已忽略，不影响游戏）：{ex.Message}{Environment.NewLine}");
+                    }
                 }
             }
             else
@@ -244,19 +255,30 @@ namespace Client.MirSounds
 
         private static void AddMixerInput(ISampleProvider input)
         {
-            mixer.AddMixerInput(ConvertToRightChannelCount(input));
+            mixer.AddMixerInput(ConvertToMixerFormat(input));
         }
 
-        private static ISampleProvider ConvertToRightChannelCount(ISampleProvider input)
+        /// <summary>
+        /// ★把任意格式的音效输入统一转换到混音器格式（44100Hz / 立声道 / IEEE float）后再进混音器。
+        ///
+        /// 原来只转声道数、不转采样率：humup.wav 这类 22050Hz 的音效进来直接被
+        /// MixingSampleProvider.AddMixerInput 拒收（"All mixer inputs must have the same WaveFormat"），
+        /// 异常一路炸穿包处理链路（ProcessPacket → Network.Process → UpdateEnviroment），当帧后续逻辑全被跳过。
+        /// 现在采样率不一致时先过 Wdl 重采样，声道数不一致再补声道转换。
+        /// </summary>
+        private static ISampleProvider ConvertToMixerFormat(ISampleProvider input)
         {
-            if (input.WaveFormat.Channels == mixer.WaveFormat.Channels)
-            {
-                return input;
-            }
-            if (input.WaveFormat.Channels == 1 && mixer.WaveFormat.Channels == 2)
-            {
-                return new MonoToStereoSampleProvider(input);
-            }
+            ISampleProvider converted = input;
+
+            if (converted.WaveFormat.SampleRate != mixer.WaveFormat.SampleRate)
+                converted = new WdlResamplingSampleProvider(converted, mixer.WaveFormat.SampleRate);
+
+            if (converted.WaveFormat.Channels == mixer.WaveFormat.Channels)
+                return converted;
+
+            if (converted.WaveFormat.Channels == 1 && mixer.WaveFormat.Channels == 2)
+                return new MonoToStereoSampleProvider(converted);
+
             throw new NotImplementedException("Not yet implemented this channel count conversion");
         }
 

@@ -1713,6 +1713,14 @@ namespace Server.MirObjects
         }
         private void StartGameFailed()
         {
+            //★11-10 排障：Result=3 的三种成因（当前/绑定地图不存在、坐标不合法、地图文件加载失败）
+            //  会在客户端表现为「卡载入 → 弹框回选人」，把关键坐标记下来便于定位。
+            MirConnection.LoginDebugLog(string.Format(
+                "StartGame 拒绝 Result=3 角色={0} cur=({1},{2},{3}) bind=({4},{5},{6}) 地图存在={7}/{8}",
+                Info.Name, CurrentMapIndex, CurrentLocation.X, CurrentLocation.Y,
+                BindMapIndex, BindLocation.X, BindLocation.Y,
+                Envir.GetMap(CurrentMapIndex) != null, Envir.GetMap(BindMapIndex) != null), null);
+
             Enqueue(new S.StartGame { Result = 3 });
             CleanUp();
         }        
@@ -3746,6 +3754,10 @@ namespace Server.MirObjects
                                 }
                             }
 
+                            //★羽化编码迁移（11-12）：@GIVEBUFF 1 / 3~12 这类旧槽位号仍按羽化新类型处理，
+                            //  否则 GM 给的是 Custom1~12，新逻辑不认 = 挂了个不生效的僵尸 BUFF。
+                            buffType = BuffConfig.MapLegacyHumUp(buffType);
+
                             if (buffType == BuffType.None)
                             {
                                 ReceiveChat(string.Format("找不到 BUFF「{0}」，可用 @CUSTOMBUFF 查看已配置的自定义 BUFF", parts[1]), ChatType.System);
@@ -3757,7 +3769,11 @@ namespace Server.MirObjects
                             if (parts.Length > 2 && !int.TryParse(parts[2], out duration))
                                 duration = 60;
 
-                            if (duration <= 0) duration = 60;
+                            //★11-09：秒数写 0 = 永久 BUFF（ExpireTime=0）。
+                            //  原来 duration<=0 一律被掰成 60 秒，导致「羽化登仙·N重」这种本该永久的 BUFF
+                            //  1 分钟就掉 —— 表现就是选人界面立绘一分钟后退回原版、场景羽化外观也跟着消失。
+                            //  （BuffSystem.ini 里示范的 GIVEBUFF 羽化登仙 0 … 本来就是按「0=永久」写的）
+                            if (duration < 0) duration = 60;
 
                             PlayerObject buffTarget = this;
 
@@ -3772,9 +3788,72 @@ namespace Server.MirObjects
                                 }
                             }
 
-                            buffTarget.AddBuff(buffType, this, Settings.Second * duration, new Stats());
+                            buffTarget.AddBuff(buffType, this, duration == 0 ? 0 : Settings.Second * duration, new Stats());
 
-                            ReceiveChat(string.Format("已为 {0} 添加 BUFF {1}，持续 {2} 秒", buffTarget.Name, buffType, duration), ChatType.Hint);
+                            ReceiveChat(string.Format("已为 {0} 添加 BUFF {1}，{2}", buffTarget.Name, buffType,
+                                duration == 0 ? "永久生效" : string.Format("持续 {0} 秒", duration)), ChatType.Hint);
+                        }
+                        break;
+
+                    //★登仙 GM 命令（11-10）：
+                    //   @HUMUP            升一重
+                    //   @HUMUP 5          直接设为五重
+                    //   @HUMUPDOWN        降一重
+                    //   @HUMUPDOWN 0      完全退回（清掉标记+全部重数位）
+                    //   @HUMUPRESET       完全退回（同上），并清空羽化任务链（humup01~12）的接取/完成记录
+                    //   @HUMUPINFO        查看当前重数
+                    //   重数位：BuffSystem.ini [3]~[12] = 一重~十重；换重时先清旧位防属性叠加（SetHumUpStage 已处理）
+                    case "HUMUP":
+                        {
+                            if (!IsGM) return;
+
+                            int stage;
+                            if (parts.Length > 1 && int.TryParse(parts[1], out stage))
+                                SetHumUpStage(stage, this);                     // 指定数字 = 直接设为该重
+                            else
+                                SetHumUpStage(GetHumUpStage() + 1, this);       // 无参 = 升一重
+
+                            ReceiveChat(string.Format("当前羽化状态：{0}", GetHumUpStage() <= 0 ? "未羽化" : string.Format("羽化登仙·{0}重", GetHumUpStage())), ChatType.Hint);
+                        }
+                        break;
+
+                    case "HUMUPDOWN":
+                        {
+                            if (!IsGM) return;
+
+                            int down;
+                            if (parts.Length > 1 && int.TryParse(parts[1], out down))
+                            {
+                                if (!SetHumUpStage(GetHumUpStage() - down, this)) return;    // @HUMUPDOWN 0 = 完全退回
+                            }
+                            else
+                            {
+                                if (!SetHumUpStage(GetHumUpStage() - 1, this)) return;
+                            }
+
+                            ReceiveChat(string.Format("当前羽化状态：{0}", GetHumUpStage() <= 0 ? "未羽化（已完全退回）" : string.Format("羽化登仙·{0}重", GetHumUpStage())), ChatType.Hint);
+                        }
+                        break;
+
+                    case "HUMUPRESET":
+                        {
+                            if (!IsGM) return;
+
+                            if (!SetHumUpStage(0, this)) return;
+
+                            // ★11-15：顺带清空羽化任务链记录。只退回段位不清任务链的话，
+                            //   角色会卡在「第一环已完成、旧书读不了、又没仙气」的尴尬状态。
+                            int clearedQuest = ResetHumUpQuestChain();
+
+                            ReceiveChat(clearedQuest > 0
+                                ? string.Format("羽化登仙已完全退回，羽化任务链同时清空（{0} 条记录）", clearedQuest)
+                                : "羽化登仙已完全退回", ChatType.Hint);
+                        }
+                        break;
+
+                    case "HUMUPINFO":
+                        {
+                            ReceiveChat(string.Format("当前羽化状态：{0}", GetHumUpStage() <= 0 ? "未羽化" : string.Format("羽化登仙·{0}重", GetHumUpStage())), ChatType.Hint);
                         }
                         break;
 
@@ -5723,6 +5802,52 @@ namespace Server.MirObjects
 
             Enqueue(p);
         }
+        /// <summary>
+        /// ★登仙（11-12）：把身上所有羽化专属装备退回背包，供 NPC 命令「RESETHUMUP 1」（强制还原）使用。
+        /// 语义：整单成功或整单失败 —— 先统计需要的空格数，不够就一格都不动并提示，避免只脱一半。
+        /// 走 RemoveItem 正规通道，客户端会收到 S.RemoveItem，背包/装备栏与属性同步刷新。
+        /// </summary>
+        public bool TryUnequipHumUpEquipment()
+        {
+            if (Info == null || Info.Equipment == null) return true;
+
+            var slots = new List<int>();
+            for (int i = 0; i < Info.Equipment.Length; i++)
+            {
+                UserItem item = Info.Equipment[i];
+                if (item == null || item.Info == null) continue;
+                if (IsHumUpEquipShape(item.Info.Shape)) slots.Add(i);
+            }
+
+            if (slots.Count == 0) return true;
+
+            // 背包空格（腰带 0~5 与背包区一起算，和客户端一致）
+            var free = new List<int>();
+            for (int i = 0; i < Info.Inventory.Length && free.Count < slots.Count; i++)
+            {
+                if (Info.Inventory[i] == null) free.Add(i);
+            }
+
+            if (free.Count < slots.Count)
+            {
+                ReceiveChat(string.Format("背包空格不足（需 {0} 格，当前 {1} 格），无法自动脱下羽化专属装备", slots.Count, free.Count), ChatType.System);
+                return false;
+            }
+
+            for (int i = 0; i < slots.Count; i++)
+            {
+                UserItem item = Info.Equipment[slots[i]];
+                if (item == null) continue;
+
+                RemoveItem(MirGridType.Inventory, item.UniqueID, free[i]);
+            }
+
+            bool left = HasHumUpEquipmentEquipped();
+            if (left) ReceiveChat("有羽化专属装备未能自动脱下，请手动取下后再试", ChatType.System);
+
+            return !left;
+        }
+
         public void RemoveItem(MirGridType grid, ulong id, int to)
         {
             S.RemoveItem p = new S.RemoveItem { Grid = grid, UniqueID = id, To = to, Success = false };
@@ -6411,6 +6536,12 @@ namespace Server.MirObjects
                 //Broadcast(GetUpdateInfo());
                 return;
             }
+
+            //★登仙（11-12）：被拦下时给一句明确提示。客户端收到 Success=false 只会静默解锁格子，
+            //  不加提示的话玩家只会觉得「点了没反应」。
+            if (IsHumUpEquipShape(temp.Info.Shape) && !actor.IsHumUp())
+                ReceiveChat(string.Format("{0} 蕴含仙灵之力，需羽化登仙后方可穿戴", temp.FriendlyName), ChatType.Hint);
+
             Enqueue(p);
         }
         public void TakeBackHeroItem(int from, int to)
@@ -6633,6 +6764,71 @@ namespace Server.MirObjects
                                 AddBuff(BuffType.技能经验提升, this, Settings.Minute * time, new Stats { [Stat.技能熟练度倍率] = 3 });
                             }
                             break;
+                    }
+                    break;
+                //★羽化登仙（11-13）：旧书双击 → 接《羽化登仙·泥色的旧书》（12 环任务链第 1 环）
+                //  走道具触发，不要求 NPC 在场；等级/前置/并发/已完成由 AcceptQuest 统一把关。
+                //  接成功才让方法结尾扣书（失败一律 Enqueue(p); return; 不消耗）。
+                case ItemType.任务物品:
+                    {
+                        if (item.Info.Name != "旧书")
+                        {
+                            Enqueue(p);
+                            return;
+                        }
+
+                        QuestInfo humUpQuest = Envir.QuestInfoList.FirstOrDefault(x => x.FileName == "humup01");
+
+                        if (humUpQuest == null)
+                        {
+                            ReceiveChat("羽化登仙任务尚未开放，请联系 GM。", ChatType.System);
+                            Enqueue(p);
+                            return;
+                        }
+
+                        // ★11-15 修正：以前这里用「humup01 完成记录」当「已登仙」，
+                        //   可 humup01 只是第一环跑腿（交给破关虎），交了就算完成 ——
+                        //   于是玩家交完第一环、甚至放弃重来时，会被回一句「你已羽化登仙」，
+                        //   实际一点仙气都没沾。登仙只认羽化 BUFF / 段位（IsHumUp）。
+                        if (IsHumUp())
+                        {
+                            ReceiveChat("你已羽化登仙，这本旧书对你不剩什么秘密了。", ChatType.System);
+                            Enqueue(p);
+                            return;
+                        }
+
+                        // 第一环已经交过（读过这本书）：不是登仙，只是这本书对他没用了
+                        if (CompletedQuests.Contains(humUpQuest.Index))
+                        {
+                            ReceiveChat("这本旧书你已经读过了。按 Q 看任务进度；若想从头再来，请找 GM。", ChatType.Hint);
+                            Enqueue(p);
+                            return;
+                        }
+
+                        if (CurrentQuests.Exists(x => x.Index == humUpQuest.Index))
+                        {
+                            ReceiveChat("《泥色的旧书》已在任务栏中，按 Q 查看进度。", ChatType.Hint);
+                            Enqueue(p);
+                            return;
+                        }
+
+                        if (Level < humUpQuest.RequiredMinLevel)
+                        {
+                            ReceiveChat(string.Format("旧书的字迹模糊不清……需达到 {0} 级才能读懂。", humUpQuest.RequiredMinLevel), ChatType.System);
+                            Enqueue(p);
+                            return;
+                        }
+
+                        AcceptQuest(humUpQuest.Index, false);
+
+                        if (!CurrentQuests.Exists(x => x.Index == humUpQuest.Index))
+                        {
+                            ReceiveChat("无法接受任务（任务栏已满或前置未完成）。", ChatType.System);
+                            Enqueue(p);
+                            return;
+                        }
+
+                        ReceiveChat("你翻开旧书，接到《泥色的旧书》——去道馆馆长屋找破关虎。", ChatType.Hint);
                     }
                     break;
                 case ItemType.卷轴:
@@ -11740,7 +11936,13 @@ namespace Server.MirObjects
 
         #region Quests
 
-        public void AcceptQuest(int index)
+        /// <summary>
+        /// 接任务。
+        /// requireNpc = true  ：原版行为，必须站在起始 NPC 视野内（NPC 对话接取）。
+        /// requireNpc = false ：★羽化登仙（11-13）旧书双击接取——道具触发，不要求 NPC 在场，
+        ///                      但等级 / 前置任务 / 职业 / 并发上限等校验一律照旧。
+        /// </summary>
+        public void AcceptQuest(int index, bool requireNpc = true)
         {
             bool canAccept = true;
 
@@ -11748,17 +11950,22 @@ namespace Server.MirObjects
 
             QuestInfo info = Envir.QuestInfoList.FirstOrDefault(d => d.Index == index);
 
-            NPCObject npc = null;
+            if (info == null) return;
 
-            for (int i = CurrentMap.NPCs.Count - 1; i >= 0; i--)
+            if (requireNpc)
             {
-                if (CurrentMap.NPCs[i].ObjectID != info.NpcIndex) continue;
+                NPCObject npc = null;
 
-                if (!Functions.InRange(CurrentMap.NPCs[i].CurrentLocation, CurrentLocation, Globals.DataRange)) break;
-                npc = CurrentMap.NPCs[i];
-                break;
+                for (int i = CurrentMap.NPCs.Count - 1; i >= 0; i--)
+                {
+                    if (CurrentMap.NPCs[i].ObjectID != info.NpcIndex) continue;
+
+                    if (!Functions.InRange(CurrentMap.NPCs[i].CurrentLocation, CurrentLocation, Globals.DataRange)) break;
+                    npc = CurrentMap.NPCs[i];
+                    break;
+                }
+                if (npc == null || !npc.Visible || !npc.IsVisibleTo(Info.Index)) return;
             }
-            if (npc == null || !npc.Visible || !npc.IsVisibleTo(Info.Index)) return;
 
             if (!info.CanAccept(this))
             {
@@ -11960,6 +12167,45 @@ namespace Server.MirObjects
             SendUpdateQuest(quest, QuestState.Remove);
 
             RecalculateQuestBag();
+        }
+
+        /// <summary>羽化登仙任务链（humup01~12）。重复任务 humup_rep 不算，避免把日常也清掉。</summary>
+        private static bool IsHumUpChainQuest(QuestInfo q)
+        {
+            if (q == null || string.IsNullOrEmpty(q.FileName)) return false;
+            if (!q.FileName.StartsWith("humup", StringComparison.OrdinalIgnoreCase)) return false;
+            return !q.FileName.Equals("humup_rep", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// 清空羽化任务链的「进行中」与「已完成」记录（GM 重置 / 客服救急）。
+        /// 说明：第一环 humup01 只是跑腿，交掉就进完成表，旧书据此会拒绝再读；
+        ///       段位退回但任务链没清时，角色就会卡在「书读不了、又没仙气」。返回清掉的条数。
+        /// </summary>
+        public int ResetHumUpQuestChain()
+        {
+            int cleared = 0;
+
+            for (int i = CurrentQuests.Count - 1; i >= 0; i--)
+            {
+                QuestProgressInfo q = CurrentQuests[i];
+
+                if (!IsHumUpChainQuest(q?.Info)) continue;
+
+                SendUpdateQuest(q, QuestState.Remove);
+                cleared++;
+            }
+
+            foreach (QuestInfo qi in Envir.QuestInfoList)
+            {
+                if (!IsHumUpChainQuest(qi)) continue;
+
+                if (Info.CompletedQuests.Remove(qi.Index)) cleared++;
+            }
+
+            if (cleared > 0) GetCompletedQuests();
+
+            return cleared;
         }
         public void ShareQuest(int questIndex)
         {
@@ -15204,6 +15450,10 @@ namespace Server.MirObjects
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThroughMonster, Allowed = Settings.EnableWalkThroughMonster, Value = WalkThrough });
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThroughNPC, Allowed = Settings.EnableWalkThroughNPC, Value = WalkThrough });
             Enqueue(new S.PlayerOption { Option = PlayerOptionType.WalkThroughWall, Allowed = Settings.EnableWalkThroughWall, Value = WalkThrough });
+            // 中毒锁（20261108）：把「只锁魔法」的服务器设置告诉客户端。
+            //  服务端 CanAttack 已经放开物理普攻，但客户端 CheckInput 里还有一道「中毒就什么都不让做」的闸，
+            //  不同步过去的话，开关勾了也没用（人要能出手，客户端才知道该出手）。
+            Enqueue(new S.PlayerOption { Option = PlayerOptionType.PoisonLockMagicOnly, Allowed = Settings.PoisonLockMagicOnly, Value = Settings.PoisonLockMagicOnly });
         }
 
         #endregion

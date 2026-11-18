@@ -8,6 +8,8 @@ public class SelectInfo
     public MirClass Class;
     public MirGender Gender;
     public DateTime LastAccess;
+    /// <summary>羽化重数：0 = 未羽化，1~10 = 一重~十重。仅用于选人界面挑立绘（羽化/普通两套素材）。</summary>
+    public byte HumUpStage;
 
     public SelectInfo() { }
 
@@ -19,6 +21,7 @@ public class SelectInfo
         Class = (MirClass)reader.ReadByte();
         Gender = (MirGender)reader.ReadByte();
         LastAccess = DateTime.FromBinary(reader.ReadInt64());
+        HumUpStage = reader.ReadByte();
     }
     public void Save(BinaryWriter writer)
     {
@@ -28,6 +31,7 @@ public class SelectInfo
         writer.Write((byte)Class);
         writer.Write((byte)Gender);
         writer.Write(LastAccess.ToBinary());
+        writer.Write(HumUpStage);
     }
 }
 

@@ -169,6 +169,24 @@ namespace Server.MirDatabase
             return (BuffType)(FirstCustomType + slot - 1);
         }
 
+        /// <summary>
+        /// 旧羽化槽位 → 新专用类型（2026-11-12）。
+        ///
+        /// 羽化原本占用自定义槽位：Custom1(230) = 纯标记、Custom3~Custom12(232~241) = 一重~十重，
+        /// 现已迁到专用枚举 羽化登仙(159) / 羽化一重~十重(160~169)。老脚本、GM 肌肉记忆里还写着
+        /// 「@GIVEBUFF 3」「REMOVEBUFF 1」的，在这里统一翻译，免得挂上去是个不生效的僵尸 BUFF。
+        /// 非羽化类型原样返回。
+        /// </summary>
+        public static BuffType MapLegacyHumUp(BuffType type)
+        {
+            int value = (int)type;
+
+            if (value == (int)BuffType.Custom1) return BuffType.羽化登仙;
+            if (value >= 232 && value <= 241) return (BuffType)((int)BuffType.羽化一重 + (value - 232));
+
+            return type;
+        }
+
         public static int TypeToSlot(BuffType type)
         {
             int value = (int)type;
@@ -211,7 +229,7 @@ namespace Server.MirDatabase
             int slot;
 
             if (int.TryParse(name, out slot) && slot >= 1 && slot <= CustomSlotCount)
-                return SlotToType(slot).ToString();
+                return MapLegacyHumUp(SlotToType(slot)).ToString();   // 槽位号 1/3~12 仍映射到羽化新类型
 
             for (int i = 0; i < Defs.Count; i++)
             {

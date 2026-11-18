@@ -64,8 +64,43 @@ internal static class Program
         string ip = Path.Combine(outDir, "item_dump.csv");
         File.WriteAllText(ip, item.ToString(), new UTF8Encoding(true));
 
+        // 盔甲内观图：Image 就是 StateItem.Lib 的帧号（内观直接用 RealItem.Image 取图）
+        var armour = new StringBuilder();
+        armour.AppendLine("Index,Name,RequiredGender,RequiredClass,RequiredAmount,Shape,Image,Grade,MinAC,MaxAC,MinMAC,MaxMAC,MinDC,MaxDC,MinMC,MaxMC,MinSC,MaxSC,Durability,Weight,Light,Price,Slots,Bind,CanAwakening,RequiredType,Effects");
+        int na = 0;
+        foreach (var it in envir.ItemInfoList)
+        {
+            if (it == null || it.Type != ItemType.盔甲) continue;
+            armour.AppendLine(string.Join(",",
+                it.Index, it.Name, it.RequiredGender, it.RequiredClass, it.RequiredAmount, it.Shape, it.Image, it.Grade,
+                it.Stats[Stat.MinAC], it.Stats[Stat.MaxAC], it.Stats[Stat.MinMAC], it.Stats[Stat.MaxMAC],
+                it.Stats[Stat.MinDC], it.Stats[Stat.MaxDC], it.Stats[Stat.MinMC], it.Stats[Stat.MaxMC],
+                it.Stats[Stat.MinSC], it.Stats[Stat.MaxSC],
+                it.Durability, it.Weight, it.Light, it.Price, it.Slots, it.Bind, it.CanAwakening,
+                it.RequiredType, it.Stats.Values.Count));
+            na++;
+        }
+        string ap = Path.Combine(outDir, "armor_dump.csv");
+        File.WriteAllText(ap, armour.ToString(), new UTF8Encoding(true));
+
+        // 武器内观图 + Shape：Shape 决定「战法道通用」判定（羽化内观用），
+        //   Image 是 StateItem.Lib 的帧号。两者都要，才能核对弓箭手为什么走错分支。
+        var weapon = new StringBuilder();
+        weapon.AppendLine("Index,Name,RequiredClass,RequiredGender,RequiredAmount,Shape,Image,Grade");
+        int nw = 0;
+        foreach (var it in envir.ItemInfoList)
+        {
+            if (it == null || it.Type != ItemType.武器) continue;
+            weapon.AppendLine($"{it.Index},{it.Name},{it.RequiredClass},{it.RequiredGender},{it.RequiredAmount},{it.Shape},{it.Image},{it.Grade}");
+            nw++;
+        }
+        string wp = Path.Combine(outDir, "weapon_dump.csv");
+        File.WriteAllText(wp, weapon.ToString(), new UTF8Encoding(true));
+
         Console.WriteLine($"已写出 {Path.GetFullPath(mp)} （{envir.MagicInfoList.Count} 行）");
         Console.WriteLine($"已写出 {Path.GetFullPath(ip)} （{n} 行）");
+        Console.WriteLine($"已写出 {Path.GetFullPath(ap)} （{na} 行）");
+        Console.WriteLine($"已写出 {Path.GetFullPath(wp)} （{nw} 行）");
         return 0;
     }
 }

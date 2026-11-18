@@ -610,13 +610,18 @@ namespace Client.MirScenes.Dialogs
 
         private void HealthOrb_BeforeDraw(object sender, EventArgs e)
         {
+            //★退出/断线回登录时 LogOutSuccess 先把 MapObject.User 置 null，
+            //  但本帧仍在绘制主界面 → User.MP 直接 NRE。这里必须整体判空。
+            if (User == null || User.Stats == null) return;
+
             // 皮肤库优先：UI_32bit 的 #5 是 104×80 左红右蓝，和 Prguse #4 同尺寸同构图
             MLibrary orbLib = UseUISkin ? Libraries.UISkin : Libraries.Prguse;
             if (orbLib == null) return;
 
             int height;
-            if (User != null && User.HP != User.Stats[Stat.HP])
-                height = (int)(80 * User.HP / (float)User.Stats[Stat.HP]);
+            int maxHp = User.Stats[Stat.HP];
+            if (maxHp > 0 && User.HP != maxHp)
+                height = (int)(80 * User.HP / (float)maxHp);
             else
                 height = 80;
 
@@ -638,8 +643,9 @@ namespace Client.MirScenes.Dialogs
 
             if (hpOnly) return;
 
-            if (User.MP != User.Stats[Stat.MP])
-                height = (int)(80 * User.MP / (float)User.Stats[Stat.MP]);
+            int maxMp = User.Stats[Stat.MP];
+            if (maxMp > 0 && User.MP != maxMp)
+                height = (int)(80 * User.MP / (float)maxMp);
             else
                 height = 80;
 
@@ -653,6 +659,8 @@ namespace Client.MirScenes.Dialogs
         private void ExperienceBar_BeforeDraw(object sender, EventArgs e)
         {
             if (ExperienceBar.Library == null) return;
+            //同 HealthOrb：退出/断线时 User 已被置 null，本帧仍会绘制
+            if (MapObject.User == null) return;
 
             // 当角色等级超出 ExpList 配置的最高等级时，服务端下发的 MaxExperience 为 0。
             // 此时 Experience / 0 会得到 ∞（经验>0）或 NaN（经验=0）：前者被下面的 clamp 变成
@@ -678,6 +686,8 @@ namespace Client.MirScenes.Dialogs
         private void WeightBar_BeforeDraw(object sender, EventArgs e)
         {
             if (WeightBar.Library == null) return;
+            //同 HealthOrb：退出/断线时 User 已被置 null，本帧仍会绘制
+            if (MapObject.User == null || MapObject.User.Stats == null) return;
 
             // 负重上限为 0 时同样会除零，直接跳过绘制。
             double maxWeight = MapObject.User.Stats[Stat.背包负重];
@@ -2054,6 +2064,8 @@ namespace Client.MirScenes.Dialogs
 
             MapControl map = GameScene.Scene.MapControl;
             if (map == null) return;
+            //同 HealthOrb：退出/断线时 User 已置 null，小地图仍会取 CurrentLocation
+            if (MapObject.User == null) return;
 
             if (map.MiniMap == 0 && Index != 2091)
             {
@@ -2331,7 +2343,53 @@ namespace Client.MirScenes.Dialogs
 
                 ItemInfo RealItem = null;
 
-                if (ArmorCell.Item != null)
+                //★登仙内观：被查看者已羽化时，盔甲层改画 Prguse 裸体素体（武器、头盔/发型层保持原逻辑不动）。
+                //  查看面板本身不带对方的 BUFF 数据，用 InspectID（= 对象ID）从场景里取 PlayerObject 判断；
+                //  排行榜查看等不在场景内的玩家取不到，按未羽化显示。
+                //★底板（11-09 二修）：底板 Index 必须在 RefreshInferface 里定，这里只取状态，
+                //  否则第一帧会先画 340（自带裸体）再叠羽化素体，闪一下两个人。
+                bool inspectHumUp = IsInspectHumUp();
+
+                //★登仙内观（11-10 修正）：头盔/发型**照常显示**（今天只要求盔甲/武器不显示普通内观）。
+                //  补偿量在下方 inspectHasArmour / hairPortraitShift 算出之后按分支取：
+                //  穿甲画立绘 → GetHumUpPortraitHeadOffset（立绘表，逐职业标定）；
+                //  未穿甲画素体 → GetHumUpHeadOffset（素体表，11-09 标定）。
+
+                //★登仙内观（11-10 三改，用户定稿）：羽化角色内观不显示实际装备的内外观，
+                //  统一画分职业/性别的 StateItem 固定立绘（衣服帧+武器帧）；
+                //  战法道通用装备 → StateItem_Common_*。通用判定用装备 shape 反查
+                //  （查看面板的 Item.Info 可能未匹配，Info 为空时按职业库显示）。
+                bool inspectStateCommon = false;
+                //★羽化内观"褪下"逻辑（11-10）：没穿盔甲 → 回 Prguse 裸体素体；武器没拿就不画武器帧。
+                bool inspectHasArmour = ArmorCell.Item != null;
+                bool hairPortraitShift = inspectHumUp && inspectHasArmour;
+                if (inspectHumUp)
+                {
+                    ItemInfo armourInfo = inspectHasArmour ? Items[(int)EquipmentSlot.盔甲].Info : null;
+                    ItemInfo weaponInfo = Items[(int)EquipmentSlot.武器] != null ? Items[(int)EquipmentSlot.武器].Info : null;
+                    // 同 CharacterDialog：按装备自己的 RequiredClass 判，弓/刺客一律不走通用外观。
+                    inspectStateCommon = PlayerObject.IsCommonAppearance(Class, armourInfo, weaponInfo);
+                }
+
+                if (inspectHumUp)
+                {
+                    if (inspectHasArmour)
+                    {
+                        //★羽化专属装备：用装备自己的 Image 取该职业库的整身立绘（与 CharacterDialog 同规则）
+                        ItemInfo inspectArmourInfo = Items[(int)EquipmentSlot.盔甲].Info;
+                        PlayerObject.ResolveHumUpArmourFrame(inspectArmourInfo, Class, Gender, inspectStateCommon,
+                                                             out MLibrary stateLib, out int inspectArmourFrame);
+                        if (stateLib != null)
+                            stateLib.Draw(inspectArmourFrame, new Point(DisplayLocation.X, DisplayLocation.Y - 20), Color.White, true, 1F);
+                    }
+                    else
+                    {
+                        int bodyIndex, bodyOffX, bodyOffY;
+                        CharacterDialog.GetHumUpBody(Class, Gender, out bodyIndex, out bodyOffX, out bodyOffY);
+                        Libraries.Prguse.Draw(bodyIndex, new Point(DisplayLocation.X + bodyOffX, DisplayLocation.Y - 20 + bodyOffY), Color.White, true, 1F);
+                    }
+                }
+                else if (ArmorCell.Item != null)
                 {
                     RealItem = Functions.GetRealItem(ArmorCell.Item.Info, Level, Class, GameScene.ItemInfoList);
                     Libraries.StateItems.Draw(RealItem.Image, new Point(DisplayLocation.X + 0, DisplayLocation.Y + -20), Color.White, true, 1F);
@@ -2364,7 +2422,15 @@ namespace Client.MirScenes.Dialogs
                     }
                 }
 
-                if (WeaponCell.Item != null)
+                //★登仙内观（11-10）：羽化角色拿了武器才画分职业固定武器帧（"褪下"后空手不画）。
+                if (inspectHumUp && WeaponCell.Item != null)
+                {
+                    PlayerObject.ResolveHumUpWeaponFrame(WeaponCell.Item.Info, Class, Gender, inspectStateCommon,
+                                                         out MLibrary stateLib, out int inspectWeaponFrame);
+                    if (stateLib != null)
+                        stateLib.Draw(inspectWeaponFrame, new Point(DisplayLocation.X, DisplayLocation.Y - 20), Color.White, true, 1F);
+                }
+                else if (WeaponCell.Item != null)
                 {
                     RealItem = Functions.GetRealItem(WeaponCell.Item.Info, Level, Class, GameScene.ItemInfoList);
                     Libraries.StateItems.Draw(RealItem.Image, new Point(DisplayLocation.X, DisplayLocation.Y - 20),
@@ -2593,8 +2659,20 @@ namespace Client.MirScenes.Dialogs
                     }
                 }
 
+                //★登仙内观（11-10 四改，逐职业标定）：立绘偏移表按分支取（说明见 CharacterDialog）。
+                //  头盔与发型共用同一张表（锚点差烘焙在帧 XY 里）。
+                bool helmPortraitShift = inspectHumUp && inspectHasArmour;
+                int headDx = 0, headDy = 0;
+                if (inspectHumUp)
+                {
+                    if (helmPortraitShift)
+                        CharacterDialog.GetHumUpPortraitHeadOffset(Class, Gender, inspectStateCommon, out headDx, out headDy);
+                    else
+                        CharacterDialog.GetHumUpHeadOffset(Class, Gender, out headDx, out headDy);
+                }
+                int helmDx = headDx, helmDy = headDy;
                 if (HelmetCell.Item != null)
-                    Libraries.StateItems.Draw(HelmetCell.Item.Info.Image, new Point(DisplayLocation.X + 0, DisplayLocation.Y - 20), Color.White, true, 1F);
+                    Libraries.StateItems.Draw(HelmetCell.Item.Info.Image, new Point(DisplayLocation.X + helmDx, DisplayLocation.Y - 20 + helmDy), Color.White, true, 1F);
                 else
                 {
                     int hair = 441 + Hair + (Class == MirClass.刺客 ? 20 : 0) + (Gender == MirGender.男性 ? 0 : 40);
@@ -2602,7 +2680,10 @@ namespace Client.MirScenes.Dialogs
                     int offSetX = Class == MirClass.刺客 ? (Gender == MirGender.男性 ? 6 : 4) : 0;
                     int offSetY = Class == MirClass.刺客 ? (Gender == MirGender.男性 ? 25 : 18) : 0;
 
-                    Libraries.Prguse.Draw(hair, new Point(DisplayLocation.X + offSetX, DisplayLocation.Y + offSetY - 20), Color.White, true, 1F);
+                    int hairDx = headDx;
+                    int hairDy = headDy;
+
+                    Libraries.Prguse.Draw(hair, new Point(DisplayLocation.X + offSetX + hairDx, DisplayLocation.Y + offSetY - 20 + hairDy), Color.White, true, 1F);
                 }
             };
 
@@ -2864,11 +2945,30 @@ namespace Client.MirScenes.Dialogs
             };
         }
 
+        /// <summary>被查看的角色是否已羽化（按 InspectID 从场景里找 PlayerObject）。</summary>
+        private bool IsInspectHumUp()
+        {
+            var objects = MapControl.Objects;
+            if (objects == null) return false;
+
+            for (int i = objects.Count - 1; i >= 0; i--)
+            {
+                PlayerObject p = objects[i] as PlayerObject;
+                if (p != null && p.ObjectID == InspectID) return p.HumUpStage > 0;
+            }
+
+            return false;
+        }
+
         public void RefreshInferface(bool IsHero)
         {
             int offSet = Gender == MirGender.男性 ? 0 : 1;
 
-            CharacterPage.Index = 340 + offSet;
+            //★登仙内观底板（11-09）：Prguse 340/341 里烘焙着一个原版裸体，羽化时再用它就会和羽化素体叠成两个人。
+            //  378/379 是同一张面板的「无裸体」版本（装备格位置像素级一致）。未羽化按性别取 340/341。
+            CharacterPage.Index = IsInspectHumUp()
+                ? (Gender == MirGender.男性 ? 378 : 379)
+                : 340 + offSet;
 
             switch (Class)
             {

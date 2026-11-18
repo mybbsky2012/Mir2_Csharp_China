@@ -62,6 +62,9 @@
         Calc,
         GiveBuff,
         RemoveBuff,
+        HumUpUp,        //★登仙（11-10）：羽化升重 HUMUPUP [重数=1]
+        HumUpDown,      //★登仙（11-10）：羽化降重 HUMUPDOWN [重数=1]
+        HumUpReset,     //★登仙（11-10）：完全退回 HUMUPRESET
         AddToGuild,
         RemoveFromGuild,
         RefreshEffects,

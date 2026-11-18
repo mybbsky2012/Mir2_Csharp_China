@@ -1,0 +1,10 @@
+Mir2 数据库升级备份
+时间       : 2026-11-12 15:21:00
+源目录     : D:\mir2-20241027\Tools\输出\_dbupgrade_legacy
+工具目标版 : v111
+升级前版本 : MirDB v111 / MirADB v111
+
+Server.MirDB  :    1,051,168 字节   MD5 6f8ae0362aa7159a2e8b0fd46a601c31
+Server.MirADB :      198,960 字节   MD5 9dad5d3f21596fd30debac436e40be40
+
+回滚：工具里点「回滚到备份」选本目录，或手动把这两个文件复制回上级目录。

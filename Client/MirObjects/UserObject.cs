@@ -34,6 +34,35 @@ namespace Client.MirObjects
 
         public virtual BuffDialog GetBuffDialog => GameScene.Scene.BuffsDialog;
 
+        /// <summary>
+        /// 羽化重数：自己的 BUFF 权威源是 BuffsDialog（AddBuff/RemoveBuff 广播只更新它，
+        /// 不回写基类 Buffs 列表——那条只在 ObjectPlayer 进视野时填充一次），所以要覆写。
+        ///
+        /// ★2026-11-12 编码迁移：新编码 羽化一重~十重 = 160~169、羽化登仙 = 159。
+        ///  这里原来只认旧槽位 230/232~241，迁完之后「自己」的重数恒为 0，
+        ///  表现就是：地图里因为穿着羽化装备还能显示羽化外观，但内观/角色面板（拿 HumUpStage 判断）
+        ///  掉回普通立绘 —— 用户报的「羽化效果没了」就是这个。
+        ///  常量统一用基类的 HumUpStageFirst/Last，别再各写一份。
+        /// </summary>
+        public override int HumUpStage
+        {
+            get
+            {
+                BuffDialog dialog = GetBuffDialog;
+                if (dialog == null) return 0;
+
+                int fallback = 0;
+                for (int i = 0; i < dialog.Buffs.Count; i++)
+                {
+                    int v = (int)dialog.Buffs[i].Type;
+                    if (v >= HumUpStageFirst && v <= HumUpStageLast) return v - HumUpStageFirst + 1;
+                    if (v >= HumUpLegacyFirst && v <= HumUpLegacyLast) return v - HumUpLegacyFirst + 1;
+                    if (v == HumUpMarkType || v == HumUpLegacyMark) fallback = 1;
+                }
+                return fallback;
+            }
+        }
+
         public UserItem[] Inventory = new UserItem[46], Equipment = new UserItem[14], Trade = new UserItem[10], QuestInventory = new UserItem[40];
 
         /// <summary>是否装备着「气功石」（护身符类、Shape=4）——落雷杀系列的前置要求（不消耗）</summary>

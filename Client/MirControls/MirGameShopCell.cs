@@ -458,10 +458,12 @@ namespace Client.MirControls
         {
             WeaponImage.Visible = false;
             WeaponImage2.Visible = false;
-            if (GameScene.User.Equipment[(int)EquipmentSlot.盔甲] != null)
-                PreviewImage.Library = Libraries.CArmours[GameScene.User.Equipment[(int)EquipmentSlot.盔甲].Info.Shape];
-            else
-                PreviewImage.Library = Libraries.CArmours[0];
+            //★11-10：羽化装备 Shape 1000+ 会让 CArmours[1000] 越界（库里只有 24 个），
+            //  越界时退回 0 号默认外观，不让试衣间崩掉。
+            int userArmourShape = GameScene.User.Equipment[(int)EquipmentSlot.盔甲]?.Info.Shape ?? 0;
+            PreviewImage.Library = userArmourShape >= 0 && userArmourShape < Libraries.CArmours.Length
+                ? Libraries.CArmours[userArmourShape]
+                : Libraries.CArmours[0];
 
             if (GameScene.User.Gender == MirGender.男性)
                 PreviewImage.Index = 448 + (8 * (Direction - 1));
@@ -484,10 +486,12 @@ namespace Client.MirControls
         {
             MountImage.Visible = false;
 
-            if (GameScene.User.Equipment[(int)EquipmentSlot.盔甲] != null)
-                PreviewImage.Library = Libraries.CArmours[GameScene.User.Equipment[(int)EquipmentSlot.盔甲].Info.Shape];
-            else
-                PreviewImage.Library = Libraries.CArmours[0];
+            //★11-10：羽化装备 Shape 1000+ 会让 CArmours[1000] 越界（库里只有 24 个），
+            //  越界时退回 0 号默认外观，不让试衣间崩掉。
+            int userArmourShape = GameScene.User.Equipment[(int)EquipmentSlot.盔甲]?.Info.Shape ?? 0;
+            PreviewImage.Library = userArmourShape >= 0 && userArmourShape < Libraries.CArmours.Length
+                ? Libraries.CArmours[userArmourShape]
+                : Libraries.CArmours[0];
 
             if (GameScene.User.Gender == MirGender.男性)
                 PreviewImage.Index = 32 + (6 * (Direction - 1));
@@ -503,10 +507,18 @@ namespace Client.MirControls
                 PreviewImage.BringToFront();
 
 
-            if (ViewerItem.Info.Shape >= 100 && ViewerItem.Info.Shape <= 199)
+            //★11-10：补越界保护。原来三处直接用 Shape 索引库数组：
+            //    · 刺客 Shape 124+ → AWeaponsR[24+]（库里只有 22 个），
+            //    · 弓箭 Shape 221+ → ARWeapons[21+]（库里 21 个），
+            //    · 羽化装备 Shape 1000+ → ARWeapons[800] 直接越界崩溃。
+            //  越界一律跳过该层，不让试衣间因为一件装备打不开。
+            int wShape = ViewerItem.Info.Shape;
+
+            if (wShape >= 100 && wShape <= 199
+                && wShape - 100 < Libraries.AWeaponsR.Length && wShape - 100 < Libraries.AWeaponsL.Length)
             {
-                WeaponImage.Library = Libraries.AWeaponsR[ViewerItem.Info.Shape - 100];
-                WeaponImage2.Library = Libraries.AWeaponsL[ViewerItem.Info.Shape - 100];
+                WeaponImage.Library = Libraries.AWeaponsR[wShape - 100];
+                WeaponImage2.Library = Libraries.AWeaponsL[wShape - 100];
                 WeaponImage2.Visible = true;
                 WeaponImage2.Index = 32 + (6 * (Direction - 1));
 
@@ -534,9 +546,9 @@ namespace Client.MirControls
                 WeaponImage2.Visible = false;
 
             }
-            if (ViewerItem.Info.Shape >= 200)
+            if (wShape >= 200 && wShape - 200 < Libraries.ARWeapons.Length)
             {
-                WeaponImage.Library = Libraries.ARWeapons[ViewerItem.Info.Shape - 200];
+                WeaponImage.Library = Libraries.ARWeapons[wShape - 200];
                 if (Direction >= 6 && Direction <= 8)
                 {
                     PreviewImage.BringToFront();
@@ -545,7 +557,8 @@ namespace Client.MirControls
                     
             }
             
-            if (ViewerItem.Info.Shape < 100) WeaponImage.Library = Libraries.CWeapons[ViewerItem.Info.Shape];
+            if (wShape >= 0 && wShape < 100 && wShape < Libraries.CWeapons.Length)
+                WeaponImage.Library = Libraries.CWeapons[wShape];
 
 
             WeaponImage.Index = 32 + (6 * (Direction - 1));
@@ -569,7 +582,9 @@ namespace Client.MirControls
             else
                 PreviewImage.Index = 840 + (6 * (Direction - 1));
 
-            PreviewImage.Library = Libraries.CArmours[ViewerItem.Info.Shape];
+            PreviewImage.Library = ViewerItem.Info.Shape >= 0 && ViewerItem.Info.Shape < Libraries.CArmours.Length
+                ? Libraries.CArmours[ViewerItem.Info.Shape]
+                : Libraries.CArmours[0];
             PreviewImage.AnimationCount = 6;
             PreviewImage.Animated = true;
             

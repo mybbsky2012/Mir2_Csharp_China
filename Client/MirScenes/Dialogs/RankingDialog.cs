@@ -281,13 +281,18 @@ namespace Client.MirScenes.Dialogs
 
         public void RecieveRanks(List<RankCharacterInfo> Ranking, byte rankType, int MyRank, int Count)
         {
+            if (rankType >= RankList.Length) return;   // 服务端给了未知榜单类型：丢弃，别写坏数组
+
             RankList[rankType].Clear();
-            RankList[rankType] = Ranking;
+            RankList[rankType] = Ranking ?? new List<RankCharacterInfo>();
             Rank[rankType] = MyRank;
             RankCount = Count;
             UpdateRanks();
-            var extraRows = Count - 20;
-            GapPerRow = ScrollHeight / (float)extraRows;
+
+            //★11-16 滚动条步长：Count 是榜单总人数，不足一页（20 行）时 extraRows <= 0，
+            //  原来直接除 → DivideByZeroException / 负数步长把滚动条算飞。
+            int extraRows = Count - Rows.Length;
+            GapPerRow = extraRows > 0 ? ScrollHeight / (float)extraRows : 0;
         }
 
         public void SelectRank(byte rankType)
@@ -303,12 +308,23 @@ namespace Client.MirScenes.Dialogs
 
         public void UpdateRanks()
         {
-            for (int i = 0; i < Rows.Count(); i++)
+            //★11-16 报错栈：
+            //    ArgumentOutOfRangeException at RankingDialog.UpdateRanks()
+            //      <- RecieveRanks <- GameScene.Rankings
+            //  RankCount 是服务端给的榜单总人数，RankList[RankType] 却是本页的列表
+            //  （翻页时 RowOffset 已偏移）。i < RankCount 不代表本页列表里有第 i 个，
+            //  服务端人数和列表长度对不上就 IndexOutOfRange。按列表实际长度取。
+            List<RankCharacterInfo> list = RankList[RankType] ?? new List<RankCharacterInfo>();
+
+            for (int i = 0; i < Rows.Length; i++)
             {
-                if (i >= RankCount)
+                if (i >= RankCount || i >= list.Count)
+                {
                     Rows[i].Clear();
-                else
-                    Rows[i].Update(RankList[RankType][i], RowOffset + i + 1);
+                    continue;
+                }
+
+                Rows[i].Update(list[i], RowOffset + i + 1);
             }
             if (Rank[RankType] == 0)
                 MyRank.Text = "未入排名";
@@ -411,7 +427,7 @@ namespace Client.MirScenes.Dialogs
                     LevelLabel.ForeColour = Color.RosyBrown;
                     ClassLabel.ForeColour = Color.RosyBrown;
                 }
-                else if (NameLabel.Text == GameScene.User.Name)
+                else if (GameScene.User != null && NameLabel.Text == GameScene.User.Name)
                 {
                     RankLabel.ForeColour = Color.Green;
                     NameLabel.ForeColour = Color.Green;

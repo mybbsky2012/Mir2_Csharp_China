@@ -341,7 +341,21 @@ namespace Server.MirNetwork
                 _lastPackets.Enqueue(p);
 
                 TimeOutTime = Envir.Time + Settings.TimeOut;
-                ProcessPacket(p);
+
+                //★11-10 排障：ProcessPacket 原来没有 try/catch，任何一个处理函数抛异常
+                //  都会冒到 Envir 主循环 —— 轻则该次请求毫无响应（客户端卡在载入画面、
+                //  连 S.StartGame 都收不到），重则整个服务器主循环崩掉。这里记录现场后
+                //  断开这条连接，保证其他玩家和主循环不受影响。
+                try
+                {
+                    ProcessPacket(p);
+                }
+                catch (Exception ex)
+                {
+                    LoginDebugLog("包处理异常 idx=" + p.Index + " (" + p.GetType().Name + ")", ex);
+                    Disconnect(90);
+                    return;
+                }
 
                 if (_receiveList == null)
                     return;
@@ -1006,16 +1020,22 @@ namespace Server.MirNetwork
         }
         private void StartGame(C.StartGame p)
         {
-            if (Stage != GameStage.Select) return;
+            if (Stage != GameStage.Select)
+            {
+                LoginDebugLog("StartGame 被忽略：Stage=" + Stage, null);
+                return;
+            }
 
             if (!Settings.AllowStartGame && (Account == null || (Account != null && !Account.AdminAccount)))
             {
+                LoginDebugLog("StartGame 拒绝 Result=0（AllowStartGame=false）", null);
                 Enqueue(new S.StartGame { Result = 0 });
                 return;
             }
 
             if (Account == null)
             {
+                LoginDebugLog("StartGame 拒绝 Result=1（Account==null）", null);
                 Enqueue(new S.StartGame { Result = 1 });
                 return;
             }
@@ -1032,6 +1052,7 @@ namespace Server.MirNetwork
             }
             if (info == null)
             {
+                LoginDebugLog("StartGame 拒绝 Result=2（找不到角色 " + p.CharacterIndex + "）", null);
                 Enqueue(new S.StartGame { Result = 2 });
                 return;
             }
@@ -1062,8 +1083,44 @@ namespace Server.MirNetwork
             if (info.Player != null && info.Player.OfflineAFK)
                 info.Player.TerminateOfflineAFK();
 
-            Player = new PlayerObject(info, this);
-            Player.StartGame();
+            LoginDebugLog(string.Format("StartGame 请求 角色={0} Lv{1} cur=({2},{3},{4}) bind=({5},{6},{7})",
+                info.Name, info.Level, info.CurrentMapIndex, info.CurrentLocation.X, info.CurrentLocation.Y,
+                info.BindMapIndex, info.BindLocation.X, info.BindLocation.Y), null);
+
+            try
+            {
+                Player = new PlayerObject(info, this);
+                Player.StartGame();
+                LoginDebugLog("StartGame 完成 角色=" + info.Name, null);
+            }
+            catch (Exception ex)
+            {
+                LoginDebugLog("StartGame 异常 角色=" + info.Name, ex);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// ★11-10 登录排障日志：只记「进游戏」链路，正常登录每角色 2 行，异常带完整栈。
+        /// 文件在服务端目录 LoginDebug.log，追加写；多线程用锁串行化。
+        /// </summary>
+        private static readonly object _loginLogLock = new object();
+        internal static void LoginDebugLog(string message, Exception ex)
+        {
+            try
+            {
+                string line = string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] {1}{2}",
+                    DateTime.Now, message,
+                    ex == null ? string.Empty : Environment.NewLine + ex);
+                lock (_loginLogLock)
+                {
+                    File.AppendAllText(
+                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LoginDebug.log"),
+                        line + Environment.NewLine,
+                        System.Text.Encoding.UTF8);
+                }
+            }
+            catch { /* 诊断代码绝不影响业务 */ }
         }
 
         public void LogOut()

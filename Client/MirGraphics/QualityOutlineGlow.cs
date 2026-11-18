@@ -104,6 +104,11 @@ namespace Client.MirGraphics
 
         internal static void AppendLog(string message)
         {
+            //★默认关闭（Settings.QualityGlowLog = false）：
+            //  这里原来是「每收到一个品质≥2 的玩家包就开/写/关一次文件」的同步 IO，
+            //  实测能涨到 4MB+，是移动抽帧的放大器之一。要排查时去 ini 打开。
+            if (!Settings.QualityGlowLog) return;
+
             try
             {
                 File.AppendAllText(Path.Combine(Application.StartupPath, "QualityGlow.log"),
@@ -117,6 +122,7 @@ namespace Client.MirGraphics
 
         internal static void DebugLoad(byte armourGrade, byte weaponGrade)
         {
+            if (!Settings.QualityGlowLog) return;
             if (armourGrade < 2 && weaponGrade < 2) return;
             AppendLog(string.Format("收到玩家包 盔甲品质={0} 武器品质={1}", armourGrade, weaponGrade));
         }
@@ -130,7 +136,7 @@ namespace Client.MirGraphics
 
             Color colour = Colors[grade - 2];
 
-            if (_drawLogCount < 12)
+            if (Settings.QualityGlowLog && _drawLogCount < 12)
             {
                 _drawLogCount++;
                 AppendLog(string.Format("衣服发光 grade={0} 帧={1}", grade, frameIndex));

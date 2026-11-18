@@ -106,6 +106,11 @@ public enum PlayerOptionType : byte
     WalkThroughMonster = 5,  // 穿怪：是否允许穿过普通怪物
     WalkThroughNPC = 6,      // 穿NPC：是否允许穿过商人/NPC
     WalkThroughWall = 7,     // 穿城墙：是否允许穿过攻城城门、城墙
+
+    //只由服务器下发（20261108）：Setup.ini [Game] PoisonLockMagicOnly 的当前值。
+    //  true  → 麻痹/狮子吼麻痹/冰冻/眩晕只锁「移动 + 魔法」，物理普攻照常出手；
+    //  false → 原版行为，中毒同时锁物理和魔法。
+    PoisonLockMagicOnly = 8,
 }
 
 public enum AwakeType : byte
@@ -1632,6 +1637,22 @@ public enum BuffType : byte
     防御型绝技,
     技能型绝技,
     共用型绝技,
+
+    //★★ 羽化登仙（2026-11-12）：从自定义槽位 Custom1/Custom3~12 迁出的专用 BUFF。
+    //   客户端只认枚举值（ObjectPlayer.Buffs 只传类型），所以「第几重」必须编码在枚举里。
+    //   159 = 纯标记（已羽化，零属性）；160~169 = 一重~十重（属性在 Configs\BuffSystem.ini 配）。
+    //   ★旧的 230/232~241 仍保留在枚举与 ini 里，只作「老存档读档兼容层」，新逻辑不再写入。
+    羽化登仙 = 159,
+    羽化一重,
+    羽化二重,
+    羽化三重,
+    羽化四重,
+    羽化五重,
+    羽化六重,
+    羽化七重,
+    羽化八重,
+    羽化九重,
+    羽化十重,
 
     //Stats
     攻击力提升 = 200,

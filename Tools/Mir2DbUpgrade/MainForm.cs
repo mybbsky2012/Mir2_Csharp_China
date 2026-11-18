@@ -321,11 +321,10 @@ public class MainForm : Form
         int vDb = Worker.PeekVersion(Path.Combine(_serverDir, "Server.MirDB"));
         int vAdb = Worker.PeekVersion(Path.Combine(_serverDir, "Server.MirADB"));
 
-        if (vDb == TargetVersion && vAdb == TargetVersion)
-        {
-            Info($"两个库已经是 v{TargetVersion}，不需要升级。");
-            return;
-        }
+        // 版本号相同 ≠ 数据已是最新：羽化 BUFF 编码迁移没改二进制布局，
+        // Envir.Version 还是 111，只能靠读一遍看有没有旧编码。所以这里不再直接拦，
+        // 交给 UpgradeRunner 先只读检查，再决定要不要备份重写。
+        bool sameVersion = vDb == TargetVersion && vAdb == TargetVersion;
 
         if (vDb > TargetVersion || vAdb > TargetVersion)
         {
@@ -333,7 +332,19 @@ public class MainForm : Form
             return;
         }
 
-        if (!ConfirmUpgrade(vDb, vAdb)) return;
+        if (sameVersion)
+        {
+            var r0 = MessageBox.Show(this,
+                $"数据库版本已经是 v{TargetVersion}。\n\n" +
+                $"工具会先只读检查存档里的羽化 BUFF 编码（旧的 230 / 232~241 → 159~169）：\n" +
+                "  · 已经是新编码 → 什么都不改，直接结束\n" +
+                "  · 发现旧编码 → 先完整备份，再原地改写并逐条校验\n\n" +
+                $"目录：{_serverDir}\n\n继续吗？",
+                "检查数据编码", MessageBoxButtons.OKCancel, MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button1);
+            if (r0 != DialogResult.OK) return;
+        }
+        else if (!ConfirmUpgrade(vDb, vAdb)) return;
 
         SetBusy(true, "升级中…");
         WriteLog("");
@@ -349,15 +360,21 @@ public class MainForm : Form
             WriteLog("");
             if (result.Success)
             {
-                WriteLog($"升级成功：{result.Message}（{result.Seconds:F1} 秒）", Color.SeaGreen);
-                WriteLog($"备份保留在：{result.BackupDir}", Color.DimGray);
+                WriteLog($"完成：{result.Message}（{result.Seconds:F1} 秒）", Color.SeaGreen);
+                if (!string.IsNullOrEmpty(result.BackupDir))
+                    WriteLog($"备份保留在：{result.BackupDir}", Color.DimGray);
                 WriteLog("请启动服务端，确认角色能正常进入游戏。", Color.FromArgb(30, 90, 170));
                 SetStatus("升级成功");
 
-                Info($"升级成功。\n\nMirDB  v{result.DbBefore} → v{result.DbAfter}\n" +
-                     $"MirADB v{result.AdbBefore} → v{result.AdbAfter}\n\n" +
+                string humUp = result.HumUpRemapped > 0
+                    ? $"\n羽化 BUFF：迁移 {result.HumUpRemapped} 条 / {result.HumUpOwners} 个角色"
+                      + (result.HumUpDedup > 0 ? $"，去重 {result.HumUpDedup} 条" : "")
+                    : "";
+
+                Info($"完成。\n\nMirDB  v{result.DbBefore} → v{result.DbAfter}\n" +
+                     $"MirADB v{result.AdbBefore} → v{result.AdbAfter}" + humUp + "\n\n" +
                      $"数据逐条校验一致，耗时 {result.Seconds:F1} 秒。\n\n" +
-                     $"备份：{result.BackupDir}");
+                     (string.IsNullOrEmpty(result.BackupDir) ? "（本次没有改写任何文件）" : $"备份：{result.BackupDir}"));
             }
             else
             {

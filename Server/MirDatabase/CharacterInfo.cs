@@ -286,6 +286,11 @@ namespace Server.MirDatabase
                 Buffs.Add(buff);
             }
 
+            //★羽化 BUFF 编码迁移（11-12）：必须在读档时做，不能等登录。
+            //  选人界面立绘走 GetSelectHumUpStage()，那是登录成功之前生成的；
+            //  放在登录时迁移的话，没登录过的号（含离线/挂机）永远是旧编码，选人界面会掉羽化立绘。
+            MigrateHumUpBuffs();
+
             count = reader.ReadInt32();
             for (int i = 0; i < count; i++)
             {
@@ -593,8 +598,64 @@ namespace Server.MirDatabase
                     Level = Level,
                     Class = Class,
                     Gender = Gender,
-                    LastAccess = LastLogoutDate
+                    LastAccess = LastLogoutDate,
+                    HumUpStage = GetSelectHumUpStage()
                 };
+        }
+
+        /// <summary>
+        /// 羽化 BUFF 的编码迁移（2026-11-12）：旧的自定义槽位 → 专用枚举。
+        /// 规则与实现见 <see cref="HumUpBuffMigration"/>（英雄读档走同一份逻辑）。
+        /// </summary>
+        private void MigrateHumUpBuffs()
+        {
+            HumUpBuffMigration.Apply(Buffs, Name);
+        }
+
+        /// <summary>是否羽化专用 BUFF（新编码 159~169；旧编码 230/232~241 兼容识别）。</summary>
+        public static bool IsHumUpBuffType(int type)
+        {
+            if (type == (int)BuffType.羽化登仙) return true;
+            if (type >= (int)BuffType.羽化一重 && type <= (int)BuffType.羽化十重) return true;
+
+            // 旧编码：留作兼容（老档未迁移、或回退版本后读新档）
+            return type == (int)BuffType.Custom1 || (type >= 232 && type <= 241);
+        }
+
+        /// <summary>
+        /// 选人界面立绘用：从持久化 Buffs 里读羽化重数（零存档结构改动，只读现有 buff 列表）。
+        /// 新编码：羽化一重~十重(160~169) = 1~10；羽化登仙(159) 是纯标记，按一重兜底。
+        /// 旧编码 232~241 / 230 继续认，读档迁移漏网时也不会掉立绘。
+        /// </summary>
+        public byte GetSelectHumUpStage()
+        {
+            if (Buffs == null || Buffs.Count == 0) return 0;
+
+            byte fallback = 0;
+
+            for (int i = 0; i < Buffs.Count; i++)
+            {
+                Buff buff = Buffs[i];
+                if (buff == null || buff.Info == null) continue;
+
+                //★ExpireTime 是「剩余毫秒」，不是绝对时刻（MapObject.AddBuff 直接赋 duration，HumanObject 每 tick 递减）。
+                //  Stack=Infinite 的永久 buff 根本不吃计时，它的 ExpireTime 只是挂上那一刻的初始值，
+                //  早就小于服务端已运行的时间了 —— 所以绝不能拿它跟 Envir.Time 比。
+                //  （旧写法 `buff.ExpireTime <= now` 在服务端跑满 60 秒后会把所有羽化 buff 判成过期，
+                //    表现就是选人界面立绘退回原版、职业称号变回原职业名。）
+                if (buff.ExpireTime <= 0 && buff.StackType != BuffStackType.Infinite) continue;
+
+                int type = (int)buff.Type;
+
+                if (type >= (int)BuffType.羽化一重 && type <= (int)BuffType.羽化十重)
+                    return (byte)(type - (int)BuffType.羽化一重 + 1);
+
+                if (type == (int)BuffType.羽化登仙) fallback = 1;
+                else if (type >= 232 && type <= 241) return (byte)(type - 232 + 1);
+                else if (type == (int)BuffType.Custom1) fallback = 1;
+            }
+
+            return fallback;
         }
 
         public bool CheckHasIntelligentCreature(IntelligentCreatureType petType)

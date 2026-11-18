@@ -1,0 +1,207 @@
+; ============================================================
+;  自定义 BUFF 属性表 —— Configs\BuffSystem.ini
+;  编码：UTF-8（无 BOM）；; 开头为注释
+;
+;  ★ 槽位分配（Custom1~Custom24 = 230~253，共 24 个）
+;    [1]        羽化登仙      —— 纯标记：这个角色已羽化。不给属性。
+;    [2]        （另一条分支，未动）
+;    [3] ~ [12] 羽化登仙·一重 ~ 十重 —— 真正给属性的地方，也是客户端判定外观的依据
+;    [13] ~ [24] 空闲
+;
+;  ★ 为什么"标记"和"重数"要分开
+;    客户端判断外观时，只能从 ObjectPlayer.Buffs 拿到 BUFF 枚举值，
+;    拿不到 Values[]（服务端 PlayerObject.cs:5537 只 Select(e => e.Type)）。
+;    所以"第几重"必须靠不同的枚举值区分 —— [3]~[12] 就是这个作用。
+;    [1] 单独留一个纯标记，是给"老号只挂过羽化标记、还没定重数"的情况兜底：
+;    客户端看到 [1] 但没有 [3]~[12] 时，按一重外观显示。
+;
+;  ★ 三个必守项（改坏了羽化会掉）
+;    Stack=Infinite   —— 永久。用 ResetDuration 的话，GIVEBUFF 传的时长是 0，
+;                        下一秒就会被 HumanObject 的 tick 清掉（原 [1][2] 的写法就是这个坑）。
+;    Property=None    —— 绝不能带 RemoveOnExit（下线即删）/ RemoveOnDeath（死亡即删）。
+;    Visible=True     —— 不加这行，别人看不到你的羽化 buff，客户端也就画不出羽化外观。
+;
+;  ★ 存档：不用做任何事
+;    HumanObject.Buffs 就是 Info.Buffs 本身，加进来的 BUFF 当场就在待存档结构里，
+;    定时存盘与下线存盘都会带上（CharacterInfo.Save 的 Buff 段），重登由 ReplayBuff 重放。
+;
+;  ★ 脚本用法（NPC 脚本 / GM 命令）
+;    GIVEBUFF 羽化登仙 0 True True False        升到羽化状态（标记）
+;    GIVEBUFF 羽化登仙·三重 0 True True False   设为三重（会带 3 重的属性）
+;    REMOVEBUFF 羽化登仙                        取消羽化
+;    换重数时记得把上一重的 buff REMOVEBUFF 掉，否则属性会叠加。
+;    也可以直接写槽位号：[3] 等价于 GIVEBUFF 3 0 True True False
+;
+;  ★ 数值说明
+;    十重的属性刻意做成"一重 = 满级的 1/10"，十重合计正好等于原来 [1] 的
+;    MaxDC/MaxMC/MaxSC +50、MaxAC/MaxMAC +30。要调就在每一重上等比例改。
+;    每重的 Stat 数值写法支持「基础」或「基础+每级」（后者按施法者等级成长）。
+; ============================================================
+
+
+; ------------------------------------------------------------
+; [1] 羽化登仙 —— 纯标记，不给属性
+; ------------------------------------------------------------
+[1]
+Name=羽化登仙
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=已渡劫飞升（外观标记，属性由「羽化登仙·N重」提供）
+
+
+; ------------------------------------------------------------
+; [3] ~ [12] 羽化登仙 一重 ~ 十重
+;     属性梯度：每重 MaxDC/MaxMC/MaxSC +5、MaxAC/MaxMAC +3、HP/MP +100
+;     十重 = +50 / +30 / +1000（与旧 [1] 的最终值一致）
+; ------------------------------------------------------------
+[3]
+Name=羽化登仙·一重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化一重：攻击/魔法/道术+5，防御/魔御+3，生命/魔法+100
+Stat.MaxDC=5
+Stat.MaxMC=5
+Stat.MaxSC=5
+Stat.MaxAC=3
+Stat.MaxMAC=3
+Stat.HP=100
+Stat.MP=100
+
+[4]
+Name=羽化登仙·二重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化二重：攻击/魔法/道术+10，防御/魔御+6，生命/魔法+200
+Stat.MaxDC=10
+Stat.MaxMC=10
+Stat.MaxSC=10
+Stat.MaxAC=6
+Stat.MaxMAC=6
+Stat.HP=200
+Stat.MP=200
+
+[5]
+Name=羽化登仙·三重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化三重：攻击/魔法/道术+15，防御/魔御+9，生命/魔法+300
+Stat.MaxDC=15
+Stat.MaxMC=15
+Stat.MaxSC=15
+Stat.MaxAC=9
+Stat.MaxMAC=9
+Stat.HP=300
+Stat.MP=300
+
+[6]
+Name=羽化登仙·四重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化四重：攻击/魔法/道术+20，防御/魔御+12，生命/魔法+400
+Stat.MaxDC=20
+Stat.MaxMC=20
+Stat.MaxSC=20
+Stat.MaxAC=12
+Stat.MaxMAC=12
+Stat.HP=400
+Stat.MP=400
+
+[7]
+Name=羽化登仙·五重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化五重：攻击/魔法/道术+25，防御/魔御+15，生命/魔法+500
+Stat.MaxDC=25
+Stat.MaxMC=25
+Stat.MaxSC=25
+Stat.MaxAC=15
+Stat.MaxMAC=15
+Stat.HP=500
+Stat.MP=500
+
+[8]
+Name=羽化登仙·六重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化六重：攻击/魔法/道术+30，防御/魔御+18，生命/魔法+600
+Stat.MaxDC=30
+Stat.MaxMC=30
+Stat.MaxSC=30
+Stat.MaxAC=18
+Stat.MaxMAC=18
+Stat.HP=600
+Stat.MP=600
+
+[9]
+Name=羽化登仙·七重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化七重：攻击/魔法/道术+35，防御/魔御+21，生命/魔法+700
+Stat.MaxDC=35
+Stat.MaxMC=35
+Stat.MaxSC=35
+Stat.MaxAC=21
+Stat.MaxMAC=21
+Stat.HP=700
+Stat.MP=700
+
+[10]
+Name=羽化登仙·八重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化八重：攻击/魔法/道术+40，防御/魔御+24，生命/魔法+800
+Stat.MaxDC=40
+Stat.MaxMC=40
+Stat.MaxSC=40
+Stat.MaxAC=24
+Stat.MaxMAC=24
+Stat.HP=800
+Stat.MP=800
+
+[11]
+Name=羽化登仙·九重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化九重：攻击/魔法/道术+45，防御/魔御+27，生命/魔法+900
+Stat.MaxDC=45
+Stat.MaxMC=45
+Stat.MaxSC=45
+Stat.MaxAC=27
+Stat.MaxMAC=27
+Stat.HP=900
+Stat.MP=900
+
+[12]
+Name=羽化登仙·十重
+Icon=30034
+Visible=True
+Stack=Infinite
+Property=None
+Desc=羽化十重：攻击/魔法/道术+50，防御/魔御+30，生命/魔法+1000
+Stat.MaxDC=50
+Stat.MaxMC=50
+Stat.MaxSC=50
+Stat.MaxAC=30
+Stat.MaxMAC=30
+Stat.HP=1000
+Stat.MP=1000

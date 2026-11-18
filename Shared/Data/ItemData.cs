@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Reflection;
+using System.Text.RegularExpressions;
 
 public class ItemInfo
 {
@@ -64,6 +65,108 @@ public class ItemInfo
     public ItemInfo() 
     {
         Stats = new Stats();
+    }
+
+    // ================= 物品库热重载（11-13） =================
+    // 为什么必须「就地改值」：UserItem.Info 是**字段**（不是按编号实时查表），背包 / 装备 / 仓库 /
+    // 地上物品 / NPC 商店 Goods / 掉落表 全都直接持有 ItemInfo 实例的引用。
+    // 旧的重载实现把 ItemInfoList 里的条目整个换成编辑器的新实例 → 存量物品仍指向旧对象，
+    // 属性纹丝不动，玩家只有重启服务器（重新读库、重建物品）才看得到改动。
+    // 就地覆盖后，所有引用天然看到新数据，且 Index 不变、物品不会"换身份"。
+
+    private static readonly FieldInfo[] ReloadFields = BuildReloadFields();
+
+    private static FieldInfo[] BuildReloadFields()
+    {
+        FieldInfo[] all = typeof(ItemInfo).GetFields(BindingFlags.Public | BindingFlags.Instance);
+        List<FieldInfo> list = new List<FieldInfo>(all.Length);
+
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i].Name == "Index") continue;   // 身份字段：两条记录靠 Index 配对，绝不能被覆盖
+            if (all[i].IsInitOnly) continue;
+            list.Add(all[i]);
+        }
+
+        return list.ToArray();
+    }
+
+    /// <summary>
+    /// 把另一份物品定义（DB/编辑器新读入的实例）的字段值**就地**覆盖到本实例。
+    /// Stats / RandomStats 是引用类型，必须深拷贝 —— 否则运行服和编辑器会共享同一个
+    /// 属性字典，编辑器里再改一次就"隔空"改了线上所有物品。
+    /// </summary>
+    /// <returns>true = 至少一个字段发生变化（在线客户端只推送变化的条目）</returns>
+    public bool CopyFrom(ItemInfo src)
+    {
+        if (src == null || ReferenceEquals(src, this)) return false;
+
+        bool changed = false;
+
+        for (int i = 0; i < ReloadFields.Length; i++)
+        {
+            FieldInfo f = ReloadFields[i];
+
+            if (f.FieldType == typeof(Stats))
+            {
+                Stats mine = Stats;
+                Stats theirs = src.Stats;
+
+                if (StatsEquals(mine, theirs)) continue;
+
+                Stats = theirs == null ? new Stats() : new Stats(theirs);   // 深拷贝（Stats 有拷贝构造）
+                changed = true;
+                continue;
+            }
+
+            if (f.FieldType == typeof(RandomItemStat))
+            {
+                RandomItemStat mine = RandomStats;
+                RandomItemStat theirs = src.RandomStats;
+
+                if (RandomStatEquals(mine, theirs)) continue;
+
+                RandomStats = theirs == null ? null : theirs.Clone();
+                changed = true;
+                continue;
+            }
+
+            object a = f.GetValue(this);
+            object b = f.GetValue(src);
+
+            if (Equals(a, b)) continue;
+
+            f.SetValue(this, b);
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private static bool StatsEquals(Stats a, Stats b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a == null || b == null) return false;
+        if (a.Values.Count != b.Values.Count) return false;
+
+        foreach (KeyValuePair<Stat, int> pair in a.Values)
+            if (b[pair.Key] != pair.Value) return false;
+
+        return true;
+    }
+
+    private static readonly FieldInfo[] RandomStatFields =
+        typeof(RandomItemStat).GetFields(BindingFlags.Public | BindingFlags.Instance);
+
+    private static bool RandomStatEquals(RandomItemStat a, RandomItemStat b)
+    {
+        if (ReferenceEquals(a, b)) return true;
+        if (a == null || b == null) return false;
+
+        for (int i = 0; i < RandomStatFields.Length; i++)
+            if (!Equals(RandomStatFields[i].GetValue(a), RandomStatFields[i].GetValue(b))) return false;
+
+        return true;
     }
 
     public ItemInfo(BinaryReader reader, int version = int.MaxValue, int customVersion = int.MaxValue)
@@ -1182,6 +1285,12 @@ public class ItemSets
 
 public class RandomItemStat
 {
+    /// <summary>浅拷贝即可：本类字段全是 byte，没有嵌套引用（物品库热重载深拷贝用）。</summary>
+    public RandomItemStat Clone()
+    {
+        return (RandomItemStat)MemberwiseClone();
+    }
+
     public byte MaxDuraChance, MaxDuraStatChance, MaxDuraMaxStat;
     public byte MaxAcChance, MaxAcStatChance, MaxAcMaxStat, MaxMacChance, MaxMacStatChance, MaxMacMaxStat, MaxDcChance, MaxDcStatChance, MaxDcMaxStat, MaxMcChance, MaxMcStatChance, MaxMcMaxStat, MaxScChance, MaxScStatChance, MaxScMaxStat;
     public byte AccuracyChance, AccuracyStatChance, AccuracyMaxStat, AgilityChance, AgilityStatChance, AgilityMaxStat, HpChance, HpStatChance, HpMaxStat, MpChance, MpStatChance, MpMaxStat, StrongChance, StrongStatChance, StrongMaxStat;

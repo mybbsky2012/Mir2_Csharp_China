@@ -1,0 +1,5 @@
+Data/AWeapon/04 L.Lib
+Data/Effect.lib
+Data/Monster/000.Lib
+Data/自定义素材.Lib
+resindex.txt

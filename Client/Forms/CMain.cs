@@ -102,9 +102,14 @@ namespace Client
 
         private static void Application_Idle(object sender, EventArgs e)
         {
-            try
+            //★异常不能打断 idle 循环（11-09）：
+            //  原来 try 包住整个 while，任何一帧里抛异常都会**直接跳出循环**，要等 Windows
+            //  下一次发 idle 消息才继续跑 —— 表现就是「画面一顿一顿」；如果异常是每帧都抛的
+            //  （比如某个对象 Process 一直崩），客户端就会频繁丢帧甚至看起来卡死。
+            //  改成「每轮独立捕获」：出错的这一帧跳过，下一轮照常跑。
+            while (AppStillIdle)
             {
-                while (AppStillIdle)
+                try
                 {
                     UpdateTime();
                     UpdateFrameTime();
@@ -113,11 +118,11 @@ namespace Client
                     if (IsDrawTime())
                         RenderEnvironment();
                 }
-
-            }
-            catch (Exception ex)
-            {
-                SaveError(ex.ToString());
+                catch (Exception ex)
+                {
+                    SaveError(ex.ToString());
+                    Thread.Sleep(1);   // 防止异常持续时把 CPU 打满
+                }
             }
         }
 
@@ -409,22 +414,39 @@ namespace Client
             }
         }
 
+        // 渲染故障计数/节流（11-09）。原来设备一出问题就是每帧写一条 Error.txt，
+        // 一秒几十条，几秒就把日志刷成几十 MB，还会把 Settings.RemainingErrorLogs
+        // 这个全局配额耗尽（真正有用的日志就再也写不进去了）。
+        // 现在：同样的报错 3 秒内只落一条，其余只计数。
+        private static int _renderFaults;
+        private static string _lastRenderFault;
+        private static long _lastRenderFaultTime;
+        private static int _renderFaultSuppressed;
+
         private static void RenderEnvironment()
         {
+            //★11-16 设备/精灵/后台缓冲任一不可用就直接跳过这一帧。
+            //  原来 BeginFrame 里的 Device.Clear / Sprite.Begin 空引用会因为 JIT 内联
+            //  只在日志里留下「RenderEnvironment 的 NullReferenceException」，没有下层栈。
+            if (!DXManager.IsReady)
+            {
+                Thread.Sleep(1);
+                return;
+            }
+
+            if (DXManager.DeviceLost)
+            {
+                DXManager.AttemptReset();
+                Thread.Sleep(1);
+                return;
+            }
+
+            bool began = false;
+
             try
             {
-                if (DXManager.DeviceLost)
-                {
-                    DXManager.AttemptReset();
-                    Thread.Sleep(1);
-                    return;
-                }
-
-                DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
-                DXManager.Device.BeginScene();
-                DXManager.Sprite.Begin(SpriteFlags.AlphaBlend);
-                DXManager.ResetDrawState();   // 每帧复位混合/透明度状态，防止上一帧泄漏导致整屏半透明闪烁
-                DXManager.SetSurface(DXManager.MainSurface);
+                DXManager.BeginFrame();
+                began = true;
 
                 if (MirScene.ActiveScene != null)
                     MirScene.ActiveScene.Draw();
@@ -433,20 +455,81 @@ namespace Client
                 // 避免进游戏载入时被 UI 盖在前面。
                 LoadingScreen.DrawOverlay();
 
-                DXManager.Sprite.End();
-                DXManager.Device.EndScene();
-                DXManager.Device.Present();
-            }
-            catch (Direct3D9Exception ex)
-            {
-                DXManager.DeviceLost = true;
-                SaveError(ex.ToString());
+                DXManager.EndFrame();
+                began = false;
+
+                _renderFaults = 0;
             }
             catch (Exception ex)
             {
-                SaveError(ex.ToString());
+                // ★不管是哪种异常，都必须先把 D3D 状态机收拾干净（11-09）。
+                //   原来只在这个 generic catch 里调 AttemptRecovery，Direct3D9Exception
+                //   那条分支直接置 DeviceLost 就跑，Sprite 还挂在 Begin 状态，
+                //   于是下一帧接着抛，形成「抛 → 复位 → 抛」的死循环。
+                if (began)
+                    DXManager.AbortFrame();
 
-                DXManager.AttemptRecovery();
+                HandleRenderFault(ex);
+            }
+        }
+
+        private static void HandleRenderFault(Exception ex)
+        {
+            // 真·设备丢失（切分辨率/全屏切换/被独占程序抢走）：
+            // 走原有的 AttemptReset 恢复链。
+            // （这个 SlimDX 版本没有 DeviceLostException 类型，只能按错误文本判：
+            //   D3DERR_DEVICELOST / D3DERR_DEVICENOTRESET；日志里就是这两个字符串。）
+            bool deviceLost = ex is Direct3D9Exception &&
+                              (ex.Message.IndexOf("DEVICELOST", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                               ex.Message.IndexOf("DEVICENOTRESET", StringComparison.OrdinalIgnoreCase) >= 0);
+
+            if (deviceLost)
+            {
+                DXManager.DeviceLost = true;
+                ReportRenderFault(ex);
+                return;
+            }
+
+            _renderFaults++;
+
+            //★D3DERR_INVALIDCALL 不是「设备丢了」：TestCooperativeLevel 会返回 Success，
+            //  于是「置 DeviceLost → 下一帧 AttemptReset 清掉 → 又抛」无限循环。
+            //  病根是状态机脏了（Sprite 已 Begin 没 End / Reset 后纹理全废）。
+            //  AbortFrame 已补过 End；连续 3 帧还在抛就重建整个设备，
+            //  连续 9 帧还不行就退回「等设备恢复」的慢循环，别空转烧 CPU。
+            if (_renderFaults >= 9)
+                DXManager.DeviceLost = true;
+            else if (_renderFaults % 3 == 0)
+                DXManager.ForceRebuild();
+
+            ReportRenderFault(ex);
+        }
+
+        private static void ReportRenderFault(Exception ex)
+        {
+            try
+            {
+                string text = ex.ToString();
+                long now = Time;
+
+                if (text == _lastRenderFault && now - _lastRenderFaultTime < 3000)
+                {
+                    _renderFaultSuppressed++;
+                    return;
+                }
+
+                if (_renderFaultSuppressed > 0)
+                    text = string.Format("(同样的渲染错误后来又出现了 {0} 次，已省略){1}{2}",
+                                         _renderFaultSuppressed, Environment.NewLine, text);
+
+                _renderFaultSuppressed = 0;
+                _lastRenderFault = ex.ToString();
+                _lastRenderFaultTime = now;
+
+                SaveError(text);
+            }
+            catch
+            {
             }
         }
 
@@ -475,21 +558,16 @@ namespace Client
 
             try
             {
-                DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
-                DXManager.Device.BeginScene();
-                DXManager.Sprite.Begin(SpriteFlags.AlphaBlend);
-                DXManager.ResetDrawState();
-                DXManager.SetSurface(DXManager.MainSurface);
-
+                DXManager.BeginFrame();
                 LoadingScreen.DrawOverlay();
-
-                DXManager.Sprite.End();
-                DXManager.Device.EndScene();
-                DXManager.Device.Present();
+                DXManager.EndFrame();
             }
             catch (Exception ex)
             {
-                SaveError(ex.ToString());
+                // 同 RenderEnvironment：半截失败必须收尾，否则 Sprite/Scene 状态会一直脏着，
+                // 主循环恢复后每一帧都会在 BeginScene 上继续抛 INVALIDCALL。
+                DXManager.AbortFrame();
+                ReportRenderFault(ex);
             }
         }
 
@@ -666,7 +744,18 @@ namespace Client
 
             Program.Form.ClientSize = new Size(Settings.ScreenWidth, Settings.ScreenHeight);
 
-            DXManager.ResetDevice();
+            // 切全屏/窗口化时 Reset 失败是可能的（独占模式切换瞬间、驱动还在切模式）。
+            // 抛出去会打断后面的 CenterToScreen/剪裁区更新，而且没人负责重建设备，
+            // 所以在这里吞掉、置 DeviceLost，让主循环的 AttemptReset 兜底重试。
+            try
+            {
+                DXManager.ResetDevice();
+            }
+            catch (Exception ex)
+            {
+                DXManager.DeviceLost = true;
+                SaveError(ex.ToString());
+            }
 
             if (MirScene.ActiveScene == GameScene.Scene)
             {
@@ -842,9 +931,28 @@ namespace Client
 
             Program.Form.ClientSize = new Size(width, height);
 
-            DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
-            DXManager.Device.Present();
-            DXManager.ResetDevice();
+            //★这里的 Clear/Present 是在「客户区已经变了、后台缓冲还是旧尺寸」的瞬间做的，
+            //  切分辨率/切全屏时返回 D3DERR_INVALIDCALL 是常态。绝不能让它把异常抛出去：
+            //  一旦抛出，下面的 ResetDevice 就不会执行，设备永远停在旧后台缓冲上，
+            //  之后每帧都 INVALIDCALL（11/8 11:14 那一大片报错就是这么来的）。
+            try
+            {
+                DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
+                DXManager.Device.Present();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                DXManager.ResetDevice();
+            }
+            catch (Exception ex)
+            {
+                DXManager.DeviceLost = true;   // 交给主循环的 AttemptReset 下一帧重建
+                SaveError(ex.ToString());
+            }
 
             if (!Settings.FullScreen)
                 Program.Form.CenterToScreen();

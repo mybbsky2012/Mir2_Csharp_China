@@ -544,29 +544,44 @@ namespace Client.MirScenes
 
             if (_selected >= 0 && _selected < Characters.Count)
             {
-                CharacterDisplay.Visible = true;
-                //CharacterDisplay.Index = ((byte)Characters[_selected].Class + 1) * 20 + (byte)Characters[_selected].Gender * 280; 
+                SelectInfo sel = Characters[_selected];
+                MirClass selClass = sel.Class;
+                bool male = sel.Gender == MirGender.男性;
 
-                switch ((MirClass)Characters[_selected].Class)
+                CharacterDisplay.Visible = true;
+
+                //★登仙选人立绘（11-09 修订）：羽化的角色换成 ChrSel.Lib 里的羽化立绘，
+                //  未羽化的继续用原版立绘。
+                //  原版立绘公式 = (职业+1)*20 + 男0/女280，但**弓手是后加进 ChrSel 的特例**：
+                //  男弓 100、女弓 140（380 这一段全是空帧，按公式算会画成空白）。
+                //  羽化立绘是独立的一套（每套 16 帧 + 4 空帧），男战 220 / 男法 240 / 男道 260 / 男刺 280 / 男弓 160，
+                //  女战 500 / 女法 520 / 女道 540 / 女刺 560 / 女弓 180；
+                //  特效层仍走 AfterDraw 的 Index+560（男 780~855、女 1060~1135，弓手位是空帧不影响）。
+                int displayIndex;
+
+                if (sel.HumUpStage > 0)
                 {
-                    case MirClass.战士:
-                        CharacterDisplay.Index = (byte)Characters[_selected].Gender == 0 ? 20 : 300; //220 : 500;
-                        break;
-                    case MirClass.法师:
-                        CharacterDisplay.Index = (byte)Characters[_selected].Gender == 0 ? 40 : 320; //240 : 520;
-                        break;
-                    case MirClass.道士:
-                        CharacterDisplay.Index = (byte)Characters[_selected].Gender == 0 ? 60 : 340; //260 : 540;
-                        break;
-                    case MirClass.刺客:
-                        CharacterDisplay.Index = (byte)Characters[_selected].Gender == 0 ? 80 : 360; //280 : 560;
-                        break;
-                    case MirClass.弓箭:
-                        CharacterDisplay.Index = (byte)Characters[_selected].Gender == 0 ? 100 : 140; //160 : 180;
-                        break;
+                    switch (selClass)
+                    {
+                        case MirClass.战士: displayIndex = male ? 220 : 500; break;
+                        case MirClass.法师: displayIndex = male ? 240 : 520; break;
+                        case MirClass.道士: displayIndex = male ? 260 : 540; break;
+                        case MirClass.刺客: displayIndex = male ? 280 : 560; break;
+                        default: displayIndex = male ? 160 : 180; break;   // 弓箭
+                    }
+                }
+                else if (selClass == MirClass.弓箭)
+                {
+                    displayIndex = male ? 100 : 140;                       // 弓手特例：不走 +280 的公式
+                }
+                else
+                {
+                    displayIndex = ((byte)selClass + 1) * 20 + (male ? 0 : 280);
                 }
 
-                LastAccessLabel.Text = Characters[_selected].LastAccess == DateTime.MinValue ? "未曾登录" : Characters[_selected].LastAccess.ToString();
+                CharacterDisplay.Index = displayIndex;
+
+                LastAccessLabel.Text = sel.LastAccess == DateTime.MinValue ? "未曾登录" : sel.LastAccess.ToString();
                 LastAccessLabel.Visible = true;
                 LastAccessLabelLabel.Visible = true;
                 StartGameButton.Enabled = true;
@@ -577,6 +592,20 @@ namespace Client.MirScenes
                 LastAccessLabel.Visible = false;
                 LastAccessLabelLabel.Visible = false;
                 StartGameButton.Enabled = false;
+            }
+        }
+
+        /// <summary>羽化后的职业称号（只在选人界面显示，其它地方仍用原职业名）。</summary>
+        internal static string HumUpClassName(MirClass cls)
+        {
+            switch (cls)
+            {
+                case MirClass.战士: return "碧血战士";
+                case MirClass.法师: return "鸿轩法师";
+                case MirClass.道士: return "医仙道士";
+                case MirClass.刺客: return "飞燕刺客";
+                case MirClass.弓箭: return "暗鬼弓手";
+                default: return cls.ToString();
             }
         }
 
@@ -668,7 +697,8 @@ namespace Client.MirScenes
 
                 NameLabel.Text = info.Name;
                 LevelLabel.Text = info.Level.ToString();
-                ClassLabel.Text = info.Class.ToString();
+                //★羽化称号（11-09）：已羽化显示专属称号，未羽化仍是原职业名
+                ClassLabel.Text = info.HumUpStage > 0 ? HumUpClassName(info.Class) : info.Class.ToString();
 
                 NameLabel.Visible = true;
                 LevelLabel.Visible = true;

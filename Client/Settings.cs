@@ -57,6 +57,7 @@ namespace Client
                             FishingPath = @".\Data\Fishing\",
                             PetsPath = @".\Data\Pet\",
                             TransformPath = @".\Data\Transform\",
+                            HumUpPath = @".\Data\HumUp\",
                             TransformMountsPath = @".\Data\TransformRide2\",
                             TransformEffectPath = @".\Data\TransformEffect\",
                             TransformWeaponEffectPath = @".\Data\TransformWeaponEffect\",
@@ -68,6 +69,14 @@ namespace Client
         public static bool LogErrors = true;
         public static bool LogChat = true;
         public static int RemainingErrorLogs = 100;
+
+        /// <summary>
+        /// 品质光效诊断日志（QualityGlow.log）。
+        /// ★默认关闭：这条日志每收到一个品质≥2 的玩家包就 File.AppendAllText 一次
+        ///   （开/写/关文件同步 IO），土城人多时每秒几十次，会拖慢渲染并放大移动抽帧。
+        ///   需要排查光效问题时，在 Mir2Config.ini 的 [Logs] 段加 QualityGlowLog=True 即可打开。
+        /// </summary>
+        public static bool QualityGlowLog = false;
 
         //Graphics
         public static bool FullScreen = false, Borderless = true, TopMost = true, MouseClip = false;
@@ -209,7 +218,10 @@ namespace Client
         //  ★10-26 定稿：不开自动打怪时，明细行「启用」勾了就按百分比保命喝（不需要总开关，也不需要总闸）
         public static bool[] PotRowOn = new bool[4] { true, true, false, false };
         public static int[] PotRowPercent = new int[4] { 50, 30, 50, 50 };
-        public static string[] PotRowItem = new string[4] { "太阳水", "魔法药(中量)", "强效金创药", "魔法药(小量)" };
+        //★11-08 改：默认值原来写的是「魔法药(中量)/强效金创药/魔法药(小量)」——本服物品库里根本没有这三种
+        //  （实际叫「魔力恢复药(中)」「体力恢复药(中)」「魔力恢复药」），配合旧的"找不到就随便抓一个"兜底，
+        //  表现为内挂一直喝包里不相干的药。现在默认值改成库里真实存在的名字，且填了名字就只喝这个名字。
+        public static string[] PotRowItem = new string[4] { "太阳水", "魔力恢复药(中)", "体力恢复药(中)", "魔力恢复药" };
         public static int[] PotRowInterval = new int[4] { 5000, 1000, 5000, 1000 };
 
         //★内挂·传送保护（10-26）：血量低于阈值自动小退（一次性，触发后停手）
@@ -319,6 +331,21 @@ namespace Client
         //避免主地址抖动时每个文件都先撞一次超时）。单个地址（原写法）行为完全不变。
         public static readonly List<string> MicroHostPool = new List<string>();
 
+        //★（11-13）清单地址 / 文件地址分离：控制面与数据面拆开。
+        //  IndexHost：只用来取 /resindex（资源清单），留空 = 与 Host 相同（原行为）。
+        //    典型用法：主服带宽小/外网慢，让清单从主服出（76KB），文件全部由远端直供。
+        //  FileAtRoot：True 时文件 URL 形如 http://Host/Data/Monster/000.Lib，
+        //    即「远端网站根 = 资源根」，远端不需要任何 rewrite/脚本/接口。
+        //    False（默认）= 原写法 http://Host/resource?f=Data/Monster/000.Lib。
+        public static string MicroIndexHost = "";
+        public static bool MicroFileAtRoot = false;
+
+        //★（11-13）纯 HTTP 目录兜底：微端接口服务器「连接不通」时，改从这台按目录路径直取
+        //  http://<DirHost>/Data/Monster/000.Lib  —— 只要网站根=资源根即可，无需任何配置。
+        //  ★只有连不上（超时/拒绝/断流）才兜底；接口回 404 表示「确实没这个文件」，不兜底。
+        //  留空 = 不启用（行为与原来完全一致）。
+        public static string MicroDirHost = "";
+
         public static int MicroTimeout = 8000;
         public static bool MicroLog = true;
 
@@ -326,9 +353,18 @@ namespace Client
         public static int MicroConcurrency = 2;      //后台下载线程数
         public static int MicroRateLimit = 0;        //每个线程的下载限速(KB/s)，0=不限速
 
-        //切图时等 .map 下载的上限(毫秒)。等待期间会一直发心跳，所以可以给得比较宽：
-        //最大的地图 10MB 出头，2M/s 的宽带 6 秒，窄带上给到 2 分钟也够。
-        public static int MicroMapTimeout = 120000;
+        //★11-14 切图时等 .map 下载的上限(毫秒)，默认 2000（2 秒）。
+        //  超过就直接进游戏（占位地图 + 后台继续下），绝不让玩家卡在载入画面里干等：
+        //    · 原来这里是 120000，前身代码又写死 1.5 秒 + 「载入画面一直盖着」，
+        //      实际表现是「切到没下过的图 → 黑屏等很久 → 等不到还不能动」；
+        //    · 现在统一成 2 秒预算：等不到就先放行，文件到位后 MapControl 无缝重载地面。
+        //  这个值同时是「地图下载的连接超时」：2 秒拿不到响应头就当连不上，走目录兜底。
+        public static int MicroMapTimeout = 2000;
+
+        //★11-14 单个资源的最大重试次数（默认 5，0 = 不限）。
+        //  网络抖动/服务器重启这类偶发失败只冷却 30 秒后重试，但失败次数累计到上限就
+        //  「放弃这个文件」——地图加载据此判定「本次加载结束」，不再无限等待。
+        public static int MicroMaxRetry = 5;
 
         //是否在聊天框显示微端资源下载提示（"微端已启用…" / "资源补齐完成…"）。
         //默认 False：微端本来就是后台悄悄补资源，不该打扰玩家；
@@ -376,6 +412,7 @@ namespace Client
             //Logs
             LogErrors = Reader.ReadBoolean("Logs", "LogErrors", LogErrors);
             LogChat = Reader.ReadBoolean("Logs", "LogChat", LogChat);
+            QualityGlowLog = Reader.ReadBoolean("Logs", "QualityGlowLog", QualityGlowLog);
 
             //Sound
             Volume = Reader.ReadByte("Sound", "Volume", Volume);
@@ -561,7 +598,32 @@ namespace Client
             MicroConcurrency = Reader.ReadInt32("MicroClient", "Concurrency", MicroConcurrency);
             MicroRateLimit = Reader.ReadInt32("MicroClient", "RateLimit", MicroRateLimit);
             MicroMapTimeout = Reader.ReadInt32("MicroClient", "MapTimeout", MicroMapTimeout);
+            MicroMaxRetry = Reader.ReadInt32("MicroClient", "MaxRetry", MicroMaxRetry);
             MicroHint = Reader.ReadBoolean("MicroClient", "Hint", MicroHint);   //默认 False，不显示下载提示
+
+            //★（11-13）清单与文件分离：清单地址 / 文件是否直落远端根
+            MicroIndexHost = Reader.ReadString("MicroClient", "IndexHost", MicroIndexHost);
+            MicroFileAtRoot = Reader.ReadBoolean("MicroClient", "FileAtRoot", MicroFileAtRoot);
+            if (!string.IsNullOrWhiteSpace(MicroIndexHost))
+            {
+                MicroIndexHost = MicroIndexHost.Trim();
+                if (MicroIndexHost.StartsWith("//")) MicroIndexHost = "http:" + MicroIndexHost;
+                if (!MicroIndexHost.StartsWith("http://") && !MicroIndexHost.StartsWith("https://"))
+                    MicroIndexHost = "http://" + MicroIndexHost;
+            }
+
+            MicroDirHost = Reader.ReadString("MicroClient", "DirHost", MicroDirHost);
+            if (!string.IsNullOrWhiteSpace(MicroDirHost))
+            {
+                MicroDirHost = MicroDirHost.Trim();
+                if (MicroDirHost.StartsWith("//")) MicroDirHost = "http:" + MicroDirHost;
+                if (!MicroDirHost.StartsWith("http://") && !MicroDirHost.StartsWith("https://"))
+                    MicroDirHost = "http://" + MicroDirHost;
+            }
+            else
+            {
+                MicroDirHost = "";
+            }
 
             if (string.IsNullOrWhiteSpace(MicroHost)) MicroHost = "http://127.0.0.1:5679/";
 
@@ -585,7 +647,11 @@ namespace Client
             if (MicroConcurrency < 1) MicroConcurrency = 2;
             if (MicroConcurrency > 8) MicroConcurrency = 8;
             if (MicroRateLimit < 0) MicroRateLimit = 0;
-            if (MicroMapTimeout < 10000) MicroMapTimeout = 120000;
+            //★11-14 地图等待预算只允许 0.5~5 秒：老 ini 里的 MapTimeout=120000 一律拉回 2 秒，
+            //  否则「切图最多等 2 分钟」的旧行为又会回来。
+            if (MicroMapTimeout < 500 || MicroMapTimeout > 5000) MicroMapTimeout = 2000;
+            if (MicroMaxRetry < 0) MicroMaxRetry = 0;
+            if (MicroMaxRetry > 100) MicroMaxRetry = 100;
 
             // 客户端根目录下存在 microclient.flag 时自动启用微端。
             // 分发「微端客户端包」时只要附带这个空标记文件，玩家就不需要自己改配置；
@@ -761,7 +827,14 @@ namespace Client
             Reader.Write("MicroClient", "Concurrency", MicroConcurrency);
             Reader.Write("MicroClient", "RateLimit", MicroRateLimit);
             Reader.Write("MicroClient", "MapTimeout", MicroMapTimeout);
+            Reader.Write("MicroClient", "MaxRetry", MicroMaxRetry);
             Reader.Write("MicroClient", "Hint", MicroHint);
+            //★（11-13）清单/文件分离的配置也必须回写：
+            //  漏写这两个键的话，客户端退出重写 ini 时会把它们抹掉，
+            //  下次启动 FileAtRoot 回到 false → 文件又去请求 /resource?f= → 远端全 404
+            Reader.Write("MicroClient", "IndexHost", MicroIndexHost);
+            Reader.Write("MicroClient", "FileAtRoot", MicroFileAtRoot);
+            Reader.Write("MicroClient", "DirHost", MicroDirHost);
             Reader.Write("Launcher", "ConcurrentDownloads", P_Concurrency);
         }
 

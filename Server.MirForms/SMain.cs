@@ -130,8 +130,31 @@ namespace Server
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.ToString());
+                // ★11-16：定时器 100ms 一拍。一旦某处持续抛异常，模态框自己的消息循环
+                //   还在派发 Timer → 弹窗一个接一个堆叠，界面彻底锁死。
+                //   同一条异常 30 秒内只弹一次，其余只写日志。
+                ReportUiError(ex);
             }
+        }
+
+        private static string _lastUiError;
+        private static long _lastUiErrorTick;
+
+        /// <summary>界面刷新异常：同一条 30 秒内只弹一次，避免模态框堵塞消息循环</summary>
+        private static void ReportUiError(Exception ex)
+        {
+            string msg = ex?.ToString() ?? "未知错误";
+            long now = Environment.TickCount64;
+
+            if (string.Equals(msg, _lastUiError, StringComparison.Ordinal) && now - _lastUiErrorTick < 30000)
+                return;
+
+            _lastUiError = msg;
+            _lastUiErrorTick = now;
+
+            try { Enqueue("界面刷新异常：" + ex.Message); } catch { }
+
+            MessageBox.Show(msg, "服务器错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         /// <summary>在线状态文本：假人 → 挂机 → 在线（顺序即优先级，假人永不误判为挂机）</summary>
@@ -147,7 +170,7 @@ namespace Server
             CharacterInfo character = player?.Info;
 
             // 玩家正在登录/下线时 Info 可能是空的，别让整个在线列表刷新炸掉
-            if (character == null) return null;
+            if (character == null) return CreatePlaceholderItem();
 
             ListViewItem ListItem = new ListViewItem(character.Index.ToString()) { Tag = character };
 
@@ -157,7 +180,40 @@ namespace Server
             ListItem.SubItems.Add(character.Gender.ToString());
             ListItem.SubItems.Add(GetStatusText(player));
 
-            return ListItem;
+            return EnsureItemColumns(ListItem);
+        }
+
+        /// <summary>
+        /// ★虚拟模式的占位行（11-16）：子项数必须**等于**控件列数。
+        /// 以前这里直接 `new ListViewItem(string.Empty)` —— 它只有 1 个子项，而在线列表有 6 列，
+        /// WinForms 在 VirtualMode 下会当场抛
+        /// 「处于 VirtualMode 时，ListView RetrieveVirtualListItem 事件需要每个 ListView 列的列表视图子项」，
+        /// 表现就是服务端每 0.7 秒弹一次「服务器错误」。
+        /// 触发点：玩家下线把 Info 置空的那一刻，正好刷到这一行 → CreateListView 返回 null → 走兜底。
+        /// </summary>
+        private ListViewItem CreatePlaceholderItem()
+        {
+            ListViewItem item = new ListViewItem(string.Empty);
+
+            int columns = PlayersOnlineListView.Columns.Count;
+
+            while (item.SubItems.Count < columns)
+                item.SubItems.Add(string.Empty);
+
+            return item;
+        }
+
+        /// <summary>把子项补齐到列数（列数以后再加也不用改这里）</summary>
+        private ListViewItem EnsureItemColumns(ListViewItem item)
+        {
+            if (item == null) return CreatePlaceholderItem();
+
+            int columns = PlayersOnlineListView.Columns.Count;
+
+            while (item.SubItems.Count < columns)
+                item.SubItems.Add(string.Empty);
+
+            return item;
         }
 
         private void PlayersOnlineListView_DrawColumnHeader(object sender, DrawListViewColumnHeaderEventArgs e)
@@ -258,7 +314,20 @@ namespace Server
                 if (!seen.Add(info.Index)) continue;
                 visible.Add(p);
             }
-            visible.Sort((a, b) => a.Info.Index.CompareTo(b.Info.Index));
+            // ★竞态修复（11-10）：Sort 比较进行中，下线线程可能把某个玩家的 Info 置空，
+            //   比较器里 a.Info.Index 二次解引用就会 NRE（线上弹窗栈：ProcessPlayersOnlineTab.<b__23_0>）。
+            //   过滤通过后立刻把 Index 快照进字典，排序只查快照、不再访问 Info；
+            //   快照时 Info 已空的兜底排到最后，下线玩家这一拍先显示、下一拍自然消失。
+            Dictionary<PlayerObject, int> idxCache = new Dictionary<PlayerObject, int>(visible.Count);
+            foreach (PlayerObject p in visible)
+                idxCache[p] = p.Info != null ? p.Info.Index : int.MaxValue;
+            visible.Sort((a, b) =>
+            {
+                int ia, ib;
+                idxCache.TryGetValue(a, out ia);
+                idxCache.TryGetValue(b, out ib);
+                return ia.CompareTo(ib);
+            });
 
             // 记住当前选中角色的 Index（上下线会让行号整体位移，按身份恢复选中）
             int selChar = 0;
@@ -315,15 +384,15 @@ namespace Server
         {
             List<PlayerObject> snapshot = _onlineSnapshot;
 
+            // ★注意：兜底行必须补齐到列数（CreatePlaceholderItem），
+            //   裸 new ListViewItem("") 只有 1 个子项，VirtualMode 下会直接抛异常。
             if (e.ItemIndex < 0 || e.ItemIndex >= snapshot.Count)
             {
-                e.Item = new ListViewItem(string.Empty);
+                e.Item = CreatePlaceholderItem();
                 return;
             }
 
-            ListViewItem item = CreateListView(snapshot[e.ItemIndex]);
-
-            e.Item = item ?? new ListViewItem(string.Empty);   // 快照已过滤 Info，理论上不会空，兜底防炸
+            e.Item = EnsureItemColumns(CreateListView(snapshot[e.ItemIndex]));   // 快照已过滤 Info，兜底防炸
         }
 
         private void startServerToolStripMenuItem_Click(object sender, EventArgs e)

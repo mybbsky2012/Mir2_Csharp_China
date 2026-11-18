@@ -61,6 +61,7 @@
         CheckGuildNameList,
         CheckTimer,
         CheckBuff,
+        CheckHumUp,     //★登仙（11-10）：检测羽化重数 CHECKHUMUP >= 3
         CheckTransform,
         CheckLoopTimer,
         CheckHero,
@@ -68,6 +69,7 @@
         CheckHeroGender,
         CheckHeroItem,
         CheckHeroUse,
-        CheckSafeZone
+        CheckSafeZone,
+        CheckEmptyEquip    //★羽化登仙任务：装备栏是否全空 CHECKEMPTYEQUIP（第 11 环羽化仪式用）
     }
 }

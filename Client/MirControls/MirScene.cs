@@ -196,6 +196,21 @@ namespace Client.MirControls
 
         private void NewItemInfo(S.NewItemInfo info)
         {
+            if (info == null || info.Info == null) return;
+
+            //★物品库热重载（11-13）：同编号必须**就地覆盖**，不能无脑 Add。
+            //  ① 无脑 Add 会让列表里出现两份同 Index 的条目，客户端查找用 FirstOrDefault，
+            //     命中的永远是先前那份旧数据 → 服务端改了等于没改；
+            //  ② 就地覆盖还能保住引用：背包 / 装备 / 仓库 / 聊天框里的物品都直接持有这个
+            //     ItemInfo 实例（UserItem.Info 是字段），覆盖后它们的名称与属性立刻变新。
+            for (int i = 0; i < GameScene.ItemInfoList.Count; i++)
+            {
+                if (GameScene.ItemInfoList[i].Index != info.Info.Index) continue;
+
+                GameScene.ItemInfoList[i].CopyFrom(info.Info);
+                return;
+            }
+
             GameScene.ItemInfoList.Add(info.Info);
         }
 

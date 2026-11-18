@@ -334,7 +334,19 @@ namespace Client.MirNetwork
             {
                 if (packetsThisFrame++ >= maxPacketsPerFrame) break;
                 if (!_receiveList.TryDequeue(out Packet p) || p == null) continue;
-                MirScene.ActiveScene.ProcessPacket(p);
+                //★兜底（11-10）：单个包处理异常绝不允许炸穿整个 Process——
+                //  之前 humup.wav 格式异常就是从 ProcessPacket 一路抛到 UpdateEnviroment，
+                //  把本帧的 ActiveScene.Process()（角色动作推进/移动）和发包全部跳过。
+                //  现在改为记录后继续处理后面的包，坏包只丢自己的处理。
+                try
+                {
+                    MirScene.ActiveScene.ProcessPacket(p);
+                }
+                catch (Exception ex)
+                {
+                    File.AppendAllText(@".\Error.txt",
+                        $"[{DateTime.Now:yyyy/MM/dd HH:mm:ss}] 包处理异常（类型 {p.Index}，已跳过该包）：{ex}{Environment.NewLine}");
+                }
             }
 
             LastPacketsProcessed = packetsThisFrame;

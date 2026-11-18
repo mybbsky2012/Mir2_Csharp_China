@@ -30,8 +30,68 @@ namespace Client.MirObjects
         public MLibrary WeaponLibrary1, WeaponEffectLibrary1, WeaponLibrary2, WeaponEffectLibrary2, HairLibrary, WingLibrary, MountLibrary;
         public int Armour, Weapon, WeaponEffect, ArmourOffSet, HairOffSet, WeaponOffSet, WingOffset, MountOffset;
 
+        //★羽化坐骑/鱼竿标记（11-11）：SetHumUpLibraries 里 MountLibrary=UpMount / WeaponLibrary1=UpFishing 时置位，
+        //  DrawMount/DrawWeapon 据此走羽化分支（马腿/竿动画按时间独立步进，不吃普通帧坐标系的 -416 / -632 偏移）
+        private bool _humUpMount, _humUpFishing;
+
+        /// <summary>羽化骑乘时坐骑的垂直偏移（px，正值马下移=骑手上移）。试验图 dy=-50 观感，调参改这里。</summary>
+        public const int HumUpMountDy = 0;
+
+        /// <summary>
+        /// 当前图库是否已切到羽化外观（由 SetLibraries 在走完 SetHumUpLibraries 时置位）。
+        /// ★绘制层级必须以它为准，不能每帧再读 HumUpStage：自己的羽化状态源是 BuffsDialog，
+        ///  别人的是 Buffs 列表，两个源在某些时刻不同步，会出现「身体是羽化素体、武器却按未羽化
+        ///  的方位规则垫到身体下面」这种自相矛盾的画面（表现为自己看被遮、别人看正常）。
+        ///  绑到图库状态上，层级永远跟随身体实际用的那套图。
+        /// </summary>
+        public bool HumUpLook;
+
         /// <summary>身上装备品质（服务端下发：0 普通 / 2 宝物 / 3 圣物 / 4 神物），用于衣服/武器轮廓光。</summary>
         public byte ArmourGrade, WeaponGrade;
+
+        //★持竿跑动/行走摆臂（11-12，第8轮）：竿库只有 6 段（抛竿/等待/收线/抡挥/静持/挥砍），
+        //  静持段 6 帧几乎逐像素相同，跑动时竿会像钉死在半空。
+        //  摆臂不是直线上下、也不是前后平移，而是**握点绕肩画弧**：手沿圆弧摆，屏幕投影同时含
+        //  前后分量(dx)与抬落分量(dy)，两端抬高、中间最低。这里用圆弧参数化生成：
+        //      θ(f)=θ0·cos(2π(f-3)/6)  →  dx=R·sinθ（前后），dy=-R·(1-cosθ)（抬落）
+        //  取 R=7、θ0=65°（两端抬高 4px、中间贴身 1px，弧感明显），峰值落在 f3（与跑动 6 帧抬臂最高帧对齐），
+        //  帧号与身体 FrameIndex 同步。八方向：正右/正左前后分量满幅(±6)；斜向投影 45°(±3~4)；
+        //  正上/正下前后分量退化为 0，靠 dy 表现。行走同形，幅度 ×0.4（脚步轻）。幅度小且贴合手位，竿不会脱手。
+        private static readonly int[,] RodRunDx =
+        {
+            //        f0  f1  f2  f3  f4  f5
+            /*上 0*/ {  0,  0,  0,  0,  0,  0 },
+            /*右上1*/{ -4, -3,  3,  4,  3, -3 },
+            /*右 2*/ { -6, -4,  4,  6,  4, -4 },
+            /*右下3*/{ -4, -3,  3,  4,  3, -3 },
+            /*下 4*/ {  0,  0,  0,  0,  0,  0 },
+            /*左下5*/{  4,  3, -3, -4, -3,  3 },
+            /*左 6*/ {  6,  4, -4, -6, -4,  4 },
+            /*左上7*/{  4,  3, -3, -4, -3,  3 },
+        };
+        private static readonly int[,] RodRunDy =
+        {
+            //        f0  f1  f2  f3  f4  f5
+            /*上 0*/ { -4, -2, -2, -4, -2, -2 },
+            /*右上1*/{ -4, -1, -1, -4, -1, -1 },
+            /*右 2*/ { -4, -1, -1, -4, -1, -1 },
+            /*右下3*/{ -3, -1, -1, -3, -1, -1 },
+            /*下 4*/ { -2, -1, -1, -2, -1, -1 },
+            /*左下5*/{ -3, -1, -1, -3, -1, -1 },
+            /*左 6*/ { -4, -1, -1, -4, -1, -1 },
+            /*左上7*/{ -4, -1, -1, -4, -1, -1 },
+        };
+        private static readonly int[,] RodWalkDx = ScalePct(RodRunDx, 40);
+        private static readonly int[,] RodWalkDy = ScalePct(RodRunDy, 40);
+        private static int[,] ScalePct(int[,] src, int pct)
+        {
+            var r = new int[src.GetLength(0), src.GetLength(1)];
+            for (int a = 0; a < src.GetLength(0); a++)
+                for (int b = 0; b < src.GetLength(1); b++)
+                    r[a, b] = src[a, b] * pct / 100;
+            return r;
+        }
+
 
         public int DieSound, FlinchSound, AttackSound;
 
@@ -48,6 +108,19 @@ namespace Client.MirObjects
         {
             get
             {
+                //★羽化专属武器（11-12）：Shape 走 2001~2059 编码（十位=职业索引 0通用/1战/2法/3道/4刺/5弓），
+                //  不再落在 0~299 的老职业区间里 → Weapon/100 会算成 20 落到 default，
+                //  刺客/弓箭被误判为「没拿本职业武器」，放技能弹「必须佩带适合的武器」。
+                //  这里先按羽化编码判职业归属：通用（十位 0）任何职业可用，其余必须与自身职业一致。
+                if (Weapon > HumUpWeaponShapeBase && Weapon <= HumUpWeaponShapeBase + HumUpShapeMaxOffset)
+                {
+                    if (!IsHumUpEquipShape(Weapon)) return false;
+                    MirClass shapeCls;
+                    bool shapeCommon;
+                    if (!GetHumUpEquipClass(Weapon, out shapeCls, out shapeCommon)) return false;
+                    return shapeCommon || shapeCls == Class;
+                }
+
                 switch (Weapon / Globals.ClassWeaponCount)
                 {
                     default:
@@ -171,7 +244,7 @@ namespace Client.MirObjects
             Frames = FrameSet.Player;
         }
 
-        public void Load(S.ObjectPlayer info)
+        public void Load(S.ObjectPlayer info, bool update = false)
         {
             Name = info.Name;
             NameColour = info.NameColour;
@@ -181,9 +254,16 @@ namespace Client.MirObjects
             Gender = info.Gender;
             Level = info.Level;
 
+            //★入格必须和 MapLocation 严格同步（11-09 重影修复）
+            //  原写法是无条件 AddObject：update=true（同一个角色被重复下发）时会在格子列表里
+            //  再插一次同一个实例 → 每帧画两遍；位置变了却还留在旧格子里 → 旧格子那边也画一遍。
+            //  现在改成「新对象 / 或者格子真的移动了」才入格，移动时先用旧 MapLocation 摘牌。
+            bool cellMoved = update && MapLocation != info.Location;
+            if (cellMoved) GameScene.Scene.MapControl.RemoveObject(this);
+
             CurrentLocation = info.Location;
             MapLocation = info.Location;
-            GameScene.Scene.MapControl.AddObject(this);
+            if (!update || cellMoved) GameScene.Scene.MapControl.AddObject(this);
 
             Direction = info.Direction;
             Hair = info.Hair;
@@ -316,8 +396,668 @@ namespace Client.MirObjects
         }
 
 
+        #region 羽化登仙外观（2026-11-09）
+
+        //★重数由 BUFF 类型表达：羽化一重~十重 = 160~169，羽化登仙(159) 是「已羽化」纯标记，兜底按一重显示。
+        //  （2026-11-12 从自定义槽位 Custom1/Custom3~12=230/232~241 迁出，旧值保留兼容识别）
+        //  为什么不用 Values：ObjectPlayer.Buffs 只传枚举值（服务端 PlayerObject.cs Select(e => e.Type)），
+        //  别人刚进视野时拿不到 Values，所以重数必须编码在枚举本身。
+        //★2026-11-12：改成 protected，UserObject 覆写「自己」的重数时要用同一套常量，
+        //  否则两边各写一份常量，迁编码时必漏一边（这次就漏了 UserObject → 自己的内观掉回普通外观）。
+        protected const int HumUpMarkType = (int)BuffType.羽化登仙;      // 159
+        protected const int HumUpStageFirst = (int)BuffType.羽化一重;    // 160
+        protected const int HumUpStageLast = (int)BuffType.羽化十重;     // 169
+
+        // 旧编码（兼容：老服务端 / 未迁移的档 / 回退版本时仍能正确显示外观）
+        protected const int HumUpLegacyMark = 230;   // Custom1
+        protected const int HumUpLegacyFirst = 232;  // Custom3
+        protected const int HumUpLegacyLast = 241;   // Custom12
+
+        /// <summary>羽化重数：0 = 未羽化，1~10 = 一重~十重。别人走 Buffs 列表，自己由 UserObject 覆写。</summary>
+        public virtual int HumUpStage
+        {
+            get
+            {
+                int fallback = 0;
+                for (int i = 0; i < Buffs.Count; i++)
+                {
+                    int v = (int)Buffs[i];
+                    if (v >= HumUpStageFirst && v <= HumUpStageLast) return v - HumUpStageFirst + 1;
+                    if (v >= HumUpLegacyFirst && v <= HumUpLegacyLast) return v - HumUpLegacyFirst + 1;
+                    if (v == HumUpMarkType || v == HumUpLegacyMark) fallback = 1;
+                }
+                return fallback;
+            }
+        }
+
+        /// <summary>该 BUFF 是否影响羽化外观（用于 buff 增删时决定要不要重算图库）。</summary>
+        public static bool IsHumUpBuff(BuffType type)
+        {
+            int v = (int)type;
+            return v == HumUpMarkType || v == HumUpLegacyMark
+                || (v >= HumUpStageFirst && v <= HumUpStageLast)
+                || (v >= HumUpLegacyFirst && v <= HumUpLegacyLast);
+        }
+
+        /// <summary>是否为「羽化重数」BUFF（160~169 = 一重~十重），不含纯标记 159。用于判定真·登仙时刻。</summary>
+        public static bool IsHumUpStageBuff(BuffType type)
+        {
+            int v = (int)type;
+            return (v >= HumUpStageFirst && v <= HumUpStageLast)
+                || (v >= HumUpLegacyFirst && v <= HumUpLegacyLast);
+        }
+
+        /// <summary>
+        /// 登仙动画（11-10）：Effect 760-853 共 94 帧一次性播放（80ms/帧 ≈ 7.5 秒）+ humup.wav 音效。
+        /// 仅在羽化重数 BUFF 首次挂上（真·登仙瞬间）调用；登录重放 / 重新进视野不触发。
+        /// 音效走 SoundList.lst 注册的 HumUp 音效索引，文件缺失时静默（不弹错）。
+        /// </summary>
+        public void PlayHumUpAscendEffect()
+        {
+            Effects.Add(new Effect(Libraries.Effect, 760, 94, 94 * 80, this) { Blend = true });
+            SoundManager.PlaySound(SoundList.HumUpIndex);
+        }
+
+        /// <summary>
+        /// 羽化重数 → 常驻特效段（11-13 用户定稿，纯表现，服务端不动）。
+        /// ★11-13 二次定稿：4-5 重原定 960 火焰兽（Effect.lib 960-989），用户看完预览说素材不合适，
+        ///   并入 1-3 重同款（680 脚下 + 714 绕身光带）。960 段弃用。
+        /// 返回 false = 无特效（未羽化）。帧数是 <b>真实动画帧</b>：
+        /// Effect.lib 每个区间末尾挂着 4×1 占位帧（如 1010-1019），按区间全长播会末尾闪空，
+        /// 714 段真实动画是 714-749 共 36 帧（750-759 全是占位）。
+        /// 节奏：脚下 160ms/帧（20帧=3.2s/圈，与原 990 相同）、龙 130ms/帧（与原 1020 的 4200ms/32 帧同档）。
+        /// </summary>
+        public static bool GetHumUpStageFx(int stage, out int footStart, out int footCount, out int dragonStart, out int dragonCount)
+        {
+            switch (stage)
+            {
+                case 1: case 2: case 3: case 4: case 5:
+                    footStart = 680; footCount = 20; dragonStart = 714; dragonCount = 36; return true;
+                case 6: case 7: case 8:
+                    footStart = 1210; footCount = 20; dragonStart = 1240; dragonCount = 31; return true;
+                case 9: case 10:
+                    footStart = 990; footCount = 20; dragonStart = 1020; dragonCount = 32; return true;
+                default:
+                    footStart = 0; footCount = 0; dragonStart = 0; dragonCount = 0; return false;
+            }
+        }
+
+        /// <summary>
+        /// 羽化外观：整身切换到 HumUp 图库（Data\HumUp\）。
+        /// ★11-10 外观统一规则（用户定稿，夜间二次修正）：
+        ///   · 触发条件不再是「身上有羽化 BUFF」一条：**穿羽化专属装备（Shape 1001~ / 2001~）同样触发**，
+        ///     否则未羽化角色穿羽化甲会掉进普通分支 → CArmours[Shape] 越界 → 兜底 CArmours[0]，
+        ///     地图上是基础白甲、内观却是羽化立绘，两边完全对不上（用户 22:46 报的正是这个）。
+        ///   · 盔甲库按**档位**选：Up*Armour\0N.Lib，N = Shape 个位（1~8，素材 01~08 都在），各档外观各不相同；
+        ///     没穿羽化甲（或穿普通甲）时沿用 01.Lib，没穿甲时用 00.Lib 素体。
+        ///   · 武器同理走本职业 Up*Weapon\0N.Lib，档位跟盔甲；战法道通用装备仍走本职业库。
+        /// 返回 true 表示已按羽化设置完毕，SetLibraries 直接返回。
+        /// </summary>
+        protected bool SetHumUpLibraries()
+        {
+            int stage = HumUpStage;
+
+            //★羽化装备自带外观，不依赖羽化 BUFF（11-10 夜间定稿）
+            int armourShape = Armour;   // 服务端下发的 Looks_Armour = 装备自身 Shape
+            int weaponShape = Weapon;
+            bool armourIsHumUp = IsHumUpEquipShape(armourShape);
+            bool weaponIsHumUp = IsHumUpEquipShape(weaponShape);
+
+            if (stage <= 0 && !armourIsHumUp && !weaponIsHumUp) return false;
+
+            //档位：优先取正穿着的羽化盔甲，其次武器，都没有（纯 BUFF 羽化穿普通装）则 1 档
+            int tier = 1;
+            if (armourIsHumUp) GetHumUpEquipClass(armourShape, out _, out _, out tier);
+            else if (weaponIsHumUp) GetHumUpEquipClass(weaponShape, out _, out _, out tier);
+
+            bool isAssassin = Class == MirClass.刺客;
+            bool isTaoist = Class == MirClass.道士;
+            bool isArcher = Class == MirClass.弓箭;
+            bool isWizard = Class == MirClass.法师;
+
+            //★未穿盔甲（Looks_Armour=0）时"褪下"：身体切回素体库 00.Lib（裸体素体，帧数与
+            //  女半偏移和职业盔甲库完全一致），不再顶着仙兵盔甲外观。穿了才用 0N.Lib 正式外观。
+            bool hasArmour = Armour > 0;
+
+            Frames = isAssassin ? FrameSet.HumUpAssassin
+                   : isTaoist ? FrameSet.HumUpTaoist
+                   : isArcher ? FrameSet.HumUpArcher
+                   : isWizard ? FrameSet.HumUpWizard
+                   : FrameSet.HumUpPlayer;
+
+            //身体/头发：一律走**本职业** HumUp 目录（含战法道通用装备）。
+            //          没穿甲取 00（素体）；穿羽化甲取 0N（N=档位）；穿普通甲取 01。
+            MLibrary[] armours = isAssassin ? Libraries.UpAssArmours
+                               : isTaoist ? Libraries.UpTaoArmours
+                               : isArcher ? Libraries.UpArcArmours
+                               : isWizard ? Libraries.UpWizArmours
+                               : Libraries.UpWarArmours;
+            MLibrary[] hairs = isAssassin ? Libraries.UpAssHairs
+                             : isTaoist ? Libraries.UpTaoHairs
+                             : isArcher ? Libraries.UpArcHairs
+                             : isWizard ? Libraries.UpWizHairs
+                             : Libraries.UpWarHairs;
+
+            int bodyIndex = !hasArmour ? 0 : (armourIsHumUp ? tier : 1);
+            BodyLibrary = PickLibrary(armours, bodyIndex);
+            HairLibrary = hairs != null && hairs.Length > 0 ? hairs[Math.Min(Hair, hairs.Length - 1)] : null;
+
+            //武器：走本职业目录的 01.Lib（★不跟盔甲档位走 —— 武器库的编号是「武器种类」不是档位，
+            //      跟档位会把剑换成第三种武器）。等羽化武器物品（Shape 2001 段）落地后，
+            //      再按武器自己的 Shape 个位选库。
+            //      刺客（11-10）：双持职业，与普通形态映射一致 WL1=右手库、WL2=左手库，
+            //      两层一起画才是双手持械外观（羽化 Draw 分支已按左右手次序补画两层）。
+            //      其他职业第二层恒空（弓手普通形态双层叠加，残留会画出普通弓）。
+            WeaponLibrary1 = null;
+            WeaponLibrary2 = null;
+            _humUpFishing = false;
+            if (Globals.FishingRodShapes.Contains(Weapon))
+            {
+                //★羽化持竿（11-11）：UpFishing 男 00M/01M、女 00F/01F，索引 = 鱼竿 Shape - 49（49/50 两种竿）。
+                //  竿库 6 段布局（11-12 实测修正）见 DrawWeapon 注释：0 抛竿 / 64 等待 / 128 收线 /
+                //  192 抡挥 / 256 静持 / 320 挥砍，每方向 8 槽。帧号由 DrawWeapon 羽化分支按
+                //  钓鱼动作独立取，不吃 WeaponOffSet（竿库男女分文件，无女半偏移概念）。
+                MLibrary[] rods = Gender == MirGender.男性 ? Libraries.UpFishingMan : Libraries.UpFishingWoman;
+                int rodIdx = Weapon - 49;
+                if (rods != null && rods.Length > 0)
+                    WeaponLibrary1 = rodIdx >= 0 && rodIdx < rods.Length && rods[rodIdx] != null
+                        ? rods[rodIdx]
+                        : PickLibrary(rods, 0);
+                WeaponLibrary2 = null;
+                _humUpFishing = WeaponLibrary1 != null;
+            }
+            else if (Weapon >= 0)
+            {
+                //★羽化专属武器（11-11）：Shape 2000 段 → 个位档位选本职业 Up*Weapon\0N.Lib
+                //  （2011~2015 战 / 2021~2024 法 / 2031~2034 道 / 2041~2048 刺 / 2051~2058 弓，
+                //  与 DB 里 DbHumUpFill 写入的羽化武器一一对应）；普通武器仍一律 01.Lib（外观统一规则）。
+                int weapIdx = 1;
+                if (weaponIsHumUp)
+                    GetHumUpEquipClass(weaponShape, out _, out _, out weapIdx);
+
+                if (isAssassin)
+                {
+                    WeaponLibrary1 = PickLibrary(Libraries.UpAssWeaponsR, weapIdx);
+                    WeaponLibrary2 = PickLibrary(Libraries.UpAssWeaponsL, weapIdx);
+                    if (WeaponLibrary1 == null && WeaponLibrary2 == null)
+                        WeaponLibrary1 = PickLibrary(Libraries.UpAssWeaponsL, weapIdx);
+                }
+                else
+                {
+                    MLibrary[] upWeap = isTaoist ? Libraries.UpTaoWeapons
+                                  : isArcher ? Libraries.UpArcWeapons
+                                  : isWizard ? Libraries.UpWizWeapons
+                                  : Libraries.UpWarWeapons;
+                    WeaponLibrary1 = PickLibrary(upWeap, weapIdx);
+                }
+            }
+            WeaponEffectLibrary1 = null;
+            WeaponEffectLibrary2 = null;
+            WingLibrary = null;
+
+            //★羽化骑乘（11-11）：装备坐骑 → MountLibrary 走 UpMount（12 套，索引 = 坐骑 Shape 0~16，越界回落）。
+            //  马腿动画由 DrawMount 羽化分支按时间独立步进；FrameSet 坐骑动作已改站姿，人不在马上迈腿。
+            MountLibrary = null;
+            _humUpMount = false;
+            if (MountType >= 0 && RidingMount && Libraries.UpMounts != null)
+            {
+                MountLibrary = PickLibrary(Libraries.UpMounts, MountType);
+                _humUpMount = MountLibrary != null;
+            }
+
+            //女半偏移：各职业盔甲库女半位置（战士 784/刺客 912/道士 720/弓 384/法师 720）
+            ArmourOffSet = Gender == MirGender.男性
+                ? 0
+                : (isAssassin ? 912 : isTaoist ? 720 : isArcher ? 384 : isWizard ? 720 : 784);
+            HairOffSet = ArmourOffSet;
+            WeaponOffSet = _humUpFishing ? 0 : ArmourOffSet;   // 竿库男女分文件，不吃女半偏移
+            WingOffset = 0;
+            MountOffset = 0;
+
+            //★11-11 骑乘真姿势（用户发现）：UpCArmour 792~1111 是骑乘专属区块（站792/走856/
+            //  跑920/被击984/攻1048，女半 +1112），职业羽化库没有这段——骑乘时身体/头发整体
+            //  切到通用库，FrameSet 坐骑动作已映射该区块，马腿由 DrawMount 按身体 FrameIndex 同步。
+            //  武器/鱼竿收起：骑乘帧区没有武器帧，职业武器库画骑乘帧号会串段（骑手手持缰绳）。
+            if (_humUpMount)
+            {
+                //★骑乘外观配色匹配（11-13）：职业甲没有骑乘帧（骑乘区块只在通用库），
+                //  直接用同档位通用甲会让所有职业骑乘都是一个白金样式。
+                //  这里按「72 维色相×明度直方图 + 人工复核」把（职业, 档位）映射到配色最接近的
+                //  通用档位，骑乘外观即与各职业羽化甲同色系（战士1→g01 几乎同款；
+                //  法师4→g17 深蓝青羽、道士4→g18 暗黑、弓箭1→g05 蓝紫等）。
+                BodyLibrary = PickLibrary(Libraries.UpCArmours, HumUpRideTier(Class, bodyIndex));
+                if (Libraries.UpCHairs != null && Libraries.UpCHairs.Length > 0)
+                    HairLibrary = Libraries.UpCHairs[Math.Min(Hair, Libraries.UpCHairs.Length - 1)];
+                ArmourOffSet = HairOffSet = Gender == MirGender.男性 ? 0 : 1112;
+                WeaponLibrary1 = null;
+                WeaponLibrary2 = null;
+                _humUpFishing = false;
+            }
+
+            //★羽化持竿切通用库（11-12 二次修正）：竿（UpFishing）是按通用库素体设计的——
+            //  实测 UpC 站立体 × 持竿段（64/256）8 方向全部 0px 贴合，而职业库全库扫描
+            //  没有任何一段能配上竿（最佳 0.88px），钓鱼三段（600/664/728）也只有通用库有。
+            //  所以**只要持羽化竿，身体/头发/帧表一律切通用库**（11-12 用户反馈：法道刺弓
+            //  持竿后人物应是通用人物——原先「穿普通甲不切」会让职业库 448 段显示成
+            //  举手法术动作）。配色档位沿用骑乘映射 HumUpRideTier（通用甲保持原档位）。
+            if (_humUpFishing)
+            {
+                bool armourCommon = false;
+                if (armourIsHumUp) GetHumUpEquipClass(armourShape, out _, out armourCommon, out _);
+                int upTier = armourCommon ? bodyIndex : HumUpRideTier(Class, bodyIndex);
+                Frames = FrameSet.HumUpCommon;
+                BodyLibrary = PickLibrary(Libraries.UpCArmours, upTier);
+                if (Libraries.UpCHairs != null && Libraries.UpCHairs.Length > 0)
+                    HairLibrary = Libraries.UpCHairs[Math.Min(Hair, Libraries.UpCHairs.Length - 1)];
+                ArmourOffSet = HairOffSet = Gender == MirGender.男性 ? 0 : 1112;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 羽化骑乘外观的「职业×档位 → 通用档位」配色映射（11-13）。
+        /// 职业羽化甲没有骑乘帧，骑乘时身体必须借用通用库（UpCArmour 792~ 区块）；
+        /// 通用库 26 档样式/配色各异，按下表取与该职业该档盔甲配色最接近的一档，
+        /// 骑乘外观即与各职业羽化甲同色系。来源：72 维（24 色相×3 明度带）色彩直方图
+        /// 自动匹配 + 逐对人工复核（Tools/ride_tier_map.json，验证图 Tools/输出/_match）。
+        /// </summary>
+        private static readonly int[][] HumUpRideTierMap =
+        {
+            new[] { 0, 1, 6, 11, 16, 21, 22, 23, 24, 25 },  // 战士（01 自映射：通用甲本来就是战士样式）
+            new[] { 0, 4, 6, 12, 17, 21, 22, 23, 24, 25 },  // 法师（1→04 橙红皮甲、4→17 深蓝青羽）
+            new[] { 0, 3, 6, 13, 18, 21, 22, 23, 24, 25 },  // 道士（1→03 白袍金饰、4→18 暗黑）
+            new[] { 0, 14, 6, 14, 19, 21, 22, 23, 24, 25 }, // 刺客（1/3→14 棕红、4→19 暗褐）
+            new[] { 0, 5, 6, 15, 20, 21, 22, 23, 24, 25 },  // 弓箭（1→05 蓝紫、4→20 蓝）
+        };
+
+        private static int HumUpRideTier(MirClass cls, int tier)
+        {
+            int row = cls == MirClass.法师 ? 1
+                    : cls == MirClass.道士 ? 2
+                    : cls == MirClass.刺客 ? 3
+                    : cls == MirClass.弓箭 ? 4
+                    : 0;
+            int[] map = HumUpRideTierMap[row];
+            if (tier >= 0 && tier < map.Length) return map[tier];
+            return Math.Min(Math.Max(tier, 0), map.Length - 1);   // 超出映射范围按最高档配色
+        }
+
+        /// <summary>
+        /// 取第 index 套库；越界或该套为空时向低编号回退（01 正式外观 → 00 素体）。
+        /// 微端按需下载，某档资源可能还没落地，数组里那个位置是空库，直接取会画出空白人物。
+        /// </summary>
+        private static MLibrary PickLibrary(MLibrary[] libs, int index)
+        {
+            if (libs == null || libs.Length == 0) return null;
+            if (index >= 0 && index < libs.Length && libs[index] != null) return libs[index];
+            if (libs.Length > 1 && libs[1] != null) return libs[1];
+            return libs[0];
+        }
+
+        //★通用装备判定（11-10）：ItemInfoList 按 Type 分桶缓存 shape → RequiredClass 掩码（位或），
+        //  掩码含 战|法|道(7) 即视为战法道通用。ItemInfoList 登录后一次性下发、之后基本不变，
+        //  按 Count 变化触发重建；他人进视野时也要判（InspectDialog/场景共用）。
+        private static Dictionary<int, byte> _commonArmourShapes, _commonWeaponShapes;
+        private static int _itemClassMapStamp = -1;
+
+        private static void EnsureItemClassMaps()
+        {
+            var list = GameScene.ItemInfoList;
+            if (_commonArmourShapes != null && _itemClassMapStamp == list.Count) return;
+
+            var arm = new Dictionary<int, byte>();
+            var wep = new Dictionary<int, byte>();
+            for (int i = 0; i < list.Count; i++)
+            {
+                ItemInfo info = list[i];
+                if (info == null) continue;
+                byte mask = (byte)info.RequiredClass;
+                if (info.Type == ItemType.盔甲)
+                    arm[info.Shape] = (byte)((arm.TryGetValue(info.Shape, out byte m) ? m : 0) | mask);
+                else if (info.Type == ItemType.武器)
+                    wep[info.Shape] = (byte)((wep.TryGetValue(info.Shape, out byte m2) ? m2 : 0) | mask);
+            }
+            _commonArmourShapes = arm;
+            _commonWeaponShapes = wep;
+            _itemClassMapStamp = list.Count;
+        }
+
+        /// <summary>该盔甲 Shape 是否战法道通用（RequiredClass 含 战|法|道）。</summary>
+        public static bool IsCommonArmourShape(int shape)
+        {
+            EnsureItemClassMaps();
+            return _commonArmourShapes != null && _commonArmourShapes.TryGetValue(shape, out byte m) && (m & 7) == 7;
+        }
+
+        /// <summary>该武器 Shape 是否战法道通用（RequiredClass 含 战|法|道）。</summary>
+        public static bool IsCommonWeaponShape(int shape)
+        {
+            EnsureItemClassMaps();
+            return _commonWeaponShapes != null && _commonWeaponShapes.TryGetValue(shape, out byte m) && (m & 7) == 7;
+        }
+
+        /// <summary>
+        /// 羽化内观：这套装备是否按「战法道通用外观」画（StateItem_Common_* / 武器 2430）。
+        ///
+        /// ★不能用 IsCommonArmourShape/IsCommonWeaponShape（11-10 修正）：
+        ///   shape 号在不同职业之间是复用的 —— 弓箭/刺客的盔甲 shape 10/11/19/29/30/57/58
+        ///   与战法道通用盔甲**同号**，按 shape 做职业位或就得到 (战|法|道|弓|刺)，
+        ///   `& 7 == 7` 恒成立 → 弓手/刺客被误判成「通用装备」，
+        ///   武器帧落到 2430（一把弯刀），弓手内观里就变成拿刀而不是拿弓。
+        ///   改为直读**这件装备本身**的 RequiredClass，并且只对 战/法/道 生效
+        ///   （通用外观本来就是给这三个职业共用的一套图；弓/刺客有自己的职业立绘）。
+        /// </summary>
+        public static bool IsCommonAppearance(MirClass cls, ItemInfo armour, ItemInfo weapon)
+        {
+            if (cls == MirClass.弓箭 || cls == MirClass.刺客) return false;
+
+            return IsCommonRequiredClass(armour) || IsCommonRequiredClass(weapon);
+        }
+
+        private static bool IsCommonRequiredClass(ItemInfo info)
+        {
+            if (info == null) return false;
+
+            return ((byte)info.RequiredClass & 7) == 7;
+        }
+
+        //★[已停用·保留备用] 通用武器统一外观：固定 UpCWeapon\32.Lib。
+        //  11-10 晚间用户改回"通用装备也走本职业 01.Lib"，故 SetHumUpLibraries 不再调用本方法；
+        //  若将来要恢复"通用装备一套通用外观"，把 weaponCommon 分支接回来即可。
+        //  依据：32~57 是韩版与 UpCArmour 配套的通用武器库——实测 32.Lib 与 UpCArmour\01.Lib
+        //  的帧空缺 pattern 100% 一致（站立/行走/跑步 64/64、攻击段 48/48、392-462 70/70），
+        //  同帧号即同动作同锚点，零校准。
+        //  注意：目录里的 01.Lib 是战士武器库（md5 与 UpWarWeapon\01.Lib 相同，战士布局 6+2），
+        //  与通用身体库（4+4）不配套，攻击段会挥砍错位，故不用。
+        private const int UpCCommonWeaponIndex = 32;
+        private static MLibrary _upCCommonWeapon;
+
+        private static MLibrary GetUpCCommonWeaponLibrary()
+        {
+            if (_upCCommonWeapon != null) return _upCCommonWeapon;
+            MLibrary[] arr = Libraries.UpCWeapons;
+            if (arr == null) return null;
+
+            if (UpCCommonWeaponIndex < arr.Length && arr[UpCCommonWeaponIndex] != null
+                && arr[UpCCommonWeaponIndex].ImageCount > 0)
+            {
+                _upCCommonWeapon = arr[UpCCommonWeaponIndex];
+                return _upCCommonWeapon;
+            }
+
+            //32 号缺失时退回目录里第一个有效库（保证武器不消失）
+            for (int i = 0; i < arr.Length; i++)
+            {
+                if (arr[i] != null && arr[i].ImageCount > 0)
+                {
+                    _upCCommonWeapon = arr[i];
+                    break;
+                }
+            }
+            return _upCCommonWeapon;
+        }
+
+        /// <summary>
+        /// 羽化内观（11-10）：分职业/性别的 StateItem 固定立绘库。
+        /// common = 装备为战法道通用 → 走 StateItem_Common_*。
+        /// </summary>
+        public static MLibrary GetHumUpStateLibrary(MirClass cls, MirGender gender, bool common)
+        {
+            bool man = gender == MirGender.男性;
+
+            //★弓箭手/刺客：**不论通用与否**一律走本职业的 StateItem 库（11-10 用户定稿）。
+            //  弓手：男 StateItem_Archer_Man / 女 StateItem_Archer_Woman；
+            //  这两个库缺帧很多（3390~3394、3396~3400 是空的），所以羽化武器统一用固定帧，
+            //  不能再按「实际装备的内观图」取，否则大部分弓是空帧 → 内观里根本没有弓。
+            if (cls == MirClass.弓箭) return man ? Libraries.StateItemArcherMan : Libraries.StateItemArcherWoman;
+            if (cls == MirClass.刺客) return man ? Libraries.StateItemAssassinMan : Libraries.StateItemAssassinWoman;
+
+            if (common) return man ? Libraries.StateItemCommonMan : Libraries.StateItemCommonWoman;
+            switch (cls)
+            {
+                case MirClass.法师: return man ? Libraries.StateItemWizardMan : Libraries.StateItemWizardWoman;
+                case MirClass.道士: return man ? Libraries.StateItemTaoMan : Libraries.StateItemTaoWoman;
+                default: return man ? Libraries.StateItemWarriorMan : Libraries.StateItemWarriorWoman;
+            }
+        }
+
+        /// <summary>羽化内观固定帧号（用户定稿 11-10）：衣服 + 武器。</summary>
+        public static void GetHumUpStateFrames(MirClass cls, MirGender gender, bool common, out int armourFrame, out int weaponFrame)
+        {
+            bool man = gender == MirGender.男性;
+
+            //★弓箭手：盔甲 2454(男)/2464(女)，武器固定 3395（男女人物都用 3395，
+            //  只是各自取自己那个库 —— 用户 11-10 定稿）。
+            //  放在 common 之前判，保证弓手永不走通用帧（通用武器帧 2430 是把弯刀）。
+            if (cls == MirClass.弓箭)
+            {
+                armourFrame = man ? 2454 : 2464;
+                weaponFrame = 3395;
+                return;
+            }
+
+            if (cls == MirClass.刺客)
+            {
+                armourFrame = man ? 2453 : 2463;
+                weaponFrame = 2436;
+                return;
+            }
+
+            if (common) { armourFrame = man ? 2450 : 2460; weaponFrame = 2430; return; }
+            switch (cls)
+            {
+                case MirClass.法师: armourFrame = man ? 2451 : 2461; weaponFrame = 2432; break;
+                case MirClass.道士: armourFrame = man ? 2452 : 2462; weaponFrame = 2434; break;
+                default: armourFrame = man ? 2450 : 2460; weaponFrame = 2430; break;
+            }
+        }
+
+        //★羽化专属装备 Shape 段（11-10 定稿，11-10 夜间改档位编码）：
+        //   Shape 同时承担三件事——① 这是羽化装备 ② 属于哪个职业 ③ 第几档：
+        //     1001            通用（战法道共用，内观走 StateItem_Common_*）
+        //     1011~1018       战士 一~八档（素材 01~08.Lib 都在，用几档填几）
+        //     1021~1028       法师
+        //     1031~1038       道士
+        //     1041~1048       刺客
+        //     1051~1058       弓箭
+        //     2001 / 2011~2058 武器段，与盔甲同序（预留给羽化武器）
+        //   ★编码规则：十位 = 职业索引（0 通用 / 1 战 / 2 法 / 3 道 / 4 刺 / 5 弓），个位 = 档位 1~8（素材 00~08）。
+        //   ★地图外观：档位直接选 Up*Armour\0N.Lib（N = 档位），所以各档在地图上各不相同；
+        //     内观不受档位影响，仍按装备自己的 Image 在 StateItem_职业_性别 库里取帧。
+        public const short HumUpArmourShapeBase = 1000;
+        public const short HumUpWeaponShapeBase = 2000;
+        private const int HumUpShapeMaxOffset = 59;   // 1059 / 2059 上界
+
+        /// <summary>是否为羽化专属装备 Shape（盔甲 1001~1059 / 武器 2001~2059）。</summary>
+        public static bool IsHumUpEquipShape(int shape)
+        {
+            int idx;
+            if (shape > HumUpArmourShapeBase && shape <= HumUpArmourShapeBase + HumUpShapeMaxOffset)
+                idx = shape - HumUpArmourShapeBase;
+            else if (shape > HumUpWeaponShapeBase && shape <= HumUpWeaponShapeBase + HumUpShapeMaxOffset)
+                idx = shape - HumUpWeaponShapeBase;
+            else
+                return false;
+
+            int clsIdx = idx / 10;
+            int tier = idx % 10;
+            // 档位上限 8：Up*Armour\00~08.Lib 素材都在（00=素体 01~08=各档外观），
+            // 最初只放行 1~3 档，填 1034 这类 shape 会被判成「非羽化装备」，
+            // 羽化状态下身体强制回落 01.Lib，看起来就和 1031 一模一样。
+            return clsIdx <= 5 && tier >= 1 && tier <= 8;
+        }
+
+        /// <summary>羽化装备 Shape → 该读哪个职业库（clsIdx 0 表示通用，走 StateItem_Common_*）。</summary>
+        public static bool GetHumUpEquipClass(int shape, out MirClass cls, out bool isCommon)
+        {
+            return GetHumUpEquipClass(shape, out cls, out isCommon, out _);
+        }
+
+        /// <summary>
+        /// 羽化装备 Shape → 职业库 + 档位（1~8）。
+        /// 档位决定地图走 Up*Armour\0N.Lib 的哪一套，是「同职业各档不同外观」的唯一依据。
+        /// </summary>
+        public static bool GetHumUpEquipClass(int shape, out MirClass cls, out bool isCommon, out int tier)
+        {
+            cls = MirClass.战士;
+            isCommon = false;
+            tier = 1;
+
+            if (!IsHumUpEquipShape(shape)) return false;
+
+            int idx = shape >= HumUpWeaponShapeBase ? shape - HumUpWeaponShapeBase : shape - HumUpArmourShapeBase;
+            tier = idx % 10;
+
+            switch (idx / 10)
+            {
+                case 0: isCommon = true; break;
+                case 1: cls = MirClass.战士; break;
+                case 2: cls = MirClass.法师; break;
+                case 3: cls = MirClass.道士; break;
+                case 4: cls = MirClass.刺客; break;
+                default: cls = MirClass.弓箭; break;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 羽化装备 → 内观该画的库与帧（帧号 = 装备自己的 Image）。
+        /// 非羽化装备、或该 Image 在本职业库里是空帧，返回 false，调用方回落到固定帧表。
+        /// </summary>
+        public static bool TryGetHumUpEquipLook(ItemInfo info, MirGender gender, out MLibrary lib, out int frame)
+        {
+            lib = null;
+            frame = 0;
+
+            if (info == null || !IsHumUpEquipShape(info.Shape)) return false;
+
+            MirClass cls;
+            bool isCommon;
+            if (!GetHumUpEquipClass(info.Shape, out cls, out isCommon)) return false;
+
+            MLibrary candidate = GetHumUpStateLibrary(cls, gender, isCommon);
+            if (candidate == null) return false;
+
+            //★空帧兜底：弓手库 3390-3394 / 3396-3400 只有索引没有图，
+            //  直接画会静默什么都不显示（内观里光着身子）。
+            if (candidate.IsEmptyFrame(info.Image)) return false;
+
+            lib = candidate;
+            frame = info.Image;
+            return true;
+        }
+
+        /// <summary>羽化内观·盔甲层最终帧：羽化装备用自身 Image，其余走固定帧表。</summary>
+        public static void ResolveHumUpArmourFrame(ItemInfo armourInfo, MirClass cls, MirGender gender, bool common,
+                                                   out MLibrary lib, out int frame)
+        {
+            if (TryGetHumUpEquipLook(armourInfo, gender, out lib, out frame)) return;
+
+            lib = GetHumUpStateLibrary(cls, gender, common);
+            GetHumUpStateFrames(cls, gender, common, out frame, out _);
+        }
+
+        /// <summary>羽化内观·武器层最终帧（同盔甲；本轮暂无羽化武器物品，先复用同一套判定）。</summary>
+        public static void ResolveHumUpWeaponFrame(ItemInfo weaponInfo, MirClass cls, MirGender gender, bool common,
+                                                   out MLibrary lib, out int frame)
+        {
+            //★鱼竿（11-12，用户定）：羽化角色拿鱼竿时，内观**不走固定仙兵帧**（会画成剑/杖），
+            //  与衣服/武器同规则——拿装备自己的 Image 去羽化 StateItem 库取帧。
+            //  各职业羽化库都带鱼竿帧（2310/2311/2313 = 76x141 竿，2312/3782 = 大图竿），
+            //  实测战/法/道/刺/弓五库 2310 全部非空，正常持在手上（见 Tools/输出/羽化内观_持竿_预览.png）。
+            //  空帧兜底：万一某库缺帧，回落固定仙兵帧，保证内观不至于空手。
+            if (weaponInfo != null && Globals.FishingRodShapes.Contains(weaponInfo.Shape))
+            {
+                MLibrary rodLib = GetHumUpStateLibrary(cls, gender, common);
+                if (rodLib != null && !rodLib.IsEmptyFrame(weaponInfo.Image))
+                {
+                    lib = rodLib;
+                    frame = weaponInfo.Image;
+                    return;
+                }
+            }
+
+            if (TryGetHumUpEquipLook(weaponInfo, gender, out lib, out frame)) return;
+
+            lib = GetHumUpStateLibrary(cls, gender, common);
+            GetHumUpStateFrames(cls, gender, common, out _, out frame);
+        }
+
+        //弓手/刺客羽化武器库编号不连续（缺 06-11、18 等），用存在编号表做余数映射
+        private static readonly int[] ArcWeaponIds = { 0, 1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 19, 20, 21 };
+        private static readonly int[] AssWeaponIds = { 0, 1, 2, 3, 4, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+
+        /// <summary>
+        /// 【已停用 11-10】按普通武器 Shape 挑仙兵库的映射（B 方案初版）。
+        /// 外观统一规则定稿后，非羽化装备（含战法道通用）一律画本职业 01.Lib，
+        /// 本映射不再被调用；保留作为日后「羽化专用武器物品 → 专属仙兵库」的扩展入口。
+        /// </summary>
+
+        /// <summary>
+        /// 仙兵映射（11-10 B方案）：普通武器 Shape → 羽化武器库编号。
+        /// 法师 5 套全杖、道士 5 套拂尘/扇（Shape 取模轮换）；弓手 15 套全弓、刺客 17 套匕首；
+        /// 战士 6 套为剑/刀/长柄混编，按形状语义归类，同族多 Shape 共用一套以保留轮廓识别度。
+        /// </summary>
+        private static int HumUpWeaponIndex(MirClass cls, int shape)
+        {
+            switch (cls)
+            {
+                case MirClass.战士:
+                    switch (shape)
+                    {
+                        case 32: return 0;                    // 双手巨剑 → 大剑
+                        case 21: case 23: case 30: case 37:   // 长柄/枪/戟/棍/鞭
+                        case 45: case 50: case 54: case 56:
+                            return 1;
+                        case 7: case 11: case 29: case 31:    // 刀族 → 弯刀
+                        case 33: case 35: case 52:
+                            return 5;
+                        default: return 2;                    // 剑族 → 细剑
+                    }
+                case MirClass.法师:
+                case MirClass.道士:
+                    return shape % 5;
+                case MirClass.弓箭:
+                    return ArcWeaponIds[shape % ArcWeaponIds.Length];
+                case MirClass.刺客:
+                    return AssWeaponIds[shape % AssWeaponIds.Length];
+                default:
+                    return 0;
+            }
+        }
+
+        /// <summary>羽化状态变化后重算外观（别人收到羽化 BUFF 增删广播时调用）。</summary>
+        public void RefreshHumUpLook()
+        {
+            SetLibraries();
+            //★（11-13）补 SetEffects：重数分档后特效跟重数走，只重算图库不重挂特效的话，
+            //  升重/降重要等换装、上下马、重进视野才换特效。SetEffects 顶部先 Remove 旧特效，可重入。
+            SetEffects();
+            GameScene.Scene.Redraw();
+        }
+
+        #endregion
+
         public virtual void SetLibraries()
         {
+            //★退仙帧表残留修复（11-10）：先复位普通帧表，羽化分支在下面按需覆盖。
+            //  原来全代码只有构造函数（FrameSet.Player）和羽化分支（HumUpXxx）两处给 Frames 赋值：
+            //  羽化后一旦退仙，普通分支不会把 Frames 换回来 → 帧表停留在羽化版，
+            //  走路/跑步/攻击的帧区间全对不上普通图库，表现为移动动作错乱，
+            //  必须重登（重建对象重新走构造函数）才恢复。
+            Frames = FrameSet.Player;
+
+            //★先清掉羽化外观标记，只有真正走完羽化分支才置回 true——
+            //  保证 HumUpLook 永远等于「当前身体图库是不是羽化素体」。
+            HumUpLook = false;
+            _humUpMount = false;    // 坐骑/鱼竿羽化标记同样先复位（提前 return false 的路径不清）
+            _humUpFishing = false;
+            if (SetHumUpLibraries())
+            {
+                HumUpLook = true;
+                return;
+            }
+
             //fishing broken
             //10
             //11
@@ -807,6 +1547,24 @@ namespace Client.MirObjects
                 if (Effects[i] is SpecialEffect) Effects[i].Remove();
             }
 
+            //★登仙特效（11-10 初版 / 11-13 分档改版）：羽化角色常驻「脚下 + 身上龙」两层特效，
+            //  **按重数分三档**（用户 11-13 定稿，二次修正后 4-5 重与 1-3 重同款，960 火焰兽弃用）：
+            //    1-5 重   脚下 680（20帧）  龙 714（36帧）
+            //    6-8 重   脚下 1210（20帧） 龙 1240（31帧）
+            //    9-10 重  脚下 990（20帧）  龙 1020（32帧）＝原「头顶飞龙+脚下光圈」
+            //  帧数一律用真实动画帧：每个区间末尾在 Lib 里挂着一串 4×1 占位帧（如 1010-1019），
+            //  按区间全长播会末尾闪空，帧数表见 GetHumUpStageFx。
+            //  SetEffects 顶部已把旧 SpecialEffect 全部 Remove()（立即出列表），不会撞 300ms 去重；
+            //  6-8 重与「蓝龙等级光」、9-10 重与「红龙等级光」同素材，叠加时限流去重只留一份，无害。
+            //  ★（11-11）骑乘时的取舍：龙骑马也保留（永久驻留特效）；
+            //  脚下骑马不上——原版 return 会把两个都跳过，表现为上马后龙消失。
+            if (GetHumUpStageFx(HumUpStage, out int fxWho, out int fxFoot, out int fxDragon, out int fxDragonCount))
+            {
+                Effects.Add(new SpecialEffect(Libraries.Effect, fxDragon, fxDragonCount, fxDragonCount * 130, this, true, false, 1) { Repeat = true });
+                if (!RidingMount)
+                    Effects.Add(new SpecialEffect(Libraries.Effect, fxWho, fxFoot, fxFoot * 160, this, true, true, 1) { Repeat = true });
+            }
+
             if (RidingMount) return;
 
             if (CurrentEffect == SpellEffect.MagicShieldUp)
@@ -833,6 +1591,9 @@ namespace Client.MirObjects
                         break;
                 }
             }
+
+            //★（11-13）此处原有的第二段羽化特效添加（990+1020）已删除：与上方分档块完全重复，
+            //  非骑乘时会挂 4 个特效，靠 300ms 同库同帧号去重才只显示一份。
 
 			long delay = 5000;
 
@@ -5628,7 +6389,16 @@ namespace Client.MirObjects
             }
             DrawMount();
 
-            if (!RidingMount)
+            //★羽化(11-10)：羽化武器层必须画在人物**上层**。
+            //  原版逻辑朝左/上/左上/左下时先把武器画在身体后面（武器贴手、帧小，不会穿帮）；
+            //  羽化仙兵帧与素体立绘重叠面积大（实测朝左站立大剑中段被身体整段盖住，
+            //  只剩柄和尖露在外面像断剑），所以羽化时跳过「身体前」那一趟，
+            //  统一在身体之后（下层逻辑块）按左右手次序补画，保证仙兵永远在人物之上。
+            //★11-12 鱼竿例外：竿是长杆且按通用素体设计，永远画在人物上层会把角色盖住
+            //  （右手侧竿穿到脸上）。持竿时恢复原版方向层次——朝左/上/左上/左下竿画在身体后。
+            bool humUpWeaponOnTop = HumUpLook && !_humUpFishing;
+
+            if (!RidingMount && !humUpWeaponOnTop)
             {
                 if (Direction == MirDirection.Left || Direction == MirDirection.Up || Direction == MirDirection.UpLeft || Direction == MirDirection.DownLeft)
                     DrawWeapon();
@@ -5658,13 +6428,31 @@ namespace Client.MirObjects
 
             if (!RidingMount)
             {
-                if (Direction == MirDirection.UpRight || Direction == MirDirection.Right || Direction == MirDirection.DownRight || Direction == MirDirection.Down)
-                    DrawWeapon();
+                if (humUpWeaponOnTop)
+                {
+                    //羽化：仙兵一律画在人物上层。双持（刺客）按远手先、近手后保持原层次感：
+                    //朝左系时左手(L)在下、右手(R)在上；朝右系相反。
+                    if (Direction == MirDirection.Left || Direction == MirDirection.Up || Direction == MirDirection.UpLeft || Direction == MirDirection.DownLeft)
+                    {
+                        DrawWeapon();
+                        DrawWeapon2();
+                    }
+                    else
+                    {
+                        DrawWeapon2();
+                        DrawWeapon();
+                    }
+                }
                 else
-                    DrawWeapon2();
+                {
+                    if (Direction == MirDirection.UpRight || Direction == MirDirection.Right || Direction == MirDirection.DownRight || Direction == MirDirection.Down)
+                        DrawWeapon();
+                    else
+                        DrawWeapon2();
 
-                if (Class == MirClass.弓箭 && HasClassWeapon)
-                    DrawWeapon2();
+                    if (Class == MirClass.弓箭 && HasClassWeapon)
+                        DrawWeapon2();
+                }
             }
 
             DXManager.SetOpacity(oldOpacity);
@@ -5797,15 +6585,27 @@ namespace Client.MirObjects
         public void DrawBody()
         {
             bool oldGrayScale = DXManager.GrayScale;
-            Color drawColour = ApplyDrawColour();                     
+            Color drawColour = ApplyDrawColour();
+
+            //★钓鱼等待 d4~7（11-12）：通用库等待段(664)只有前 4 方向素材（下/左下/左/左上是空帧），
+            //  这 4 个方向改画站立段帧（竿仍用等待竿 64，实测站立×竿64 全方向 0px 贴合）。
+            int bodyFrame = DrawFrame + ArmourOffSet;
+            if (_humUpFishing && CurrentAction == MirAction.钓鱼等待 && (int)Direction >= 4)
+                bodyFrame = ArmourOffSet + (int)Direction * 8 + (Frame != null ? FrameIndex % 4 : 0);
+
+            //★持竿攻击统一单手挥砍（11-12 用户反馈）：施法动作/近距攻击4 的身体段（896）
+            //  是双手举高施法——拿竿攻击应表现为单手武器挥击，身体改画 448 段（单手挥砍，
+            //  6 帧与 896 帧数一致；竿仍走 320 挥砍段，与 448 组合实测 0.65px 贴合）。
+            if (_humUpFishing && (CurrentAction == MirAction.施法动作 || CurrentAction == MirAction.近距攻击4))
+                bodyFrame = ArmourOffSet + 448 + (int)Direction * 8 + (Frame != null ? Math.Min(FrameIndex, 5) : 0);
 
             // 品质轮廓光：画在身体之前，只溢出到轮廓外侧（宝物紫 / 圣物蓝 / 神物金）
             // 简装时穿的是布衣，再按身上真实装备的品级打光会很怪，直接跳过
             if (!Settings.SimplePlayer && BodyLibrary != null && ArmourGrade >= 2)
-                QualityOutlineGlow.Draw(BodyLibrary, DrawFrame + ArmourOffSet, DrawLocation, ArmourGrade);
+                QualityOutlineGlow.Draw(BodyLibrary, bodyFrame, DrawLocation, ArmourGrade);
 
             if (BodyLibrary != null)
-                BodyLibrary.Draw(DrawFrame + ArmourOffSet, DrawLocation, drawColour, true);
+                BodyLibrary.Draw(bodyFrame, DrawLocation, drawColour, true);
 
             DXManager.SetGrayscale(oldGrayScale);
 
@@ -5813,8 +6613,18 @@ namespace Client.MirObjects
         }
         public void DrawHead()
         {
-            if (HairLibrary != null)
-                HairLibrary.Draw(DrawFrame + HairOffSet, DrawLocation, DrawColour, true);
+            if (HairLibrary == null) return;
+
+            //★钓鱼等待 d4~7：与 DrawBody 同步——等待段后 4 方向是空帧，头发跟着改画站立段帧
+            int hairFrame = DrawFrame + HairOffSet;
+            if (_humUpFishing && CurrentAction == MirAction.钓鱼等待 && (int)Direction >= 4)
+                hairFrame = HairOffSet + (int)Direction * 8 + (Frame != null ? FrameIndex % 4 : 0);
+
+            //★持竿攻击统一单手挥砍：与 DrawBody 同步（施法/攻4 → 448 单手挥砍段）
+            if (_humUpFishing && (CurrentAction == MirAction.施法动作 || CurrentAction == MirAction.近距攻击4))
+                hairFrame = HairOffSet + 448 + (int)Direction * 8 + (Frame != null ? Math.Min(FrameIndex, 5) : 0);
+
+            HairLibrary.Draw(hairFrame, DrawLocation, DrawColour, true);
         }
 
         public void DrawTransform()
@@ -5988,6 +6798,66 @@ namespace Client.MirObjects
         {
             if (Weapon < 0) return;
 
+            //★羽化持竿（11-12 四次修正，BFS 逐帧贴合实测）：竿库 6 段布局——
+            //  0 抛竿(8帧) / 64 等待(6帧) / 128 收线(8帧) / 192 抡挥(8帧) / 256 静持(6帧) / 320 挥砍(8帧)，
+            //  每方向 8 槽。竿帧必须由身体 FrameIndex 驱动（独立时钟必然与动作脱节）。
+            //  · 钓鱼抛竿 → 段0（身体 600，Δ=600 完美配对）
+            //  · 钓鱼等待 → 段64（身体 664）
+            //  · 钓鱼收线 → 段128（身体 728；此前用 112 是错的——112~127 是等待段的左/左上方向）
+            //  · 挥砍类（近距攻击/施法/挖矿）→ 段320 按比例抡一圈，实测与攻1(448)合成最贴合（0.65px），
+            //    拿竿劈砍不再是一根不动的死竿
+            //  · 其余（站/走/跑/被击）→ 段256 静持竿循环（与站立体 8 方向 0px 贴合）
+            if (_humUpFishing && WeaponLibrary1 != null)
+            {
+                int rodSeg, rodCount;
+                bool rodOneShot;   // true=一次性动作（按比例映射身体进度），false=循环动作（取模）
+                switch (CurrentAction)
+                {
+                    case MirAction.钓鱼抛竿: rodSeg = 0; rodCount = 8; rodOneShot = true; break;
+                    case MirAction.钓鱼等待: rodSeg = 64; rodCount = 6; rodOneShot = false; break;
+                    case MirAction.钓鱼收线: rodSeg = 128; rodCount = 8; rodOneShot = true; break;
+                    case MirAction.近距攻击1:
+                    case MirAction.近距攻击2:
+                    case MirAction.近距攻击3:
+                    case MirAction.近距攻击4:
+                    case MirAction.施法动作:
+                    case MirAction.挖矿动作:
+                    case MirAction.刺客步刺:
+                        rodSeg = 320; rodCount = 8; rodOneShot = true; break;
+                    default: rodSeg = 256; rodCount = 6; rodOneShot = false; break;
+                }
+                int rodFrameIn;
+                if (Frame != null)
+                {
+                    rodFrameIn = rodOneShot
+                        ? Math.Min(FrameIndex * rodCount / Math.Max(Frame.Count, 1), rodCount - 1)
+                        : FrameIndex % rodCount;
+                }
+                else
+                {
+                    rodFrameIn = 0;
+                }
+                int rodFrame = rodSeg + (int)Direction * 8 + rodFrameIn;
+                //★竿位必须用素材原锚点（DrawLocation）：竿帧的 fx/fy 与身体帧共用一套锚点体系，
+                //  锚点即握点。此前为"双手举高施法"身体段加的 +8/-8/+4/-4 补偿，在身体改画
+                //  单手挥砍段(448)后全部多余——补偿会把竿推离手，看起来"竿跟在身边"。
+                Point rodPoint = DrawLocation;
+                if (CurrentAction == MirAction.跑步动作 || CurrentAction == MirAction.行走动作)
+                {
+                    //★弧形摆臂（11-12 第8轮）：dx=前后分量、dy=抬落分量，合成绕肩的圆弧轨迹。
+                    int fi = Frame != null && Frame.Count > 0 ? (FrameIndex % 6) : 0;
+                    int d0 = (int)Direction & 7;
+                    bool running = CurrentAction == MirAction.跑步动作;
+                    rodPoint = new Point(DrawLocation.X + (running ? RodRunDx : RodWalkDx)[d0, fi],
+                                         DrawLocation.Y + (running ? RodRunDy : RodWalkDy)[d0, fi]);
+                }
+                WeaponLibrary1.Draw(rodFrame, rodPoint, DrawColour, true);
+
+                if (WeaponEffectLibrary1 != null)
+                    WeaponEffectLibrary1.DrawBlend(rodFrame, DrawLocation, DrawColour, true, 0.4F);
+                return;
+            }
+
 			if (WeaponLibrary1 != null)
 			{
                 // 武器品质轮廓光/火焰：画在武器之前，只溢出到武器轮廓外侧（不糊住武器本体的贴图）
@@ -6030,8 +6900,29 @@ namespace Client.MirObjects
         {
             if (MountType < 0 || !RidingMount) return;
 
-            if (MountLibrary != null)
-                MountLibrary.Draw(DrawFrame - 416 + MountOffset, DrawLocation, DrawColour, true);
+            if (MountLibrary == null) return;
+
+            if (_humUpMount)
+            {
+                //★羽化骑乘（11-11 二次实现，用户发现骑坐姿势在通用库）：骑乘时身体已切
+                //  UpCArmour 骑乘区块（真坐姿，792起），UpMount 与其帧数逐段一一对应
+                //  （站0(4帧)/走64(8帧)/跑128(6帧)/被击192(3帧)/攻256(6帧)），
+                //  马腿帧 = 段基 + 方向*8 + 身体 FrameIndex —— 人马逐帧同步，不再按时间独立步进。
+                int seg;
+                switch (CurrentAction)
+                {
+                    case MirAction.坐骑行走: seg = 64; break;
+                    case MirAction.坐骑奔跑: seg = 128; break;
+                    case MirAction.坐骑被击: seg = 192; break;
+                    case MirAction.坐骑攻击: seg = 256; break;
+                    default: seg = 0; break;
+                }
+                int frameIn = Frame != null ? Math.Max(0, Math.Min(FrameIndex, Frame.Count - 1)) : 0;
+                MountLibrary.Draw(seg + (int)Direction * 8 + frameIn + MountOffset, new Point(DrawLocation.X, DrawLocation.Y + HumUpMountDy), DrawColour, true);
+                return;
+            }
+
+            MountLibrary.Draw(DrawFrame - 416 + MountOffset, DrawLocation, DrawColour, true);
         }
 
         private bool IsVitalEffect(Effect effect)
