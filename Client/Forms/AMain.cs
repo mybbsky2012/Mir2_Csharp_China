@@ -572,6 +572,13 @@ namespace Launcher
         private void Launch()
         {
             if (ConfigForm.Visible) ConfigForm.Visible = false;
+
+            //★内存优化（11-20）：进游戏立刻释放 WebView2。以前只 Hide()，
+            //  Chromium 运行时（含 msedgewebview2.exe 子进程组）整场游戏都活着，白占一两百 MB。
+            //  ReleaseBrowser 原本只在退出时被 HardExit 调用；提前到这里释放，
+            //  AMain_FormClosed → HardExit 里的那次调用对已释放对象是空操作（内部 try/catch）。
+            try { ReleaseBrowser(); } catch { }
+
             Program.Form = new CMain();
             Program.Form.Closed += (s, args) => this.Close();
             Program.Form.Show();

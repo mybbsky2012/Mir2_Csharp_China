@@ -240,6 +240,10 @@ namespace Launcher
         {
             if (!Program.PForm.Launch_pb.Enabled) return;
 
+            //★11-23：补丁线程还在跑时不允许重复启动——两个线程并发执行 Start()
+            //  会共享 OldList/DownloadList/进度计数，下载列表竞态错乱。
+            if (Program.PForm._workThread != null && Program.PForm._workThread.IsAlive) return;
+
             Program.PForm.Completed = false;
             Program.PForm.InterfaceTimer.Enabled = true;
             Program.PForm.CleanFiles = true;

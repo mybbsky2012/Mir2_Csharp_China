@@ -3857,6 +3857,131 @@ namespace Server.MirObjects
                         }
                         break;
 
+                    //★英雄 GM 命令（11-20）：给英雄调整经验/登仙重数用（英雄等级用现有 @LEVELHERO，不重复实现）
+                    //   @HEROEXP [玩家名] n          调整英雄经验（正=加，负=扣，只扣当前经验条不掉级）
+                    //   @HEROHUMUPUP [玩家名] [n]    英雄羽化升重（带参=直接设为 n 重，封顶 10）
+                    //   @HEROHUMUPDOWN [玩家名] [n]  英雄羽化降重（降空=完全退回；英雄穿着羽化装备时拒绝）
+                    //   @HEROHUMUPRESET [玩家名]     英雄还原为未登仙（自动脱英雄羽化装备，背包空格不足则拒绝+红字）
+                    //   @HEROHUMUPINFO [玩家名]      查看英雄当前登仙重数
+                    case "HEROEXP":
+                        {
+                            if (!IsGM) return;
+
+                            HeroObject hero = ResolveHeroGmTarget(parts, true, out string expArg);
+                            if (hero == null) return;
+
+                            if (!long.TryParse(expArg, out long heroExp) || heroExp == 0)
+                            {
+                                ReceiveChat("用法: @HEROEXP [玩家名] 数值（正=加，负=扣）", ChatType.System);
+                                return;
+                            }
+
+                            // 共用入口（11-20）：正=走 GainExp 正规通道；负=只扣当前经验条不掉级
+                            string expFeedback = hero.ApplyExpDelta(heroExp);
+                            if (expFeedback == null) return;
+
+                            ReceiveChat(string.Format("{0} 的英雄：{1}", hero.Owner.Name, expFeedback), ChatType.System);
+                            MessageQueue.Enqueue(string.Format("游戏管理员:{0} 调整了玩家{1}的英雄经验（{2}）", Name, hero.Owner.Name, heroExp));
+                        }
+                        break;
+
+                    case "HEROHUMUPUP":
+                        {
+                            if (!IsGM) return;
+
+                            HeroObject hero = ResolveHeroGmTarget(parts, true, out string upArg);
+                            if (hero == null) return;
+
+                            int heroBefore = hero.GetHumUpStage();
+
+                            if (heroBefore >= 10)
+                            {
+                                ReceiveChat("该英雄已达到 羽化登仙·十重，无法再升", ChatType.System);
+                                return;
+                            }
+
+                            int.TryParse(string.IsNullOrEmpty(upArg) ? "1" : upArg, out int up);
+                            if (up < 1) up = 1;
+
+                            if (!hero.SetHumUpStage(heroBefore + up, this)) return;
+
+                            ReceiveChat(string.Format("{0} 的英雄：{1} -> 羽化登仙·{2}重", hero.Owner.Name,
+                                heroBefore <= 0 ? "未登仙" : string.Format("羽化登仙·{0}重", heroBefore), hero.GetHumUpStage()), ChatType.System);
+                            MessageQueue.Enqueue(string.Format("游戏管理员:{0} 将玩家{1}的英雄升到羽化登仙·{2}重", Name, hero.Owner.Name, hero.GetHumUpStage()));
+                        }
+                        break;
+
+                    case "HEROHUMUPDOWN":
+                        {
+                            if (!IsGM) return;
+
+                            HeroObject hero = ResolveHeroGmTarget(parts, true, out string downArg);
+                            if (hero == null) return;
+
+                            if (hero.GetHumUpStage() <= 0)
+                            {
+                                ReceiveChat("该英雄尚未羽化登仙，无法降重", ChatType.System);
+                                return;
+                            }
+
+                            int.TryParse(string.IsNullOrEmpty(downArg) ? "1" : downArg, out int down);
+                            if (down < 1) down = 1;
+
+                            // 降空且英雄还穿着羽化装备时 SetHumUpStage 拒绝，其自带提示发在英雄身上会被 Enqueue 丢弃
+                            // → 这里先判一遍，红字直接发出来
+                            if (hero.GetHumUpStage() - down <= 0 && hero.HasHumUpEquipmentEquipped())
+                            {
+                                ReceiveChat("该英雄还穿着羽化专属装备，请先脱下英雄身上的羽化装备，再退回", ChatType.System);
+                                return;
+                            }
+
+                            int heroBefore = hero.GetHumUpStage();
+
+                            if (!hero.SetHumUpStage(heroBefore - down, this)) return;
+
+                            ReceiveChat(string.Format("{0} 的英雄：{1} -> {2}", hero.Owner.Name,
+                                string.Format("羽化登仙·{0}重", heroBefore),
+                                hero.GetHumUpStage() <= 0 ? "未登仙（已完全退回）" : string.Format("羽化登仙·{0}重", hero.GetHumUpStage())), ChatType.System);
+                            MessageQueue.Enqueue(string.Format("游戏管理员:{0} 将玩家{1}的英雄降到 {2}", Name, hero.Owner.Name,
+                                hero.GetHumUpStage() <= 0 ? "未登仙" : string.Format("羽化登仙·{0}重", hero.GetHumUpStage())));
+                        }
+                        break;
+
+                    case "HEROHUMUPRESET":
+                        {
+                            if (!IsGM) return;
+
+                            HeroObject hero = ResolveHeroGmTarget(parts, false, out _);
+                            if (hero == null) return;
+
+                            if (hero.GetHumUpStage() <= 0)
+                            {
+                                ReceiveChat("该英雄尚未羽化登仙，无需还原", ChatType.System);
+                                return;
+                            }
+
+                            // GM 版自动先脱英雄的羽化装备（背包空格不足会整单失败并红字提示，不做半个）
+                            if (hero.HasHumUpEquipmentEquipped() && !TryUnequipHeroHumUpEquipment()) return;
+
+                            if (!hero.SetHumUpStage(0, this)) return;
+
+                            ReceiveChat(string.Format("{0} 的英雄已还原为未登仙", hero.Owner.Name), ChatType.System);
+                            MessageQueue.Enqueue(string.Format("游戏管理员:{0} 将玩家{1}的英雄还原为未登仙", Name, hero.Owner.Name));
+                        }
+                        break;
+
+                    case "HEROHUMUPINFO":
+                        {
+                            if (!IsGM) return;
+
+                            HeroObject hero = ResolveHeroGmTarget(parts, false, out _);
+                            if (hero == null) return;
+
+                            ReceiveChat(string.Format("{0} 的英雄 {1} 羽化状态：{2}", hero.Owner.Name, hero.Name,
+                                hero.GetHumUpStage() <= 0 ? "未登仙" : string.Format("羽化登仙·{0}重", hero.GetHumUpStage())), ChatType.Hint);
+                        }
+                        break;
+
                     //★ 列出配置文件里已定义的自定义 BUFF
                     case "CUSTOMBUFF":
                         {
@@ -5848,6 +5973,115 @@ namespace Server.MirObjects
             return !left;
         }
 
+        /// <summary>
+        /// ★英雄 GM 命令（11-20）共用目标解析：
+        ///   @CMD [参数]           → 操作自己的英雄
+        ///   @CMD 玩家名 [参数]    → 操作指定玩家的英雄
+        /// 第二段参数：能解析成数字就当数字参数（操作自己），否则当玩家名。
+        /// 返回目标英雄；失败（玩家不在线/英雄未召唤）已发提示并返回 null。
+        /// </summary>
+        private HeroObject ResolveHeroGmTarget(string[] parts, bool hasParam, out string param)
+        {
+            param = null;
+            PlayerObject target = this;
+
+            if (parts.Length >= 3)
+            {
+                target = Envir.GetPlayer(parts[1]);
+                param = parts[2];
+
+                if (target == null)
+                {
+                    ReceiveChat(string.Format("玩家 {0} 未在线", parts[1]), ChatType.System);
+                    return null;
+                }
+            }
+            else if (parts.Length == 2)
+            {
+                if (hasParam && int.TryParse(parts[1], out _))
+                {
+                    param = parts[1];                               // 第二段是数字 → 数字参数，操作自己
+                }
+                else
+                {
+                    PlayerObject named = Envir.GetPlayer(parts[1]);
+
+                    if (named == null)
+                    {
+                        if (hasParam)
+                            param = parts[1];                       // 不是玩家名 → 交给后续数字校验（负数经验等）
+                        else
+                        {
+                            ReceiveChat(string.Format("玩家 {0} 未在线", parts[1]), ChatType.System);
+                            return null;
+                        }
+                    }
+                    else
+                        target = named;
+                }
+            }
+
+            HeroObject hero = target.GetHero();
+
+            if (hero == null)
+            {
+                ReceiveChat(target == this
+                    ? "你的英雄未召唤或已死亡，无法执行该命令"
+                    : string.Format("玩家 {0} 的英雄未召唤或已死亡", target.Name), ChatType.System);
+                return null;
+            }
+
+            return hero;
+        }
+
+        /// <summary>
+        /// ★英雄（11-20）：把英雄身上所有羽化专属装备退回英雄背包，供 NPC 命令「RESETHEROHUMUP 1」/ GM 使用。
+        /// 与主体版 TryUnequipHumUpEquipment 同一模式：整单成功或整单失败 ——
+        /// ★先检测英雄背包空格，不够就一格都不动，红字提示玩家手动脱装，然后整体拒绝。
+        /// 走 RemoveItem(HeroInventory) 正规通道，客户端收到 S.RemoveItem，英雄装备/背包与属性同步刷新。
+        /// </summary>
+        public bool TryUnequipHeroHumUpEquipment()
+        {
+            if (!HasHero || !HeroSpawned || CurrentHero == null) return false;
+
+            var heroSlots = new List<int>();
+            for (int i = 0; i < CurrentHero.Equipment.Length; i++)
+            {
+                UserItem item = CurrentHero.Equipment[i];
+                if (item == null || item.Info == null) continue;
+                if (IsHumUpEquipShape(item.Info.Shape)) heroSlots.Add(i);
+            }
+
+            if (heroSlots.Count == 0) return true;
+
+            //★英雄背包空格检测（11-20 用户要求）：不够就无法还原，整单拒绝 + 红字说明需要脱装
+            var heroFree = new List<int>();
+            for (int i = 0; i < CurrentHero.Inventory.Length && heroFree.Count < heroSlots.Count; i++)
+            {
+                if (CurrentHero.Inventory[i] == null) heroFree.Add(i);
+            }
+
+            if (heroFree.Count < heroSlots.Count)
+            {
+                ReceiveChat(string.Format("英雄背包空格不足（需 {0} 格，当前 {1} 格），无法自动脱下英雄的羽化专属装备，请先手动取下英雄身上的羽化装备",
+                    heroSlots.Count, heroFree.Count), ChatType.System);
+                return false;
+            }
+
+            for (int i = 0; i < heroSlots.Count; i++)
+            {
+                UserItem item = CurrentHero.Equipment[heroSlots[i]];
+                if (item == null) continue;
+
+                RemoveItem(MirGridType.HeroInventory, item.UniqueID, heroFree[i]);
+            }
+
+            bool heroLeft = Hero.HasHumUpEquipmentEquipped();
+            if (heroLeft) ReceiveChat("英雄有羽化专属装备未能自动脱下，请手动取下后再试", ChatType.System);
+
+            return !heroLeft;
+        }
+
         public void RemoveItem(MirGridType grid, ulong id, int to)
         {
             S.RemoveItem p = new S.RemoveItem { Grid = grid, UniqueID = id, To = to, Success = false };
@@ -7346,8 +7580,6 @@ namespace Server.MirObjects
                         monster.Master = this;
                         monster.PetLevel = 0;
                         monster.MaxPetLevel = 7;
-
-                        Pets.Add(monster);
                     }
 
                     if (conquestOnly)
@@ -7364,8 +7596,16 @@ namespace Server.MirObjects
                     monster.Direction = Direction;
                     monster.ActionTime = Envir.Time + 5000;
 
-                    if (!monster.Spawn(CurrentMap, Front))
-                        monster.Spawn(CurrentMap, CurrentLocation);
+                    //★11-23：先落地、后入列表——两个落点都不可走时 Spawn 返回 false，
+                    //  先入 Pets 就是僵尸宠物；且原来 conquestOnly 提前 return 时同样产生僵尸。
+                    if (!monster.Spawn(CurrentMap, Front) && !monster.Spawn(CurrentMap, CurrentLocation))
+                    {
+                        if (spawnAsPet) monster.Master = null;   // 没落地，不进 Pets
+                    }
+                    else if (spawnAsPet)
+                    {
+                        Pets.Add(monster);
+                    }
                     break;
                 case ItemType.攻城弹药:
                     //TODO;

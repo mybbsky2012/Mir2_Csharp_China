@@ -1,0 +1,349 @@
+;==========================================================
+;  新命令演示 NPC —— 2026-11-23
+;  用途：一张页面跑通 11-20 / 11-23 新加的全部 NPC 脚本命令，
+;        同时充当「活体语法手册」——每段注释就是该命令的写法。
+;
+;  上线方法：用服务端 NPC 编辑器（Server.MirForms）新增一条 NPC，
+;  脚本文件名填「新命令演示」（不带 .txt），摆到任意主城坐标即可。
+;  改完脚本要重启服务端（或执行脚本重载）才会生效。
+;
+;  本脚本演示的命令清单：
+;    检查（#IF）：
+;      CHECKHEROHUMUP [op] [重数]        英雄登仙重数
+;      CHECKEMPTYEQUIP [槽位]            本体装备栏空位（支持槽位/多槽）
+;      CHECKHEROEMPTYEQUIP [槽位]        英雄装备栏空位（支持槽位/多槽）
+;      CHECKBAG [HERO] [op] [数量]       背包空格（末尾 HERO = 英雄背包）
+;      CHECKHEROBAG [op] [数量]          英雄背包空格（独立写法）
+;    动作（#ACT）：
+;      HEROEXP n                         英雄经验 +/-（负数只扣条不掉级）
+;      SETHEROLEVEL n                    英雄等级直接设定
+;      HEROHUMUP [重数]                  英雄登仙升重（默认 1，封顶 10）
+;      HEROHUMDOWN [重数]                英雄登仙降重（降到 0 = 完全退回）
+;      RESETHEROHUMUP [1]                英雄还原未登仙（带 1 = 先自动脱羽化装）
+;      GIVEW [槽位|类型]                 本体自动穿戴（无参 = 全部穿上）
+;      GIVEWHERO [槽位|类型]             英雄自动穿戴
+;      TAKEW [槽位|类型]                 本体自动脱下（无参 = 全身脱光）
+;      TAKEWHERO [槽位|类型]             英雄自动脱下
+;
+;  槽位写法：数字 0~13 或中文名——
+;    0武器 1盔甲 2头盔 3照明物 4项链 5左手镯 6右手镯
+;    7左戒指 8右戒指 9护身符 10腰带 11靴子 12守护石 13坐骑
+;    手镯 / 戒指 写类型时自动分配左右槽
+;==========================================================
+
+[@MAIN]
+#SAY
+这里是<新命令演示/LightSteelBlue> NPC，\
+把 11-20 / 11-23 新加的脚本命令都做成可以点着玩的页面。\ \
+<英雄经验与等级/@HERO_LEVEL>\
+<英雄登仙重数/@HERO_HUMUP>\
+<装备栏空位检测/@CHECK_EQUIP>\
+<背包空位检测/@CHECK_BAG>\
+<自动穿脱装备/@GIVEW_DEMO>\
+<命令语法速查/@SYNTAX>\ \
+<离开/@EXIT>
+
+;----------------------------------------------------------
+; 一、HEROEXP / SETHEROLEVEL
+;   HEROEXP 正数 = 加经验（走正规通道，可连升多级）
+;   HEROEXP 负数 = 只扣当前经验条，不掉级
+;   SETHEROLEVEL = 英雄等级直接设定（1 ~ 等级上限）
+;----------------------------------------------------------
+[@HERO_LEVEL]
+#SAY
+英雄需要已召唤。三条路自己挑：\ \
+<加 500 万经验/@ADDHEROEXP>\
+<扣 100 万经验（不掉级）/@DECHEROEXP>\
+<直接设为 55 级/@SETHEROLV>\ \
+<返回/@MAIN>
+
+[@ADDHEROEXP]
+#ACT
+HEROEXP 5000000
+#SAY
+已执行 <HEROEXP 5000000/LightSteelBlue>：英雄加 500 万经验。\ \
+<再来一次/@ADDHEROEXP> <返回/@HERO_LEVEL>
+
+[@DECHEROEXP]
+#ACT
+HEROEXP -1000000
+#SAY
+已执行 <HEROEXP -1000000/LightSteelBlue>：\
+只扣当前经验条，经验不够扣时**不掉级**。\ \
+<返回/@HERO_LEVEL>
+
+[@SETHEROLV]
+#ACT
+SETHEROLEVEL 55
+#SAY
+已执行 <SETHEROLEVEL 55/LightSteelBlue>：\
+英雄等级直接设为 55（走 LevelUp 正规刷属性）。\ \
+<返回/@HERO_LEVEL>
+
+;----------------------------------------------------------
+; 二、HEROHUMUP / HEROHUMDOWN / RESETHEROHUMUP / CHECKHEROHUMUP
+;   检查英雄登仙重数的三种写法：
+;     CHECKHEROHUMUP        → 已登仙（重数 >= 1）
+;     CHECKHEROHUMUP 3      → 重数 >= 3（简写）
+;     CHECKHEROHUMUP >= 3   → 显式比较（= > < >= <= !=）
+;   动作：
+;     HEROHUMUP  [重数]   升 N 重，默认 1，封顶 10
+;     HEROHUMDOWN[重数]   降 N 重，默认 1；降到 0 = 完全退回
+;     RESETHEROHUMUP      还原未登仙（穿羽化装会被拒绝并红字）
+;     RESETHEROHUMUP 1    强制还原：先自动把羽化装备退回英雄背包
+;                         （背包空格不足 → 整单失败 + 红字）
+;----------------------------------------------------------
+[@HERO_HUMUP]
+#IF
+CHECKHEROHUMUP
+#SAY
+英雄已登仙，当前重数页面往下点：\ \
+<升一重/@HUMUP1> <直接设为三重/@HUMUP3>\
+<降一重/@HUMDOWN1> <强制还原（自动脱羽化装）/@HUMRESET>\ \
+<返回/@MAIN>
+#ELSEACT
+GOTO @HERO_HUMUP_NONE
+
+[@HERO_HUMUP_NONE]
+#SAY
+你的英雄还没登仙（<CHECKHEROHUMUP/LightSteelBlue> 不成立：\
+英雄未召唤 / 已死亡 / 未登仙，一律按不成立处理）。\ \
+<返回/@MAIN>
+
+[@HUMUP1]
+#ACT
+HEROHUMUP
+#SAY
+已执行 <HEROHUMUP/LightSteelBlue>：英雄升一重。\ \
+<返回/@HERO_HUMUP>
+
+[@HUMUP3]
+#ACT
+HEROHUMUP 3
+#SAY
+已执行 <HEROHUMUP 3/LightSteelBlue>：直接设为三重（带参 = 设为 N 重）。\ \
+<返回/@HERO_HUMUP>
+
+[@HUMDOWN1]
+#ACT
+HEROHUMDOWN
+#SAY
+已执行 <HEROHUMDOWN/LightSteelBlue>：英雄降一重。\ \
+<返回/@HERO_HUMUP>
+
+[@HUMRESET]
+#ACT
+RESETHEROHUMUP 1
+#SAY
+已执行 <RESETHEROHUMUP 1/LightSteelBlue>：\
+先自动把英雄羽化装备退回英雄背包，再还原为未登仙。\ \
+<返回/@HERO_HUMUP>
+
+;----------------------------------------------------------
+; 三、CHECKEMPTYEQUIP / CHECKHEROEMPTYEQUIP
+;   无参 = 整栏全空才成立；带槽位 = 指定槽位全部为空才成立。
+;   槽位支持数字索引、中文名、逗号分隔多槽：
+;     CHECKEMPTYEQUIP 武器        数字写法 CHECKEMPTYEQUIP 0
+;     CHECKEMPTYEQUIP 0,4         多槽位
+;     CHECKEMPTYEQUIP 武器,头盔   中文名多槽
+;----------------------------------------------------------
+[@CHECK_EQUIP]
+#SAY
+下面三个页面各演示一种写法，点进去看判定结果：\ \
+<本体武器槽是否为空/@EQ_WEAPON>\
+<本体 0,4 两槽是否都空/@EQ_TWO>\
+<英雄整栏是否全空/@EQ_HERO_ALL>\ \
+<返回/@MAIN>
+
+[@EQ_WEAPON]
+#IF
+CHECKEMPTYEQUIP 武器
+#SAY
+<武器槽是空的/Cyan>（CHECKEMPTYEQUIP 武器 成立）。\ \
+<返回/@CHECK_EQUIP>
+#ELSEACT
+; 走 #ELSEACT 说明不成立
+GOTO @EQ_WEAPON_NO
+
+[@EQ_WEAPON_NO]
+#SAY
+武器槽<有装备/Orange>（CHECKEMPTYEQUIP 武器 不成立）。\ \
+<返回/@CHECK_EQUIP>
+
+[@EQ_TWO]
+#IF
+CHECKEMPTYEQUIP 0,4
+#SAY
+武器 + 项链两槽<都是空的/Cyan>（CHECKEMPTYEQUIP 0,4 成立）。\ \
+<返回/@CHECK_EQUIP>
+#ELSEACT
+GOTO @EQ_TWO_NO
+
+[@EQ_TWO_NO]
+#SAY
+武器或项链至少有一格<有装备/Orange>（CHECKEMPTYEQUIP 0,4 不成立）。\ \
+<返回/@CHECK_EQUIP>
+
+[@EQ_HERO_ALL]
+#IF
+CHECKHEROEMPTYEQUIP
+#SAY
+英雄装备栏<全空/Cyan>（CHECKHEROEMPTYEQUIP 成立）——\
+这是英雄登仙仪式的硬门槛。\ \
+<返回/@CHECK_EQUIP>
+#ELSEACT
+GOTO @EQ_HERO_ALL_NO
+
+[@EQ_HERO_ALL_NO]
+#SAY
+英雄身上<穿着装备/Orange>，或英雄未召唤/已死亡\
+（CHECKHEROEMPTYEQUIP 不成立）。\ \
+<返回/@CHECK_EQUIP>
+
+;----------------------------------------------------------
+; 四、CHECKBAG / CHECKHEROBAG
+;   op 可省略（省略 = >=）：
+;     CHECKBAG            本体空格 >= 1
+;     CHECKBAG 5          本体空格 >= 5
+;     CHECKBAG >= 10      本体空格显式比较
+;     CHECKBAG HERO 3     英雄空格 >= 3（末尾 HERO 参数）
+;     CHECKHEROBAG 4      英雄空格 >= 4（独立写法，两者完全等价）
+;----------------------------------------------------------
+[@CHECK_BAG]
+#IF
+CHECKBAG >= 5
+#SAY
+本体背包空格 >= 5（CHECKBAG >= 5 成立），继续看英雄背包：\ \
+<英雄空格 >= 4 吗/@BAG_HERO>\ \
+<返回/@MAIN>
+#ELSEACT
+GOTO @CHECK_BAG_NO
+
+[@CHECK_BAG_NO]
+#SAY
+本体背包空格<不足 5/Orange>（CHECKBAG >= 5 不成立）。\ \
+<返回/@MAIN>
+
+[@BAG_HERO]
+#IF
+CHECKHEROBAG 4
+#SAY
+英雄背包空格 >= 4（CHECKHEROBAG 4 成立）。\
+等价写法：<CHECKBAG HERO 4/LightSteelBlue>\ \
+<返回/@CHECK_BAG>
+#ELSEACT
+GOTO @BAG_HERO_NO
+
+[@BAG_HERO_NO]
+#SAY
+英雄背包空格<不足 4/Orange>，或英雄未召唤/已死亡\
+（CHECKHEROBAG 4 不成立）。\ \
+<返回/@CHECK_BAG>
+
+;----------------------------------------------------------
+; 五、GIVEW / GIVEWHERO / TAKEW / TAKEWHERO
+;   GIVEW              把背包里所有能穿的装备全部穿上
+;   GIVEW 武器         只穿能到武器槽的（类型过滤）
+;   GIVEW 1            只穿槽位 1（盔甲）
+;   GIVEW 手镯         手镯类型自动分配左/右手镯
+;   TAKEW              全身脱光（诅咒/结婚戒指自动跳过）
+;   TAKEW 武器         只脱武器槽
+;   背包空格不足 → 整单拒绝（一件都不脱）+ 红字提示
+;   HERO 后缀版本同用法，走英雄背包 ↔ 英雄身上
+;   指定槽位但槽位被占用 → 拒绝并红字提示
+;----------------------------------------------------------
+[@GIVEW_DEMO]
+#SAY
+本体和英雄各一组：\ \
+<本体：全部穿上/@GW_ALL> <本体：只穿手镯/@GW_BRACELET> <本体：全部脱下/@TW_ALL>\ \
+<英雄：全部穿上/@GW_HERO_ALL> <英雄：只穿戒指/@GW_HERO_RING> <英雄：脱盔甲/@TW_HERO_ARMOR>\ \
+<返回/@MAIN>
+
+[@GW_ALL]
+#ACT
+GIVEW
+#SAY
+已执行 <GIVEW/LightSteelBlue>：背包里所有能穿的装备全部穿上\
+（职业/性别/等级不符的会自动跳过）。\ \
+<返回/@GIVEW_DEMO>
+
+[@GW_BRACELET]
+#ACT
+GIVEW 手镯
+#SAY
+已执行 <GIVEW 手镯/LightSteelBlue>：只穿手镯类型，\
+自动分配到左手镯/右手镯。\ \
+<返回/@GIVEW_DEMO>
+
+[@TW_ALL]
+#ACT
+TAKEW
+#SAY
+已执行 <TAKEW/LightSteelBlue>：全身脱光。\
+背包放不下会整单拒绝并红字，诅咒/结婚戒指不脱。\ \
+<返回/@GIVEW_DEMO>
+
+[@GW_HERO_ALL]
+#ACT
+GIVEWHERO
+#SAY
+已执行 <GIVEWHERO/LightSteelBlue>：英雄背包里所有能穿的都穿上\
+（校验按英雄自己的职业/性别/等级）。\
+英雄未召唤/已死亡 → 红字提示后跳过。\ \
+<返回/@GIVEW_DEMO>
+
+[@GW_HERO_RING]
+#ACT
+GIVEWHERO 戒指
+#SAY
+已执行 <GIVEWHERO 戒指/LightSteelBlue>：\
+只给英雄穿戒指类型，自动分配左/右戒指槽。\ \
+<返回/@GIVEW_DEMO>
+
+[@TW_HERO_ARMOR]
+#ACT
+TAKEWHERO 盔甲
+#SAY
+已执行 <TAKEWHERO 盔甲/LightSteelBlue>：\
+只把英雄的盔甲脱回英雄背包。\ \
+<返回/@GIVEW_DEMO>
+
+;----------------------------------------------------------
+; 六、语法速查（纯文本页，方便策划查写法）
+;----------------------------------------------------------
+[@SYNTAX]
+#SAY
+; --- 检查命令（#IF 下用） ---
+CHECKHEROHUMUP [op] [重数]\
+CHECKEMPTYEQUIP [槽位]\
+CHECKHEROEMPTYEQUIP [槽位]\
+CHECKBAG [HERO] [op] [数量]\
+CHECKHEROBAG [op] [数量]\ \
+; --- 动作命令（#ACT 下用） ---
+HEROEXP <数值>\
+SETHEROLEVEL <等级>\
+HEROHUMUP [重数]\
+HEROHUMDOWN [重数]\
+RESETHEROHUMUP [1]\
+GIVEW [槽位|类型]\
+GIVEWHERO [槽位|类型]\
+TAKEW [槽位|类型]\
+TAKEWHERO [槽位|类型]\ \
+槽位：0武器 1盔甲 2头盔 3照明物 4项链 5左手镯 6右手镯\
+7左戒指 8右戒指 9护身符 10腰带 11靴子 12守护石 13坐骑\
+（手镯/戒指写类型名时自动分左右）\ \
+<返回/@MAIN>
+
+[@EXIT]
+#SAY
+演示完毕，慢走。\
+
+
+;==========================================================
+;  备注：
+;  1. 英雄系命令在英雄未召唤/已死亡时的表现：
+;     检查一律「不成立」；动作一律红字提示后跳过，不会出错。
+;  2. GIVEW/TAKEW 的失败提示是引擎自己发的红字，脚本不用再写。
+;  3. CHECKBAG HERO 与 CHECKHEROBAG 完全等价，两种写法都保留，
+;     脚本里随便用哪种。
+;==========================================================

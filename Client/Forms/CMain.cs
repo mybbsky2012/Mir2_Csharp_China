@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Drawing.Text;
+using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Security;
 using Client.MirControls;
@@ -34,6 +35,45 @@ namespace Client
         private static long _fpsTime;
         private static int _fps;
         private static long _cleanTime;
+
+        //★内存观测（11-20）：进程 RAM 按秒采样。缓存 Process 实例避免每帧 GetCurrentProcess。
+        private static Process _currentProc;
+        private static long _ramBytes, _ramCheckTime;
+
+        //★内存优化（11-20）：定期压缩大对象堆（LOH）。
+        //  贴图解压、网络包缓冲等 >85KB 的数组都在 LOH，长期玩会产生碎片 → 工作集缓慢爬升。
+        //  CompactOnce + 一次阻塞 GC 把 LOH 空洞还给系统；15 分钟一次，单次通常 <100ms。
+        private static long _lohCompactTime;
+
+        //★11-20：调试面板刷新节流（250ms 一次，见 UpdateEnviroment）
+        private static long _debugLabelTime;
+
+        public static void CompactLargeObjectHeap()
+        {
+            try
+            {
+                GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+                GC.Collect(2, GCCollectionMode.Forced, true);
+            }
+            catch { }
+        }
+
+        private static string GetSampledWorkingSet()
+        {
+            if (Time >= _ramCheckTime)
+            {
+                _ramCheckTime = Time + 1000;
+
+                try
+                {
+                    if (_currentProc == null) _currentProc = Process.GetCurrentProcess();
+                    _ramBytes = _currentProc.WorkingSet64;
+                }
+                catch { _ramBytes = 0; }
+            }
+
+            return _ramBytes > 0 ? Functions.ConvertByteSize(_ramBytes) : "?";
+        }
         private static long _drawTime;
         private static long _lastLoadingFrame;   // RenderLoadingFrame 的节流时间（主线程阻塞期间刷载入画面）
         public static int FPS;
@@ -395,6 +435,13 @@ namespace Client
                 DXManager.Clean(); // Clean once a second.
             }
 
+            //★内存优化（11-20）：LOH 定期压缩（切图时另有触发点，见 MapControl.LoadMap）
+            if (Time >= _lohCompactTime)
+            {
+                _lohCompactTime = Time + 15 * 60000;
+                CompactLargeObjectHeap();
+            }
+
             Network.Process();
 
             if (MirScene.ActiveScene != null)
@@ -408,8 +455,11 @@ namespace Client
 
             CreateHintLabel();
 
-            if (Settings.DebugMode)
+            //★11-20：调试面板原来每帧重建 —— TLC/CLC 两个 LINQ 扫描 + 文本变化时标签纹理重绘，
+            //  全部塞进每帧就会拖慢游戏。观测数据 250ms 刷一次足够。
+            if (Settings.DebugMode && Time >= _debugLabelTime)
             {
+                _debugLabelTime = Time + 250;
                 CreateDebugLabel();
             }
         }
@@ -615,6 +665,11 @@ namespace Client
 
             text += string.Format(", TLC: {0}", DXManager.TextureList.Count(x => x.TextureValid));
             text += string.Format(", CLC: {0}", DXManager.ControlList.Count(x => x.IsDisposed == false));
+
+            //★内存观测（11-20）：进程工作集按秒采样（缓存 Process 实例，别每帧 GetCurrentProcess）。
+            //  与 TLC 对照：RAM 高且 TLC 高 = 贴图没清；RAM 高 TLC 低 = 托管堆/LOH 碎片或其它泄漏。
+            text += string.Format(", RAM: {0}", GetSampledWorkingSet());
+            text += string.Format(", GC: {0}", Functions.ConvertByteSize(GC.GetTotalMemory(false)));
 
             //★卡顿排查（10-31）：特效数到上限说明触发了限流；Pkt 顶到 300 说明包在积压。
             text += string.Format(", Eff: {0}, Pkt: {1}", MirObjects.Effect.LastLiveCount, MirNetwork.Network.LastPacketsProcessed);

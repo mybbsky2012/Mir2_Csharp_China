@@ -493,7 +493,7 @@ namespace Client.MirObjects
         ///   · 武器同理走本职业 Up*Weapon\0N.Lib，档位跟盔甲；战法道通用装备仍走本职业库。
         /// 返回 true 表示已按羽化设置完毕，SetLibraries 直接返回。
         /// </summary>
-        protected bool SetHumUpLibraries()
+        protected bool SetHumUpLibraries(bool simpleMode = false)
         {
             int stage = HumUpStage;
 
@@ -515,16 +515,6 @@ namespace Client.MirObjects
             bool isArcher = Class == MirClass.弓箭;
             bool isWizard = Class == MirClass.法师;
 
-            //★未穿盔甲（Looks_Armour=0）时"褪下"：身体切回素体库 00.Lib（裸体素体，帧数与
-            //  女半偏移和职业盔甲库完全一致），不再顶着仙兵盔甲外观。穿了才用 0N.Lib 正式外观。
-            bool hasArmour = Armour > 0;
-
-            Frames = isAssassin ? FrameSet.HumUpAssassin
-                   : isTaoist ? FrameSet.HumUpTaoist
-                   : isArcher ? FrameSet.HumUpArcher
-                   : isWizard ? FrameSet.HumUpWizard
-                   : FrameSet.HumUpPlayer;
-
             //身体/头发：一律走**本职业** HumUp 目录（含战法道通用装备）。
             //          没穿甲取 00（素体）；穿羽化甲取 0N（N=档位）；穿普通甲取 01。
             MLibrary[] armours = isAssassin ? Libraries.UpAssArmours
@@ -537,6 +527,56 @@ namespace Client.MirObjects
                              : isArcher ? Libraries.UpArcHairs
                              : isWizard ? Libraries.UpWizHairs
                              : Libraries.UpWarHairs;
+
+            //★人物简装·仙体素体（11-20）：简装模式下登仙角色画成仙体素体（Up*Armours\00.Lib，
+            //  即「没穿甲的仙体裸身」，帧布局与正式仙体完全一致）——
+            //  不带武器/翅膀/坐骑/头发，性能开销与布衣简装同级，但保留仙体辨识度。
+            //  登仙常驻特效（脚下+龙，SetEffects 按 HumUpStage 加）不受影响，仍按重数显示。
+            //  ★素体库没就绪（微端没下完）时保持完整仙体外观，绝不硬换（同布衣简装的安全口径：
+            //    硬换没就绪的库会让 Draw 静默失败 → 整个人消失）。
+            if (simpleMode)
+            {
+                MLibrary plain = PickLibrary(armours, 0);
+                if (plain != null && plain.ImageCount > 0)
+                {
+                    Frames = isAssassin ? FrameSet.HumUpAssassin
+                           : isTaoist ? FrameSet.HumUpTaoist
+                           : isArcher ? FrameSet.HumUpArcher
+                           : isWizard ? FrameSet.HumUpWizard
+                           : FrameSet.HumUpPlayer;
+
+                    BodyLibrary = plain;
+                    HairLibrary = null;
+                    WeaponLibrary1 = null;
+                    WeaponLibrary2 = null;
+                    WeaponEffectLibrary1 = null;
+                    WeaponEffectLibrary2 = null;
+                    WingLibrary = null;
+                    MountLibrary = null;
+                    _humUpMount = false;
+                    _humUpFishing = false;
+
+                    ArmourOffSet = Gender == MirGender.男性
+                        ? 0
+                        : (isAssassin ? 912 : isTaoist ? 720 : isArcher ? 384 : isWizard ? 720 : 784);
+                    HairOffSet = ArmourOffSet;
+                    WeaponOffSet = ArmourOffSet;
+                    WingOffset = 0;
+                    MountOffset = 0;
+                    return true;
+                }
+                //素体没就绪 → 继续往下走完整仙体外观（宁可重也不消失）
+            }
+
+            //★未穿盔甲（Looks_Armour=0）时"褪下"：身体切回素体库 00.Lib（裸体素体，帧数与
+            //  女半偏移和职业盔甲库完全一致），不再顶着仙兵盔甲外观。穿了才用 0N.Lib 正式外观。
+            bool hasArmour = Armour > 0;
+
+            Frames = isAssassin ? FrameSet.HumUpAssassin
+                   : isTaoist ? FrameSet.HumUpTaoist
+                   : isArcher ? FrameSet.HumUpArcher
+                   : isWizard ? FrameSet.HumUpWizard
+                   : FrameSet.HumUpPlayer;
 
             int bodyIndex = !hasArmour ? 0 : (armourIsHumUp ? tier : 1);
             BodyLibrary = PickLibrary(armours, bodyIndex);
@@ -1052,7 +1092,7 @@ namespace Client.MirObjects
             HumUpLook = false;
             _humUpMount = false;    // 坐骑/鱼竿羽化标记同样先复位（提前 return false 的路径不清）
             _humUpFishing = false;
-            if (SetHumUpLibraries())
+            if (SetHumUpLibraries(Settings.SimplePlayer && TransformType < 0))
             {
                 HumUpLook = true;
                 return;

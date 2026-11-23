@@ -123,7 +123,8 @@
 
     public class KeyBindSettings
     {
-        private static InIReader Reader = new InIReader(@".\KeyBinds.ini");
+        //★11-20：锚定 exe 目录，避免快捷方式「起始位置」不对时读到别的目录的 ini
+        private static InIReader Reader = new InIReader(Path.Combine(AppContext.BaseDirectory, "KeyBinds.ini"));
         public List<KeyBind> Keylist = new List<KeyBind>();
         public List<KeyBind> DefaultKeylist = new List<KeyBind>();
 
@@ -132,7 +133,10 @@
             New(Keylist);
             New(DefaultKeylist);
 
-            if (!File.Exists(@".\KeyBinds.ini"))
+            //★11-23：存在性检查必须用与 Reader 相同的锚定路径——
+            //  原来这里用 CWD 相对路径（".\KeyBinds.ini"），快捷方式起始位置不对时恒为 false，
+            //  每次启动都会用默认键位覆盖用户 ini（用户配置永久丢失）。
+            if (!File.Exists(Path.Combine(AppContext.BaseDirectory, "KeyBinds.ini")))
             {
                 Save(DefaultKeylist);
                 return;

@@ -274,6 +274,7 @@ namespace Client.MirScenes.Dialogs
 				new ShortcutInfo("@允许交易", "开启交易"),
 				new ShortcutInfo("@探测(玩家名)", "探测项链-玩家所在位置"),
 				new ShortcutInfo("@传送(X Y)", "传送戒指-传送到本地图的所有位置"),
+				new ShortcutInfo("大地图左键传送", "佩戴传送戒指后，打开大地图按左键直接传送到该位置（冷却10秒）"),
 				new ShortcutInfo("@心心相映", "夫妻传送"),
 				new ShortcutInfo("开启行会战争", "@STARTWAR(交战行会名)")
             };

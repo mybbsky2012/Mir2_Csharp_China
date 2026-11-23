@@ -29,7 +29,8 @@ namespace Client.MirGraphics
     /// </summary>
     public static class UISkin
     {
-        private const string SettingFile = @".\UI\skin.ini";
+        //★11-20：锚定 exe 目录（原来相对路径受「快捷方式起始位置」影响，皮肤可能读不到）
+        private static string SettingFile = Path.Combine(AppContext.BaseDirectory, @"UI\skin.ini");
         private const string SkinRoot = @".\UI\Skin";
 
         /// <summary>皮肤包是否启用（skin.ini 里配了名字，且目录真实存在）。</summary>

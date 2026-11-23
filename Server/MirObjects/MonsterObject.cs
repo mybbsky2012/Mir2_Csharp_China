@@ -1608,7 +1608,8 @@ namespace Server.MirObjects
 
         public void PetRecall()
         {
-            if (Master == null) return;
+            //★11-23：主人可能正在换图（CurrentMap 为 null 的窗口），直接 Teleport 就是空地图空引用
+            if (Master == null || Master.CurrentMap == null) return;
             if (!Teleport(Master.CurrentMap, Master.Back))
                 Teleport(Master.CurrentMap, Master.CurrentLocation);
         }
@@ -2684,12 +2685,16 @@ namespace Server.MirObjects
                         return false;
                 }
 
-                for (int i = 0; i < Master.Pets.Count; i++)
-                    if (Master.Pets[i].EXPOwner == attacker.Master) return true;
+                //★11-23：战斗结算链里宠物 Die() 会从 Master.Pets 移除，必须用快照遍历，
+                //  否则同帧内列表收缩 → 漏判或索引越界。
+                var masterPets = Master.Pets.ToArray();
+                for (int i = 0; i < masterPets.Length; i++)
+                    if (masterPets[i].EXPOwner == attacker.Master) return true;
 
-                for (int i = 0; i < attacker.Master.Pets.Count; i++)
+                var attackerPets = attacker.Master.Pets.ToArray();
+                for (int i = 0; i < attackerPets.Length; i++)
                 {
-                    MonsterObject ob = attacker.Master.Pets[i];
+                    MonsterObject ob = attackerPets[i];
                     if (ob == Target || ob.Target == this) return true;
                 }
 
@@ -2700,9 +2705,10 @@ namespace Server.MirObjects
                 if (Envir.Time < ShockTime) //Shocked
                     return false;
 
-                for (int i = 0; i < attacker.Master.Pets.Count; i++)
+                var attackerPets = attacker.Master.Pets.ToArray();   //★11-23：快照遍历，防同帧 Die() 摘列表
+                for (int i = 0; i < attackerPets.Length; i++)
                 {
-                    MonsterObject ob = attacker.Master.Pets[i];
+                    MonsterObject ob = attackerPets[i];
                     if (ob == Target || ob.Target == this) return true;
                 }
 

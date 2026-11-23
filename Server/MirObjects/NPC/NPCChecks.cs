@@ -70,6 +70,10 @@
         CheckHeroItem,
         CheckHeroUse,
         CheckSafeZone,
-        CheckEmptyEquip    //★羽化登仙任务：装备栏是否全空 CHECKEMPTYEQUIP（第 11 环羽化仪式用）
+        CheckEmptyEquip, //★羽化登仙任务：装备栏是否全空 CHECKEMPTYEQUIP（第 11 环羽化仪式用）
+        CheckHeroHumUp,  //★英雄（11-20）：检测英雄登仙重数 CHECKHEROHUMUP >= 3（未召唤/死亡=不成立）
+        CheckHeroEmptyEquip, //★英雄（11-20）：检测英雄装备栏是否全空 CHECKHEROEMPTYEQUIP（英雄登仙仪式门槛；未召唤/死亡=不成立）
+        CheckBagSpace,       //★11-23：检测背包空格数 CHECKBAG [HERO] >= 5（末尾带 HERO 参数=查英雄背包；英雄未召唤/死亡=不成立）
+        CheckHeroBagSpace    //★11-23：检测英雄背包空格数 CHECKHEROBAG >= 5（独立写法，与 CHECKBAG HERO 等价；未召唤/死亡=不成立）
     }
 }

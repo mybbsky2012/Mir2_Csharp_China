@@ -614,7 +614,13 @@ namespace Client.MirScenes.Dialogs
         {
             //★11-03：只有右键才是「走到这里」。原来不分左右键，左键点到地图也会触发一次
             //  整图 A*（大地图上就是几秒定格），这也是「卡一下但什么都没发生」的来源之一。
-            if (e.Button != MouseButtons.Right) return;
+            //★11-20：左键 + 佩戴传送戒指 = 直接传送到点击坐标（走服务端 @传送 通道，
+            //  冷却/禁传地图/落点校验全部由服务端把关，客户端只做「有没有戒指」的预检）。
+            if (e.Button != MouseButtons.Right)
+            {
+                if (e.Button == MouseButtons.Left) TryTeleportToClicked(e.Location);
+                return;
+            }
 
             if (ParentDialog == null || GameScene.Scene == null) return;
             if (GameScene.Scene.MapControl == null || MapObject.User == null) return;
@@ -649,6 +655,66 @@ namespace Client.MirScenes.Dialogs
                 map.CurrentPath = path;
                 map.AutoPath = true;
             }
+        }
+
+        /// <summary>
+        /// ★11-20：大地图左键 + 传送戒指 = 传送到点击坐标。
+        /// 服务端走 @传送 聊天命令通道（PlayerObject「传送」case）：
+        /// 戒指 0 持久（没电）、冷却 10 秒、NoPosition 禁传地图、落点不可站立全部由服务端校验并提示，
+        /// 这里只做「身上有没有可用传送戒指」的预检，避免没戒指的玩家点了没反应。
+        /// </summary>
+        private void TryTeleportToClicked(Point clickPoint)
+        {
+            if (ParentDialog == null || GameScene.Scene == null) return;
+            if (GameScene.Scene.MapControl == null || MapObject.User == null) return;
+
+            var map = GameScene.Scene.MapControl;
+
+            //大地图可以翻到别的地图去看（世界地图/其它地图页签），那种坐标传不了（@传送 只认当前地图）
+            if (ParentDialog.TargetMapIndex != map.Index)
+            {
+                GameScene.Scene.ChatDialog.ReceiveChat("只能在当前所在地图使用传送", ChatType.System);
+                return;
+            }
+
+            if (ScaleX <= 0 || ScaleY <= 0) return;
+
+            int X = (int)Math.Round((clickPoint.X - BigMap_MouseCoordsProcessing_OffsetX) / ScaleX);
+            int Y = (int)Math.Round((clickPoint.Y - BigMap_MouseCoordsProcessing_OffsetY) / ScaleY);
+
+            X = Math.Max(0, Math.Min(map.Width - 1, X));
+            Y = Math.Max(0, Math.Min(map.Height - 1, Y));
+
+            if (!HasTeleportRing())
+            {
+                GameScene.Scene.ChatDialog.ReceiveChat("佩戴传送戒指后，可在地图上按左键直接传送到该位置", ChatType.System);
+                return;
+            }
+
+            Network.Enqueue(new C.Chat { Message = string.Format("@传送 {0} {1}", X, Y) });
+        }
+
+        /// <summary>
+        /// 与服务端 SpecialMode 聚合逻辑对齐（HumanObject.RefreshStats）：
+        /// 全身任意装备带 SpecialItemMode.Teleport 即算有戒指（不止戒指位），
+        /// 0 持久（MaxDura>0 且 CurrentDura==0）的「没电」戒指不算 —— 服务端会跳过。
+        /// </summary>
+        private static bool HasTeleportRing()
+        {
+            var equipment = MapObject.User.Equipment;
+
+            if (equipment == null) return false;
+
+            for (int i = 0; i < equipment.Length; i++)
+            {
+                var eq = equipment[i];
+
+                if (eq == null || eq.Info == null) continue;
+                if (eq.Info.Durability > 0 && eq.CurrentDura == 0) continue;    //0 持久=没电，对齐服务端
+                if (eq.Info.Unique.HasFlag(SpecialItemMode.Teleport)) return true;
+            }
+
+            return false;
         }
 
         /// <summary>

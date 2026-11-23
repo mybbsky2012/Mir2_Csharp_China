@@ -28,7 +28,12 @@ public class InIReader
         try
         {
             if (File.Exists(_fileName))
-                _contents.AddRange(File.ReadAllLines(_fileName));
+            {
+                //★修复（11-20）：带 BOM 的文件第一行是「\uFEFF[Section]」，原样比对会让整个段读不到；
+                //  顺带清行尾空白（\r / 空格 / 制表），段头带尾随空格也能匹配上。
+                foreach (string line in File.ReadAllLines(_fileName))
+                    _contents.Add(line.TrimEnd('\uFEFF', '\r', '\t', ' '));
+            }
         }
         catch
         {
@@ -37,35 +42,103 @@ public class InIReader
     #endregion
 
     #region Functions
+    //★修复（11-20）：原来键/段匹配是「Split('=')[0] 直接 CompareOrdinal」——
+    //  「DebugMode = True」（等号带空格）、「debugmode=true」（大小写）都读不到，
+    //  ReadBoolean 还会以为键不存在而回写一行 Default，把用户手改的行遮住（配置改了不生效的真凶）。
+    //  现在统一：去空白、忽略大小写、容错畸形行（无等号跳过）、同段重复键以第一行为准。
+    private static string Normalize(string text)
+    {
+        if (text == null) return string.Empty;
+        return text.Trim().TrimStart('\uFEFF').TrimEnd();
+    }
+
+    private static bool IsSectionLine(string line, string section)
+    {
+        string t = Normalize(line);
+        if (t.Length < 2 || !t.StartsWith("[") || !t.EndsWith("]")) return false;
+        return string.Equals(t.Substring(1, t.Length - 2).Trim(), section, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>取「key=」后面的值（第一个 = 之后全部内容，去两端空白）；无等号返回 null</summary>
+    private static string SplitKey(string line, out string key)
+    {
+        string t = Normalize(line);
+        int idx = t.IndexOf('=');
+        if (idx < 0) { key = t; return null; }
+        key = t.Substring(0, idx).Trim();
+        return t.Substring(idx + 1).Trim();
+    }
+
     private string FindValue(string section, string key)
     {
         for (int a = 0; a < _contents.Count; a++)
-            if (String.CompareOrdinal(_contents[a], "[" + section + "]") == 0)
-                for (int b = a + 1; b < _contents.Count; b++)
-                    if (String.CompareOrdinal(_contents[b].Split('=')[0], key) == 0)
-                        return _contents[b].Split('=')[1];
-                    else if (_contents[b].StartsWith("[") && _contents[b].EndsWith("]"))
-                        return null;
+        {
+            if (!IsSectionLine(_contents[a], section)) continue;
+
+            for (int b = a + 1; b < _contents.Count; b++)
+            {
+                string line = Normalize(_contents[b]);
+                if (line.StartsWith("[") && line.EndsWith("]")) break;   // 下一段开始
+                if (line.Length == 0) continue;                          // 空行/注释行跳过
+
+                string k;
+                string v = SplitKey(line, out k);
+                if (v == null) continue;                                 // 畸形行（没有 =）
+
+                if (string.Equals(k, key, StringComparison.OrdinalIgnoreCase))
+                    return v;
+            }
+            return null;
+        }
         return null;
     }
 
     private int FindIndex(string section, string key)
     {
         for (int a = 0; a < _contents.Count; a++)
-            if (String.CompareOrdinal(_contents[a], "[" + section + "]") == 0)
-                for (int b = a + 1; b < _contents.Count; b++)
-                    if (String.CompareOrdinal(_contents[b].Split('=')[0], key) == 0)
-                        return b;
-                    else if (_contents[b].StartsWith("[") && _contents[b].EndsWith("]"))
-                    {
-                        _contents.Insert(b - 1, key + "=");
-                        return b - 1;
-                    }
-                    else if (_contents.Count - 1 == b)
-                    {
-                        _contents.Add(key + "=");
-                        return _contents.Count - 1;
-                    }
+        {
+            if (!IsSectionLine(_contents[a], section)) continue;
+
+            // 第一轮：找已有键（同时清掉同段重复键——保留第一行，避免旧值遮住新写入）
+            int found = -1;
+            for (int b = a + 1; b < _contents.Count; b++)
+            {
+                string line = Normalize(_contents[b]);
+                if (line.StartsWith("[") && line.EndsWith("]")) break;
+                if (line.Length == 0) continue;
+
+                string k;
+                SplitKey(line, out k);
+                if (!string.Equals(k, key, StringComparison.OrdinalIgnoreCase)) continue;
+
+                if (found < 0)
+                {
+                    found = b;
+                }
+                else
+                {
+                    _contents.RemoveAt(b);   // 重复键：删掉后面的旧行
+                    b--;
+                }
+            }
+            if (found >= 0) return found;
+
+            // 第二轮：键不存在 → 插到段尾（下一个段头/空行/文件末之前）
+            for (int b = a + 1; b < _contents.Count; b++)
+            {
+                string line = Normalize(_contents[b]);
+                bool nextSection = line.StartsWith("[") && line.EndsWith("]");
+                if (nextSection || line.Length == 0 || b == _contents.Count - 1)
+                {
+                    int insertAt = (b == _contents.Count - 1 && !nextSection && line.Length > 0) ? b + 1 : b;
+                    _contents.Insert(insertAt, key + "=");
+                    return insertAt;
+                }
+            }
+            _contents.Add(key + "=");
+            return _contents.Count - 1;
+        }
+
         if (_contents.Count > 0)
             _contents.Add("");
 
@@ -132,13 +205,22 @@ public class InIReader
     #region Read
     public bool ReadBoolean(string section, string key, bool Default, bool writeWhenNull = true)
     {
-        bool result;
+        //★修复（11-20）：①支持 1/0 写法（原来写 DebugMode=1 会被当成「没有键」回写成 False）；
+        //  ②键存在但解析失败时（如写了 yes）用默认值但**不回写**——原来会把用户手改的行直接覆盖掉。
+        string raw = FindValue(section, key);
 
-        if (!bool.TryParse(FindValue(section, key), out result))
+        if (raw == null)
         {
-            result = Default;
             if (writeWhenNull) Write(section, key, Default);
+            return Default;
         }
+
+        if (raw == "1") return true;
+        if (raw == "0") return false;
+
+        bool result;
+        if (!bool.TryParse(raw, out result))
+            return Default;     // 不回写，保留用户原文
 
         return result;
     }
@@ -147,10 +229,15 @@ public class InIReader
     {
         byte result;
 
-        if (!byte.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!byte.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
 
@@ -161,10 +248,15 @@ public class InIReader
     {
         sbyte result;
 
-        if (!sbyte.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!sbyte.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
 
@@ -175,10 +267,15 @@ public class InIReader
     {
         ushort result;
 
-        if (!ushort.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!ushort.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
 
@@ -189,10 +286,15 @@ public class InIReader
     {
         short result;
 
-        if (!short.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!short.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
 
@@ -203,10 +305,15 @@ public class InIReader
     {
         uint result;
 
-        if (!uint.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!uint.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
         return result;
@@ -216,10 +323,15 @@ public class InIReader
     {
         int result;
 
-        if (!int.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!int.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
         return result;
@@ -229,10 +341,15 @@ public class InIReader
     {
         ulong result;
 
-        if (!ulong.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!ulong.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
         return result;
@@ -242,10 +359,15 @@ public class InIReader
     {
         long result;
 
-        if (!long.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!long.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
 
@@ -256,10 +378,15 @@ public class InIReader
     {
         float result;
 
-        if (!float.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!float.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
         return result;
@@ -269,10 +396,15 @@ public class InIReader
     {
         double result;
 
-        if (!double.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!double.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
         return result;
@@ -282,10 +414,15 @@ public class InIReader
     {
         decimal result;
 
-        if (!decimal.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!decimal.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
         return result;
@@ -309,29 +446,47 @@ public class InIReader
     {
         char result;
 
-        if (!char.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             if (writeWhenNull) Write(section, key, Default);
+        }
+        else if (!char.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
         return result;
     }
 
+    //★11-23：原来 ReadPoint/ReadSize 有两处崩溃级边界——
+    //  1) ReadSize 没判 temp==null（键被删一行 → NRE 启动即崩）；
+    //  2) 值只有单个数字（如「X=100」缺逗号）时 Split(',')[1] 直接 IndexOutOfRange。
+    //  现在统一：键缺失 → 写入默认值；键存在但内容坏 → 用默认值但不回写（对齐 ReadBoolean）。
+    private static bool TryReadPair(string raw, out int x, out int y)
+    {
+        x = 0; y = 0;
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+        string[] parts = raw.Split(',');
+        return parts.Length >= 2
+            && int.TryParse(parts[0].Trim(), out x)
+            && int.TryParse(parts[1].Trim(), out y);
+    }
+
     public Point ReadPoint(string section, string key, Point Default)
     {
         string temp = FindValue(section, key);
+
+        if (temp == null)
+        {
+            Write(section, key, Default);
+            return Default;
+        }
+
         int tempX, tempY;
-        if (temp == null || !int.TryParse(temp.Split(',')[0], out tempX))
-        {
-            Write(section, key, Default);
-            return Default;
-        }
-        if (!int.TryParse(temp.Split(',')[1], out tempY))
-        {
-            Write(section, key, Default);
-            return Default;
-        }
+        if (!TryReadPair(temp, out tempX, out tempY))
+            return Default;   // 内容坏：不回写，保留用户原文
 
         return new Point(tempX, tempY);
     }
@@ -339,17 +494,16 @@ public class InIReader
     public Size ReadSize(string section, string key, Size Default)
     {
         string temp = FindValue(section, key);
+
+        if (temp == null)
+        {
+            Write(section, key, Default);
+            return Default;
+        }
+
         int tempX, tempY;
-        if (!int.TryParse(temp.Split(',')[0], out tempX))
-        {
-            Write(section, key, Default);
-            return Default;
-        }
-        if (!int.TryParse(temp.Split(',')[1], out tempY))
-        {
-            Write(section, key, Default);
-            return Default;
-        }
+        if (!TryReadPair(temp, out tempX, out tempY))
+            return Default;   // 内容坏：不回写，保留用户原文
 
         return new Size(tempX, tempY);
     }
@@ -358,10 +512,15 @@ public class InIReader
     {
         TimeSpan result;
 
-        if (!TimeSpan.TryParse(FindValue(section, key), out result))
+        string raw = FindValue(section, key);
+        if (raw == null)
         {
             result = Default;
             Write(section, key, Default);
+        }
+        else if (!TimeSpan.TryParse(raw, out result))
+        {
+            result = Default;   //★11-23：键存在但解析失败 → 不回写（对齐 ReadBoolean）
         }
 
 

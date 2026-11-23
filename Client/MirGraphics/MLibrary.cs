@@ -1,6 +1,7 @@
 ﻿using SlimDX;
 using SlimDX.Direct3D9;
 using System.IO.Compression;
+using System.Buffers;
 using Frame = Client.MirObjects.Frame;
 using Client.MirObjects;
 using Client.Utils;
@@ -1399,32 +1400,84 @@ namespace Client.MirGraphics
             int w = Width;
             int h = Height;
 
-            // 先解压到托管数组：既用来上传纹理，也顺手生成可见性掩码。
-            // 原来是把 GZip 流直接灌进 LockRectangle 拿到的指针，解压完就必须扔掉，
-            // 不能留到后面用（那就是 VisiblePixel 崩溃的来源）。
-            byte[] raw = DecompressImage(reader.ReadBytes(Length));
-
-            //★怪物图库：把「去黑底时被误抠掉的身上部位」补回来
-            if (repairPunchedAlpha) BlackHoleRepair.Repair(raw, w, h);
-
-            Image = new Texture(DXManager.Device, w, h, 1, Usage.None, Format.A8R8G8B8, Pool.Managed);
-            UploadRaw(raw, Image, w, h);
-            BuildVisibleMask(raw, w, h);
-
-            if (HasMask)
+            //★内存优化（11-20）：解压缓冲改 ArrayPool 租用。
+            //  原来每次重建贴图都要分配 2~3 个大数组（压缩数据 / 解压输出 / ToArray 再拷一份），
+            //  480×320 地图块 614KB、特效帧 1MB+，全进大对象堆（LOH）；
+            //  CleanDelay 缩短后「释放→重建」循环更频繁，LOH 碎片累积 = 工作集缓慢爬升。
+            //  租用/归还零分配，语义与原版一致：解压输出按 w*h*4 截断（超长忽略、短图按行数兜底）。
+            int rawLen = w * h * 4;
+            byte[] raw = ArrayPool<byte>.Shared.Rent(rawLen);
+            byte[] compressed = ArrayPool<byte>.Shared.Rent(Length);
+            try
             {
-                reader.ReadBytes(12);
+                //ReadBytes → Read：压缩数据也租用（原 ReadBytes 每次都要分配 Length 字节）
+                int readTotal = 0;
+                while (readTotal < Length)
+                {
+                    int n = reader.Read(compressed, readTotal, Length - readTotal);
+                    if (n <= 0) break;
+                    readTotal += n;
+                }
 
-                byte[] maskRaw = DecompressImage(reader.ReadBytes(Length));
+                DecompressImage(compressed, readTotal, raw, rawLen);
 
-                MaskImage = new Texture(DXManager.Device, w, h, 1, Usage.None, Format.A8R8G8B8, Pool.Managed);
-                UploadRaw(maskRaw, MaskImage, w, h);
+                //★怪物图库：把「去黑底时被误抠掉的身上部位」补回来
+                if (repairPunchedAlpha) BlackHoleRepair.Repair(raw, w, h);
+
+                Image = new Texture(DXManager.Device, w, h, 1, Usage.None, Format.A8R8G8B8, Pool.Managed);
+                //★11-23：中途失败必须把已创建的纹理 Dispose——
+                //  原来失败后 Image/MaskImage 既没进 TextureList 也没人释放，
+                //  TextureValid=false 导致下次绘制重试再 new 一张覆盖旧引用，坏一帧每帧漏一张纹理。
+                try
+                {
+                    UploadRaw(raw, Image, w, h);
+                    BuildVisibleMask(raw, w, h);
+
+                    if (HasMask)
+                    {
+                        reader.ReadBytes(12);
+
+                        //★注意：原版这里读的也是 Length（不是 MaskLength），字节流位置必须与原版完全一致，
+                        //  否则同一库后续所有帧的读取起点都会错位。
+                        byte[] maskRaw = ArrayPool<byte>.Shared.Rent(rawLen);
+                        try
+                        {
+                            int maskRead = 0;
+                            while (maskRead < Length)
+                            {
+                                int n = reader.Read(maskRaw, maskRead, Length - maskRead);
+                                if (n <= 0) break;
+                                maskRead += n;
+                            }
+
+                            MaskImage = new Texture(DXManager.Device, w, h, 1, Usage.None, Format.A8R8G8B8, Pool.Managed);
+                            UploadRaw(maskRaw, MaskImage, w, h);
+                        }
+                        finally
+                        {
+                            ArrayPool<byte>.Shared.Return(maskRaw);
+                        }
+                    }
+
+                    DXManager.TextureList.Add(this);
+                    TextureValid = true;
+                }
+                catch
+                {
+                    Image?.Dispose();
+                    Image = null;
+                    MaskImage?.Dispose();
+                    MaskImage = null;
+                    throw;
+                }
+
+                CleanTime = CMain.Time + Settings.CleanDelay;
             }
-
-            DXManager.TextureList.Add(this);
-            TextureValid = true;
-
-            CleanTime = CMain.Time + Settings.CleanDelay;
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(raw);
+                ArrayPool<byte>.Shared.Return(compressed);
+            }
         }
 
         /// <summary>
@@ -1608,6 +1661,27 @@ namespace Client.MirGraphics
             VisibleBounds = Rectangle.FromLTRB(l, t, r, b);
 
             return TrueSize;
+        }
+
+        /// <summary>
+        /// ★11-20 内存优化：把 GZip 数据直接解压进调用方提供的缓冲（全程零大数组分配）。
+        /// 输出超过 target 容量时按容量截断（与原 ToArray 后由 UploadRaw/BuildVisibleMask 兜底的行为一致）。
+        /// </summary>
+        private static void DecompressImage(byte[] compressed, int compressedLen, byte[] target, int targetLen)
+        {
+            if (compressed == null || compressedLen <= 0 || target == null || targetLen <= 0) return;
+
+            using (GZipStream stream = new GZipStream(new MemoryStream(compressed, 0, compressedLen), CompressionMode.Decompress))
+            {
+                int written = 0;
+
+                while (written < targetLen)
+                {
+                    int count = stream.Read(target, written, targetLen - written);
+                    if (count <= 0) break;
+                    written += count;
+                }
+            }
         }
 
         private static byte[] DecompressImage(byte[] image)

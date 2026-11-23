@@ -114,7 +114,9 @@ namespace Server.MirObjects.Monsters
                 monster.Direction = Direction;
                 monster.ActionTime = Envir.Time + 1000;
                 monster.Target = Target;
-                Pets.Add(monster);
+
+                //★11-23：不再提前 Pets.Add——延迟落地成功后由 Map.Process(DelayedType.Spawn)
+                //  统一收编进主人 Pets（怪物侧召唤的通用口径），落点不可走就不会产生僵尸宠物。
 
                 Broadcast(new S.ObjectMagic { ObjectID = ObjectID, Direction = Direction, Location = CurrentLocation, Spell = Spell.SummonShinsu, TargetID = Target.ObjectID, Target = Target.CurrentLocation, Cast = true, Level = 3 });
 

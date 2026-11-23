@@ -645,8 +645,6 @@ namespace Server.MirObjects
                         monster.Master = this;
                         monster.PetLevel = 0;
                         monster.MaxPetLevel = 7;
-
-                        Pets.Add(monster);
                     }
 
                     if (conquestOnly)
@@ -663,8 +661,17 @@ namespace Server.MirObjects
                     monster.Direction = Direction;
                     monster.ActionTime = Envir.Time + 5000;
 
-                    if (!monster.Spawn(CurrentMap, Front))
-                        monster.Spawn(CurrentMap, CurrentLocation);
+                    //★11-23：先落地、后入列表（对齐 PlayerObject 载入时的写法）——
+                    //  两个落点都不可走时 Spawn 返回 false，先入 Pets 就是僵尸宠物；
+                    //  且原来 conquestOnly 提前 return 时宠物已进 Pets，同样产生僵尸。
+                    if (!monster.Spawn(CurrentMap, Front) && !monster.Spawn(CurrentMap, CurrentLocation))
+                    {
+                        if (spawnAsPet) monster.Master = null;   // 没落地，不进 Pets
+                    }
+                    else if (spawnAsPet)
+                    {
+                        Pets.Add(monster);
+                    }
                     break;
                 case ItemType.攻城弹药:
                     //TODO;
@@ -1839,6 +1846,46 @@ namespace Server.MirObjects
             Experience = experience;
 
             LevelUp();
+        }
+
+        /// <summary>
+        /// ★英雄（11-20）：调整英雄经验（NPC 命令 HEROEXP / GM 命令 @HEROEXP 共用入口）。
+        /// 正数=加经验（走 GainExp 正规通道：含经验加成属性、可连升多级、客户端经验条同步）；
+        /// 负数=只扣当前经验条，绝不掉级（口径 11-20 用户确认）。
+        /// 返回反馈文案（由调用方用主人的 ReceiveChat 发出 —— 英雄自己的聊天包会被 Enqueue 丢弃）；
+        /// 参数非法返回 null。
+        /// </summary>
+        public string ApplyExpDelta(long delta)
+        {
+            if (delta == 0) return null;
+
+            if (delta > 0)
+            {
+                uint gain = delta > uint.MaxValue ? uint.MaxValue : (uint)delta;
+                GainExp(gain);
+                return string.Format("英雄获得 {0} 经验，当前等级 {1}", gain, Level);
+            }
+
+            long reduce = -delta;
+            Experience = reduce >= Experience ? 0 : Experience - reduce;
+            Owner.Enqueue(new S.HeroLevelChanged { Level = Level, Experience = Experience, MaxExperience = MaxExperience });
+            return string.Format("英雄扣除 {0} 经验，剩余 {1}/{2}", reduce, Experience, MaxExperience);
+        }
+
+        /// <summary>
+        /// ★英雄（11-20）：直接设定英雄等级（NPC 命令 SETHEROLEVEL / GM 现有 @LEVELHERO 同一口径）。
+        /// 走 LevelUp 正规通道（RefreshStats 重算 MaxExperience/属性 + HeroLevelChanged 同步）。
+        /// 返回反馈文案；等级非法返回 null。
+        /// </summary>
+        public string ApplySetLevel(ushort level)
+        {
+            if (level == 0) return null;
+
+            ushort old = Level;
+            Level = level;
+            LevelUp();
+
+            return string.Format("英雄等级 {0} -> {1}", old, Level);
         }
 
         private void SendInfo()

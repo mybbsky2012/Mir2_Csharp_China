@@ -3396,8 +3396,10 @@ namespace Client.MirScenes
             RecipeInfoList.Clear();
             GameShopInfoList.Clear();
 
-            // 登录界面固定用默认档窗口，这里按实际尺寸比较，避免分辨率值语义变化后漏判
-            Size loginSize = ResolutionHelper.GetSize(ResolutionHelper.DefaultResolution);
+            //★11-23：登录界面是按 800×600（LoginSize）布局的——
+            //  原来这里用 DefaultResolution(1024×768)，断线回登录后窗口尺寸与登录 UI 不匹配
+            //  （正常退回选人那条路径用的就是 LoginSize，此处是唯一漏网）。
+            Size loginSize = ResolutionHelper.LoginSize;
             if (Settings.ScreenWidth != loginSize.Width || Settings.ScreenHeight != loginSize.Height)
                 CMain.SetResolution(loginSize.Width, loginSize.Height);
 
@@ -11242,6 +11244,10 @@ namespace Client.MirScenes
         public void LoadMap()
         {
             ResetMap();
+
+            //★内存优化（11-20）：切图瞬间做一次 LOH 压缩 —— 这一刻本来就在换场景，
+            //  一次 GC 的几十毫秒玩家无感；挂机长时间驻留同一张图则由 CMain 15 分钟定时兜底。
+            CMain.CompactLargeObjectHeap();
 
             MapObject.MouseObjectID = 0;
             MapObject.TargetObjectID = 0;

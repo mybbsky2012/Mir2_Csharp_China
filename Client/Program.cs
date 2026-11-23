@@ -21,11 +21,15 @@ namespace Client
             //   必须在创建任何窗口前调用；100% 缩放的机器行为完全不变。
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
 
+            bool forceDebug = false;
+
             if (args.Length > 0)
             {
                 foreach (var arg in args)
                 {
                     if (arg.ToLower() == "-tc") Settings.UseTestConfig = true;
+                    //★11-20：-debug 强制开调试面板，绕开 ini（另一台机器疑似工作目录不对读不到配置）
+                    if (arg.ToLower() == "-debug") forceDebug = true;
                 }
             }
 
@@ -41,6 +45,9 @@ namespace Client
 
                 Packet.IsServer = false;
                 Settings.Load();
+
+                //★-debug 在 Load 之后强制生效（Load 会用 ini 覆盖默认值）
+                if (forceDebug) Settings.DebugMode = true;
 
                 // 皮肤包：读 UI\skin.ini 决定用哪套外部 UI 素材。
                 // 必须在图库（Libraries）被首次访问之前调用，否则第一帧会用原图。

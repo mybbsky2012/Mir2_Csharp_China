@@ -564,6 +564,78 @@ namespace Server.MirObjects
                         CheckList.Add(new NPCChecks(CheckType.CheckHumUp, parts[1], parts[2]));
                     }
                     break;
+                //★英雄（11-20）：检测英雄登仙重数。英雄未召唤/已死亡一律「不成立」。
+                //  三种写法（与 CHECKHUMUP 完全一致）：
+                //  CHECKHEROHUMUP          → 英雄已登仙（重数 >= 1）
+                //  CHECKHEROHUMUP 3        → 重数 >= 3（简写）
+                //  CHECKHEROHUMUP >= 3     → 显式比较，运算符 = > < >= <= !=
+                case "CHECKHEROHUMUP":
+                    {
+                        if (parts.Length <= 1)
+                        {
+                            CheckList.Add(new NPCChecks(CheckType.CheckHeroHumUp, ">=", "1"));
+                            break;
+                        }
+
+                        if (parts.Length == 2)
+                        {
+                            CheckList.Add(new NPCChecks(CheckType.CheckHeroHumUp, ">=", parts[1]));
+                            break;
+                        }
+
+                        CheckList.Add(new NPCChecks(CheckType.CheckHeroHumUp, parts[1], parts[2]));
+                    }
+                    break;
+                //★11-23：检测背包空格数。末尾带 HERO 参数 = 查英雄背包（英雄未召唤/死亡一律「不成立」）。
+                //  写法（op 可省略，省略 = >=）：
+                //  CHECKBAG              → 本体背包至少有 1 个空格
+                //  CHECKBAG 5            → 本体空格 >= 5
+                //  CHECKBAG >= 5         → 本体空格显式比较，运算符 = > < >= <= !=
+                //  CHECKBAG HERO         → 英雄背包至少有 1 个空格
+                //  CHECKBAG HERO 5       → 英雄空格 >= 5
+                //  CHECKBAG HERO >= 5    → 英雄空格显式比较
+                case "CHECKBAG":
+                    {
+                        bool heroBag = parts.Length > 1 && string.Equals(parts[1], "HERO", StringComparison.OrdinalIgnoreCase);
+
+                        int idx = heroBag ? 2 : 1; //第一个非 HERO 参数的位置
+
+                        if (parts.Length <= idx)
+                        {
+                            CheckList.Add(new NPCChecks(CheckType.CheckBagSpace, ">=", "1", heroBag ? "HERO" : string.Empty));
+                            break;
+                        }
+
+                        if (parts.Length == idx + 1)
+                        {
+                            CheckList.Add(new NPCChecks(CheckType.CheckBagSpace, ">=", parts[idx], heroBag ? "HERO" : string.Empty));
+                            break;
+                        }
+
+                        CheckList.Add(new NPCChecks(CheckType.CheckBagSpace, parts[idx], parts[idx + 1], heroBag ? "HERO" : string.Empty));
+                    }
+                    break;
+                //★11-23：检测英雄背包空格数（独立写法，与「CHECKBAG HERO」完全等价）。英雄未召唤/死亡一律「不成立」。
+                //  CHECKHEROBAG          → 英雄背包至少有 1 个空格
+                //  CHECKHEROBAG 5        → 空格 >= 5（简写）
+                //  CHECKHEROBAG >= 5     → 显式比较
+                case "CHECKHEROBAG":
+                    {
+                        if (parts.Length <= 1)
+                        {
+                            CheckList.Add(new NPCChecks(CheckType.CheckHeroBagSpace, ">=", "1"));
+                            break;
+                        }
+
+                        if (parts.Length == 2)
+                        {
+                            CheckList.Add(new NPCChecks(CheckType.CheckHeroBagSpace, ">=", parts[1]));
+                            break;
+                        }
+
+                        CheckList.Add(new NPCChecks(CheckType.CheckHeroBagSpace, parts[1], parts[2]));
+                    }
+                    break;
                 case "CHECKTRANSFORM":
                     if (parts.Length < 2) return;
 
@@ -571,12 +643,296 @@ namespace Server.MirObjects
                     break;
                 //★羽化登仙（11-13）：装备栏是否全空。韩服原文「进行羽化登仙时必须卸下所有装备」，
                 //  用 CHECKEMPTYEQUIP 做硬门槛，缺装备槽也算空。
+                //★11-20 扩展：可带槽位参数——CHECKEMPTYEQUIP 武器 / CHECKEMPTYEQUIP 0,4（多槽位逗号分隔）。
+                //  无参=整栏全空；带参=指定槽位全部为空才成立。
                 case "CHECKEMPTYEQUIP":
-                    CheckList.Add(new NPCChecks(CheckType.CheckEmptyEquip));
+                    if (parts.Length > 1)
+                        CheckList.Add(new NPCChecks(CheckType.CheckEmptyEquip, parts[1]));
+                    else
+                        CheckList.Add(new NPCChecks(CheckType.CheckEmptyEquip));
+                    break;
+                //★英雄（11-20）：英雄装备栏是否全空（英雄登仙仪式门槛）。英雄未召唤/已死亡一律「不成立」。
+                //  同样支持槽位参数：CHECKHEROEMPTYEQUIP 武器 / CHECKHEROEMPTYEQUIP 0,4
+                case "CHECKHEROEMPTYEQUIP":
+                    if (parts.Length > 1)
+                        CheckList.Add(new NPCChecks(CheckType.CheckHeroEmptyEquip, parts[1]));
+                    else
+                        CheckList.Add(new NPCChecks(CheckType.CheckHeroEmptyEquip));
                     break;
             }
 
         }
+        /// <summary>
+        /// ★11-20：装备槽空位检测（CHECKEMPTYEQUIP / CHECKHEROEMPTYEQUIP 共用）。
+        /// slotArg 为空/空白 = 整栏全空才算空；带参 = 指定槽位**全部**为空才算空。
+        /// 槽位写法：数字索引（0~13，同 EquipmentSlot）或中文名（武器/盔甲/头盔/照明物/项链/左手镯/右手镯/左戒指/右戒指/护身符/腰带/靴子/守护石/坐骑），多个用逗号分隔（如「0,4」或「武器,头盔」）。
+        /// 返回 true = 成立（指定范围全空）；槽位写错/越界 = 不成立（安全口径，同时记日志）。
+        /// </summary>
+        private static bool IsEquipSlotEmpty(UserItem[] equip, string slotArg)
+        {
+            if (equip == null) return true;   // 缺装备槽也算空（对齐 11-13 口径）
+
+            if (string.IsNullOrWhiteSpace(slotArg))
+            {
+                // 原行为：整栏全空
+                for (int eq = 0; eq < equip.Length; eq++)
+                    if (equip[eq] != null) return false;
+                return true;
+            }
+
+            foreach (string raw in slotArg.Split(','))
+            {
+                string s = raw.Trim();
+                if (s.Length == 0) continue;
+
+                int slot;
+                if (!TryResolveEquipSlot(s, out slot))
+                {
+                    MessageQueue.Enqueue(string.Format("NPC命令装备槽参数无法识别: \"{0}\"（支持 0~13 或槽位名，页内 CHECKEMPTYEQUIP/CHECKHEROEMPTYEQUIP）", s));
+                    return false;   // 识别不了 = 不成立，宁可拦下也不放行
+                }
+
+                if (slot < 0 || slot >= equip.Length)
+                {
+                    MessageQueue.Enqueue(string.Format("NPC命令装备槽越界: \"{0}\"（有效范围 0~13）", s));
+                    return false;
+                }
+
+                if (equip[slot] != null) return false;   // 任一指定槽位有东西 = 不成立
+            }
+            return true;
+        }
+
+        /// <summary>槽位参数 → EquipmentSlot 索引。数字（0~13）或中文名（忽略大小写）。</summary>
+        private static bool TryResolveEquipSlot(string text, out int slot)
+        {
+            slot = -1;
+
+            if (byte.TryParse(text, out byte num))
+            {
+                slot = num;
+                return true;
+            }
+
+            foreach (EquipmentSlot es in Enum.GetValues(typeof(EquipmentSlot)))
+            {
+                if (string.Equals(es.ToString(), text, StringComparison.OrdinalIgnoreCase))
+                {
+                    slot = (int)es;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// ★11-23：解析 GIVEW/TAKEW 参数——可以是槽位（数字 0~13 或槽名）或装备类型（ItemType 名）。
+        /// 槽位名与类型名重叠的（武器/盔甲/头盔等）语义等价；「手镯」「戒指」只按类型匹配（自动分配左右槽）。
+        /// 空字符串 = 无过滤（穿/脱全部）。
+        /// </summary>
+        private static bool TryResolveSlotOrType(string text, out int slot, out ItemType? type)
+        {
+            slot = -1;
+            type = null;
+
+            if (string.IsNullOrWhiteSpace(text)) return true; //无参 = 全部
+
+            if (TryResolveEquipSlot(text, out slot)) return true;
+
+            foreach (ItemType it in Enum.GetValues(typeof(ItemType)))
+            {
+                if (string.Equals(it.ToString(), text, StringComparison.OrdinalIgnoreCase))
+                {
+                    type = it;
+                    slot = -1;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>★11-23：统计背包空格数。</summary>
+        private static int CountFreeSlots(UserItem[] bag)
+        {
+            if (bag == null) return 0;
+
+            int free = 0;
+            for (int i = 0; i < bag.Length; i++)
+                if (bag[i] == null) free++;
+            return free;
+        }
+
+        /// <summary>★11-23：推一次本体背包+装备栏全量刷新包（对齐 NpcEquip 的本体同步方式）。</summary>
+        private static void SendPlayerSlotsRefresh(PlayerObject player)
+        {
+            S.UserSlotsRefresh packet = new S.UserSlotsRefresh
+            {
+                Inventory = new UserItem[player.Info.Inventory.Length],
+                Equipment = new UserItem[player.Info.Equipment.Length],
+            };
+
+            player.Info.Inventory.CopyTo(packet.Inventory, 0);
+            player.Info.Equipment.CopyTo(packet.Equipment, 0);
+
+            player.Enqueue(packet);
+        }
+
+        /// <summary>
+        /// ★11-23：NPC 自动穿戴核心（GIVEW/GIVEWHERO 共用）。从 target 的背包把装备穿到身上。
+        /// fixedSlot >= 0 = 只穿该槽位；typeFilter 有值 = 只穿该类型；两者都空 = 把背包里所有能穿的都穿上。
+        /// 走 target.CanEquipItem 正规校验（类型/职业/性别/等级/登仙 Shape）。返回穿上件数；一件都没穿时 failReason 说明原因。
+        /// 注意：只改数组，不做网络同步——由调用方统一推送。
+        /// </summary>
+        public static int NpcGiveW(HumanObject target, PlayerObject player, MirGridType bagGrid, ItemType? typeFilter, int fixedSlot, out string failReason)
+        {
+            failReason = string.Empty;
+
+            if (target?.Info == null || target.Info.Inventory == null || target.Info.Equipment == null)
+            {
+                failReason = "目标背包/装备栏不可用";
+                return 0;
+            }
+
+            //指定槽位但已被占用 → 直接拒绝（可预测口径，不自动替换）
+            if (fixedSlot >= 0 && target.Info.Equipment[fixedSlot] != null)
+            {
+                failReason = string.Format("{0} 部位已有装备，请先用 TAKEW 脱下", (EquipmentSlot)fixedSlot);
+                return 0;
+            }
+
+            int equipped = 0;
+            UserItem[] bag = target.Info.Inventory;
+
+            for (int i = 0; i < bag.Length; i++)
+            {
+                UserItem bagItem = bag[i];
+                if (bagItem == null || bagItem.Info == null) continue;
+                if (typeFilter.HasValue && bagItem.Info.Type != typeFilter.Value) continue;
+
+                int targetSlot = -1;
+
+                if (fixedSlot >= 0)
+                {
+                    if (target.CanEquipItem(bagItem, fixedSlot)) targetSlot = fixedSlot;
+                }
+                else
+                {
+                    for (int e = 0; e < target.Info.Equipment.Length; e++)
+                    {
+                        if (target.Info.Equipment[e] != null) continue;
+                        if (!target.CanEquipItem(bagItem, e)) continue;
+                        targetSlot = e;
+                        break;
+                    }
+                }
+
+                if (targetSlot == -1) continue;
+
+                //与玩家正常穿戴相同的附加处理（对齐 NpcEquip）
+                if (bagItem.Info.NeedIdentify) bagItem.Identified = true;
+                if (bagItem.Info.Bind.HasFlag(BindMode.BindOnEquip) && bagItem.SoulBoundId == -1)
+                    bagItem.SoulBoundId = player.Info.Index;
+
+                target.Info.Equipment[targetSlot] = bagItem;
+                bag[i] = null;
+                equipped++;
+
+                player.Report.ItemMoved(bagItem, bagGrid, MirGridType.Equipment, i, targetSlot);
+
+                if (fixedSlot >= 0) break; //指定槽位只穿一件
+            }
+
+            if (equipped == 0 && string.IsNullOrEmpty(failReason))
+                failReason = "背包里没有符合条件的装备（或槽位被占/职业性别等级不符）";
+
+            return equipped;
+        }
+
+        /// <summary>
+        /// ★11-23：NPC 自动脱下核心（TAKEW/TAKEWHERO 共用）。把 target 身上的装备脱回背包。
+        /// fixedSlot >= 0 = 只脱该槽位；typeFilter 有值 = 只脱该类型；两者都空 = 全身脱光。
+        /// 被诅咒（未解锁）/结婚戒指自动跳过（skipNotes 记提示）；背包空格不足 = 整单拒绝（一件都不动）。
+        /// 返回脱下件数；一件都没脱时 failReason 说明原因。只改数组，不做网络同步——由调用方统一推送。
+        /// </summary>
+        public static int NpcTakeW(HumanObject target, PlayerObject player, MirGridType bagGrid, ItemType? typeFilter, int fixedSlot, List<string> skipNotes, out string failReason)
+        {
+            failReason = string.Empty;
+
+            if (target?.Info == null || target.Info.Inventory == null || target.Info.Equipment == null)
+            {
+                failReason = "目标背包/装备栏不可用";
+                return 0;
+            }
+
+            //先收集要脱的槽位（跳过结婚戒指/诅咒/骑马限制）
+            List<int> takeSlots = new List<int>();
+            for (int e = 0; e < target.Info.Equipment.Length; e++)
+            {
+                UserItem eq = target.Info.Equipment[e];
+                if (eq == null || eq.Info == null) continue;
+                if (fixedSlot >= 0 && e != fixedSlot) continue;
+                if (typeFilter.HasValue && eq.Info.Type != typeFilter.Value) continue;
+
+                if (eq.WeddingRing != -1)
+                {
+                    skipNotes.Add(string.Format("{0}（{1}）是结婚戒指，无法自动脱下", eq.FriendlyName, (EquipmentSlot)e));
+                    continue;
+                }
+
+                if (eq.Cursed && !player.UnlockCurse)
+                {
+                    skipNotes.Add(string.Format("{0}（{1}）被诅咒，无法自动脱下，请先解锁诅咒", eq.FriendlyName, (EquipmentSlot)e));
+                    continue;
+                }
+
+                if (!player.CanRemoveItem(bagGrid, eq))
+                {
+                    skipNotes.Add(string.Format("{0}（{1}）当前无法脱下（骑马中或背包无空格）", eq.FriendlyName, (EquipmentSlot)e));
+                    continue;
+                }
+
+                takeSlots.Add(e);
+            }
+
+            if (takeSlots.Count == 0)
+            {
+                failReason = "身上没有符合条件的装备（或全部无法脱下）";
+                return 0;
+            }
+
+            //背包空格整单检测（对齐英雄自动脱装口径：不够 = 一件都不动 + 红字）
+            UserItem[] bag = target.Info.Inventory;
+            List<int> freeSlots = new List<int>();
+            for (int k = 0; k < bag.Length; k++)
+                if (bag[k] == null) freeSlots.Add(k);
+
+            if (freeSlots.Count < takeSlots.Count)
+            {
+                failReason = string.Format("背包空格不足（需 {0} 格，当前 {1} 格），一件都没有脱，请先清理背包",
+                    takeSlots.Count, freeSlots.Count);
+                return 0;
+            }
+
+            int moved = 0;
+            for (int i = 0; i < takeSlots.Count; i++)
+            {
+                int slot = takeSlots[i];
+                UserItem eq = target.Info.Equipment[slot];
+
+                target.Info.Equipment[slot] = null;
+                bag[freeSlots[i]] = eq;
+                moved++;
+
+                if (eq.Cursed) player.UnlockCurse = false; //对齐 RemoveItem：移动诅咒物品消耗解锁标记
+
+                player.Report.ItemMoved(eq,
+                    bagGrid == MirGridType.HeroInventory ? MirGridType.HeroEquipment : MirGridType.Equipment,
+                    bagGrid, slot, freeSlots[i]);
+            }
+
+            return moved;
+        }
+
         public void ParseAct(List<NPCActions> acts, string line)
         {
             var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -1126,6 +1482,42 @@ namespace Server.MirObjects
                         acts.Add(new NPCActions(ActionType.HumUpReset));
                     break;
 
+                //★英雄（11-20）：调整英雄经验。HEROEXP n —— 正=加、负=扣（只扣当前经验条，不掉级）。
+                //  加经验走 GainExp 正规通道（含经验加成属性、连升多级）；大额经验可一次连升。
+                case "HEROEXP":
+                    if (parts.Length < 2) return;
+
+                    acts.Add(new NPCActions(ActionType.HeroExp, parts[1]));
+                    break;
+
+                //★英雄（11-20）：直接设定英雄等级。SETHEROLEVEL n（1~上限，走 LevelUp 正规刷属性）。
+                //  注意不能叫 HEROLEVEL —— 那是 #IF 里的英雄等级检查命令，同名两义容易写错脚本。
+                case "SETHEROLEVEL":
+                    if (parts.Length < 2) return;
+
+                    acts.Add(new NPCActions(ActionType.HeroSetLevel, parts[1]));
+                    break;
+
+                //★英雄（11-20）：英雄羽化升重。HEROHUMUP [重数] —— 升 N 重，默认 1，封顶 10；带参=直接设为 N 重
+                case "HEROHUMUP":
+                    acts.Add(new NPCActions(ActionType.HeroHumUpUp, parts.Length > 1 ? parts[1] : "1"));
+                    break;
+
+                //★英雄（11-20）：英雄羽化降重。HEROHUMDOWN [重数] —— 降 N 重，默认 1；降到 0 = 完全退回
+                case "HEROHUMDOWN":
+                    acts.Add(new NPCActions(ActionType.HeroHumUpDown, parts.Length > 1 ? parts[1] : "1"));
+                    break;
+
+                //★英雄（11-20）：英雄还原为未登仙。
+                //  RESETHEROHUMUP        → 还原；英雄还穿着羽化装备时拒绝并红字提示
+                //  RESETHEROHUMUP 1      → 强制还原：先自动脱英雄羽化装备（背包空格不足则整单失败+红字）
+                case "RESETHEROHUMUP":
+                    if (parts.Length > 1)
+                        acts.Add(new NPCActions(ActionType.HeroHumUpReset, parts[1]));
+                    else
+                        acts.Add(new NPCActions(ActionType.HeroHumUpReset));
+                    break;
+
                 case "ADDTOGUILD":
                     if (parts.Length < 2) return;
                     acts.Add(new NPCActions(ActionType.AddToGuild, parts[1]));
@@ -1408,6 +1800,29 @@ namespace Server.MirObjects
                     if (parts.Length < 2) return;
 
                     acts.Add(new NPCActions(ActionType.EquipItem, parts[1], parts.Length > 2 ? parts[2] : string.Empty));
+                    break;
+
+                //★11-23 自动穿戴 GIVEW [槽位|类型]：从背包把装备穿到身上（无参=把背包里所有能穿的都穿上）。
+                //  参数可以是槽位（数字 0~13 或槽名，见 EquipmentSlot）或装备类型（ItemType 名，如 手镯/戒指）。
+                //  与 EQUIPITEM（凭空造一件指定物品穿上）互补：GIVEW 穿的是背包里已有的装备。
+                case "GIVEW":
+                    acts.Add(new NPCActions(ActionType.GiveW, parts.Length > 1 ? parts[1] : string.Empty));
+                    break;
+
+                //★11-23 自动穿戴英雄版 GIVEWHERO [槽位|类型]：从英雄背包穿到英雄身上（英雄未召唤/死亡=提示后跳过）。
+                case "GIVEWHERO":
+                    acts.Add(new NPCActions(ActionType.GiveWHero, parts.Length > 1 ? parts[1] : string.Empty));
+                    break;
+
+                //★11-23 自动脱下 TAKEW [槽位|类型]：把身上的装备脱回背包（无参=全身脱光）。
+                //  背包空格不足 = 整单拒绝（一件都不脱）+红字提示；被诅咒/结婚戒指自动跳过。
+                case "TAKEW":
+                    acts.Add(new NPCActions(ActionType.TakeW, parts.Length > 1 ? parts[1] : string.Empty));
+                    break;
+
+                //★11-23 自动脱下英雄版 TAKEWHERO [槽位|类型]：英雄身上的装备脱回英雄背包（口径同 TAKEW）。
+                case "TAKEWHERO":
+                    acts.Add(new NPCActions(ActionType.TakeWHero, parts.Length > 1 ? parts[1] : string.Empty));
                     break;
 
                 // 直接把物品穿到英雄身上（不经过英雄背包）：HEROEQUIPITEM <物品名> [部位]
@@ -3299,18 +3714,118 @@ namespace Server.MirObjects
                             }
                         }
                         break;
+                    case CheckType.CheckHeroHumUp:
+                        {
+                            //★英雄（11-20）：检测英雄登仙重数。英雄未召唤/已死亡一律按「不成立」处理（同 CHECKHERO 系列）
+                            if (player.Hero == null || player.Hero.Dead)
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            if (!int.TryParse(param[1], out int wantHeroStage))
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            try
+                            {
+                                failed = !Compare(param[0], player.Hero.GetHumUpStage(), wantHeroStage);
+                            }
+                            catch (ArgumentException)
+                            {
+                                MessageQueue.Enqueue(string.Format("NPC命令CHECKHEROHUMUP中错误使用 {0} 操作符, 页码: {1}", param[0], Key));
+                                failed = true;
+                            }
+                        }
+                        break;
                     case CheckType.CheckEmptyEquip:
                         {
                             //★羽化登仙（11-13）：装备 14 个槽位必须全空，才允许完成羽化仪式。
                             //  韩服原文：进行羽化登仙时必须卸下所有装备——否则会出现"仙体外观 + 旧装备属性"的叠加。
-                            failed = false;
-                            for (int eq = 0; eq < player.Info.Equipment.Length; eq++)
+                            //★11-20 扩展：支持槽位参数（无参=整栏全空；带参=指定槽位全空才成立）
+                            failed = !IsEquipSlotEmpty(player.Info.Equipment, param.Count > 0 ? param[0] : null);
+                        }
+                        break;
+                    case CheckType.CheckHeroEmptyEquip:
+                        {
+                            //★英雄（11-20）：英雄装备栏全空检测（英雄登仙仪式门槛）。
+                            //  英雄未召唤/已死亡一律「不成立」（同 CHECKHEROHUMUP 口径）；缺装备槽也算空。
+                            if (player.Hero == null || player.Hero.Dead)
                             {
-                                if (player.Info.Equipment[eq] != null)
-                                {
-                                    failed = true;
-                                    break;
-                                }
+                                failed = true;
+                                break;
+                            }
+
+                            failed = !IsEquipSlotEmpty(player.Hero.Info.Equipment, param.Count > 0 ? param[0] : null);
+                        }
+                        break;
+                    case CheckType.CheckBagSpace:
+                        {
+                            //★11-23：背包空格数检测。param 结构（ParseCheck 处约定）：
+                            //  [0]=运算符, [1]=比较值, [2]="HERO"（英雄背包）或空串（本体背包）
+                            bool heroBag = param.Count > 2 && string.Equals(param[2], "HERO", StringComparison.OrdinalIgnoreCase);
+
+                            if (heroBag && (player.Hero == null || player.Hero.Dead))
+                            {
+                                //英雄未召唤/已死亡一律「不成立」（同 CHECKHERO 系列口径）
+                                failed = true;
+                                break;
+                            }
+
+                            if (!int.TryParse(param[1], out int wantFree))
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            UserItem[] bagArray = heroBag ? player.Hero.Info.Inventory : player.Info.Inventory;
+
+                            int freeCount = 0;
+                            if (bagArray != null)
+                                for (int b = 0; b < bagArray.Length; b++)
+                                    if (bagArray[b] == null) freeCount++;
+
+                            try
+                            {
+                                failed = !Compare(param[0], freeCount, wantFree);
+                            }
+                            catch (ArgumentException)
+                            {
+                                MessageQueue.Enqueue(string.Format("NPC命令CHECKBAG中错误使用 {0} 操作符, 页码: {1}", param[0], Key));
+                                failed = true;
+                            }
+                        }
+                        break;
+                    case CheckType.CheckHeroBagSpace:
+                        {
+                            //★11-23：英雄背包空格数（独立写法，与 CHECKBAG HERO 等价）。英雄未召唤/死亡一律「不成立」。
+                            if (player.Hero == null || player.Hero.Dead)
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            if (!int.TryParse(param[1], out int wantHeroFree))
+                            {
+                                failed = true;
+                                break;
+                            }
+
+                            int heroFreeCount = 0;
+                            if (player.Hero.Info.Inventory != null)
+                                for (int b = 0; b < player.Hero.Info.Inventory.Length; b++)
+                                    if (player.Hero.Info.Inventory[b] == null) heroFreeCount++;
+
+                            try
+                            {
+                                failed = !Compare(param[0], heroFreeCount, wantHeroFree);
+                            }
+                            catch (ArgumentException)
+                            {
+                                MessageQueue.Enqueue(string.Format("NPC命令CHECKHEROBAG中错误使用 {0} 操作符, 页码: {1}", param[0], Key));
+                                failed = true;
                             }
                         }
                         break;
@@ -4383,6 +4898,150 @@ namespace Server.MirObjects
                         }
                         break;
 
+                    //★英雄（11-20）：以下英雄命令都要求英雄已召唤且未死亡，否则红字提示后跳过（不中断脚本）。
+                    //  英雄的 Enqueue 会丢弃大部分包（聊天到不了主人客户端），所以所有提示一律走 player.ReceiveChat。
+                    case ActionType.HeroExp:
+                        {
+                            HeroObject hero = player.Hero;
+
+                            if (hero == null || hero.Dead)
+                            {
+                                player.ReceiveChat("英雄未召唤或已死亡，无法调整英雄经验", ChatType.System);
+                                break;
+                            }
+
+                            if (!long.TryParse(param.Count > 0 ? param[0] : "", out long heroExp) || heroExp == 0)
+                            {
+                                player.ReceiveChat("英雄经验参数无效，用法：HEROEXP 数值（正=加，负=扣）", ChatType.System);
+                                break;
+                            }
+
+                            // 共用入口（11-20）：正=走 GainExp 正规通道；负=只扣当前经验条不掉级
+                            string expFeedback = hero.ApplyExpDelta(heroExp);
+                            if (expFeedback != null) player.ReceiveChat(expFeedback, ChatType.System);
+                        }
+                        break;
+
+                    case ActionType.HeroSetLevel:
+                        {
+                            HeroObject hero = player.Hero;
+
+                            if (hero == null || hero.Dead)
+                            {
+                                player.ReceiveChat("英雄未召唤或已死亡，无法设定英雄等级", ChatType.System);
+                                break;
+                            }
+
+                            if (!ushort.TryParse(param.Count > 0 ? param[0] : "", out ushort wantLevel) || wantLevel == 0)
+                            {
+                                player.ReceiveChat("英雄等级参数无效，用法：SETHEROLEVEL 等级（1~65535）", ChatType.System);
+                                break;
+                            }
+
+                            string levelFeedback = hero.ApplySetLevel(wantLevel);   // 正规通道：RefreshStats + HeroLevelChanged 同步
+                            if (levelFeedback != null) player.ReceiveChat(levelFeedback, ChatType.System);
+                        }
+                        break;
+
+                    case ActionType.HeroHumUpUp:
+                        {
+                            HeroObject hero = player.Hero;
+
+                            if (hero == null || hero.Dead)
+                            {
+                                player.ReceiveChat("英雄未召唤或已死亡，无法升重", ChatType.System);
+                                break;
+                            }
+
+                            int heroBefore = hero.GetHumUpStage();
+
+                            if (heroBefore >= 10)
+                            {
+                                player.ReceiveChat("你的英雄已达到 羽化登仙·十重，无法再升", ChatType.System);
+                                break;
+                            }
+
+                            int.TryParse(param.Count > 0 ? param[0] : "1", out int heroUp);
+                            if (heroUp < 1) heroUp = 1;
+
+                            if (!hero.SetHumUpStage(heroBefore + heroUp, player)) break;
+
+                            player.ReceiveChat(string.Format("你的英雄已升到 羽化登仙·{0}重", hero.GetHumUpStage()), ChatType.System);
+                        }
+                        break;
+
+                    case ActionType.HeroHumUpDown:
+                        {
+                            HeroObject hero = player.Hero;
+
+                            if (hero == null || hero.Dead)
+                            {
+                                player.ReceiveChat("英雄未召唤或已死亡，无法降重", ChatType.System);
+                                break;
+                            }
+
+                            if (hero.GetHumUpStage() <= 0)
+                            {
+                                player.ReceiveChat("你的英雄尚未羽化登仙，无法降重", ChatType.System);
+                                break;
+                            }
+
+                            int.TryParse(param.Count > 0 ? param[0] : "1", out int heroDown);
+                            if (heroDown < 1) heroDown = 1;
+
+                            // 降空且英雄还穿着羽化装备时 SetHumUpStage 会拒绝（提示发在英雄身上会被 Enqueue 丢弃），
+                            // 所以这里先自己判一遍，红字直接发给主人。
+                            if (hero.GetHumUpStage() - heroDown <= 0 && hero.HasHumUpEquipmentEquipped())
+                            {
+                                player.ReceiveChat("你的英雄还穿着羽化专属装备，请先脱下英雄身上的羽化装备，再退回羽化登仙", ChatType.System);
+                                break;
+                            }
+
+                            if (!hero.SetHumUpStage(hero.GetHumUpStage() - heroDown, player)) break;
+
+                            if (hero.GetHumUpStage() <= 0)
+                                player.ReceiveChat("你的英雄羽化登仙已完全退回", ChatType.System);
+                            else
+                                player.ReceiveChat(string.Format("你的英雄已退回到 羽化登仙·{0}重", hero.GetHumUpStage()), ChatType.System);
+                        }
+                        break;
+
+                    case ActionType.HeroHumUpReset:
+                        {
+                            HeroObject hero = player.Hero;
+
+                            if (hero == null || hero.Dead)
+                            {
+                                player.ReceiveChat("英雄未召唤或已死亡，无法还原", ChatType.System);
+                                break;
+                            }
+
+                            if (hero.GetHumUpStage() <= 0)
+                            {
+                                player.ReceiveChat("你的英雄尚未羽化登仙，无需还原", ChatType.System);
+                                break;
+                            }
+
+                            // 强制模式：先把英雄身上的羽化专属装备退回英雄背包（空格不足则整单失败+红字，不做半个），
+                            // 否则 SetHumUpStage 会因为「还穿着羽化装备」拒绝还原。
+                            string heroForce = param.Count > 0 ? param[0] : "";
+                            if (heroForce == "1" || heroForce.Equals("FORCE", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (!player.TryUnequipHeroHumUpEquipment()) break;
+                            }
+                            else if (hero.HasHumUpEquipmentEquipped())
+                            {
+                                // 非强制模式先提示，避免英雄自发的拒绝提示被 Enqueue 丢弃导致「点了没反应」
+                                player.ReceiveChat("你的英雄还穿着羽化专属装备，请先脱下英雄身上的羽化装备，再还原为未登仙", ChatType.System);
+                                break;
+                            }
+
+                            if (!hero.SetHumUpStage(0, player)) break;
+
+                            player.ReceiveChat("你的英雄羽化登仙已完全退回，已还原为未登仙", ChatType.System);
+                        }
+                        break;
+
                     case ActionType.AddToGuild:
                         {
                             if (player.MyGuild != null) return;
@@ -5141,6 +5800,130 @@ namespace Server.MirObjects
                             if (param == null || param.Count == 0 || string.IsNullOrWhiteSpace(param[0])) break;
 
                             NpcEquip(player, player, param[0], param.Count > 1 ? param[1] : string.Empty, false);
+                        }
+                        break;
+
+                    //★11-23 GIVEW [槽位|类型] / GIVEWHERO [槽位|类型]：自动穿戴。
+                    //  GIVEW 从本体背包穿到本体身上；GIVEWHERO 从英雄背包穿到英雄身上。
+                    //  无参 = 把背包里所有能穿的都穿上；参数 = 槽位（数字/槽名）或装备类型（ItemType 名）。
+                    //  指定槽位但被占用 = 拒绝+提示（不自动替换，保持可预测）。
+                    case ActionType.GiveW:
+                    case ActionType.GiveWHero:
+                        {
+                            bool forHero = act.Type == ActionType.GiveWHero;
+
+                            HumanObject wearTarget;
+                            MirGridType wearBag;
+                            if (forHero)
+                            {
+                                if (player.Hero == null || !player.HeroSpawned || player.Hero.Dead)
+                                {
+                                    player.ReceiveChat("英雄未召唤或已死亡，命令未执行", ChatType.System);
+                                    break;
+                                }
+                                wearTarget = player.Hero;
+                                wearBag = MirGridType.HeroInventory;
+                            }
+                            else
+                            {
+                                wearTarget = player;
+                                wearBag = MirGridType.Inventory;
+                            }
+
+                            string arg = param.Count > 0 ? param[0] : string.Empty;
+                            int fixedSlot;
+                            ItemType? typeFilter;
+                            if (!TryResolveSlotOrType(arg, out fixedSlot, out typeFilter))
+                            {
+                                player.ReceiveChat(string.Format("GIVEW 参数无效: {0}（可用槽位名/数字或装备类型名，留空=穿全部）", arg), ChatType.System);
+                                break;
+                            }
+
+                            int equipped = NpcGiveW(wearTarget, player, wearBag, typeFilter, fixedSlot, out string equipFail);
+                            if (equipped == 0)
+                            {
+                                player.ReceiveChat(equipFail, ChatType.System);
+                                break;
+                            }
+
+                            //同步（对齐 NpcEquip：本体 UserSlotsRefresh，英雄推全量英雄信息）
+                            if (forHero)
+                            {
+                                player.Hero.RefreshStats();
+                                player.Enqueue(new S.NewHeroInfo { Info = ((HeroInfo)player.Hero.Info).ClientInformation });
+                                player.ReceiveChat(equipped == 1 ? "英雄已穿上装备" : string.Format("英雄已穿上 {0} 件装备", equipped), ChatType.Hint);
+                            }
+                            else
+                            {
+                                SendPlayerSlotsRefresh(player);
+                                player.RefreshStats();
+                                player.RefreshAppearance();
+                                player.ReceiveChat(equipped == 1 ? "已穿上装备" : string.Format("已穿上 {0} 件装备", equipped), ChatType.Hint);
+                            }
+                        }
+                        break;
+
+                    //★11-23 TAKEW [槽位|类型] / TAKEWHERO [槽位|类型]：自动脱下。
+                    //  无参 = 全身脱光；参数 = 槽位（数字/槽名）或装备类型（ItemType 名）。
+                    //  背包空格不足 = 整单拒绝（一件都不脱）+红字；被诅咒/结婚戒指自动跳过并提示。
+                    case ActionType.TakeW:
+                    case ActionType.TakeWHero:
+                        {
+                            bool forHero = act.Type == ActionType.TakeWHero;
+
+                            HumanObject wearTarget;
+                            MirGridType bagGrid;
+                            if (forHero)
+                            {
+                                if (player.Hero == null || !player.HeroSpawned || player.Hero.Dead)
+                                {
+                                    player.ReceiveChat("英雄未召唤或已死亡，命令未执行", ChatType.System);
+                                    break;
+                                }
+                                wearTarget = player.Hero;
+                                bagGrid = MirGridType.HeroInventory;
+                            }
+                            else
+                            {
+                                wearTarget = player;
+                                bagGrid = MirGridType.Inventory;
+                            }
+
+                            string arg = param.Count > 0 ? param[0] : string.Empty;
+                            int fixedSlot;
+                            ItemType? typeFilter;
+                            if (!TryResolveSlotOrType(arg, out fixedSlot, out typeFilter))
+                            {
+                                player.ReceiveChat(string.Format("TAKEW 参数无效: {0}（可用槽位名/数字或装备类型名，留空=脱全身）", arg), ChatType.System);
+                                break;
+                            }
+
+                            var skipNotes = new List<string>();
+                            int removed = NpcTakeW(wearTarget, player, bagGrid, typeFilter, fixedSlot, skipNotes, out string takeFail);
+
+                            //跳过提示（诅咒/结婚戒指）——先说清楚为什么没脱干净
+                            foreach (string note in skipNotes)
+                                player.ReceiveChat(note, ChatType.System);
+
+                            if (removed == 0)
+                            {
+                                player.ReceiveChat(takeFail, ChatType.System);
+                                break;
+                            }
+
+                            if (forHero)
+                            {
+                                player.Hero.RefreshStats();
+                                player.Enqueue(new S.NewHeroInfo { Info = ((HeroInfo)player.Hero.Info).ClientInformation });
+                                player.ReceiveChat(removed == 1 ? "英雄已脱下装备" : string.Format("英雄已脱下 {0} 件装备", removed), ChatType.Hint);
+                            }
+                            else
+                            {
+                                SendPlayerSlotsRefresh(player);
+                                player.RefreshStats();
+                                player.RefreshAppearance();
+                                player.ReceiveChat(removed == 1 ? "已脱下装备" : string.Format("已脱下 {0} 件装备", removed), ChatType.Hint);
+                            }
                         }
                         break;
 

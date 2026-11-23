@@ -238,11 +238,14 @@ namespace Server.MirObjects
                 EXPOwner = null;
             }
 
+            //★11-23：RemoveAt 会把后面的元素前移到 i，不回退 i 就会跳过同一拍里下一个到期动作
+            //  （魔法/召唤结算平白延迟或丢一拍）。
             for (int i = 0; i < ActionList.Count; i++)
             {
                 if (Envir.Time < ActionList[i].Time) continue;
                 Process(ActionList[i]);
                 ActionList.RemoveAt(i);
+                i--;
             }
         }
 

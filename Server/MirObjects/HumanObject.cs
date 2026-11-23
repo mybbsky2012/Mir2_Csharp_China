@@ -5613,6 +5613,9 @@ namespace Server.MirObjects
 
             Pets.Add(monster);
 
+            //★11-23：这里仍先 Pets.Add（保留 500ms 内重复施法能找到旧分身的防重逻辑）；
+            //  若延迟落地失败，Map.CompleteMagic 的 Mirroring 分支会把它摘出列表。
+
             action = new DelayedAction(DelayedType.Magic, Envir.Time + 500, this, magic, monster, Front, false);
             CurrentMap.ActionList.Add(action);
         }
@@ -8859,6 +8862,15 @@ namespace Server.MirObjects
             };
         }
         protected virtual void UpdateLooks(short OldLooks_Weapon)
+        {
+            Broadcast(GetUpdateInfo());
+        }
+
+        /// <summary>
+        /// ★11-23：对外广播一次自身外观/装备信息。NPC 命令（GIVEW/TAKEW）改完装备后调用，
+        /// 让周围玩家立即看到新的武器/盔甲外观（原 GetUpdateInfo 是 protected，命令层够不着）。
+        /// </summary>
+        public void RefreshAppearance()
         {
             Broadcast(GetUpdateInfo());
         }

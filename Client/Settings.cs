@@ -5,10 +5,21 @@ namespace Client
 {
     class Settings
     {
-        public const long CleanDelay = 600000;
+        //★内存优化（11-20）：贴图闲置清理时间 10 分钟 → 3 分钟。
+        //  贴图是 Pool.Managed：显存一份 + 进程内存一份（驱动系统副本），任务管理器看到的占用大头就在这。
+        //  跑图/战斗接触过的怪、装备、特效帧全部挂满 10 分钟才释放，峰值虚高；
+        //  3 分钟已远超一次战斗/回城的时间，回头再看时重建单帧只多花几十毫秒，无感。
+        public const long CleanDelay = 180000;
 
         public static int ScreenWidth = 800, ScreenHeight = 600; //ScreenWidth = 1024, ScreenHeight = 768
-        private static InIReader Reader = new InIReader(@".\Mir2Config.ini");
+        //★修复（11-20）：原来用相对路径「.\Mir2Config.ini」= 当前工作目录——
+        //  快捷方式「起始位置」不对时，读写的根本不是游戏目录那份 ini（改 DebugMode 不生效的另一个真凶）。
+        //  现在锚定到 exe 所在目录，保证读的永远是 Client.exe 旁边的 Mir2Config.ini。
+        private static string ExeDir
+        {
+            get { return AppContext.BaseDirectory; }
+        }
+        private static InIReader Reader = new InIReader(Path.Combine(AppContext.BaseDirectory, "Mir2Config.ini"));
         private static InIReader QuestTrackingReader = new InIReader(Path.Combine(UserDataPath, @".\QuestTracking.ini"));
 
         private static bool _useTestConfig;
@@ -22,7 +33,7 @@ namespace Client
             {
                 if (value == true)
                 {
-                    Reader = new InIReader(@".\Mir2Test.ini");
+                    Reader = new InIReader(Path.Combine(AppContext.BaseDirectory, "Mir2Test.ini"));
                 }
                 _useTestConfig = value;
             }
@@ -373,7 +384,8 @@ namespace Client
 
         public static void Load()
         {
-            GameLanguage.LoadClientLanguage(@".\Language.ini");
+            //★11-23：锚定 exe 目录——快捷方式「起始位置」不对时 CWD 相对路径会读不到语言文件
+            GameLanguage.LoadClientLanguage(Path.Combine(AppContext.BaseDirectory, "Language.ini"));
 
             if (!Directory.Exists(DataPath)) Directory.CreateDirectory(DataPath);
             if (!Directory.Exists(MapPath)) Directory.CreateDirectory(MapPath);

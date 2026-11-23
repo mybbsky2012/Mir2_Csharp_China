@@ -1813,8 +1813,11 @@ namespace Server.MirEnvir
                 if (File.Exists(oldfilename + "o"))
                     File.Delete(oldfilename + "o");
             }
-            catch (Exception)
+            //★11-23：存档轮转失败必须留痕——原来空 catch 吞掉后，下一拍 File.Move 会因目标已存在再次失败，
+            //  公会数据从此停更且没有任何日志。
+            catch (Exception ex)
             {
+                MessageQueue.Enqueue("[公会存档轮转失败] " + ex.Message + " | " + (fStream?.Name ?? "?"));
             }
         }
 
@@ -1876,8 +1879,10 @@ namespace Server.MirEnvir
                 if (File.Exists(oldfilename + "o"))
                     File.Delete(oldfilename + "o");
             }
-            catch (Exception)
+            //★11-23：同公会存档，商品存档轮转失败必须留痕。
+            catch (Exception ex)
             {
+                MessageQueue.Enqueue("[商品存档轮转失败] " + ex.Message);
             }
         }
 
@@ -1912,9 +1917,10 @@ namespace Server.MirEnvir
                 if (File.Exists(oldfilename + "o"))
                     File.Delete(oldfilename + "o");
             }
-            catch (Exception)
+            //★11-23：同公会存档，攻城存档轮转失败必须留痕。
+            catch (Exception ex)
             {
-
+                MessageQueue.Enqueue("[攻城存档轮转失败] " + ex.Message);
             }
         }
 
@@ -1969,8 +1975,11 @@ namespace Server.MirEnvir
                     }
                 }
             }
-            catch (Exception)
+            //★11-23：账号存档失败绝不能静默——主档已先被 Move 进备份目录，
+            //  这里一旦失败，磁盘上唯一完整账号库只剩备份目录那份，必须立刻告警。
+            catch (Exception ex)
             {
+                MessageQueue.Enqueue("[账号存档失败！数据只在备份目录] " + ex.Message + " | " + (fStream?.Name ?? "?"));
             }
 
             Saving = false;

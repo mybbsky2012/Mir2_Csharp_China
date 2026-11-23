@@ -847,6 +847,7 @@ namespace Server.MirEnvir
                 if (Envir.Time < ActionList[i].Time) continue;
                 Process(ActionList[i]);
                 ActionList.RemoveAt(i);
+                i--;    //★11-23：RemoveAt 后必须回退，否则同拍下一个到期动作被跳过
             }
         }
 
@@ -911,13 +912,23 @@ namespace Server.MirEnvir
                 case DelayedType.Spawn:
                     MapObject obj = (MapObject)action.Params[0];
 
+                    if (obj == null) return;    //★11-23：Params[0] 判空（原来直接 obj.Race）
+
                     switch(obj.Race)
                     {
                         case ObjectType.Monster:
                             {
                                 MonsterObject mob = (MonsterObject)action.Params[0];
-                                mob.Spawn(this, (Point)action.Params[1]);
-                                if (action.Params.Length > 2) ((MonsterObject)action.Params[2]).SlaveList.Add(mob);
+                                //★11-23：Spawn 返回 false（落点不可走）= 没落地，
+                                //  不能收进主人 Pets / 召唤者 SlaveList，否则就是僵尸宠物。
+                                if (!mob.Spawn(this, (Point)action.Params[1])) break;
+
+                                //★11-23：怪物侧召唤（SepHighTaoist 九头蛇等）统一在落地成功后收编；
+                                //  野怪 Master 为 null 时是空操作，调用方不再提前 Pets.Add。
+                                mob.Master?.Pets.Add(mob);
+
+                                if (action.Params.Length > 2 && action.Params[2] is MonsterObject owner)
+                                    owner.SlaveList.Add(mob);
                             }
                             break;
                         case ObjectType.Spell:
@@ -1912,10 +1923,20 @@ namespace Server.MirEnvir
                         return;
                     };
 
-                    if (ValidPoint(front))
-                        monster.Spawn(this, front);
-                    else
-                        monster.Spawn(player.CurrentMap ?? this, player.CurrentLocation);
+                    //★11-23：分身术两个落点都不可走时 Spawn 返回 false，怪物身上没有 CurrentMap，
+                    //  留在 Pets 里就是僵尸宠物——落地失败必须从主人 Pets 摘出（施法侧为防重仍先加了列表）。
+                    bool mirrorSpawned = ValidPoint(front)
+                        ? monster.Spawn(this, front)
+                        : monster.Spawn(player.CurrentMap ?? this, player.CurrentLocation);
+
+                    if (!mirrorSpawned)
+                        mirrorSpawned = monster.Spawn(player.CurrentMap ?? this, player.CurrentLocation);
+
+                    if (!mirrorSpawned)
+                    {
+                        if (monster.Master != null) monster.Master.Pets.Remove(monster);
+                        monster.Master = null;
+                    }
                     break;
 
                 #endregion
